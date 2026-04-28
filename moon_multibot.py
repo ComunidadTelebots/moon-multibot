@@ -2416,8 +2416,21 @@ class MoonBot:
                 self.send_msg(cid, txt)
                 return True
 
-            if cmd == "/mute" and target_uid:
-                until = int(time.time()) + 3600 # 1 hora por defecto
+            if cmd == "/ban":
+                if not target_uid:
+                    self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje o indicar el ID del usuario para banear.")
+                    return True
+                self.kick_user(cid, target_uid)
+                st = db.get("ST_FILE", {"bans": []})
+                if target_uid not in st["bans"]: st["bans"].append(target_uid); db.set("ST_FILE", st)
+                self.send_msg(cid, f"🚫 **{target_name}** expulsado y baneado permanentemente.")
+                return True
+
+            if cmd == "/mute":
+                if not target_uid:
+                    self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje para silenciar al usuario.")
+                    return True
+                until = int(time.time()) + 3600
                 self.restrict_user(cid, target_uid, until=until, can_send=False)
                 muted = db.get(f"MUTED_{cid}", [])
                 if target_uid not in muted: muted.append(target_uid); db.set(f"MUTED_{cid}", muted)
@@ -2431,13 +2444,6 @@ class MoonBot:
                 self.send_msg(cid, f"🔊 **{target_name}** puede hablar de nuevo.")
                 return True
 
-            if cmd == "/ban" and target_uid:
-                self.kick_user(cid, target_uid)
-                st = db.get("ST_FILE", {"bans": []})
-                if target_uid not in st["bans"]: st["bans"].append(target_uid); db.set("ST_FILE", st)
-                self.send_msg(cid, f"🚫 **{target_name}** expulsado y baneado permanentemente.")
-                return True
-
             if cmd == "/unban" and target_uid:
                 self.api_call("unbanChatMember", {"chat_id": cid, "user_id": target_uid})
                 st = db.get("ST_FILE", {"bans": []})
@@ -2445,7 +2451,10 @@ class MoonBot:
                 self.send_msg(cid, f"✅ **{target_uid}** ha sido indultado.")
                 return True
 
-            if cmd == "/warn" and target_uid:
+            if cmd == "/warn":
+                if not target_uid:
+                    self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje para advertir al usuario.")
+                    return True
                 warns = db.get(f"WARNS_{cid}", {})
                 warns[target_uid] = warns.get(target_uid, 0) + 1
                 db.set(f"WARNS_{cid}", warns)
@@ -2813,6 +2822,12 @@ class MoonBot:
                     vistos = db.get("U_FILE", {})
                     vistos[cid] = {"last_seen": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "name": global_chat_names[cid]}
                     db.set("U_FILE", vistos)
+
+                    # PROCESAMIENTO DE COMANDOS (Si empieza por /)
+                    if text.startswith("/"):
+                        rk = self.get_user_rank(cid, uid)
+                        self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg)
+                        continue # NUNCA pasar un comando a la IA
 
                     # Anti-Link per Group
                     if "http" in (text or "").lower() and cfg.get("anti_link"):
