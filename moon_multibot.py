@@ -2400,6 +2400,59 @@ class MoonBot:
 
         # 3. Comandos de Configuración & Moderación (Admin/Master)
         if rk in ["Admin", "Master"]:
+            # Detectar si es una respuesta (Reply)
+            target_uid = arg_str if arg_str else (str(msg.get("reply_to_message", {}).get("from", {}).get("id", "")) if msg.get("reply_to_message") else None)
+            target_name = msg.get("reply_to_message", {}).get("from", {}).get("first_name", target_uid) if msg.get("reply_to_message") else target_uid
+
+            if cmd == "/settings":
+                c = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "ia_mood": "friendly"})
+                txt = f"⚙️ **CONFIGURACIÓN DEL NODO {cid}**\n\n"
+                txt += f"🧠 IA Learning: `{'✅ ON' if c.get('ia_learning') else '❌ OFF'}`\n"
+                txt += f"🛡️ Neural Shield: `{'✅ ON' if c.get('auto_mod') else '❌ OFF'}`\n"
+                txt += f"🎭 Mood: `{c.get('ia_mood', 'friendly')}`\n\n"
+                txt += "Usa el Dashboard para cambios avanzados."
+                self.send_msg(cid, txt)
+                return True
+
+            if cmd == "/mute" and target_uid:
+                until = int(time.time()) + 3600 # 1 hora por defecto
+                self.restrict_user(cid, target_uid, until=until, can_send=False)
+                muted = db.get(f"MUTED_{cid}", [])
+                if target_uid not in muted: muted.append(target_uid); db.set(f"MUTED_{cid}", muted)
+                self.send_msg(cid, f"🔇 **{target_name}** ha sido silenciado por 1 hora.")
+                return True
+
+            if cmd == "/unmute" and target_uid:
+                self.restrict_user(cid, target_uid, until=0, can_send=True)
+                muted = db.get(f"MUTED_{cid}", [])
+                if target_uid in muted: muted.remove(target_uid); db.set(f"MUTED_{cid}", muted)
+                self.send_msg(cid, f"🔊 **{target_name}** puede hablar de nuevo.")
+                return True
+
+            if cmd == "/ban" and target_uid:
+                self.kick_user(cid, target_uid)
+                st = db.get("ST_FILE", {"bans": []})
+                if target_uid not in st["bans"]: st["bans"].append(target_uid); db.set("ST_FILE", st)
+                self.send_msg(cid, f"🚫 **{target_name}** expulsado y baneado permanentemente.")
+                return True
+
+            if cmd == "/unban" and target_uid:
+                self.api_call("unbanChatMember", {"chat_id": cid, "user_id": target_uid})
+                st = db.get("ST_FILE", {"bans": []})
+                if target_uid in st["bans"]: st["bans"].remove(target_uid); db.set("ST_FILE", st)
+                self.send_msg(cid, f"✅ **{target_uid}** ha sido indultado.")
+                return True
+
+            if cmd == "/warn" and target_uid:
+                warns = db.get(f"WARNS_{cid}", {})
+                warns[target_uid] = warns.get(target_uid, 0) + 1
+                db.set(f"WARNS_{cid}", warns)
+                self.send_msg(cid, f"⚠️ **{target_name}**: Advertencia {warns[target_uid]}/3.")
+                if warns[target_uid] >= 3:
+                    self.kick_user(cid, target_uid)
+                    self.send_msg(cid, f"💀 **{target_name}** expulsado por acumulación de advertencias.")
+                return True
+
             if cmd == "/ia_feed":
                 feeder_groups = db.get("IA_FEEDERS", [])
                 if arg_str == "on":
@@ -2408,25 +2461,6 @@ class MoonBot:
                 elif arg_str == "off":
                     if cid in feeder_groups: feeder_groups.remove(cid); db.set("IA_FEEDERS", feeder_groups)
                     self.send_msg(cid, "✅ Modo alimentación IA desactivado.")
-                return True
-
-            if cmd == "/mute" and arg_str:
-                muted = db.get(f"MUTED_{cid}", [])
-                if arg_str not in muted: muted.append(arg_str); db.set(f"MUTED_{cid}", muted)
-                self.send_msg(cid, f"🔇 **{arg_str}** silenciado.")
-                return True
-
-            if cmd == "/unmute" and arg_str:
-                muted = db.get(f"MUTED_{cid}", [])
-                if arg_str in muted: muted.remove(arg_str); db.set(f"MUTED_{cid}", muted)
-                self.send_msg(cid, f"🔊 **{arg_str}** activo.")
-                return True
-
-            if cmd == "/warn" and arg_str:
-                warns = db.get(f"WARNS_{cid}", {})
-                warns[arg_str] = warns.get(arg_str, 0) + 1
-                db.set(f"WARNS_{cid}", warns)
-                self.send_msg(cid, f"⚠️ Advertencia {warns[arg_str]}/3 para {arg_str}.")
                 return True
 
             if cmd == "/resumen":
