@@ -13,36 +13,41 @@ class SeedIA:
     def __init__(self):
         self.brain_path = "data/moon_database.db"
         
-    def learn(self, text):
-        """Simula el aprendizaje de la IA nativa inyectando directamente en la DB."""
+    def learn(self, text, source="Wikipedia (IA Seed)"):
+        """Simula el aprendizaje de la IA nativa inyectando y registrando la fuente."""
         if not text or len(text) < 10: return
-        
-        # Limpieza básica
         text = text.replace("\n", " ").strip()
         
         try:
             conn = sqlite3.connect(self.brain_path)
             cursor = conn.cursor()
             
-            # Obtener el cerebro actual
+            # 1. Actualizar el cerebro
             cursor.execute("SELECT value FROM kv_store WHERE key='MOON_BRAIN'")
             res = cursor.fetchone()
             brain = json.loads(res[0]) if res else {"keywords": {}, "version": "1.0"}
             
-            # Algoritmo Markov Simple para inyección masiva
             words = text.split()
             for i in range(len(words) - 1):
                 w1, w2 = words[i].lower(), words[i+1].lower()
                 if w1 not in brain["keywords"]: brain["keywords"][w1] = {}
                 brain["keywords"][w1][w2] = brain["keywords"][w1].get(w2, 0) + 1
             
-            # Guardar cerebro
             cursor.execute("INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)", 
                          ("MOON_BRAIN", json.dumps(brain)))
+
+            # 2. Registrar en la lista de fuentes (Dashboard)
+            cursor.execute("SELECT value FROM kv_store WHERE key='IA_SOURCE_STATS'")
+            res_s = cursor.fetchone()
+            sources = json.loads(res_s[0]) if res_s else {}
+            sources[source] = sources.get(source, 0) + len(words)
+            cursor.execute("INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)", 
+                         ("IA_SOURCE_STATS", json.dumps(sources)))
+            
             conn.commit()
             conn.close()
         except Exception as e:
-            print(f"Error inyectando: {e}")
+            print(f"Error inyectando {source}: {e}")
 
     def fetch_wikipedia(self, topics):
         print(f"Conectando con Wikipedia API (ES)...")
@@ -56,7 +61,7 @@ class SeedIA:
                     extract = data.get("extract", "")
                     if extract:
                         print(f"OK Aprendiendo sobre: {topic}")
-                        self.learn(extract)
+                        self.learn(extract, source=f"Wikipedia: {topic.replace('_', ' ')}")
                 time.sleep(0.5) # Respetar rate limits
             except:
                 print(f"Error en tópico: {topic}")
