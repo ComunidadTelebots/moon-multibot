@@ -1617,6 +1617,20 @@ class MoonCoreIA:
         db.set("IA_MOOD", mood)
         add_web_log("INFO", f"Personalidad IA cambiada a: {mood.upper()}")
     
+    def load_brain(self):
+        """Recarga el cerebro desde la base de datos en caliente (Hot-Reload)."""
+        res = db.get("IA_BRAIN")
+        if res:
+            self.brain = res
+            # Convertir keywords a Counter para que la IA funcione correctamente
+            for k, v in self.brain["keywords"].items():
+                if not isinstance(v, Counter):
+                    self.brain["keywords"][k] = Counter(v) if isinstance(v, dict) else Counter()
+            self._sources_cache = db.get("IA_SOURCES", {})
+            add_web_log("IA", "Cerebro sincronizado con la base de datos (Hot-Reload OK).")
+            return True
+        return False
+
     def set_mode(self, mode):
         self.mode = mode
         db.set("IA_MODE", mode)
@@ -2432,21 +2446,21 @@ class MoonBot:
                 self.send_msg(cid, f"🔇 **{target_name}** ha sido silenciado por 1 hora.")
                 return True
 
-            if cmd == "/unmute" and target_uid:
+            if raw_cmd == "/unmute" and target_uid:
                 self.restrict_user(cid, target_uid, until=0, can_send=True)
                 muted = db.get(f"MUTED_{cid}", [])
                 if target_uid in muted: muted.remove(target_uid); db.set(f"MUTED_{cid}", muted)
                 self.send_msg(cid, f"🔊 **{target_name}** puede hablar de nuevo.")
                 return True
 
-            if cmd == "/unban" and target_uid:
+            if raw_cmd == "/unban" and target_uid:
                 self.api_call("unbanChatMember", {"chat_id": cid, "user_id": target_uid})
                 st = db.get("ST_FILE", {"bans": []})
                 if target_uid in st["bans"]: st["bans"].remove(target_uid); db.set("ST_FILE", st)
                 self.send_msg(cid, f"✅ **{target_uid}** ha sido indultado.")
                 return True
 
-            if cmd == "/warn":
+            if raw_cmd == "/warn":
                 if not target_uid:
                     self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje para advertir al usuario.")
                     return True
@@ -2459,7 +2473,7 @@ class MoonBot:
                     self.send_msg(cid, f"💀 **{target_name}** expulsado por acumulación de advertencias.")
                 return True
 
-            if cmd == "/ia_feed":
+            if raw_cmd == "/ia_feed":
                 feeder_groups = db.get("IA_FEEDERS", [])
                 if arg_str == "on":
                     if cid not in feeder_groups: feeder_groups.append(cid); db.set("IA_FEEDERS", feeder_groups)
@@ -2469,7 +2483,7 @@ class MoonBot:
                     self.send_msg(cid, "✅ Modo alimentación IA desactivado.")
                 return True
 
-            if cmd == "/resumen":
+            if raw_cmd == "/resumen":
                 hist = db.get("GLOBAL_HISTORY", [])
                 chat_msgs = [m for m in hist if str(m.get("cid")) == cid][-20:]
                 if chat_msgs:
@@ -2478,24 +2492,31 @@ class MoonBot:
                     self.send_msg(cid, f"📊 **Resumen IA:** {summary}")
                 return True
 
+            if raw_cmd == "/resync":
+                if rk != "Master": return False
+                self.send_msg(cid, "🧠 **SINCRONIZACIÓN:** Recargando memoria neuronal...")
+                ia_nativa.load_brain()
+                self.send_msg(cid, f"✅ **ÉXITO:** Memoria sincronizada. Ahora tengo {len(ia_nativa.brain.get('keywords',{}))} neuronas activas.")
+                return True
+
         # 4. Comandos Master
         if rk == "Master":
-            if cmd == "/listen":
+            if raw_cmd == "/listen":
                 global listen_mode
                 listen_mode = (arg_str == "on")
                 db.set("LISTEN_MODE", listen_mode)
                 self.send_msg(cid, f"{'🔇' if listen_mode else '🔊'} Modo escucha: {arg_str}")
                 return True
 
-            if cmd == "/backup_db":
+            if raw_cmd == "/backup_db":
                 db_path = "data/moon_database.db"
                 if os.path.exists(db_path): self.send_document(cid, db_path, "Backup DB")
                 return True
 
         # 5. Comandos de Texto Personalizados (S_FILE)
         s_file = db.get("S_FILE", {})
-        if cmd[1:] in s_file:
-            self.send_msg(cid, s_file[cmd[1:]]["text"])
+        if raw_cmd[1:] in s_file:
+            self.send_msg(cid, s_file[raw_cmd[1:]]["text"])
             return True
 
         return False

@@ -23,7 +23,7 @@ class SeedIA:
             cursor = conn.cursor()
             
             # 1. Actualizar el cerebro
-            cursor.execute("SELECT value FROM kv_store WHERE key='MOON_BRAIN'")
+            cursor.execute("SELECT value FROM kv_store WHERE key='IA_BRAIN'")
             res = cursor.fetchone()
             brain = json.loads(res[0]) if res else {"keywords": {}, "version": "1.0"}
             
@@ -34,7 +34,7 @@ class SeedIA:
                 brain["keywords"][w1][w2] = brain["keywords"][w1].get(w2, 0) + 1
             
             cursor.execute("INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)", 
-                         ("MOON_BRAIN", json.dumps(brain)))
+                         ("IA_BRAIN", json.dumps(brain)))
 
             # 2. Registrar en la lista de fuentes (Dashboard)
             cursor.execute("SELECT value FROM kv_store WHERE key='IA_SOURCE_STATS'")
