@@ -2453,6 +2453,16 @@ class MoonBot:
                     self.send_msg(cid, f"💀 **{target_name}** expulsado por acumulación de advertencias.")
                 return True
 
+            if cmd == "/ia_feed":
+                feeder_groups = db.get("IA_FEEDERS", [])
+                if arg_str == "on":
+                    if cid not in feeder_groups: feeder_groups.append(cid); db.set("IA_FEEDERS", feeder_groups)
+                    self.send_msg(cid, "📡 Modo alimentación IA activado.")
+                elif arg_str == "off":
+                    if cid in feeder_groups: feeder_groups.remove(cid); db.set("IA_FEEDERS", feeder_groups)
+                    self.send_msg(cid, "✅ Modo alimentación IA desactivado.")
+                return True
+
             if cmd == "/resumen":
                 hist = db.get("GLOBAL_HISTORY", [])
                 chat_msgs = [m for m in hist if str(m.get("cid")) == cid][-20:]
