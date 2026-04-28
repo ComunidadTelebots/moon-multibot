@@ -394,7 +394,18 @@ def web_telegram_file_proxy(file_id):
 def web_send():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     d = request.json
-    proxy_bot.send_msg(d["target"], d["text"])
+    target, text = str(d["target"]), d["text"]
+    bot = active_bots[0]
+    
+    # Si el mensaje es un comando, procesarlo internamente
+    if text.startswith("/"):
+        add_web_log("ADMIN", f"Comando remoto ejecutado desde Dashboard: {text}")
+        # Simulamos un objeto de mensaje mínimo para el procesador
+        fake_msg = {"chat": {"id": target}, "message_id": 0}
+        bot.process_command(target, str(MASTER_ID), "Admin Console", text, "Master", 0, fake_msg)
+    else:
+        bot.send_msg(target, text)
+    
     return jsonify({"ok": True})
 
 @app.route("/api/replies", methods=['GET', 'POST', 'DELETE'])
