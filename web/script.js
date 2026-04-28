@@ -422,6 +422,7 @@ function quickAction(uid, type, name) {
     })
     .then(r => r.json()).then(data => {
         if(data.ok) {
+            Swal.close(); // Cerrar carga si existe
             showToast("✅ Éxito", `${name} ha sido procesado.`);
             fetchChatHistory();
         } else {
@@ -444,10 +445,16 @@ function fetchChatHistory() {
             const bubbleClass = isBot ? 'right' : 'left';
             const senderColor = isBot ? '#fff' : (m.sender === 'Sistema' ? '#f59e0b' : '#38bdf8');
             
-            // Lógica de Trust Score
+            // Lógica de Trust Score y Estados
             const score = m.trust_score || 50;
             const scoreColor = score > 80 ? '#10b981' : (score > 40 ? '#f59e0b' : '#ef4444');
-            const scoreText = isBot ? "" : `<span class="trust-badge" style="background: ${scoreColor}22; color: ${scoreColor}; border: 1px solid ${scoreColor}44;">${score}% Trust</span>`;
+            
+            let statusTags = "";
+            if(data.banned_users && data.banned_users.includes(m.uid)) statusTags += `<span class="status-tag banned" style="font-size:8px; margin-left:5px;">BANNED</span>`;
+            if(data.muted_users && data.muted_users.includes(m.uid)) statusTags += `<span class="status-tag muted" style="font-size:8px; margin-left:5px;">MUTED</span>`;
+            if(data.warns && data.warns[m.uid]) statusTags += `<span class="status-tag warns" style="font-size:8px; margin-left:5px; background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44;">${data.warns[m.uid]}/3 WARNS</span>`;
+
+            const scoreText = isBot ? "" : `<span class="trust-badge" style="background: ${scoreColor}22; color: ${scoreColor}; border: 1px solid ${scoreColor}44;">${score}% Trust</span> ${statusTags}`;
 
             // Burbujas de acciones recomendadas (Solo para mensajes de otros usuarios)
             let actionsHtml = "";

@@ -351,6 +351,7 @@ def web_history():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     cid = request.args.get("chat_id")
     if not cid: return jsonify({"ok": False, "history": []})
+    
     hist = global_chat_history.get(cid, [])
     
     # Enriquecer historial con Trust Score calculado en tiempo real
@@ -365,7 +366,13 @@ def web_history():
         m_copy["trust_score"] = score
         enriched_history.append(m_copy)
         
-    return jsonify({"ok": True, "history": enriched_history})
+    return jsonify({
+        "ok": True, 
+        "history": enriched_history,
+        "warns": db.get(f"WARNS_{cid}", {}),
+        "muted_users": db.get(f"MUTED_{cid}", []),
+        "banned_users": db.get("ST_FILE", {}).get("bans", [])
+    })
 
 @app.route("/api/telegram/file/<file_id>")
 def web_telegram_file_proxy(file_id):
@@ -544,8 +551,18 @@ def web_user_stats():
 def web_user_ban():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     u = str(request.json.get("uid"))
+    cid = request.json.get("cid")
     st = db.get("ST_FILE", {"bans": []})
-    if u not in st["bans"]: st["bans"].append(u); db.set("ST_FILE", st)
+    if u not in st["bans"]: 
+        st["bans"].append(u)
+        db.set("ST_FILE", st)
+    
+    # Expulsar de inmediato si se proporciona CID
+    if cid:
+        try:
+            active_bots[0].kick_user(cid, u)
+            add_web_log("SECURITY", f"Usuario {u} expulsado tras baneo manual.")
+        except: pass
     return jsonify({"ok": True})
 
 @app.route("/api/ping")
