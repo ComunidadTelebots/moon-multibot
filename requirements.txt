@@ -11,3 +11,5 @@ paramiko
 speechrecognition
 pytesseract
 Pillow
+waitress
+gunicorn

@@ -2888,5 +2888,10 @@ if __name__ == "__main__":
     
     add_web_log("INFO", f"🚀 Moon Multibot Core listo ({MOON_ENV.upper()}). Iniciando Dashboard...")
     PORT = 5001 if MOON_ENV == "dev" else 5000
-    DEBUG_FLASK = True if MOON_ENV == "dev" else False
-    app.run(host="0.0.0.0", port=PORT, debug=DEBUG_FLASK)
+    
+    if MOON_ENV == "dev":
+        app.run(host="0.0.0.0", port=PORT, debug=True)
+    else:
+        from waitress import serve
+        print(f"[*] SERVIDOR DE PRODUCCIÓN ACTIVO (Waitress) en puerto {PORT}")
+        serve(app, host="0.0.0.0", port=PORT, threads=6)
