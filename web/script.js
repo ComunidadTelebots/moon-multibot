@@ -1,5 +1,5 @@
-// --- Moon Multibot v16.13.0 - Clean Neural Logic ---
-console.log("Moon Multibot Core v16.13.0 Loaded");
+// --- Moon Multibot v16.14.0 - Clean Neural Logic ---
+console.log("Moon Multibot Core v16.14.0 Loaded");
 
 let authToken = localStorage.getItem('moon_token') || "";
 if (authToken && !authToken.startsWith('Bearer ')) {
