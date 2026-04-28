@@ -2329,7 +2329,9 @@ class MoonBot:
     def get_member(self, cid, uid):
         return self.api_call("getChatMember", {"chat_id": cid, "user_id": uid})
     def get_user_rank(self, cid, uid):
-        if str(uid) == str(MASTER_ID): return "Master"
+        uid_str = str(uid).strip()
+        master_str = str(MASTER_ID).strip()
+        if uid_str == master_str: return "Master"
         # Usar caché para evitar Rate Limits (1 hora de validez)
         cache_key = f"ADMINS_{cid}"
         admins_cached = db.get(cache_key, [])
@@ -2356,11 +2358,11 @@ class MoonBot:
         arg_str = " ".join(args)
         
         # 2. Comandos Públicos / Globales
-        if cmd == "/start":
+        if cmd in ["/start", "/inicio"]:
             self.send_msg(cid, f"🌙 **Moon Multibot Activo**\n\nHola {uname}, el núcleo está operando con normalidad. Usa `/ayuda` para ver mis capacidades.")
             return True
         
-        if cmd == "/ayuda":
+        if cmd in ["/ayuda", "/comandos", "/help"]:
             help_text = "📖 **MANUAL DE OPERACIONES MOON**\n\n"
             help_text += "✨ **General:** `/perfil`, `/top`, `/notas`, `/search`\n"
             if rk in ["Admin", "Master"]:
