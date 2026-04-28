@@ -6,8 +6,9 @@ from collections import Counter
 load_dotenv()
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", "moon")
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
+MOON_ENV = os.getenv("MOON_ENV", "prod").lower()
+MOON_ROLE = os.getenv("MOON_ROLE", "master").lower()
 MASTER_ID = int(os.getenv("MASTER_ID", 0))
-MOON_ENV = os.getenv("MOON_ENV", "stable").lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
 
@@ -466,6 +467,42 @@ def web_system_update():
         res = subprocess.run([git_path, "pull", "origin", "master"], capture_output=True, text=True)
         add_web_log("SUCCESS", "Sistema actualizado correctamente desde GitHub.")
         return jsonify({"ok": True, "output": res.stdout})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/system/processes", methods=['GET'])
+def web_system_processes():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    procs = []
+    current_pid = os.getpid()
+    try:
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'create_time', 'cpu_percent', 'memory_info']):
+            cmd = proc.info.get('cmdline') or []
+            if any("moon_multibot.py" in s for s in cmd):
+                is_slave = "--slave" in str(cmd) or "slave" in str(cmd).lower()
+                procs.append({
+                    "pid": proc.info['pid'],
+                    "is_self": proc.info['pid'] == current_pid,
+                    "role": "slave" if is_slave else "master",
+                    "uptime": time.time() - proc.info['create_time'],
+                    "cpu": proc.info['cpu_percent'],
+                    "mem": proc.info['memory_info'].rss / (1024 * 1024)
+                })
+        return jsonify({"ok": True, "processes": procs})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/system/kill", methods=['POST'])
+def web_system_kill():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    target_pid = request.json.get("pid")
+    if not target_pid or target_pid == os.getpid():
+        return jsonify({"ok": False, "msg": "No se puede suicidar la instancia actual."})
+    try:
+        p = psutil.Process(target_pid)
+        p.terminate()
+        add_audit_log(f"Instancia zombie (PID {target_pid}) eliminada manualmente.")
+        return jsonify({"ok": True, "msg": f"Proceso {target_pid} eliminado."})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 

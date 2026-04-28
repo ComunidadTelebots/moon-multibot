@@ -2080,3 +2080,54 @@ window.loadSettings = function() {
     originalLoadSettings();
     setTimeout(checkSystemUpdate, 500);
 };
+
+// --- Process Management ---
+function fetchMoonProcesses() {
+    if(!authToken) return;
+    const list = document.getElementById("processList");
+    if(!list) return;
+
+    fetch('/api/system/processes', { headers: { 'Authorization': authToken } })
+    .then(r => r.json()).then(data => {
+        if(data.ok) {
+            list.innerHTML = data.processes.map(p => `
+                <div class="process-card ${p.is_self ? 'self' : 'zombie'}">
+                    <div class="proc-info">
+                        <b>PID: ${p.pid}</b> ${p.is_self ? '<span style="color: var(--success); font-size: 9px; margin-left: 5px;">(ESTA INSTANCIA)</span>' : ''}
+                        <span class="badge-role role-${p.role}">${p.role.toUpperCase()}</span>
+                        <br>
+                        <small>CPU: ${p.cpu.toFixed(1)}% | MEM: ${p.mem.toFixed(1)} MB | UPTIME: ${Math.floor(p.uptime/60)} min</small>
+                    </div>
+                    ${!p.is_self ? `<button onclick="killMoonProcess(${p.pid})" class="btn-mini-wide" style="background: rgba(239,68,68,0.1); border-color: var(--danger); color: var(--danger); font-size: 9px; padding: 5px 10px; width:auto;">ELIMINAR ZOMBIE</button>` : ''}
+                </div>
+            `).join("");
+        } else {
+            list.innerHTML = `<div style="color: var(--danger); padding: 10px;">Error: ${data.error}</div>`;
+        }
+    });
+}
+
+function killMoonProcess(pid) {
+    if(!confirm("¿Seguro que quieres matar el proceso " + pid + "?")) return;
+    fetch('/api/system/kill', {
+        method: 'POST',
+        headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pid: pid })
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("💀 Eliminado", data.msg);
+            fetchMoonProcesses();
+        } else {
+            showToast("❌ Error", data.msg || data.error);
+        }
+    });
+}
+
+// Hook into diagnostics tab load
+const originalSwitchTab = typeof switchTab === 'function' ? switchTab : null;
+if (originalSwitchTab) {
+    window.switchTab = function(tabId, btn) {
+        originalSwitchTab(tabId, btn);
+        if(tabId === 'diagnostics') setTimeout(fetchMoonProcesses, 500);
+    };
+}
