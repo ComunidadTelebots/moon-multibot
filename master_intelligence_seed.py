@@ -67,17 +67,24 @@ TOPICS = [
     "Ciencia", "Tecnología", "Filosofía", "Psicología", "Criptografía",
     "Física_cuántica", "Biología", "Astronáutica", "Derecho_romano",
     "Revolución_Industrial", "Renacimiento", "Arquitectura", "Cine",
-    "Literatura", "Medicina", "Economía", "Sociología", "Matemáticas"
+    "Literatura", "Medicina", "Economía", "Sociología", "Matemáticas",
+    "Astronomía", "Geografía", "Derecho_Constitucional", "Historia_Universal",
+    "Arte_contemporáneo", "Mitología_griega", "Ecología", "Nanotecnología",
+    "Energías_renovables", "Exploración_espacial", "Inteligencia_emocional"
 ]
 
-# Patrones de Conversación (Humanizar)
+# Patrones de Conversación (Humanizar y Profesionalizar)
 CONVERSATIONS = [
     "Hola, ¿cómo estás hoy? Yo estoy operando al cien por cien de mis capacidades neuronales.",
     "Entiendo perfectamente lo que dices, es un punto de vista muy interesante sobre el tema.",
     "Claro que sí, puedo ayudarte con eso de inmediato. ¿Qué necesitas exactamente?",
     "Me parece una idea genial, deberíamos profundizar más en ese concepto en el futuro.",
     "Vaya, no lo había visto de esa forma. Siempre estoy aprendiendo de nuestras interacciones.",
-    "Gracias por compartir eso conmigo. Mi base de datos se vuelve más rica con cada mensaje."
+    "Gracias por compartir eso conmigo. Mi base de datos se vuelve más rica con cada mensaje.",
+    "Como asistente inteligente, mi prioridad es proporcionarte información precisa y útil.",
+    "La complejidad de este tema requiere un análisis detallado, pero aquí tienes un resumen.",
+    "Estoy procesando la información en mis núcleos neuronales para darte la mejor respuesta.",
+    "Es un honor servirte. ¿Hay algo más en lo que pueda asistir al grupo hoy?"
 ]
 
 if __name__ == "__main__":
