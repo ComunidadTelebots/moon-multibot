@@ -444,7 +444,7 @@ def web_plugins_reload():
 @app.route("/api/system/update", methods=['GET', 'POST'])
 def web_system_update():
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    git_path = "C:\\Program Files\\Git\\bin\\git.exe"
+    git_path = "git" if os.name != 'nt' else "C:\\Program Files\\Git\\bin\\git.exe"
     
     if request.method == 'GET':
         # Comprobar actualizaciones
@@ -2806,7 +2806,7 @@ class MoonBot:
 
                     # --- PROCESAMIENTO DE COMANDOS (PRIORIDAD ALTA) ---
                     if text.startswith("/"):
-                        if self.process_command(cid, uid, uname, text, rk, msg["message_id"]):
+                        if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
                             continue
                         
                         # Intentar procesar plugins
