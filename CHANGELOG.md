@@ -1,37 +1,30 @@
 # Changelog - Moon Multibot
 
-## [v16.14.0] - 2026-04-27
-### 🔥 Novedades Premium y Globalización
-- **Plataforma de Traducción Centralizada (i18n)**: 
-  - Soporte multi-idioma nativo (ES, EN, FR, DE, IT, PT).
-  - Motor de traducción dinámica en tiempo real para todo el dashboard.
-  - **IA Translator**: Capacidad de la IA para generar automáticamente traducciones de la interfaz a nuevos idiomas.
-- **Telegram Business Automation (Chatbots)**:
-  - Soporte nativo para actuar en nombre de cuentas personales/empresa.
-  - **Auto-Greetings**: Mensajes de bienvenida automáticos para nuevos clientes.
-  - **Away Mode**: Respuestas automáticas fuera de horario o disponibilidad.
-  - **Quick Replies**: Gestión de atajos de teclado para respuestas rápidas.
-  - **IA Business Agent**: Delegación de respuestas a la IA en chats de Business.
-- **Gestor de Proxies MTProto**:
-  - Panel dedicado para desplegar y monitorizar nodos de proxy propios.
-  - Telemetría en tiempo real: Conexiones activas, tráfico (Upload/Download) y estado del proceso.
-  - Control de ciclo de vida: Start/Stop/Remove de nodos desde la web.
-- **Centro de Seguridad & VirusTotal**:
-  - Nueva pestaña de Seguridad para auditoría de amenazas.
-  - Integración con API de VirusTotal para análisis de hashes en tiempo real.
-  - Monitor de límites de API (Free Tier) y registro de incidentes.
-- **Ajustes Locales por Nodo (Per-Group Config)**:
-  - **IA Moods**: Selección de personalidad por grupo (Amigable, Serio, Sarcástico, Agresivo).
-  - **Anti-Link**: Sistema de bloqueo de enlaces externos configurable.
-  - **Anti-Flood**: Protección automática contra spam (silencio automático).
-  - **Clean Join**: Auto-borrado de mensajes de servicio de entrada de usuarios.
-- **Rediseño Premium UI**:
-  - Nuevos **Designed Selectors** (estilo iOS) con efectos de brillo y animaciones.
-  - Sidebar de ajustes nodal optimizada y persistente.
-- **Motor Universal Telegram API**: 
-  - Integración completa de la Bot API. Soporte para llamadas RAW y parámetros JSON desde el Dashboard.
-  - Nueva pestaña **Terminal Universal** para ejecución de comandos en caliente.
-- **Herramientas Admin**: Comandos `/pin`, `/title`, `/kick`, `/mute`, `/promote`, `/demote`.
+## [v16.14.0] - 2026-04-28
+### 🔥 Novedades Premium, Moderación y Auto-Gestión
+- **Sistema de Actualización Inteligente (CI/CD)**: 
+  - Integración nativa de **Git dentro de Docker**.
+  - Panel de actualización en un clic desde el Dashboard.
+  - Detección automática de versiones y commits en tiempo real.
+- **Moderación Avanzada en Grupos (Telegram Nativo)**:
+  - **Soporte para Reply (Respuestas)**: Comandos `/ban`, `/mute`, `/warn` ahora funcionan respondiendo a mensajes del usuario.
+  - **Órdenes de Ejecución Real**: El bot ahora expulsa, banea y restringe permisos de forma real en la API de Telegram.
+  - **Comando `/settings` de Grupo**: Consulta de configuración de seguridad y estado de IA directamente desde el chat.
+  - **Alias de Comandos**: Soporte para `/comandos`, `/help`, `/inicio` e ignorancia de mayúsculas.
+- **Mejoras de Telemetría en Chat Web**:
+  - **Etiquetas de Estado en Vivo**: Identificación visual inmediata de usuarios `BANNED`, `MUTED` o con `WARNS` activos en el historial.
+  - **Remote Command Console**: Capacidad de ejecutar comandos de sistema directamente desde el chat del Dashboard.
+  - **Feedback Visual de Acciones**: Toasts y confirmaciones interactivas tras ejecutar acciones rápidas.
+- **Seguridad e IA (Robustez)**:
+  - **IA Command Shield**: Blindaje total que impide a la IA responder a mensajes que empiecen por `/`.
+  - **Dynamic Permission Refresh**: Reducción de la caché de admins a 5 minutos para reconocer cambios de rango al instante.
+  - **Blindaje de MASTER_ID**: Limpieza y validación estricta del ID de administrador para control absoluto.
+- **Docker & Infraestructura**:
+  - Mapeo de volúmenes para persistencia de Git y actualizaciones persistentes.
+  - Corrección de dependencias críticas (`psutil`) y optimización de hilos de arranque.
+- **Plataforma de Traducción Centralizada (i18n)**: Soporte multi-idioma nativo (ES, EN, FR, DE, IT, PT) con motor de traducción dinámica.
+- **Telegram Business Automation**: Soporte para Greetings, Away Mode y IA Business Agent.
+- **Gestor de Proxies MTProto**: Panel dedicado para despliegue y telemetría de nodos proxy.
 
 ## [v16.13.0] - 2026-04-27 (The Architecture & Stability Update) 🏗️🚀🛡️⚡
 
