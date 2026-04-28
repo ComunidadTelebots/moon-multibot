@@ -438,10 +438,36 @@ def web_plugins_upload():
 def web_plugins_reload():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     add_web_log("INFO", "Recargando plugins...")
-    # Lógica de recarga (simulada o vía importlib)
-    # En este bot, los plugins parecen ser cargados al inicio o por procesos externos.
-    # Forzamos un reinicio suave si es necesario o simplemente logueamos.
     return jsonify({"ok": True, "msg": "Señal de recarga enviada."})
+
+@app.route("/api/system/update", methods=['GET', 'POST'])
+def web_system_update():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    git_path = "C:\\Program Files\\Git\\bin\\git.exe"
+    
+    if request.method == 'GET':
+        # Comprobar actualizaciones
+        try:
+            subprocess.run([git_path, "fetch"], timeout=15)
+            res = subprocess.run([git_path, "status", "-uno"], capture_output=True, text=True)
+            behind = "Your branch is behind" in res.stdout
+            return jsonify({
+                "ok": True, 
+                "behind": behind, 
+                "status": res.stdout,
+                "current_commit": subprocess.check_output([git_path, "rev-parse", "--short", "HEAD"]).decode().strip()
+            })
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)})
+
+    # Aplicar actualización (POST)
+    try:
+        add_audit_log("Actualización del sistema iniciada desde GitHub")
+        res = subprocess.run([git_path, "pull", "origin", "master"], capture_output=True, text=True)
+        add_web_log("SUCCESS", "Sistema actualizado correctamente desde GitHub.")
+        return jsonify({"ok": True, "output": res.stdout})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/api/settings", methods=['GET', 'POST'])
 def web_settings_legacy():

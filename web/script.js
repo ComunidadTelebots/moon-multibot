@@ -2020,3 +2020,63 @@ setInterval(() => {
     if(window.MOON_CONFIG.currentTab === 'business') loadBusinessTab(); 
     if(window.MOON_CONFIG.currentTab === 'proxies') loadProxiesTab();
 }, 5000);
+
+// --- GitHub Update System ---
+function checkSystemUpdate() {
+    if(!authToken) return;
+    const commitEl = document.getElementById("currentCommit");
+    const remoteEl = document.getElementById("remoteStatusText");
+    const applyBtn = document.getElementById("applyUpdateBtn");
+
+    if(commitEl) commitEl.innerText = "Consultando...";
+    if(remoteEl) remoteEl.innerText = "Sincronizando con GitHub...";
+
+    fetch('/api/system/update', { headers: { 'Authorization': authToken } })
+    .then(r => r.json()).then(data => {
+        if(data.ok) {
+            if(commitEl) commitEl.innerText = data.current_commit || "Unknown";
+            if(data.behind) {
+                if(remoteEl) {
+                    remoteEl.innerText = "🚀 NUEVA VERSIÓN DISPONIBLE EN GITHUB";
+                    remoteEl.style.color = "#3b82f6";
+                }
+                if(applyBtn) applyBtn.style.display = "block";
+                showToast("🚀 Actualización", "Hay una nueva versión disponible en el repositorio.");
+            } else {
+                if(remoteEl) {
+                    remoteEl.innerText = "✅ El sistema está actualizado.";
+                    remoteEl.style.color = "#10b981";
+                }
+                if(applyBtn) applyBtn.style.display = "none";
+            }
+        } else {
+            if(remoteEl) remoteEl.innerText = "❌ Error: " + data.error;
+            showToast("❌ Git Error", data.error);
+        }
+    });
+}
+
+function applySystemUpdate() {
+    if(!confirm("¿Estás seguro de que deseas actualizar el sistema? Se realizará un 'git pull' y podrías necesitar reiniciar el bot manualmente.")) return;
+    
+    showToast("⚙️ Actualizando", "Descargando cambios desde GitHub...");
+    fetch('/api/system/update', { 
+        method: 'POST',
+        headers: { 'Authorization': authToken }
+    })
+    .then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("✅ Éxito", "Sistema actualizado. Reiniciando módulos...");
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast("❌ Error", data.error);
+        }
+    });
+}
+
+// Ensure settings loads with update check
+const originalLoadSettings = typeof loadSettings === 'function' ? loadSettings : () => {};
+window.loadSettings = function() {
+    originalLoadSettings();
+    setTimeout(checkSystemUpdate, 500);
+};

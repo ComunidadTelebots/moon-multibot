@@ -139,6 +139,25 @@ fi
 # Ejecutar migración automática antes de arrancar
 run_migration
 
+# 2. Comprobación de actualizaciones de Git (Opcional)
+if command -v git &>/dev/null; then
+    echo "🚀 Comprobando actualizaciones en GitHub..."
+    git fetch origin master &>/dev/null
+    BEHIND=$(git status -uno | grep "Your branch is behind")
+    if [ ! -z "$BEHIND" ]; then
+        echo "⚠️  NUEVA VERSIÓN DETECTADA. Ejecuta 'bash start.sh update' para actualizar."
+    else
+        echo "✅ El sistema está al día."
+    fi
+fi
+
+if [ "$1" == "update" ]; then
+    echo "🔄 Actualizando desde el repositorio oficial..."
+    git pull origin master
+    echo "✅ Sistema actualizado. Reiniciando..."
+    exit 0
+fi
+
 # Bucle infinito para auto-reiniciar el bot
 while true; do
     echo "[*] Lanzando Moon Multibot..."
