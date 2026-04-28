@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,8 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/1041/1041916.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --primary: #8b5cf6;
@@ -18,10 +20,13 @@
         }
     </style>
 </head>
+
 <body class="theme-moon">
     <!-- Fondo decorativo (Neón) -->
     <div class="background-glow"></div>
-    <div class="background-glow" style="top: 60%; left: 70%; background: radial-gradient(circle, rgba(56,189,248,0.1) 0%, rgba(15,23,42,0) 70%);"></div>
+    <div class="background-glow"
+        style="top: 60%; left: 70%; background: radial-gradient(circle, rgba(56,189,248,0.1) 0%, rgba(15,23,42,0) 70%);">
+    </div>
 
     <!-- Matrix Background Container -->
     <div id="matrix-container"></div>
@@ -30,9 +35,11 @@
     <div id="loginScreen" class="login-overlay">
         <div class="glass-panel login-box">
             <div class="moon-logo" style="font-size: 50px; margin-bottom: 20px;">🌙</div>
-            <h2 style="font-size: 28px; font-weight: 800; letter-spacing: -1px;"><span data-i18n="login_title">MOON CORE</span></h2>
+            <h2 style="font-size: 28px; font-weight: 800; letter-spacing: -1px;"><span data-i18n="login_title">MOON
+                    CORE</span></h2>
             <p data-i18n="login_subtitle">Acceso restringido al Núcleo Neuronal</p>
-            <input type="password" id="authKey" data-i18n="login_placeholder" placeholder="Llave Maestra..." onkeyup="if(event.key==='Enter') login()" style="text-align: center; letter-spacing: 4px;">
+            <input type="password" id="authKey" data-i18n="login_placeholder" placeholder="Llave Maestra..."
+                onkeyup="if(event.key==='Enter') login()" style="text-align: center; letter-spacing: 4px;">
             <div id="loginError" class="error-msg"></div>
             <button onclick="login()" data-i18n="login_btn">INGRESAR</button>
         </div>
@@ -46,16 +53,18 @@
                     <div class="logo-area">
                         <span class="moon-icon">🌙</span>
                         <div class="logo-text">
-                            <h1>MOON <span class="version-tag">v16.15.0</span></h1>
-                            <p class="status-indicator"><span class="status-dot online"></span> <span data-i18n="status_online">SISTEMA ACTIVO</span></p>
+                            <h1>MOON <span class="version-tag">v16.14.0</span></h1>
+                            <p class="status-indicator"><span class="status-dot online"></span> <span
+                                    data-i18n="status_online">SISTEMA ACTIVO</span></p>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="header-center">
                     <div class="search-wrapper">
                         <i class="search-icon">🔍</i>
-                        <input type="text" id="globalSearch" data-i18n="search_placeholder" placeholder="Buscar en el núcleo..." onkeyup="handleGlobalSearch(event)">
+                        <input type="text" id="globalSearch" data-i18n="search_placeholder"
+                            placeholder="Buscar en el núcleo..." onkeyup="handleGlobalSearch(event)">
                         <div id="searchSuggestions" class="search-results-dropdown"></div>
                     </div>
                 </div>
@@ -141,7 +150,9 @@
                     <div class="step-info">
                         <label>ANÁLISIS NEURONAL</label>
                         <p id="neural-status">Iniciando escaneo de sinapsis...</p>
-                        <div class="mini-progress"><div id="neural-bar" style="width: 10%;"></div></div>
+                        <div class="mini-progress">
+                            <div id="neural-bar" style="width: 10%;"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="audit-live-step" id="step-cas">
@@ -177,4 +188,5 @@
     <script src="script.js?v=1680"></script>
     <script src="i18n.js"></script>
 </body>
+
 </html>

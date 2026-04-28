@@ -1,5 +1,28 @@
 # Changelog - Moon Multibot
 
+## [v16.15.0] - 2026-04-28
+### 🚀 Auto-Gestión y Moderación de Élite
+- **Sistema de Actualización Inteligente (CI/CD)**: 
+  - Integración nativa de **Git dentro de Docker**.
+  - Panel de actualización en un clic desde el Dashboard.
+  - Detección automática de versiones y commits en tiempo real.
+- **Moderación Avanzada en Grupos (Telegram Nativo)**:
+  - **Soporte para Reply (Respuestas)**: Comandos `/ban`, `/mute`, `/warn` ahora funcionan respondiendo a mensajes del usuario.
+  - **Órdenes de Ejecución Real**: El bot ahora expulsa, banea y restringe permisos de forma real en la API de Telegram.
+  - **Comando `/settings` de Grupo**: Consulta de configuración de seguridad y estado de IA directamente desde el chat.
+  - **Alias de Comandos**: Soporte para `/comandos`, `/help`, `/inicio`.
+- **Mejoras de Telemetría en Chat Web**:
+  - **Etiquetas de Estado en Vivo**: Identificación visual inmediata de usuarios `BANNED`, `MUTED` o con `WARNS` activos en el historial.
+  - **Remote Command Console**: Capacidad de ejecutar comandos de sistema directamente desde el chat del Dashboard.
+  - **Feedback Visual de Acciones**: Toasts y confirmaciones interactivas tras ejecutar acciones rápidas.
+- **Seguridad e IA (Robustez)**:
+  - **IA Command Shield**: Blindaje total que impide a la IA responder a mensajes que empiecen por `/`.
+  - **Dynamic Permission Refresh**: Reducción de la caché de admins a 5 minutos para reconocer cambios de rango al instante.
+  - **Blindaje de MASTER_ID**: Limpieza y validación estricta del ID de administrador para control absoluto.
+- **Docker & Infraestructura**:
+  - Mapeo de volúmenes para persistencia de Git y actualizaciones persistentes.
+  - Corrección de dependencias críticas (`psutil`) y optimización de hilos de arranque.
+
 ## [v16.14.0] - 2026-04-27
 ### 🔥 Novedades Premium y Globalización
 - **Plataforma de Traducción Centralizada (i18n)**: 
