@@ -2534,7 +2534,7 @@ class MoonBot:
                     if not isinstance(text, str): text = str(text) if text is not None else ""
                     if user.get("is_bot"): continue # Ignorar otros bots
                     uid, uname = str(user.get("id", cid)), user.get("first_name", "Chat")
-                    add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | MASTER_ID_EXPECTED={MASTER_ID}")
+                    add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | Verificando Permisos...")
                     
                     # Sistema de Auditoría IA (Evaluación de Calidad)
                     if cid in active_audits:
