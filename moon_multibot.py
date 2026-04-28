@@ -2337,10 +2337,10 @@ class MoonBot:
         admins_cached = db.get(cache_key, [])
         if admins_cached and str(uid) in admins_cached: return "Admin"
         
-        # Si no está en caché o no es admin, consultar (con límite de frecuencia)
+        # Si no está en caché o no es admin, consultar (con límite de frecuencia: 5 minutos)
         now = time.time()
         last_check = db.get(f"LAST_ADMIN_CHECK_{cid}", 0)
-        if now - last_check > 3600:
+        if now - last_check > 300:
             admins = self.api_call("getChatAdministrators", {"chat_id": cid}, silent=True)
             if admins.get("ok"):
                 admin_ids = [str(a["user"]["id"]) for a in admins["result"]]
