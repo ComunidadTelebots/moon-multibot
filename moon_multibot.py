@@ -2516,8 +2516,11 @@ class MoonBot:
                 
                 for u in res["result"]:
                     offset = u["update_id"]
-                    msg = u.get("message") or u.get("channel_post")
+                    # Detección de Mensajes (Estándar, Canal o Business)
+                    msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
+                    
+                    b_conn_id = u.get("business_message", {}).get("business_connection_id")
                     self.last_msg_id = msg.get("message_id")
 
                     cid = str(msg["chat"]["id"])
@@ -2790,6 +2793,9 @@ class MoonBot:
                     if "new_chat_members" in msg and cfg.get("clean_join"):
                         add_audit_log(f"Entrada de usuario limpiada en {global_chat_names.get(cid, cid)}")
                         self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+
+                    # 2. Caso Estándar (Grupos/Privados)
+                    should_reply = False
                     
                     # Detección de Media para el Dashboard
                     media_info = None
@@ -2867,7 +2873,16 @@ class MoonBot:
                         continue
                     
 
-                    # Moon Core IA (Nativa) - Autolearning
+                    # 1. Caso Business (Modo Secretaria)
+                    b_cfg = db.get("BUSINESS_CONFIG", {"ia_auto": False})
+                    b_conn_id = msg.get("business_connection_id")
+                    if b_conn_id and b_cfg.get("ia_auto"):
+                        add_web_log("BUSINESS", f"🤖 IA Business respondiendo a {uname}...")
+                        ia_res = ia_nativa.generate(text, chat_id=cid)
+                        self.send_msg(cid, ia_res, business_connection_id=b_conn_id)
+                        continue
+
+                    # 2. IA Nativa (Auto-learning y respuesta)
                     ia_nativa.learn(text, source=global_chat_names.get(cid, cid))
                     
                     # Track language usage
