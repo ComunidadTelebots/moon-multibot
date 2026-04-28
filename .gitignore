@@ -1,0 +1,35 @@
+# Datos y Base de Datos
+data/
+*.db
+*.db-journal
+*.sqlite
+
+# Entorno y Secretos
+.env
+*.json
+!package.json
+!composer.json
+!data/bots.json.example
+
+# Archivos Comprimidos (Peligro de filtración)
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Descargas y Logs
+downloads/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db

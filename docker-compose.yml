@@ -1,0 +1,24 @@
+services:
+  moonbot:
+    build: .
+    container_name: moonbot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./downloads:/app/downloads
+    ports:
+      - "5000:5000"
+    environment:
+      - MOON_ENV=prod
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.moonbot.rule=Host(`cintiabot.todosobreall.tech`)"
+      - "traefik.http.routers.moonbot.entrypoints=websecure"
+      - "traefik.http.routers.moonbot.tls=true"
+      - "traefik.http.routers.moonbot.tls.certresolver=letsencrypt"
+      - "traefik.http.services.moonbot.loadbalancer.server.port=5000"
+      - "traefik.http.services.moonbot.loadbalancer.passHostHeader=true"
+
+# Persistencia via carpetas locales (Bind Mounts)

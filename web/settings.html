@@ -1,0 +1,134 @@
+<div class="glass-panel" style="max-width: 700px; margin: 0 auto; background: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+        <h3 style="margin:0;">⚙️ Configuración Maestra del Sistema</h3>
+        <span class="status-badge" id="settingsStatus">SIN CAMBIOS</span>
+    </div>
+
+    <div class="settings-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+        <!-- Columna 1: Seguridad & CAS -->
+        <div class="settings-col">
+            <h4>🛡️ SEGURIDAD & CAS</h4>
+            <div class="setting-item">
+                <label>🛰️ Escudo Global (CAS)</label>
+                <select id="casProtection" class="input-style">
+                    <option value="on">Activado (Auto-Baneos)</option>
+                    <option value="off">Desactivado</option>
+                </select>
+                <div class="help-hint" title="Banea automáticamente a usuarios reportados en la red global de Combot.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🛡️ Modo Mantenimiento</label>
+                <button onclick="toggleMaintenance()" id="maintBtn" class="btn-mini-wide">MANTENIMIENTO: OFF</button>
+                <div class="help-hint" title="Desactiva el bot para todos excepto para el Master.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🧹 Limpieza Automática</label>
+                <button onclick="toggleJoinDelete()" id="joinBtn" class="btn-mini-wide">UNIONES: ON</button>
+                <div class="help-hint" title="Borra los mensajes de 'Usuario se unió' automáticamente.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🌊 Límite Anti-Flood (msgs/10s)</label>
+                <input type="number" id="floodLimit" class="input-style" value="6" min="3" max="20" placeholder="6">
+                <div class="help-hint" title="Máximo de mensajes permitidos en 10 segundos antes de actuar.">?</div>
+            </div>
+        </div>
+
+        <!-- Columna 2: Inteligencia Artificial -->
+        <div class="settings-col">
+            <h4>🧠 NÚCLEO NEURONAL</h4>
+            <div class="setting-item">
+                <label>🧠 Potencia IA</label>
+                <select id="iaPowerMode" class="input-style" onchange="setIAPower()">
+                    <option value="eco">Eco (Corto)</option>
+                    <option value="balanced">Equilibrado</option>
+                    <option value="peak">Peak (Largo)</option>
+                </select>
+                <div class="help-hint" title="Define la complejidad y longitud de las respuestas de la IA.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🚫 Filtro Anti-Spam</label>
+                <button onclick="toggleSpamFilter()" id="spamFilterBtn" class="btn-mini-wide">SPAM FILTER: ON</button>
+                <div class="help-hint" title="Analiza enlaces y patrones para evitar estafas y spam.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>⚖️ Umbral Auditoría</label>
+                <select id="auditThreshold" class="input-style">
+                    <option value="40">Flexible (40+)</option>
+                    <option value="60" selected>Normal (60+)</option>
+                    <option value="80">Elite (80+)</option>
+                </select>
+                <div class="help-hint" title="Puntuación mínima para considerar una fuente de 'Alta Calidad'.">?</div>
+            </div>
+        </div>
+
+        <!-- Columna 3: Identidad & Estética -->
+        <div class="settings-col">
+            <h4>💎 IDENTIDAD & UI</h4>
+            <div class="setting-item">
+                <label>👋 Bienvenida</label>
+                <input type="text" id="welcomeMsgInput" class="input-style" placeholder="Hola...">
+                <div class="help-hint" title="Mensaje que el bot enviará a los nuevos miembros.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🎨 Tema Visual</label>
+                <div class="theme-selector">
+                    <div onclick="setTheme('moon')" class="theme-btn moon"></div>
+                    <div onclick="setTheme('cyberpunk')" class="theme-btn cyberpunk"></div>
+                    <div onclick="setTheme('matrix')" class="theme-btn matrix"></div>
+                </div>
+                <div class="help-hint" title="Cambia la estética visual de todo el Dashboard.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🤖 Bio del Bot</label>
+                <input type="text" id="botDescInput" class="input-style" placeholder="Soy Moon Bot...">
+                <div class="help-hint" title="Descripción pública del bot en el Dashboard.">?</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid #fde047; background: rgba(253, 224, 71, 0.02);">
+        <h4 style="color: #fde047; font-size: 11px; margin-bottom: 15px; letter-spacing: 2px;">⚡ SEGURIDAD AVANZADA & VISIÓN</h4>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+            <div class="setting-item">
+                <label>📡 Sincronización Externa</label>
+                <select id="syncFrequency" class="input-style">
+                    <option value="3600">Cada 1 Hora</option>
+                    <option value="21600" selected>Cada 6 Horas</option>
+                    <option value="86400">Cada 24 Horas</option>
+                </select>
+                <div class="help-hint" title="Frecuencia de descarga de nuevas huellas de seguridad.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>👁️ Profundidad de Análisis</label>
+                <select id="visionDepth" class="input-style">
+                    <option value="basic">Estructura Básica</option>
+                    <option value="full" selected>Análisis Completo (SOF/Atoms)</option>
+                </select>
+                <div class="help-hint" title="Nivel de detalle al escanear archivos multimedia.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>🧹 Purga de Media (Días)</label>
+                <input type="number" id="mediaPurgeDays" class="input-style" value="7" min="1" max="30">
+                <div class="help-hint" title="Días que se guardan los archivos antes de ser borrados.">?</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; border-top: 1px solid var(--glass-border); padding-top: 20px; display: flex; gap: 15px;">
+        <button onclick="saveGlobalSettings()" class="btn-glow" style="flex: 2; margin-top: 0;">APLICAR CAMBIOS GLOBALES</button>
+        <button onclick="runBackup()" class="tab-btn" style="flex: 1; margin-top: 0;">COPIA SEGURIDAD</button>
+    </div>
+</div>
+<style>
+.input-style {
+    width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
+    color: white; padding: 10px; border-radius: 8px; font-size: 13px;
+}
+.btn-mini-wide {
+    width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+    color: #94a3b8; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: 800;
+    cursor: pointer; transition: 0.3s;
+}
+.btn-mini-wide:hover { background: rgba(139,92,246,0.1); border-color: var(--primary); color: white; }
+.settings-col h4 { font-size: 11px; margin-bottom: 15px; color: var(--primary); letter-spacing: 2px; }
+</style>
