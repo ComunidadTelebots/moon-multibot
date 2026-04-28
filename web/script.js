@@ -48,10 +48,10 @@ function switchTab(tabId, btn) {
     if(!container) return;
 
     // UI Feedback
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     if (btn) btn.classList.add('active');
     else {
-        const targetBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
+        const targetBtn = document.querySelector(`.nav-item[onclick*="'${tabId}'"]`);
         if(targetBtn) targetBtn.classList.add('active');
     }
 
