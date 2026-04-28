@@ -2341,17 +2341,23 @@ class MoonBot:
         return "User"
 
     def process_command(self, cid, uid, uname, text, rk, msg_id, msg):
+        clean_text = text.strip()
+        if not clean_text.startswith("/"): return False
+        
         # 1. Limpieza de comando (soporte para /cmd@botname)
-        cmd = text.split()[0].lower().split("@")[0]
-        args = text.split()[1:]
+        parts = clean_text.split()
+        raw_cmd = parts[0].lower().split("@")[0]
+        args = parts[1:]
         arg_str = " ".join(args)
         
+        add_web_log("DEBUG", f"[CMD] Procesando '{raw_cmd}' de {uname} (Rango: {rk})")
+
         # 2. Comandos Públicos / Globales
-        if cmd in ["/start", "/inicio"]:
+        if raw_cmd in ["/start", "/inicio"]:
             self.send_msg(cid, f"🌙 **Moon Multibot Activo**\n\nHola {uname}, el núcleo está operando con normalidad. Usa `/ayuda` para ver mis capacidades.")
             return True
         
-        if cmd in ["/ayuda", "/comandos", "/help"]:
+        if raw_cmd in ["/ayuda", "/comandos", "/help"]:
             help_text = "📖 **MANUAL DE OPERACIONES MOON**\n\n"
             help_text += "✨ **General:** `/perfil`, `/top`, `/notas`, `/search`\n"
             if rk in ["Admin", "Master"]:
@@ -2362,11 +2368,11 @@ class MoonBot:
             self.send_msg(cid, help_text)
             return True
 
-        if cmd == "/ping":
+        if raw_cmd == "/ping":
             self.send_msg(cid, "🏓 **PONG!** Núcleo Moon sincronizado.")
             return True
 
-        if cmd == "/perfil":
+        if raw_cmd == "/perfil":
             user_data = db.get(f"USER_{uid}", {"karma": 0, "level": 1, "exp": 0})
             stats = global_user_stats.get(uid, {"count": 0, "karma": 0})
             k_score = stats.get("karma", 0)
@@ -2374,7 +2380,7 @@ class MoonBot:
             self.send_msg(cid, f"👤 **PERFIL: {uname}**\n\n🆙 Nivel: `{user_data.get('level', 1)}`\n⚡ EXP: `{user_data.get('exp', 0)}`\n⭐ Karma: `{k_score}`\n💬 Mensajes: `{stats.get('count', 0)}`\n🏅 Insignia: {badge}")
             return True
 
-        if cmd == "/top":
+        if raw_cmd == "/top":
             sorted_u = sorted(global_user_stats.items(), key=lambda x: x[1].get("count", 0), reverse=True)[:5]
             if not sorted_u: self.send_msg(cid, "📊 Aún no hay datos.")
             else:
@@ -2383,7 +2389,7 @@ class MoonBot:
                 self.send_msg(cid, "🏆 **TOP 5 USUARIOS**\n\n" + "\n".join(lines))
             return True
 
-        if cmd == "/search" and arg_str:
+        if raw_cmd == "/search" and arg_str:
             self.send_msg(cid, "🔍 Consultando fuentes globales...")
             res = ia_nativa.search_web(arg_str)
             self.send_msg(cid, f"🌐 **Resultado:**\n\n{res}")
@@ -2395,7 +2401,7 @@ class MoonBot:
             target_uid = arg_str if arg_str else (str(msg.get("reply_to_message", {}).get("from", {}).get("id", "")) if msg.get("reply_to_message") else None)
             target_name = msg.get("reply_to_message", {}).get("from", {}).get("first_name", target_uid) if msg.get("reply_to_message") else target_uid
 
-            if cmd == "/settings":
+            if raw_cmd == "/settings":
                 c = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "ia_mood": "friendly"})
                 txt = f"⚙️ **CONFIGURACIÓN DEL NODO {cid}**\n\n"
                 txt += f"🧠 IA Learning: `{'✅ ON' if c.get('ia_learning') else '❌ OFF'}`\n"
@@ -2405,7 +2411,7 @@ class MoonBot:
                 self.send_msg(cid, txt)
                 return True
 
-            if cmd == "/ban":
+            if raw_cmd == "/ban":
                 if not target_uid:
                     self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje o indicar el ID del usuario para banear.")
                     return True
@@ -2415,7 +2421,7 @@ class MoonBot:
                 self.send_msg(cid, f"🚫 **{target_name}** expulsado y baneado permanentemente.")
                 return True
 
-            if cmd == "/mute":
+            if raw_cmd == "/mute":
                 if not target_uid:
                     self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje para silenciar al usuario.")
                     return True
