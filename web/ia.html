@@ -191,7 +191,10 @@
         <div class="help-hint" title="Si se activa, el bot expulsará y borrará automáticamente cualquier contenido peligroso detectado.">?</div>
     </div>
     <div class="glass-panel" style="margin-top: 25px;">
-        <h3>📋 Registro Histórico de Peritajes</h3>
+        <div class="panel-header-flex">
+            <h3>📋 Registro Histórico de Peritajes</h3>
+            <button onclick="clearAuditHistory()" class="btn-mini" style="color: var(--danger); border-color: var(--danger); font-size: 10px;">Limpiar Historial</button>
+        </div>
         <p class="section-desc">Archivo persistente de todas las fuentes analizadas por la IA.</p>
         <div class="knowledge-table-cont" style="margin-top: 15px;">
             <table class="knowledge-table">

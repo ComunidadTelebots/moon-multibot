@@ -743,6 +743,25 @@ def web_ia_potentials_clear():
     db.set("POTENTIAL_FEEDERS", {})
     return jsonify({"ok": True})
 
+@app.route("/api/ia/feeders/remove", methods=['POST'])
+def web_ia_feeders_remove():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    cid = str(request.json.get("id"))
+    feeders = db.get("IA_FEEDERS", [])
+    if cid in feeders:
+        feeders.remove(cid)
+        db.set("IA_FEEDERS", feeders)
+        add_audit_log(f"Fuente de aprendizaje (ID {cid}) eliminada.")
+        return jsonify({"ok": True, "msg": "Fuente eliminada."})
+    return jsonify({"ok": False, "msg": "Fuente no encontrada."})
+
+@app.route("/api/ia/audit/history/clear", methods=['POST'])
+def web_ia_audit_history_clear():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    db.set("IA_AUDIT_HISTORY", [])
+    add_audit_log("Historial de auditorías vaciado manualmente.")
+    return jsonify({"ok": True, "msg": "Historial limpiado."})
+
 def start_audit_logic(cid, cid_input=None):
     """Lógica centralizada para iniciar auditoría con pre-carga de historial"""
     # Si ya existe y el nombre NO es el ID crudo, salimos para no repetir

@@ -587,6 +587,7 @@ function fetchIAFeeders() {
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <button class="btn-link-mini" onclick="downloadAudit('${f.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 8px;">📊 CSV</button>
                         <button class="btn-link-mini" onclick="quickAudit('${f.id}')" style="background: rgba(99, 102, 241, 0.1); border-color: #6366f1; color: #a5b4fc; font-size: 8px;">AUDITAR</button>
+                        <button class="btn-link-mini" onclick="removeIAFeeder('${f.id}')" style="background: rgba(239, 68, 68, 0.1); border-color: #f87171; color: #f87171; font-size: 8px;">BORRAR</button>
                         <span class="status-tag ${f.status.toLowerCase()}">${f.status}</span>
                     </div>
                 </div>`).join("");
@@ -848,6 +849,33 @@ function refreshAuditHistory() {
 setInterval(refreshAuditStatus, 3000);
 setInterval(refreshAuditHistory, 10000);
 setInterval(fetchIAFeeders, 10000);
+
+function removeIAFeeder(id) {
+    if(!confirm("¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
+    fetch('/api/ia/feeders/remove', {
+        method: 'POST',
+        headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("📡 Fuente Eliminada", data.msg);
+            fetchIAFeeders();
+        }
+    });
+}
+
+function clearAuditHistory() {
+    if(!confirm("¿Seguro que quieres vaciar todo el historial de auditorías?")) return;
+    fetch('/api/ia/audit/history/clear', {
+        method: 'POST',
+        headers: { 'Authorization': authToken }
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("📋 Historial Limpio", data.msg);
+            refreshAuditHistory();
+        }
+    });
+}
 refreshAuditHistory();
 fetchIAFeeders();
 
