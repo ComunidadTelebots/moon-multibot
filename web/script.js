@@ -855,7 +855,7 @@ function refreshAuditHistory() {
 }
 setInterval(refreshAuditStatus, 3000);
 setInterval(refreshAuditHistory, 10000);
-setInterval(fetchIAFeeders, 10000);
+setInterval(fetchIAFeeders, 2000);
 
 function removeIAFeeder(id) {
     if(!confirm("¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
