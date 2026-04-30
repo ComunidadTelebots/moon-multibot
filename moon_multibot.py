@@ -1972,7 +1972,11 @@ class MoonCoreIA:
                 r = requests.post(url, json=payload, timeout=10)
                 if r.status_code == 200:
                     res_json = r.json()
-                    return res_json['candidates'][0]['content']['parts'][0]['text']
+                    cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
+                    # Retroalimentación: Aprender de la respuesta de la nube
+                    if cloud_response:
+                        self.learn(cloud_response, source="Gemini Cloud Feedback")
+                    return cloud_response
             except Exception as e:
                 add_web_log("ERROR", f"Fallo LLM Externo: {e}")
 
