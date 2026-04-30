@@ -1434,6 +1434,12 @@ function updateRatioLabel() {
     document.getElementById("ratioDisplay").innerText = `${100 - ratio}% / ${ratio}%`;
 }
 
+function toggleProviderInputs() {
+    const provider = document.getElementById("llmProvider").value;
+    document.getElementById("geminiGroup").style.display = provider === "gemini" ? "block" : "none";
+    document.getElementById("ollamaGroup").style.display = provider === "ollama" ? "block" : "none";
+}
+
 async function loadIAConfig() {
     try {
         const res = await fetch("/api/ia/config", { headers: { "Authorization": "Bearer " + localStorage.getItem("moon_token") } });
@@ -1441,6 +1447,9 @@ async function loadIAConfig() {
         if (data.ok) {
             document.getElementById("useExternalLLM").checked = data.use_external;
             document.getElementById("hybridRatio").value = data.hybrid_ratio;
+            document.getElementById("llmProvider").value = data.provider || "gemini";
+            document.getElementById("ollamaModel").value = data.ollama_model || "llama3";
+            toggleProviderInputs();
             if (data.api_key === "***") document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
             updateRatioLabel();
         }
@@ -1451,16 +1460,18 @@ async function saveIAConfig() {
     const use_external = document.getElementById("useExternalLLM").checked;
     const api_key = document.getElementById("geminiKey").value;
     const hybrid_ratio = document.getElementById("hybridRatio").value;
+    const provider = document.getElementById("llmProvider").value;
+    const ollama_model = document.getElementById("ollamaModel").value;
 
     try {
         const res = await fetch("/api/ia/config", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
-            body: JSON.stringify({ use_external, api_key, hybrid_ratio })
+            body: JSON.stringify({ use_external, api_key, hybrid_ratio, provider, ollama_model })
         });
         const data = await res.json();
         if (data.ok) {
-            showToast("🧠 Configuración Guardada", use_external ? "Cerebro Híbrido Activo" : "Usando solo IA Nativa");
+            showToast("🧠 Configuración Guardada", use_external ? `Cerebro Híbrido (${provider.toUpperCase()})` : "Usando solo IA Nativa");
             if (api_key) document.getElementById("geminiKey").value = "";
         }
     } catch (e) { showToast("❌ Error", "Fallo al guardar"); }

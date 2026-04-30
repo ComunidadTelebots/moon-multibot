@@ -11,7 +11,10 @@ MOON_ROLE = os.getenv("MOON_ROLE", "master").lower()
 MASTER_ID = int(os.getenv("MASTER_ID", 0))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
-HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50")) # % de veces que usa LLM vs Nativa
+HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50"))
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini") # "gemini" o "ollama"
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
 app = Flask(__name__)
 # Configuración según ambiente
@@ -1036,7 +1039,7 @@ def web_ia_evolve():
 
 @app.route("/api/ia/config", methods=['GET', 'POST'])
 def api_ia_config():
-    global USE_EXTERNAL_LLM, GEMINI_API_KEY, HYBRID_PERCENTAGE
+    global USE_EXTERNAL_LLM, GEMINI_API_KEY, HYBRID_PERCENTAGE, LLM_PROVIDER, OLLAMA_MODEL
     if not check_jwt(request): return jsonify({"ok": False}), 401
     
     if request.method == 'POST':
@@ -1044,13 +1047,17 @@ def api_ia_config():
         USE_EXTERNAL_LLM = data.get("use_external", USE_EXTERNAL_LLM)
         GEMINI_API_KEY = data.get("api_key", GEMINI_API_KEY)
         HYBRID_PERCENTAGE = int(data.get("hybrid_ratio", HYBRID_PERCENTAGE))
+        LLM_PROVIDER = data.get("provider", LLM_PROVIDER)
+        OLLAMA_MODEL = data.get("ollama_model", OLLAMA_MODEL)
         return jsonify({"ok": True, "msg": "Configuración de IA actualizada"})
     
     return jsonify({
         "ok": True, 
         "use_external": USE_EXTERNAL_LLM, 
         "api_key": "***" if GEMINI_API_KEY else "",
-        "hybrid_ratio": HYBRID_PERCENTAGE
+        "hybrid_ratio": HYBRID_PERCENTAGE,
+        "provider": LLM_PROVIDER,
+        "ollama_model": OLLAMA_MODEL
     })
 def web_ia_seed():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -1952,33 +1959,39 @@ class MoonCoreIA:
         if USE_EXTERNAL_LLM and HYBRID_PERCENTAGE < 100:
             use_llm_this_time = random.randint(1, 100) <= HYBRID_PERCENTAGE
 
-        if use_llm_this_time and GEMINI_API_KEY:
+        if use_llm_this_time:
             try:
-                # Simulando llamada a Gemini API (se requiere google-generativeai instalado)
-                # En un entorno real, usaríamos: genai.configure(api_key=GEMINI_API_KEY)
-                # Aquí implementamos una estructura lista para ser conectada.
-                headers = {"Content-Type": "application/json"}
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
-                
-                system_instruction = f"Eres MoonBot, una IA de gestión de Telegram. Mood: {current_mood}. Contexto: {memory_context}"
-                payload = {
-                    "contents": [{
-                        "parts": [{
-                            "text": f"{system_instruction}\n\nUsuario: {prompt}"
+                cloud_response = ""
+                if LLM_PROVIDER == "gemini" and GEMINI_API_KEY:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+                    system_instruction = f"Eres MoonBot, una IA de gestión de Telegram. Mood: {current_mood}. Contexto: {memory_context}"
+                    payload = {
+                        "contents": [{
+                            "parts": [{
+                                "text": f"{system_instruction}\n\nUsuario: {prompt}"
+                            }]
                         }]
-                    }]
-                }
+                    }
+                    r = requests.post(url, json=payload, timeout=10)
+                    if r.status_code == 200:
+                        res_json = r.json()
+                        cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
                 
-                r = requests.post(url, json=payload, timeout=10)
-                if r.status_code == 200:
-                    res_json = r.json()
-                    cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
-                    # Retroalimentación: Aprender de la respuesta de la nube
-                    if cloud_response:
-                        self.learn(cloud_response, source="Gemini Cloud Feedback")
+                elif LLM_PROVIDER == "ollama":
+                    payload = {
+                        "model": OLLAMA_MODEL,
+                        "prompt": f"Mood: {current_mood}\nContexto: {memory_context}\nUsuario: {prompt}\nMoonBot:",
+                        "stream": False
+                    }
+                    r = requests.post(OLLAMA_URL, json=payload, timeout=30)
+                    if r.status_code == 200:
+                        cloud_response = r.json().get("response", "")
+
+                if cloud_response:
+                    self.learn(cloud_response, source=f"{LLM_PROVIDER.capitalize()} Cloud Feedback")
                     return cloud_response
             except Exception as e:
-                add_web_log("ERROR", f"Fallo LLM Externo: {e}")
+                add_web_log("ERROR", f"Fallo LLM Externo ({LLM_PROVIDER}): {e}")
 
         # --- Fallback: IA Nativa (Markov) ---
         # Ajustar el "peso" de las respuestas según el mood

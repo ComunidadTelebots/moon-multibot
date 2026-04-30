@@ -22,4 +22,13 @@ services:
       - "traefik.http.services.moonbot.loadbalancer.server.port=5000"
       - "traefik.http.services.moonbot.loadbalancer.passHostHeader=true"
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ./ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
 # Persistencia via carpetas locales (Bind Mounts)
