@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.17.0] - 2026-04-30
+### 📊 Sistema de Reportes y Notificaciones Automatizadas
+- **Reportes de Inteligencia Maestra**: Ahora el bot envía un resumen detallado vía Telegram al Administrador cuando finaliza un proceso de sembrado masivo (Wikipedia/Patrones).
+- **Resúmenes Diarios de Salud Neural**: Implementado un trabajador en segundo plano que envía un reporte cada 24 horas con las estadísticas de crecimiento (neuronas, sinapsis, tasa de aprendizaje).
+- **Notificaciones en Tiempo Real**: El bot avisa al iniciar procesos de expansión cerebral para que el usuario esté informado del progreso.
+- **Mejoras en la Estructura de Datos**: Optimización en la persistencia de las fuentes de aprendizaje para generar rankings de conocimiento.
+
+
 ## [v16.16.0] - 2026-04-30
 ### 🧠 Inteligencia Maestra y Estabilidad Crítica
 - **Integración de Master Intelligence (Advanced IA)**:
