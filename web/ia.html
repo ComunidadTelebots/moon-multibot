@@ -195,45 +195,52 @@
         <div class="help-hint" title="Si se activa, el bot expulsará y borrará automáticamente cualquier contenido peligroso detectado.">?</div>
     </div>
 
-        <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--primary); background: rgba(139, 92, 246, 0.05);">
+        <!-- Sección Gemini (Nube) -->
+        <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--secondary); background: rgba(56, 189, 248, 0.05);">
             <div class="panel-header-flex">
-                <h3>🧠 Cerebro Híbrido (LLM Externo)</h3>
+                <h3>🌐 Google Gemini (Inteligencia Nube)</h3>
+                <div class="status-badge" id="geminiStatusBadge" style="background: #64748b;">INACTIVO</div>
+            </div>
+            <p class="section-desc">Usa el motor de Google para respuestas creativas y complejas.</p>
+            <div class="input-group" style="margin-top: 15px;">
+                <label style="font-size: 11px; color: var(--secondary);">API KEY</label>
+                <input type="password" id="geminiKey" placeholder="Introduce tu clave de Google AI..." style="width: 100%;">
+            </div>
+            <button onclick="setProvider('gemini')" class="btn-glow-mini" style="width: 100%; margin-top: 15px; background: var(--secondary); border-color: var(--secondary);">USAR GEMINI COMO CEREBRO EXTERNO</button>
+        </div>
+
+        <!-- Sección Ollama (Local) -->
+        <div class="glass-panel" style="margin-top: 20px; border-left: 3px solid var(--primary); background: rgba(139, 92, 246, 0.05);">
+            <div class="panel-header-flex">
+                <h3>🦙 Ollama (Inteligencia Local)</h3>
+                <div class="status-badge" id="ollamaStatusBadge" style="background: #64748b;">INACTIVO</div>
+            </div>
+            <p class="section-desc">Usa tu propio servidor para máxima privacidad y aprendizaje gratuito.</p>
+            <div class="input-group" style="margin-top: 15px;">
+                <label style="font-size: 11px; color: var(--primary);">MODELO LOCAL</label>
+                <input type="text" id="ollamaModel" placeholder="Ej: qwen2:0.5b, llama3..." style="width: 100%;">
+            </div>
+            <button onclick="setProvider('ollama')" class="btn-glow-mini" style="width: 100%; margin-top: 15px;">USAR OLLAMA COMO CEREBRO EXTERNO</button>
+        </div>
+
+        <!-- Ajustes Globales Híbridos -->
+        <div class="glass-panel" style="margin-top: 20px; border-top: 2px dashed rgba(255,255,255,0.1);">
+            <div class="panel-header-flex">
+                <h3>⚙️ Ajustes del Cerebro Híbrido</h3>
                 <label class="switch">
                     <input type="checkbox" id="useExternalLLM" onchange="saveIAConfig()">
                     <span class="slider round"></span>
                 </label>
             </div>
-            <p class="section-desc">Activa el soporte de Google Gemini para mejorar la coherencia de las respuestas cuando la IA nativa no esté segura.</p>
-            
-            <div class="input-group" style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
-                <label style="font-size: 12px; color: var(--secondary); display: block;">PROVEEDOR LLM</label>
-                <select id="llmProvider" class="mood-btn" style="width: 100%;" onchange="toggleProviderInputs()">
-                    <option value="gemini">🌐 Google Gemini (Nube)</option>
-                    <option value="ollama">🦙 Ollama (Local / Docker)</option>
-                </select>
-                
-                <div id="geminiGroup">
-                    <label style="font-size: 12px; color: var(--secondary); margin-bottom: 5px; display: block;">GEMINI API KEY</label>
-                    <input type="password" id="geminiKey" placeholder="Introduce tu clave de Google AI..." style="width: 100%;">
-                </div>
-
-                <div id="ollamaGroup" style="display: none;">
-                    <label style="font-size: 12px; color: var(--secondary); margin-bottom: 5px; display: block;">MODELO OLLAMA</label>
-                    <input type="text" id="ollamaModel" placeholder="Ej: llama3, mistral, gemma..." style="width: 100%;">
-                    <p style="font-size: 10px; color: #94a3b8; margin-top: 5px;">Asegúrate de ejecutar `docker exec -it ollama ollama pull llama3` en tu terminal.</p>
-                </div>
-            </div>
-
-            <div style="margin-top: 20px;">
-                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
-                    <span>NATIVA (Rápida)</span>
-                    <span id="ratioDisplay">50% / 50%</span>
-                    <span>GEMINI (Inteligente)</span>
+            <div style="margin-top: 15px;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px;">
+                    <span>MOON (IA Nativa)</span>
+                    <span id="ratioDisplay" style="color: var(--primary); font-weight: 800;">50% / 50%</span>
+                    <span id="activeProviderLabel">EXTERNO</span>
                 </div>
                 <input type="range" id="hybridRatio" min="0" max="100" value="50" class="mood-range" style="width: 100%;" oninput="updateRatioLabel()">
             </div>
-            
-            <button onclick="saveIAConfig()" class="btn-glow-mini" style="width: 100%; margin-top: 20px;">GUARDAR CONFIGURACIÓN HÍBRIDA</button>
+            <button onclick="saveIAConfig()" class="btn-glow-mini" style="width: 100%; margin-top: 20px; opacity: 0.8;">GUARDAR PREFERENCIAS GLOBALES</button>
         </div>
 
         <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--accent);">

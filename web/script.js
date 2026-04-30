@@ -1429,15 +1429,27 @@ async function injectExpansionTopics() {
 
 
 // --- IA: Configuración Híbrida ---
+let currentIAProvider = "gemini";
+
 function updateRatioLabel() {
     const ratio = document.getElementById("hybridRatio").value;
     document.getElementById("ratioDisplay").innerText = `${100 - ratio}% / ${ratio}%`;
 }
 
-function toggleProviderInputs() {
-    const provider = document.getElementById("llmProvider").value;
-    document.getElementById("geminiGroup").style.display = provider === "gemini" ? "block" : "none";
-    document.getElementById("ollamaGroup").style.display = provider === "ollama" ? "block" : "none";
+function updateProviderUI(provider) {
+    currentIAProvider = provider;
+    document.getElementById("geminiStatusBadge").innerText = provider === "gemini" ? "ACTIVO" : "INACTIVO";
+    document.getElementById("geminiStatusBadge").style.background = provider === "gemini" ? "var(--secondary)" : "#64748b";
+    
+    document.getElementById("ollamaStatusBadge").innerText = provider === "ollama" ? "ACTIVO" : "INACTIVO";
+    document.getElementById("ollamaStatusBadge").style.background = provider === "ollama" ? "var(--primary)" : "#64748b";
+    
+    document.getElementById("activeProviderLabel").innerText = provider.toUpperCase();
+}
+
+function setProvider(provider) {
+    updateProviderUI(provider);
+    saveIAConfig();
 }
 
 async function loadIAConfig() {
@@ -1447,9 +1459,8 @@ async function loadIAConfig() {
         if (data.ok) {
             document.getElementById("useExternalLLM").checked = data.use_external;
             document.getElementById("hybridRatio").value = data.hybrid_ratio;
-            document.getElementById("llmProvider").value = data.provider || "gemini";
-            document.getElementById("ollamaModel").value = data.ollama_model || "llama3";
-            toggleProviderInputs();
+            document.getElementById("ollamaModel").value = data.ollama_model || "qwen2:0.5b";
+            updateProviderUI(data.provider || "gemini");
             if (data.api_key === "***") document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
             updateRatioLabel();
         }
@@ -1460,19 +1471,27 @@ async function saveIAConfig() {
     const use_external = document.getElementById("useExternalLLM").checked;
     const api_key = document.getElementById("geminiKey").value;
     const hybrid_ratio = document.getElementById("hybridRatio").value;
-    const provider = document.getElementById("llmProvider").value;
     const ollama_model = document.getElementById("ollamaModel").value;
 
     try {
         const res = await fetch("/api/ia/config", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
-            body: JSON.stringify({ use_external, api_key, hybrid_ratio, provider, ollama_model })
+            body: JSON.stringify({ 
+                use_external, 
+                api_key, 
+                hybrid_ratio, 
+                provider: currentIAProvider, 
+                ollama_model 
+            })
         });
         const data = await res.json();
         if (data.ok) {
-            showToast("🧠 Configuración Guardada", use_external ? `Cerebro Híbrido (${provider.toUpperCase()})` : "Usando solo IA Nativa");
-            if (api_key) document.getElementById("geminiKey").value = "";
+            showToast("🧠 Configuración Guardada", use_external ? `Modo Híbrido: ${currentIAProvider.toUpperCase()}` : "Solo IA Nativa");
+            if (api_key) {
+                document.getElementById("geminiKey").value = "";
+                document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
+            }
         }
     } catch (e) { showToast("❌ Error", "Fallo al guardar"); }
 }
