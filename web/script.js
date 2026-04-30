@@ -647,7 +647,18 @@ function fetchIAFeeders() {
             const libBody = document.getElementById("iaLibraryBody");
             const topBody = document.getElementById("iaTopSources");
             if(libBody) libBody.innerHTML = libData.library.reverse().slice(0, 50).map(i => `<tr><td><b>${i.word}</b></td><td>${i.source}</td></tr>`).join("");
-            if(topBody) topBody.innerHTML = libData.top_sources.map(s => `<div class="ranking-item">${s.name} <span>${s.count}</span></div>`).join("");
+            if(topBody) topBody.innerHTML = libData.top_sources.map(s => `
+                <div class="ranking-item" style="flex-direction: column; align-items: flex-start; gap: 5px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <div style="width: 100%; display: flex; justify-content: space-between; cursor: pointer; align-items: center;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                        <span style="font-weight: 700; font-size: 13px;">${s.name}</span> 
+                        <span style="background: var(--primary); padding: 2px 8px; border-radius: 10px; font-size: 10px;">${s.count}</span>
+                    </div>
+                    <div class="source-words" style="display: none; font-size: 10px; color: var(--text-muted); padding: 8px; background: rgba(0,0,0,0.2); border-radius: 5px; width: 100%; box-sizing: border-box; line-height: 1.4;">
+                        <b style="color: var(--secondary); display: block; margin-bottom: 3px;">Muestra Neuronal:</b>
+                        ${s.words.join(", ")}...
+                    </div>
+                </div>
+            `).join("");
         });
     });
 }

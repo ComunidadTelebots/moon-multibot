@@ -2088,12 +2088,17 @@ class MoonCoreIA:
             add_web_log("ERROR", f"Fallo al enviar reporte maestro: {e}")
 
     def get_top_sources(self):
-        """Calcula las fuentes más influyentes."""
+        """Calcula las fuentes más influyentes e incluye una muestra de palabras."""
         sources = {}
+        source_words = {}
         for w, s in self._sources_cache.items():
             sources[s] = sources.get(s, 0) + 1
+            if s not in source_words: source_words[s] = []
+            if len(source_words[s]) < 15: # Muestra de 15 palabras
+                source_words[s].append(w)
+                
         sorted_s = sorted(sources.items(), key=lambda x: x[1], reverse=True)
-        return [{"name": k, "count": v} for k, v in sorted_s]
+        return [{"name": k, "count": v, "words": source_words.get(k, [])} for k, v in sorted_s]
         
         eta = "Madura (Estable)"
         if est_minutes > 0:
