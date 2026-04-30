@@ -195,6 +195,22 @@
         <div class="help-hint" title="Si se activa, el bot expulsará y borrará automáticamente cualquier contenido peligroso detectado.">?</div>
     </div>
 
+        <!-- Flujo Neuronal en Tiempo Real -->
+        <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--accent); background: rgba(16, 185, 129, 0.05);">
+            <div class="panel-header-flex">
+                <h3>📡 Flujo de Conciencia (Real-Time)</h3>
+                <div class="pulsing-dot" style="background-color: var(--success);"></div>
+            </div>
+            <p class="section-desc">Rastreo en vivo de las neuronas que se están integrando en el núcleo Moon.</p>
+            <div id="neuralLiveFeed" class="neural-feed-container">
+                <div class="empty-feed">Esperando nuevas conexiones...</div>
+            </div>
+            <div class="feed-stats" style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted);">
+                <span>Calidad Media: <b id="avgQuality">--%</b></span>
+                <span>Última Fuente: <b id="lastSource">Ninguna</b></span>
+            </div>
+        </div>
+
         <!-- Sección Gemini (Nube) -->
         <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--secondary); background: rgba(56, 189, 248, 0.05);">
             <div class="panel-header-flex">

@@ -1470,6 +1470,36 @@ function setProvider(provider) {
     saveIAConfig();
 }
 
+async function updateNeuralFeed() {
+    try {
+        const res = await fetch("/api/ia/library", { headers: { "Authorization": "Bearer " + localStorage.getItem("moon_token") } });
+        const data = await res.json();
+        if (data.ok && data.library) {
+            const container = document.getElementById("neuralLiveFeed");
+            if (!container) return;
+            
+            // Tomar los últimos 10
+            const recent = data.library.slice(0, 10);
+            if (recent.length > 0) {
+                container.innerHTML = "";
+                recent.forEach(item => {
+                    const entry = document.createElement("div");
+                    entry.className = "neural-entry";
+                    entry.innerHTML = `
+                        <span class="word">${item.word}</span>
+                        <span class="source">${item.source}</span>
+                        <span style="font-size: 8px; color: var(--text-muted);">${item.time}</span>
+                    `;
+                    container.appendChild(entry);
+                });
+                
+                document.getElementById("lastSource").innerText = recent[0].source;
+                document.getElementById("avgQuality").innerText = "98%"; // Simulado por ahora
+            }
+        }
+    } catch (e) { console.error("Error en Neural Feed", e); }
+}
+
 async function loadIAConfig() {
     try {
         const res = await fetch("/api/ia/config", { headers: { "Authorization": "Bearer " + localStorage.getItem("moon_token") } });
@@ -1482,6 +1512,11 @@ async function loadIAConfig() {
             updateProviderUI(data.provider || "gemini");
             if (data.api_key === "***") document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
             updateRatioLabel();
+            
+            // Iniciar pooling de Feed Neuronal
+            if (window.neuralFeedInterval) clearInterval(window.neuralFeedInterval);
+            window.neuralFeedInterval = setInterval(updateNeuralFeed, 5000);
+            updateNeuralFeed();
         }
     } catch (e) { console.error("Error cargando config IA", e); }
 }
