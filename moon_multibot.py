@@ -2048,6 +2048,22 @@ class MoonCoreIA:
         stats = self.get_stats()
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         
+        # Recuperar estadísticas de hace 24h para el reporte diario
+        history = db.get("IA_STATS_24H", {"words": stats['words'], "connections": stats['connections']})
+        growth_words = stats['words'] - history.get("words", stats['words'])
+        growth_conn = stats['connections'] - history.get("connections", stats['connections'])
+        
+        growth_text = ""
+        if "DIARIO" in title:
+            growth_text = (
+                f"📈 *Evolución 24h:*\n"
+                f"   └ Neuronas: `+{growth_words}`\n"
+                f"   └ Sinapsis: `+{growth_conn}`\n"
+                f"--------------------------------\n"
+            )
+            # Actualizar historial para mañana
+            db.set("IA_STATS_24H", {"words": stats['words'], "connections": stats['connections']})
+
         report = (
             f"📊 *{title}*\n"
             f"📅 Fecha: `{now}`\n"
@@ -2057,6 +2073,7 @@ class MoonCoreIA:
             f"⚡ *Velocidad:* `{stats['rate']}`\n"
             f"🎓 *Estado:* `{stats['est_maturity']}`\n"
             f"--------------------------------\n"
+            f"{growth_text}"
             f"📚 *Top Fuentes:* {', '.join([s['name'] for s in self.get_top_sources()[:3]])}\n"
             f"🌐 *Idiomas:* {len(db.get('IA_LANG_COUNTS', {}))} detectados\n"
             f"🛡️ *Seguridad:* Escudo Neural Activo\n"
