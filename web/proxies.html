@@ -11,6 +11,25 @@
     </div>
 </div>
 
+<div class="glass-panel" style="margin-bottom: 25px; border-left: 4px solid var(--secondary);">
+    <div class="panel-header-flex">
+        <h3>VPS MTProto Real</h3>
+        <button onclick="saveVpsProxyConfig()" class="btn-glow-mini" style="width:auto;">GUARDAR VPS</button>
+    </div>
+    <p class="section-desc">Conecta por SSH al VPS para leer puertos, contenedores Docker, tráfico y conexiones reales. Las contraseñas no se guardan desde la web; usa variables de entorno en el servidor si necesitas password o passphrase.</p>
+    <div class="input-group" style="display:grid; grid-template-columns: 1.3fr 0.8fr 0.5fr; gap:10px;">
+        <input type="text" id="vpsHost" placeholder="203.0.113.10">
+        <input type="text" id="vpsUser" placeholder="root">
+        <input type="number" id="vpsPort" placeholder="22" value="22">
+    </div>
+    <div class="input-group" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; margin-top:10px;">
+        <input type="text" id="vpsKeyPath" placeholder="Ruta clave SSH opcional">
+        <input type="text" id="vpsPorts" placeholder="8443,8444,8445,8446" value="8443,8444,8445,8446">
+        <button onclick="loadVpsProxyStats()" class="btn-glow-mini" style="width:auto;">LEER STATS REALES</button>
+    </div>
+    <div id="vpsProxyStats" class="res-panel" style="margin-top:15px;">Sin datos VPS cargados.</div>
+</div>
+
 <div class="glass-panel" style="margin-bottom: 25px; border-left: 4px solid var(--primary);">
     <h4 style="margin-bottom: 10px;">❓ ¿Cómo funciona?</h4>
     <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">

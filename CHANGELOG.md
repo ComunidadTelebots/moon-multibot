@@ -1,5 +1,18 @@
 # Changelog - Moon Multibot
 
+## [v16.27.0] - 2026-04-30
+### Estadisticas Reales VPS para MTProto
+- **Asistente `start.sh mtproto`**: Permite introducir secrets MTProto existentes, generar uno nuevo o cargar varios secrets/puertos locales en `.env`.
+- **Importacion local de proxies**: El bot importa `PROXY_SECRET`/`PROXY_PORT` y `PROXY_LOCAL_SECRETS`/`PROXY_LOCAL_PORTS` al gestor sin borrar proxies existentes.
+- **Conexion SSH al VPS**: Nueva configuracion `PROXY_VPS_*` y panel para guardar host, usuario, puerto, ruta de clave y puertos.
+- **Secretos fuera de la web**: Password SSH y passphrase de clave solo se leen desde variables de entorno (`PROXY_VPS_PASSWORD`, `PROXY_VPS_KEY_PASSPHRASE`); no se guardan desde el dashboard.
+- **Stats reales de puertos**: El dashboard lee `ss` en el VPS para comprobar `8443`, `8444`, `8445`, `8446` u otros puertos configurados.
+- **Docker real**: Lectura de `docker ps` y `docker stats --no-stream` para mostrar CPU, RAM, trafico y puertos publicados.
+- **Deteccion de secret MTProto**: Parseo de logs del contenedor proxy para sugerir enlace real con el puerto publicado.
+- **Pestaña visible de Proxies**: Acceso directo en la navegacion principal junto a Seguridad, Cola y Cambios para evitar pestañas perdidas.
+- **Dependencia SSH validada**: `start.sh` comprueba `paramiko` como libreria critica antes de arrancar.
+- **Nuevos endpoints**: `/api/proxies/vps/config` y `/api/proxies/vps/stats`.
+
 ## [v16.26.0] - 2026-04-30
 ### Aprendizaje de Programacion para Moon IA
 - **Nueva fuente Programming**: La expansion multifuente acepta `programming` para enseñar lenguajes y patrones de desarrollo.

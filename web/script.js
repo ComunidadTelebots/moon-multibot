@@ -2191,6 +2191,9 @@ function removeQuickReply(index) {
 // --- MTProto Proxy Tab ---
 function loadProxiesTab() {
     if(!authToken || window.MOON_CONFIG.currentTab !== 'proxies') return;
+    const vpsHostField = document.getElementById("vpsHost");
+    if(vpsHostField && !vpsHostField.dataset.loaded) loadVpsProxyConfig();
+    loadVpsProxyStats();
     
     fetch("/api/proxies/stats", { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
@@ -2235,6 +2238,104 @@ function loadProxiesTab() {
             }
         }
     });
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    }[ch]));
+}
+
+function loadVpsProxyConfig() {
+    fetch("/api/proxies/vps/config", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        if(!data.ok || !data.config) return;
+        const cfg = data.config;
+        const set = (id, val) => { const el = document.getElementById(id); if(el && val !== undefined) el.value = val; };
+        set("vpsHost", cfg.host || "");
+        set("vpsUser", cfg.user || "root");
+        set("vpsPort", cfg.port || 22);
+        set("vpsKeyPath", cfg.key_path || "");
+        set("vpsPorts", (cfg.ports || [8443,8444,8445,8446]).join(","));
+        const host = document.getElementById("vpsHost");
+        if(host) host.dataset.loaded = "1";
+    });
+}
+
+function saveVpsProxyConfig() {
+    const get = id => document.getElementById(id)?.value || "";
+    fetch("/api/proxies/vps/config", {
+        method: "POST",
+        headers: { "Authorization": authToken, "Content-Type": "application/json" },
+        body: JSON.stringify({
+            host: get("vpsHost"),
+            user: get("vpsUser") || "root",
+            port: parseInt(get("vpsPort") || "22", 10),
+            key_path: get("vpsKeyPath"),
+            ports: get("vpsPorts")
+        })
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("VPS", "Configuracion SSH guardada.");
+            loadVpsProxyStats();
+        } else {
+            showToast("Error VPS", data.error || "No se pudo guardar");
+        }
+    });
+}
+
+function loadVpsProxyStats() {
+    const box = document.getElementById("vpsProxyStats");
+    if(!box) return;
+    box.innerHTML = "Conectando al VPS...";
+    fetch("/api/proxies/vps/stats", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        if(!data.ok) {
+            box.innerHTML = `<span style="color: var(--danger);">Error VPS: ${data.error || "sin conexion"}</span>`;
+            return;
+        }
+        const s = data.stats;
+        const ports = (s.ports || []).map(p => `
+            <div class="proxy-mini-stat">
+                <label>PUERTO ${escapeHtml(p.port)}</label>
+                <span style="color:${p.listening ? 'var(--accent)' : 'var(--danger)'}">${p.listening ? 'LISTEN' : 'OFF'}</span>
+                <small>${escapeHtml(p.connections)} conns</small>
+            </div>
+        `).join("");
+        const containers = (s.containers || []).map(c => `
+            <tr>
+                <td>${escapeHtml(c.name)}</td><td>${escapeHtml(c.image)}</td><td>${escapeHtml(c.status)}</td>
+                <td>${escapeHtml(c.cpu)}</td><td>${escapeHtml(c.mem)}</td><td>${escapeHtml(c.net)}</td><td>${escapeHtml(c.ports)}</td>
+            </tr>
+        `).join("");
+        box.innerHTML = `
+            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div><b>${escapeHtml(s.hostname || s.host)}</b><br><small>${escapeHtml(s.host)}</small></div>
+                ${s.suggested_link ? `<button class="btn-glow-mini" data-link="${escapeHtml(s.suggested_link)}" onclick="copyVpsProxyLink(this)">COPIAR LINK REAL</button>` : ""}
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px; margin:12px 0;">${ports}</div>
+            <div class="knowledge-table-cont">
+                <table class="data-table">
+                    <thead><tr><th>Contenedor</th><th>Imagen</th><th>Estado</th><th>CPU</th><th>RAM</th><th>NET I/O</th><th>Puertos</th></tr></thead>
+                    <tbody>${containers || '<tr><td colspan="7">Sin contenedores detectados</td></tr>'}</tbody>
+                </table>
+            </div>
+            ${s.proxy_secret ? `<p style="font-size:11px;color:var(--text-muted);margin-top:10px;">Secret detectado: <code>${escapeHtml(s.proxy_secret)}</code></p>` : ""}
+        `;
+    }).catch(e => {
+        box.innerHTML = `<span style="color: var(--danger);">Error VPS: ${e.message}</span>`;
+    });
+}
+
+function copyVpsProxyLink(btn) {
+    const link = btn?.dataset?.link;
+    if(!link) return;
+    navigator.clipboard.writeText(link);
+    showToast("VPS", "Link MTProto copiado.");
 }
 
 function openProxyModal() { document.getElementById("proxyModal").style.display = "flex"; }

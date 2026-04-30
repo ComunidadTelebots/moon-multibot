@@ -251,6 +251,131 @@ PYTHON_EOF
     echo ""
 }
 
+function set_env_value() {
+    local key="$1"
+    local value="$2"
+    MOON_ENV_KEY="$key" MOON_ENV_VALUE="$value" $PY_CMD << PYTHON_EOF
+import os
+from pathlib import Path
+
+key = os.environ["MOON_ENV_KEY"]
+value = os.environ["MOON_ENV_VALUE"]
+env_path = Path(".env")
+lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+updated = False
+for i, line in enumerate(lines):
+    raw = line.strip()
+    if raw.startswith(f"{key}=") or raw.startswith(f"# {key}=") or raw.startswith(f"#{key}="):
+        lines[i] = f"{key}={value}"
+        updated = True
+        break
+if not updated:
+    if lines and lines[-1].strip():
+        lines.append("")
+    lines.append(f"{key}={value}")
+env_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+PYTHON_EOF
+}
+
+function generate_mtproto_secret() {
+    $PY_CMD << PYTHON_EOF
+import secrets
+print(secrets.token_hex(16))
+PYTHON_EOF
+}
+
+function show_mtproto_config() {
+    $PY_CMD << PYTHON_EOF
+from pathlib import Path
+
+env = {}
+if Path(".env").exists():
+    for line in Path(".env").read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        env[k.strip()] = v.strip()
+
+def mask(value):
+    if not value:
+        return "NO CONFIGURADO"
+    parts = [p.strip() for p in value.split(",") if p.strip()]
+    return ", ".join((p[:6] + "..." + p[-4:]) if len(p) > 12 else "***" for p in parts)
+
+print("")
+print("CONFIGURACION LOCAL MTPROTO")
+print("===========================")
+print(f"PROXY_PORT: {env.get('PROXY_PORT', 'NO CONFIGURADO')}")
+print(f"PROXY_SECRET: {mask(env.get('PROXY_SECRET', ''))}")
+print(f"PROXY_LOCAL_PORTS: {env.get('PROXY_LOCAL_PORTS', 'NO CONFIGURADO')}")
+print(f"PROXY_LOCAL_SECRETS: {mask(env.get('PROXY_LOCAL_SECRETS', ''))}")
+PYTHON_EOF
+}
+
+function configure_mtproto_secrets() {
+    echo ""
+    echo "======================================"
+    echo "   GESTOR LOCAL DE SECRETOS MTPROTO   "
+    echo "======================================"
+    echo ""
+    echo "1. Introducir un secret existente"
+    echo "2. Generar un secret nuevo"
+    echo "3. Introducir varios secrets existentes"
+    echo "4. Ver configuracion actual (oculta secrets)"
+    echo "5. Salir"
+    echo ""
+    read -p "Selecciona una opcion (1-5): " option
+
+    case $option in
+        1)
+            read -p "Puerto MTProto (ej. 8443): " proxy_port
+            read -s -p "Secret MTProto existente (hex): " proxy_secret
+            echo ""
+            if [ -z "$proxy_port" ] || [ -z "$proxy_secret" ]; then
+                echo "ERROR: puerto y secret son obligatorios."
+                return 1
+            fi
+            set_env_value "PROXY_PORT" "$proxy_port"
+            set_env_value "PROXY_SECRET" "$proxy_secret"
+            echo "OK: secret principal guardado en .env local."
+            ;;
+        2)
+            read -p "Puerto MTProto para el nuevo secret (ej. 8443): " proxy_port
+            if [ -z "$proxy_port" ]; then
+                echo "ERROR: el puerto es obligatorio."
+                return 1
+            fi
+            proxy_secret=$(generate_mtproto_secret)
+            set_env_value "PROXY_PORT" "$proxy_port"
+            set_env_value "PROXY_SECRET" "$proxy_secret"
+            echo "OK: secret nuevo generado y guardado en .env local."
+            echo "Secret generado: $proxy_secret"
+            ;;
+        3)
+            read -p "Puertos separados por coma (ej. 8443,8444,8445): " proxy_ports
+            read -s -p "Secrets separados por coma y en el mismo orden: " proxy_secrets
+            echo ""
+            if [ -z "$proxy_ports" ] || [ -z "$proxy_secrets" ]; then
+                echo "ERROR: puertos y secrets son obligatorios."
+                return 1
+            fi
+            set_env_value "PROXY_LOCAL_PORTS" "$proxy_ports"
+            set_env_value "PROXY_LOCAL_SECRETS" "$proxy_secrets"
+            echo "OK: lista de secrets MTProto guardada en .env local."
+            ;;
+        4)
+            show_mtproto_config
+            ;;
+        5)
+            return 0
+            ;;
+        *)
+            echo "Opcion no valida."
+            ;;
+    esac
+}
+
 # 1. Instalación automática de dependencias si se solicita
 if [ "$1" == "setup" ]; then
     echo "📦 Iniciando configuración completa..."
@@ -265,6 +390,11 @@ fi
 # 🆕 Gestión de tokens
 if [ "$1" == "tokens" ]; then
     manage_tokens
+    exit 0
+fi
+
+if [ "$1" == "mtproto" ]; then
+    configure_mtproto_secrets
     exit 0
 fi
 
@@ -315,7 +445,7 @@ PYTHON_EOF
 
     # 6. Comprobar librerías críticas
     echo "⏳ Verificando librerías requeridas..."
-    $PY_CMD -c "import requests, psutil, sqlite3, flask, jwt, dotenv, cryptography" &>/dev/null
+    $PY_CMD -c "import requests, psutil, sqlite3, flask, jwt, dotenv, cryptography, paramiko" &>/dev/null
     if [ $? -eq 0 ]; then
         echo "✅ Todas las librerías críticas están instaladas (incluyendo Cryptography)."
     else
