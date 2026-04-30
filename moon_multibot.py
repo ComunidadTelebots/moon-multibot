@@ -1480,6 +1480,10 @@ class MoonCoreIA:
     def seed_master_intelligence(self):
         """Inyecta conocimiento avanzado (Wikipedia y Patrones Humanos) de forma masiva."""
         add_web_log("INFO", "🚀 INICIANDO MEGA-INYECTOR DE INTELIGENCIA MAESTRA...")
+        if MASTER_ID:
+            try:
+                proxy_bot.api_call("sendMessage", {"chat_id": MASTER_ID, "text": "🧠 *Iniciando proceso de Expansión Maestra...*\nAbsorbiendo Wikipedia y patrones humanos avanzados.", "parse_mode": "Markdown"})
+            except: pass
         
         # 1. Patrones Conversacionales
         conversations = [
@@ -1527,6 +1531,7 @@ class MoonCoreIA:
         
         db.set("IA_BRAIN", self.brain) # Forzar guardado
         add_web_log("SUCCESS", f"🔥 EXPANSIÓN MAESTRA COMPLETADA: {count} tópicos enciclopédicos absorbidos.")
+        self.send_master_report("🚀 REPORTE DE EXPANSIÓN MAESTRA")
 
     def seed_knowledge(self):
         global multilingual_seeds
@@ -2030,6 +2035,48 @@ class MoonCoreIA:
         target = 5000
         remaining = max(0, target - words_count)
         est_minutes = (remaining / rate) if rate > 0 else 0
+        return {
+            "words": words_count,
+            "connections": connections,
+            "rate": f"{rate:.2f} p/min",
+            "est_maturity": "Madura (Estable)" if words_count > 5000 else f"{est_minutes:.1f} min"
+        }
+
+    def send_master_report(self, title="Reporte de Inteligencia"):
+        """Envía un resumen detallado del estado de la IA al Administrador Maestro."""
+        if not MASTER_ID: return
+        stats = self.get_stats()
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        report = (
+            f"📊 *{title}*\n"
+            f"📅 Fecha: `{now}`\n"
+            f"--------------------------------\n"
+            f"🧠 *Neuronas:* `{stats['words']}`\n"
+            f"🔗 *Sinapsis:* `{stats['connections']}`\n"
+            f"⚡ *Velocidad:* `{stats['rate']}`\n"
+            f"🎓 *Estado:* `{stats['est_maturity']}`\n"
+            f"--------------------------------\n"
+            f"📚 *Top Fuentes:* {', '.join([s['name'] for s in self.get_top_sources()[:3]])}\n"
+            f"🌐 *Idiomas:* {len(db.get('IA_LANG_COUNTS', {}))} detectados\n"
+            f"🛡️ *Seguridad:* Escudo Neural Activo\n"
+            f"--------------------------------\n"
+            f"🌙 _Moon Multibot Intelligence System_"
+        )
+        
+        try:
+            # Usamos proxy_bot para enviar el reporte
+            proxy_bot.api_call("sendMessage", {"chat_id": MASTER_ID, "text": report, "parse_mode": "Markdown"})
+        except Exception as e:
+            add_web_log("ERROR", f"Fallo al enviar reporte maestro: {e}")
+
+    def get_top_sources(self):
+        """Calcula las fuentes más influyentes."""
+        sources = {}
+        for w, s in self._sources_cache.items():
+            sources[s] = sources.get(s, 0) + 1
+        sorted_s = sorted(sources.items(), key=lambda x: x[1], reverse=True)
+        return [{"name": k, "count": v} for k, v in sorted_s]
         
         eta = "Madura (Estable)"
         if est_minutes > 0:
@@ -3110,6 +3157,25 @@ if __name__ == "__main__":
                 add_web_log("SUCCESS", f"Lanzando hilo para @{bot.bot_username}...")
                 threading.Thread(target=bot.run, daemon=True).start()
             
+            def daily_report_worker():
+                """Envía un resumen diario del crecimiento y salud del bot."""
+                # Esperar a que el sistema se estabilice
+                time.sleep(60)
+                while True:
+                    try:
+                        last_report = db.get("LAST_DAILY_REPORT", "")
+                        today = datetime.datetime.now().strftime("%Y-%m-%d")
+                        # Si es un nuevo día, enviar reporte
+                        if last_report != today:
+                            if MASTER_ID:
+                                ia_nativa.send_master_report("📅 RESUMEN DIARIO DE INTELIGENCIA")
+                                db.set("LAST_DAILY_REPORT", today)
+                                add_web_log("INFO", "Reporte diario enviado al Administrador Maestro.")
+                    except Exception as e:
+                        add_web_log("DEBUG", f"Error en daily_report_worker: {e}")
+                    time.sleep(3600) # Comprobar cada hora
+
+            threading.Thread(target=daily_report_worker, daemon=True).start()
             threading.Thread(target=health_monitor, daemon=True).start()
         else:
             add_web_log("ERROR", "No se pudo iniciar ningún bot. Verifica data/bots.json")
