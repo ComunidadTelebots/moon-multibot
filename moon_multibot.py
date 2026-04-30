@@ -11,6 +11,7 @@ MOON_ROLE = os.getenv("MOON_ROLE", "master").lower()
 MASTER_ID = int(os.getenv("MASTER_ID", 0))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
+HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50")) # % de veces que usa LLM vs Nativa
 
 app = Flask(__name__)
 # Configuración según ambiente
@@ -1033,7 +1034,24 @@ def web_ia_evolve():
     threading.Thread(target=ia_nativa.evolve_process).start()
     return jsonify({"ok": True, "msg": "Proceso de evolución iniciado."})
 
-@app.route("/api/ia/seed", methods=['POST'])
+@app.route("/api/ia/config", methods=['GET', 'POST'])
+def api_ia_config():
+    global USE_EXTERNAL_LLM, GEMINI_API_KEY, HYBRID_PERCENTAGE
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    
+    if request.method == 'POST':
+        data = request.json
+        USE_EXTERNAL_LLM = data.get("use_external", USE_EXTERNAL_LLM)
+        GEMINI_API_KEY = data.get("api_key", GEMINI_API_KEY)
+        HYBRID_PERCENTAGE = int(data.get("hybrid_ratio", HYBRID_PERCENTAGE))
+        return jsonify({"ok": True, "msg": "Configuración de IA actualizada"})
+    
+    return jsonify({
+        "ok": True, 
+        "use_external": USE_EXTERNAL_LLM, 
+        "api_key": "***" if GEMINI_API_KEY else "",
+        "hybrid_ratio": HYBRID_PERCENTAGE
+    })
 def web_ia_seed():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     ia_nativa.seed_knowledge()
@@ -1930,7 +1948,11 @@ class MoonCoreIA:
                     memory_context = "\n[Memoria Reciente]:\n" + "\n".join(relevant_msgs)
 
         # --- Modo Híbrido / Externo (LLM) ---
-        if USE_EXTERNAL_LLM and GEMINI_API_KEY:
+        use_llm_this_time = USE_EXTERNAL_LLM
+        if USE_EXTERNAL_LLM and HYBRID_PERCENTAGE < 100:
+            use_llm_this_time = random.randint(1, 100) <= HYBRID_PERCENTAGE
+
+        if use_llm_this_time and GEMINI_API_KEY:
             try:
                 # Simulando llamada a Gemini API (se requiere google-generativeai instalado)
                 # En un entorno real, usaríamos: genai.configure(api_key=GEMINI_API_KEY)

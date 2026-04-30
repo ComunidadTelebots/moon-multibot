@@ -89,7 +89,7 @@ function switchTab(tabId, btn) {
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
         if(tabId === 'bots') fetchBots();
-        if(tabId === 'ia') { fetchIAFeeders(); fetchVisionStats(); }
+        if(tabId === 'ia') { fetchIAFeeders(); fetchVisionStats(); initIATab(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
         if(tabId === 'moderation') { loadModerationTab(); fetchSecurityBlacklist(); }
@@ -1425,6 +1425,50 @@ async function injectExpansionTopics() {
         showToast("❌ Error", "Fallo de conexión");
     }
     input.disabled = false;
+}
+
+
+// --- IA: Configuración Híbrida ---
+function updateRatioLabel() {
+    const ratio = document.getElementById("hybridRatio").value;
+    document.getElementById("ratioDisplay").innerText = `${100 - ratio}% / ${ratio}%`;
+}
+
+async function loadIAConfig() {
+    try {
+        const res = await fetch("/api/ia/config", { headers: { "Authorization": "Bearer " + localStorage.getItem("moon_token") } });
+        const data = await res.json();
+        if (data.ok) {
+            document.getElementById("useExternalLLM").checked = data.use_external;
+            document.getElementById("hybridRatio").value = data.hybrid_ratio;
+            if (data.api_key === "***") document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
+            updateRatioLabel();
+        }
+    } catch (e) { console.error("Error cargando config IA", e); }
+}
+
+async function saveIAConfig() {
+    const use_external = document.getElementById("useExternalLLM").checked;
+    const api_key = document.getElementById("geminiKey").value;
+    const hybrid_ratio = document.getElementById("hybridRatio").value;
+
+    try {
+        const res = await fetch("/api/ia/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            body: JSON.stringify({ use_external, api_key, hybrid_ratio })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast("🧠 Configuración Guardada", use_external ? "Cerebro Híbrido Activo" : "Usando solo IA Nativa");
+            if (api_key) document.getElementById("geminiKey").value = "";
+        }
+    } catch (e) { showToast("❌ Error", "Fallo al guardar"); }
+}
+
+// Lote inicial al cargar IA
+function initIATab() {
+    loadIAConfig();
 }
 
 // --- Dashboard: execCmd (consola interna) ---
