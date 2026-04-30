@@ -1014,11 +1014,7 @@ def web_ia_library():
     library = activity[::-1] # Invertir para mostrar lo más reciente primero
     
     # Contar contribuciones por fuente para el ranking
-    counts = {}
-    for s in sources.values():
-        counts[s] = counts.get(s, 0) + 1
-    
-    top_sources = [{"name": s, "count": c} for s, c in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:10]]
+    top_sources = ia_nativa.get_top_sources()
     
     return jsonify({"ok": True, "library": library, "top_sources": top_sources})
 
@@ -1052,16 +1048,6 @@ def api_ia_wikipedia():
 @app.route("/api/ia/backup", methods=['POST'])
 def api_ia_backup():
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    if not MASTER_ID or not proxy_bot: return jsonify({"ok": False, "msg": "Master ID no configurado"})
-    db_path = "data/moon_database.db"
-    if not os.path.exists(db_path): return jsonify({"ok": False, "msg": "Base de datos no encontrada"})
-    
-    size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
-    def _manual_backup():
-        proxy_bot.send_document(MASTER_ID, db_path, f"📁 Backup Manual Solicitado — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)")
-    
-    threading.Thread(target=_manual_backup).start()
-    return jsonify({"ok": True, "msg": "Backup enviado a tu Telegram"})
     if not MASTER_ID or not proxy_bot: return jsonify({"ok": False, "msg": "Master ID no configurado"})
     db_path = "data/moon_database.db"
     if not os.path.exists(db_path): return jsonify({"ok": False, "msg": "Base de datos no encontrada"})
