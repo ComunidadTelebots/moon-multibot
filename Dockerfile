@@ -8,6 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requerimientos e instalar

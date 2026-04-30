@@ -1254,6 +1254,16 @@ function forceFeedIA() {
     });
 }
 
+function injectMasterIntelligence() {
+    if(!authToken) return;
+    fetch("/api/ia/master_seed", {
+        method: "POST",
+        headers: { "Authorization": authToken }
+    }).then(r => r.json()).then(data => {
+        if(data.ok) showToast("🧠 Master IA", "Expansión Maestra iniciada (Wikipedia + Patrones).");
+    });
+}
+
 // --- Neuro-Search ---
 function runNeuralSearch() {
     const input = document.getElementById('neuralSearchInput');

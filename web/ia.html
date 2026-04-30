@@ -73,9 +73,12 @@
         </div>
 
         <div class="evolution-zone">
-            <div style="display: flex; gap: 10px;">
-                <button onclick="evolveIA()" class="btn-evolution" style="flex: 2;">🧬 DISPARAR EVOLUCIÓN NEURONAL</button>
-                <button onclick="injectMultilingual()" class="btn-evolution" style="flex: 1; background: linear-gradient(135deg, #3b82f6, #10b981);">🌎 POLÍGLOTA</button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="evolveIA()" class="btn-evolution" style="flex: 2;">🧬 DISPARAR EVOLUCIÓN NEURONAL</button>
+                    <button onclick="injectMultilingual()" class="btn-evolution" style="flex: 1; background: linear-gradient(135deg, #3b82f6, #10b981);">🌎 POLÍGLOTA</button>
+                </div>
+                <button onclick="injectMasterIntelligence()" class="btn-evolution" style="background: linear-gradient(135deg, #f59e0b, #ef4444); border: none; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">👑 MASTER ADVANCED IA (WIKIPEDIA + PATRONES)</button>
             </div>
             <div id="iaEvolutionProgress" class="evolution-progress" style="display: none;">
                 <div class="prog-header">

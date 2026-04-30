@@ -1,5 +1,22 @@
 # Changelog - Moon Multibot
 
+## [v16.16.0] - 2026-04-30
+### 🧠 Inteligencia Maestra y Estabilidad Crítica
+- **Integración de Master Intelligence (Advanced IA)**:
+  - Fusión nativa del inyector de conocimiento en el núcleo principal (`MoonCoreIA`).
+  - **Wikipedia Master Seeding**: El bot ahora puede absorber conocimiento enciclopédico sobre Ciencia, Historia, Tecnología y más directamente desde la API de Wikipedia.
+  - **Inyección de Patrones Humanos**: Añadidos protocolos de conversación natural para humanizar las respuestas de la IA.
+  - **Trigger desde Dashboard**: Nuevo botón premium en la pestaña de IA para disparar la expansión cerebral en un clic.
+- **Robustez y Blindaje Neural**:
+  - **Protocolo `_ensure_counters`**: Sistema de auto-reparación de la red neuronal que garantiza la integridad de los datos y previene el error `'dict' object has no attribute 'most_common'`.
+  - **Sincronización Hot-Reload**: Mejora en la recarga del cerebro en caliente para asegurar que los nuevos conocimientos se apliquen instantáneamente sin reiniciar el bot.
+- **Optimización de Entorno y Conflictos**:
+  - **Detección de Instancias Duplicadas**: Protocolo para evitar el error `Conflict` de Telegram al cerrar sesiones locales si el bot está corriendo en la nube.
+- **Mejoras de UI/UX (IA Dashboard)**:
+  - Rediseño de la zona de evolución con nuevos botones de acción masiva.
+  - Toasts de notificación mejorados para procesos asíncronos de larga duración.
+
+
 ## [v16.15.0] - 2026-04-28
 ### 🚀 Auto-Gestión y Moderación de Élite
 - **Sistema de Actualización Inteligente (CI/CD)**: 

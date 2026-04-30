@@ -1034,6 +1034,12 @@ def web_ia_seed():
     ia_nativa.seed_knowledge()
     return jsonify({"ok": True, "msg": "Conocimiento inyectado con éxito"})
 
+@app.route("/api/ia/master_seed", methods=['POST'])
+def web_ia_master_seed():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    threading.Thread(target=ia_nativa.seed_master_intelligence).start()
+    return jsonify({"ok": True, "msg": "Expansión Maestra iniciada en segundo plano."})
+
 @app.route("/api/ia/force_feed", methods=['POST'])
 def web_ia_force_feed():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -1444,10 +1450,8 @@ def detect_intent(text):
 class MoonCoreIA:
     def __init__(self):
         self.brain = db.get("IA_BRAIN", {"keywords": {}, "patterns": {}})
-        # Ensure keywords are Counter objects
-        for k, v in self.brain["keywords"].items():
-            if not isinstance(v, Counter):
-                self.brain["keywords"][k] = Counter(v) if isinstance(v, dict) else Counter()
+        # Ensure keywords are Counter objects for stability
+        self._ensure_counters()
         self.active_workers = {}
         self.business_connections = {} # Store active business accounts
         self.db_save_timer = 0
@@ -1462,6 +1466,67 @@ class MoonCoreIA:
         self._context_cache = {}
         if len(self.brain["keywords"]) < 1000:
             threading.Thread(target=self.seed_knowledge).start()
+
+    def _ensure_counters(self):
+        """Asegura que todas las palabras clave sean objetos Counter."""
+        if "keywords" not in self.brain: self.brain["keywords"] = {}
+        for k, v in self.brain["keywords"].items():
+            if not isinstance(v, Counter):
+                if isinstance(v, (dict, list)):
+                    self.brain["keywords"][k] = Counter(v)
+                else:
+                    self.brain["keywords"][k] = Counter()
+
+    def seed_master_intelligence(self):
+        """Inyecta conocimiento avanzado (Wikipedia y Patrones Humanos) de forma masiva."""
+        add_web_log("INFO", "🚀 INICIANDO MEGA-INYECTOR DE INTELIGENCIA MAESTRA...")
+        
+        # 1. Patrones Conversacionales
+        conversations = [
+            "Hola, ¿cómo estás hoy? Yo estoy operando al cien por cien de mis capacidades neuronales.",
+            "Entiendo perfectamente lo que dices, es un punto de vista muy interesante sobre el tema.",
+            "Claro que sí, puedo ayudarte con eso de inmediato. ¿Qué necesitas exactamente?",
+            "Me parece una idea genial, deberíamos profundizar más en ese concepto en el futuro.",
+            "Vaya, no lo había visto de esa forma. Siempre estoy aprendiendo de nuestras interacciones.",
+            "Gracias por compartir eso conmigo. Mi base de datos se vuelve más rica con cada mensaje.",
+            "Como asistente inteligente, mi prioridad es proporcionarte información precisa y útil.",
+            "La complejidad de este tema requiere un análisis detallado, pero aquí tienes un resumen.",
+            "Estoy procesando la información en mis núcleos neuronales para darte la mejor respuesta.",
+            "Es un honor servirte. ¿Hay algo más en lo que pueda asistir al grupo hoy?"
+        ]
+        for conv in conversations:
+            self.learn(conv, source="Patrón Humano")
+
+        # 2. Wikipedia Seeding
+        topics = [
+            "Inteligencia_artificial", "Universo", "Historia_de_España", "Internet",
+            "Ciencia", "Tecnología", "Filosofía", "Psicología", "Criptografía",
+            "Física_cuántica", "Biología", "Astronáutica", "Derecho_romano",
+            "Revolución_Industrial", "Renacimiento", "Arquitectura", "Cine",
+            "Literatura", "Medicina", "Economía", "Sociología", "Matemáticas",
+            "Astronomía", "Geografía", "Derecho_Constitucional", "Historia_Universal",
+            "Arte_contemporáneo", "Mitología_griega", "Ecología", "Nanotecnología",
+            "Energías_renovables", "Exploración_espacial", "Inteligencia_emocional"
+        ]
+        
+        headers = {'User-Agent': 'MoonBotMasterSeed/1.0'}
+        count = 0
+        for topic in topics:
+            try:
+                url = f"https://es.wikipedia.org/api/rest_v1/page/summary/{topic}"
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    data = r.json()
+                    extract = data.get("extract", "")
+                    if extract:
+                        self.learn(extract, source=f"Wikipedia: {topic.replace('_', ' ')}")
+                        count += 1
+                time.sleep(0.3)
+            except Exception as e:
+                add_web_log("DEBUG", f"Error en tópico Wikipedia {topic}: {e}")
+        
+        db.set("IA_BRAIN", self.brain) # Forzar guardado
+        add_web_log("SUCCESS", f"🔥 EXPANSIÓN MAESTRA COMPLETADA: {count} tópicos enciclopédicos absorbidos.")
 
     def seed_knowledge(self):
         global multilingual_seeds
@@ -1622,10 +1687,7 @@ class MoonCoreIA:
         res = db.get("IA_BRAIN")
         if res:
             self.brain = res
-            # Convertir keywords a Counter para que la IA funcione correctamente
-            for k, v in self.brain["keywords"].items():
-                if not isinstance(v, Counter):
-                    self.brain["keywords"][k] = Counter(v) if isinstance(v, dict) else Counter()
+            self._ensure_counters()
             self._sources_cache = db.get("IA_SOURCES", {})
             add_web_log("IA", "Cerebro sincronizado con la base de datos (Hot-Reload OK).")
             return True
