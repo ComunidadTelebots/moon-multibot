@@ -1045,14 +1045,22 @@ def api_ia_master_seed():
     threading.Thread(target=ia_nativa.seed_master_intelligence).start()
     return jsonify({"ok": True, "msg": "Expansión Maestra iniciada"})
 
-@app.route("/api/ia/wikipedia", methods=['POST'])
-def api_ia_wikipedia():
+@app.route("/api/ia/expand", methods=['POST'])
+def api_ia_expand():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     data = request.json
-    topics = data.get("topics", "").split(",")
-    if not topics: return jsonify({"ok": False, "msg": "No hay tópicos"})
-    threading.Thread(target=ia_nativa.seed_wikipedia_topics, args=(topics,)).start()
-    return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(topics)} temas"})
+    source = data.get("source", "wikipedia")
+    items = data.get("items", "").split(",")
+    if not items: return jsonify({"ok": False, "msg": "No hay elementos"})
+    
+    if source == "wikipedia":
+        threading.Thread(target=ia_nativa.seed_wikipedia_topics, args=(items, "es.wikipedia.org")).start()
+    elif source == "wikisource":
+        threading.Thread(target=ia_nativa.seed_wikipedia_topics, args=(items, "es.wikisource.org")).start()
+    elif source == "gutenberg":
+        threading.Thread(target=ia_nativa.seed_gutenberg_books, args=(items,)).start()
+        
+    return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(items)} fuentes de {source}"})
 
 @app.route("/api/ia/backup", methods=['POST'])
 def api_ia_backup():
@@ -1561,38 +1569,68 @@ class MoonCoreIA:
         add_web_log("SUCCESS", f"🔥 EXPANSIÓN MAESTRA COMPLETADA: {count} tópicos enciclopédicos absorbidos.")
         self.send_master_report("🚀 REPORTE DE EXPANSIÓN MAESTRA")
 
-    def seed_wikipedia_topics(self, topics_list):
-        """Inyecta conocimiento desde una lista específica de tópicos de Wikipedia."""
+    def seed_wikipedia_topics(self, topics_list, domain="es.wikipedia.org"):
+        """Inyecta conocimiento desde una lista específica de Wikipedia o Wikisource."""
         if not topics_list: return
-        add_web_log("INFO", f"🌐 Iniciando sembrado personalizado de Wikipedia ({len(topics_list)} temas)...")
-        if MASTER_ID:
-            try:
-                proxy_bot.api_call("sendMessage", {"chat_id": MASTER_ID, "text": f"📚 *Expansión por Tópicos Iniciada*\nTemas: {', '.join(topics_list[:5])}...", "parse_mode": "Markdown"})
-            except: pass
-
-        headers = {'User-Agent': 'MoonBotCustomSeed/1.0'}
+        source_name = "Wikipedia" if "wikipedia" in domain else "Wikisource"
+        add_web_log("INFO", f"🌐 Iniciando sembrado personalizado de {source_name} ({len(topics_list)} temas)...")
+        
+        headers = {'User-Agent': 'MoonBotMasterSeed/1.0'}
         count = 0
         for topic in topics_list:
             topic = topic.strip().replace(" ", "_")
             if not topic: continue
             try:
-                url = f"https://es.wikipedia.org/api/rest_v1/page/summary/{topic}"
+                url = f"https://{domain}/api/rest_v1/page/summary/{topic}"
                 r = requests.get(url, headers=headers, timeout=10)
                 if r.status_code == 200:
                     data = r.json()
                     extract = data.get("extract", "")
                     if extract:
-                        self.learn(extract, source=f"Wikipedia: {topic.replace('_', ' ')}")
+                        self.learn(extract, source=f"{source_name}: {topic.replace('_', ' ')}")
                         count += 1
-                time.sleep(0.3)
+                time.sleep(0.5)
             except Exception as e:
-                add_web_log("DEBUG", f"Error en tópico Wikipedia {topic}: {e}")
+                add_web_log("DEBUG", f"Error en tópico {source_name} {topic}: {e}")
         
-        db.set("IA_BRAIN", self.brain)
-        add_web_log("SUCCESS", f"✅ Sembrado personalizado finalizado: {count} temas absorbidos.")
-        if MASTER_ID:
-            self.send_master_report("📊 REPORTE DE EXPANSIÓN POR TÓPICOS")
+        add_web_log("SUCCESS", f"✅ Inyección de {source_name} completada: {count} temas aprendidos.")
 
+    def seed_gutenberg_books(self, book_ids):
+        """Inyecta libros completos desde Project Gutenberg."""
+        if not book_ids: return
+        add_web_log("INFO", f"📚 Iniciando descarga de {len(book_ids)} libros de Gutenberg...")
+        
+        count = 0
+        for b_id in book_ids:
+            b_id = b_id.strip()
+            if not b_id: continue
+            try:
+                urls = [
+                    f"https://www.gutenberg.org/cache/epub/{b_id}/pg{b_id}.txt",
+                    f"https://www.gutenberg.org/files/{b_id}/{b_id}-0.txt",
+                    f"https://www.gutenberg.org/files/{b_id}/{b_id}.txt"
+                ]
+                text = ""
+                for url in urls:
+                    r = requests.get(url, timeout=15)
+                    if r.status_code == 200:
+                        text = r.text
+                        break
+                
+                if text:
+                    paragraphs = text.split("\n\n")
+                    for p in paragraphs[:500]:
+                        if len(p.strip()) > 20:
+                            self.learn(p, source=f"Gutenberg ID: {b_id}")
+                    count += 1
+                    add_web_log("SUCCESS", f"📖 Libro Gutenberg {b_id} absorbido.")
+                time.sleep(1)
+            except Exception as e:
+                add_web_log("ERROR", f"Error con libro Gutenberg {b_id}: {e}")
+        
+        add_web_log("SUCCESS", f"✅ Proceso Gutenberg finalizado: {count} libros integrados.")
+
+    def remember_context(self, chat_id, text, role="user"):
     def seed_knowledge(self):
         global multilingual_seeds
         add_web_log("INFO", "🌱 Iniciando sembrado de conocimiento masivo...")

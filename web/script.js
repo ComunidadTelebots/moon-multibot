@@ -1401,6 +1401,32 @@ function quickSeed() {
     });
 }
 
+async function injectExpansionTopics() {
+    const source = document.getElementById("expansionSource").value;
+    const input = document.getElementById("wikiTopicsInput");
+    const topics = input.value.trim();
+    if (!topics) return;
+
+    input.disabled = true;
+    try {
+        const res = await fetch("/api/ia/expand", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            body: JSON.stringify({ source, items: topics })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast("🚀 Expansión Iniciada", `Absorbiendo de ${source.toUpperCase()}...`);
+            input.value = "";
+        } else {
+            showToast("❌ Error", data.msg);
+        }
+    } catch (e) {
+        showToast("❌ Error", "Fallo de conexión");
+    }
+    input.disabled = false;
+}
+
 // --- Dashboard: execCmd (consola interna) ---
 function execCmd() {
     const input = document.getElementById("consoleCmd");

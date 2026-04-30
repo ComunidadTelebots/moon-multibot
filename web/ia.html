@@ -196,13 +196,20 @@
     </div>
         <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--secondary);">
             <div class="panel-header-flex">
-                <h3>🌐 Expansión por Tópicos (Wikipedia)</h3>
+                <h3>🌐 Expansión Multifuente</h3>
                 <span class="status-badge online">BETA</span>
             </div>
-            <p class="section-desc">Escribe temas separados por comas y la IA buscará sus definiciones en Wikipedia para absorber el conocimiento.</p>
-            <div class="input-group">
-                <input type="text" id="wikiTopicsInput" placeholder="Ej: Agujeros negros, Gran Muralla China, Bitcoin, Realismo mágico...">
-                <button onclick="injectWikipediaTopics()" class="btn-glow-mini" style="background: var(--secondary); border-color: var(--secondary);">INYECTAR TEMAS</button>
+            <p class="section-desc">Selecciona una fuente e introduce los temas o IDs (separados por comas).</p>
+            <div class="input-group" style="flex-direction: column; gap: 10px;">
+                <select id="expansionSource" class="mood-btn" style="width: 100%; text-align: left; padding-left: 15px;">
+                    <option value="wikipedia">🌐 Wikipedia (Tópicos)</option>
+                    <option value="wikisource">📜 Wikisource (Documentos)</option>
+                    <option value="gutenberg">📖 Project Gutenberg (ID de Libro)</option>
+                </select>
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <input type="text" id="wikiTopicsInput" placeholder="Ej: Agujeros negros, 17013 (Gutenberg ID), Historia de España..." style="flex: 1;">
+                    <button onclick="injectExpansionTopics()" class="btn-glow-mini" style="background: var(--secondary); border-color: var(--secondary);">INYECTAR</button>
+                </div>
             </div>
         </div>
 
