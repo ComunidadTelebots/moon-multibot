@@ -22,14 +22,14 @@ services:
       - "traefik.http.services.moonbot.loadbalancer.server.port=5000"
       - "traefik.http.services.moonbot.loadbalancer.passHostHeader=true"
 
-  ollama:
+  moon_ollama:
     image: ollama/ollama:latest
-    container_name: ollama
+    container_name: moon_ollama
     restart: unless-stopped
     volumes:
       - ./ollama_data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "11435:11434"
     # Auto-descarga del modelo Qwen2-0.5B al iniciar
     entrypoint: /bin/sh -c "/bin/ollama serve & sleep 10 && ollama pull qwen2:0.5b && wait"
 

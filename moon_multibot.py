@@ -13,7 +13,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
 HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50"))
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini") # "gemini" o "ollama"
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434/api/generate")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://moon_ollama:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2:0.5b")
 
 app = Flask(__name__)
