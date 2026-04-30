@@ -38,6 +38,22 @@
                 </div>
                 <div class="help-hint" title="Nivel de evolución del cerebro basado en la densidad de su red neuronal.">?</div>
             </div>
+            <div class="stat-card">
+                <i class="stat-icon">1M</i>
+                <div class="stat-info">
+                    <span id="iaMillionGoal">0%</span>
+                    <label>Hito 1M / 1H</label>
+                </div>
+                <div class="help-hint" title="Progreso hacia 1.000.000 de palabras aprendidas en 60 minutos.">?</div>
+            </div>
+            <div class="stat-card">
+                <i class="stat-icon">1B</i>
+                <div class="stat-info">
+                    <span id="iaBillionGoal">0%</span>
+                    <label>Hito 1 billon / 12H</label>
+                </div>
+                <div class="help-hint" title="Progreso hacia 1 billon de palabras aprendidas en 12 horas.">?</div>
+            </div>
         </div>
 
         <div class="ia-query-section">
@@ -80,6 +96,16 @@
                 </div>
                 <button onclick="injectMasterIntelligence()" class="btn-evolution" style="background: linear-gradient(135deg, #f59e0b, #ef4444); border: none; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">👑 MASTER ADVANCED IA (WIKIPEDIA + PATRONES)</button>
                 <button onclick="requestIABackup()" class="btn-evolution" style="margin-top: 10px; background: rgba(56, 189, 248, 0.1); border: 1px solid var(--secondary); color: var(--secondary); font-size: 11px;">💾 SOLICITAR COPIA DE SEGURIDAD AL MASTER (TELEGRAM)</button>
+            </div>
+            <div class="glass-panel" style="padding: 12px; border-left: 3px solid var(--accent); margin-top: 12px;">
+                <label style="font-size: 11px; color: var(--text-muted);">BALANCEADOR 1 BILLON / 12H</label>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <input type="number" id="iaBalancerWorkers" min="1" max="32" value="8" title="Workers maximos" style="width: 80px;">
+                    <input type="number" id="iaBalancerSources" min="1" max="50" value="3" title="Multiplicador de fuentes" style="width: 80px;">
+                    <button onclick="startIALoadBalancer()" class="btn-glow-mini" style="flex: 1;">LANZAR WORKERS</button>
+                    <button onclick="stopIALoadBalancer()" class="btn-glow-mini" style="flex: 1; border-color: var(--danger); color: var(--danger); background: transparent;">DETENER</button>
+                </div>
+                <div id="iaBalancerState" style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">Esperando datos del balanceador...</div>
             </div>
             <div id="iaEvolutionProgress" class="evolution-progress" style="display: none;">
                 <div class="prog-header">

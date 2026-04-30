@@ -1,5 +1,32 @@
 # Changelog - Moon Multibot
 
+## [v16.23.0] - 2026-04-30
+### Hito 1 Billon / 12H y Balanceador Neural
+- **Nueva meta extrema**: Objetivo de 1 billon de palabras aprendidas en 12 horas.
+- **Balanceador de carga neural**: Nuevo sistema controlado de workers que calcula instancias necesarias y reparte fuentes de libros.
+- **Panel de control en interfaz**: Nuevo indicador `Hito 1 billon / 12H` y controles para lanzar/detener workers desde el Dashboard.
+- **Fuentes literarias ampliadas**: La expansion maestra y el balanceador usan una biblioteca ampliada de Project Gutenberg.
+- **Backup 24H preservado**: Se mantiene la copia automatica diaria completa al Master.
+- **Backup de aprendizaje cada 1H**: Nueva copia horaria centrada en el progreso neural, configurable desde `GLOBAL_SETTINGS.learning_backup_interval`.
+- **Proteccion operativa**: El balanceador respeta un maximo de workers configurable para evitar lanzar procesos infinitos.
+
+## [v16.22.0] - 2026-04-30
+### Hito Neural 1M / 1H
+- **Nueva meta de aprendizaje**: La madurez principal de la IA sube de 100.000 a 1.000.000 de palabras aprendidas.
+- **Objetivo de velocidad**: Nuevo hito operativo para alcanzar 1.000.000 de palabras en 60 minutos.
+- **Metricas de progreso**: La API de IA expone progreso, palabras restantes, tasa requerida y estado del hito.
+- **Dashboard actualizado**: Nuevo indicador `Hito 1M / 1H` en el panel del Cerebro Moon.
+- **Estado inteligente**: El sistema marca si la IA va en ritmo de 1 hora o si necesita acelerar el aprendizaje.
+
+## [v16.21.0] - 2026-04-30
+### Traduccion IA Natural y Aprendizaje Local
+- **Traduccion sin comandos**: La IA detecta peticiones naturales como `traduce hola al ingles`, `como se dice gracias en aleman` o `translate hello to Spanish`.
+- **Soporte en respuestas**: Al responder a un mensaje con `traduce esto al ingles`, el bot traduce el contenido del mensaje citado.
+- **Memoria local de traducciones**: Las traducciones aprendidas se guardan en `IA_TRANSLATION_MEMORY` para reutilizarse sin pedir ayuda externa.
+- **Aprendizaje desde motores externos**: Si Gemini u Ollama generan una traduccion nueva, la IA local la aprende automaticamente.
+- **Comando de ensenanza manual**: Nuevo `/aprender_traduccion es en hola = hello` para introducir traducciones exactas en la memoria local.
+- **Compatibilidad preservada**: Se mantienen `/traducir`, `/translate`, `/tr`, Gemini, Ollama y el endpoint `/api/ia/translate`.
+
 ## [v16.20.0] - 2026-04-30
 ### 🛡️ Seguridad y Respaldo Total
 - **Copias de Seguridad Manuales**: Añadido botón en el Dashboard para solicitar una copia completa del "cerebro" (DB) enviada instantáneamente por Telegram.

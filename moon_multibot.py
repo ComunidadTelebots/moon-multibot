@@ -34,6 +34,20 @@ def _detect_ollama_url():
 OLLAMA_URL = _detect_ollama_url()
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2:0.5b")
 DEEP_DREAM_MODE = os.getenv("DEEP_DREAM_MODE", "false").lower() == "true"
+NEURAL_BILLION_TARGET = 1000000000000  # 1 billon en escala larga (1.000.000.000.000)
+NEURAL_BILLION_DEADLINE_MIN = 12 * 60
+DEFAULT_BOOK_SOURCE_IDS = [
+    "84", "1342", "1661", "11", "2701", "345", "76", "98", "174", "5200",
+    "2600", "4300", "1952", "1080", "1400", "46", "1260", "1232", "2554", "28054",
+    "2591", "6130", "2542", "844", "16328", "160", "768", "1497", "45", "219",
+    "205", "514", "829", "215", "36", "35", "74", "1998", "3207", "27827",
+    "244", "14969", "4217", "7370", "730", "996", "236", "33283", "8800", "100",
+    "1065", "2148", "932", "41", "2781", "2814", "209", "203", "1184", "120",
+    "2156", "16", "55", "766", "1727", "6133", "1399", "51461", "43453", "1524",
+    "158", "161", "105", "121", "1259", "10", "4363", "8297", "5827", "58585",
+    "14977", "23700", "37106", "521", "3825", "2852", "408", "5740", "113", "600",
+    "1322", "132", "58212", "3600", "1251", "135", "141", "142", "143", "145"
+]
 
 app = Flask(__name__)
 # Configuración según ambiente
@@ -772,6 +786,7 @@ def web_ia_translate_all():
             # Usar la IA para traducir
             prompt = f"Traduce este término de Dashboard de Telegram al idioma {target_lang}. Solo devuelve la traducción: {text}"
             translated = ia_nativa.generate(prompt)
+            translated = ia_nativa.translate_text(text, target_lang) or translated
             new_trans[key] = translated.strip()
             
         data[target_lang] = new_trans
@@ -780,6 +795,24 @@ def web_ia_translate_all():
             
         return jsonify({"ok": True, "lang": target_lang})
     return jsonify({"ok": False})
+
+@app.route("/api/ia/translate", methods=['POST'])
+def web_ia_translate():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    payload = request.json or {}
+    text = payload.get("text", "")
+    target_lang = payload.get("target_lang") or payload.get("lang", "es")
+    source_lang = payload.get("source_lang")
+    if not text:
+        return jsonify({"ok": False, "msg": "Texto vacío"}), 400
+    translated, engine = ia_nativa.translate_text(text, target_lang, source_lang=source_lang, return_meta=True)
+    return jsonify({
+        "ok": True,
+        "source_lang": source_lang or ia_nativa.detect_lang(text),
+        "target_lang": ia_nativa.normalize_language_code(target_lang),
+        "translated": translated,
+        "engine": engine
+    })
 
 @app.route("/api/ia/stats")
 def web_ia_stats():
@@ -1206,6 +1239,26 @@ def api_ia_expand():
         threading.Thread(target=ia_nativa.seed_gutenberg_books, args=(items,)).start()
         
     return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(items)} fuentes de {source}"})
+
+@app.route("/api/ia/load_balancer", methods=['GET', 'POST'])
+def api_ia_load_balancer():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    if request.method == 'GET':
+        stats = ia_nativa.get_stats()
+        return jsonify({"ok": True, "stats": stats, "state": ia_nativa.learning_balancer})
+
+    data = request.json or {}
+    action = data.get("action", "start")
+    if action == "stop":
+        return jsonify(ia_nativa.stop_learning_balancer())
+
+    max_workers = data.get("max_workers")
+    source_multiplier = int(data.get("source_multiplier", 3))
+    if max_workers:
+        cfg = db.get("IA_LOAD_BALANCER", {})
+        cfg["max_workers"] = max(1, min(int(max_workers), 32))
+        db.set("IA_LOAD_BALANCER", cfg)
+    return jsonify(ia_nativa.start_learning_balancer(max_workers=max_workers, source_multiplier=source_multiplier))
 
 @app.route("/api/ia/backup", methods=['POST'])
 def api_ia_backup():
@@ -1636,6 +1689,15 @@ class MoonCoreIA:
         self._ensure_counters()
         self.active_workers = {}
         self.business_connections = {} # Store active business accounts
+        self.learning_balancer = {
+            "active": False,
+            "started": None,
+            "workers": 0,
+            "target": NEURAL_BILLION_TARGET,
+            "deadline_min": NEURAL_BILLION_DEADLINE_MIN,
+            "processed_sources": 0,
+            "last_plan": {}
+        }
         self.db_save_timer = 0
         self.start_time = time.time()
         self.mode = db.get("IA_MODE", "balanced") # eco, balanced, peak
@@ -1715,9 +1777,7 @@ class MoonCoreIA:
                 except: continue
         
         # 3. Gutenberg Seeding (Librería Clásica)
-        gutenberg_ids = [
-            "17013", "1661", "1342", "11", "2000", "76", "158", "84", "1952", "2701", "345"
-        ] # Quijote, Sherlock, Holmes, Pride, Alice, Adventures of Huckleberry Finn, Moby Dick, Frankenstein, Yellow Wallpaper, Dracula, etc.
+        gutenberg_ids = DEFAULT_BOOK_SOURCE_IDS
         self.seed_gutenberg_books(gutenberg_ids)
         
         db.set("IA_BRAIN", self.brain) # Forzar guardado
@@ -1767,7 +1827,7 @@ class MoonCoreIA:
         add_web_log("SUCCESS", f"✅ Inyección de {source_name} completada: {count} temas aprendidos.")
         self.send_db_to_master()
 
-    def seed_gutenberg_books(self, book_ids):
+    def seed_gutenberg_books(self, book_ids, send_backup=True):
         """Inyecta libros completos desde Project Gutenberg."""
         if not book_ids: return
         add_web_log("INFO", f"📚 Iniciando descarga de {len(book_ids)} libros de Gutenberg...")
@@ -1801,7 +1861,67 @@ class MoonCoreIA:
                 add_web_log("ERROR", f"Error con libro Gutenberg {b_id}: {e}")
         
         add_web_log("SUCCESS", f"✅ Proceso Gutenberg finalizado: {count} libros integrados.")
-        self.send_db_to_master()
+        if send_backup:
+            self.send_db_to_master()
+
+    def get_default_book_sources(self, multiplier=1):
+        multiplier = max(1, min(int(multiplier or 1), 50))
+        return (DEFAULT_BOOK_SOURCE_IDS * multiplier)[:len(DEFAULT_BOOK_SOURCE_IDS) * multiplier]
+
+    def learning_source_worker(self, worker_id, book_ids):
+        processed = 0
+        try:
+            add_web_log("IA", f"⚖️ Worker neural #{worker_id} iniciado con {len(book_ids)} fuentes.")
+            for b_id in book_ids:
+                if not self.learning_balancer.get("active"):
+                    break
+                self.seed_gutenberg_books([b_id], send_backup=False)
+                processed += 1
+                self.learning_balancer["processed_sources"] += 1
+                time.sleep(0.2)
+        except Exception as e:
+            add_web_log("ERROR", f"Worker neural #{worker_id} falló: {e}")
+        finally:
+            self.active_workers.pop(f"learn_{worker_id}", None)
+            add_web_log("IA", f"⚖️ Worker neural #{worker_id} finalizado ({processed} fuentes).")
+            if not any(k.startswith("learn_") for k in self.active_workers):
+                self.learning_balancer["active"] = False
+                db.set("IA_BRAIN", self.brain)
+                self.send_db_to_master()
+
+    def start_learning_balancer(self, max_workers=None, source_multiplier=3):
+        if self.learning_balancer.get("active"):
+            return {"ok": False, "msg": "El balanceador ya está activo", "state": self.learning_balancer}
+
+        stats = self.get_stats()
+        plan = stats.get("load_balancer", {}).get("last_plan", {})
+        cfg = db.get("IA_LOAD_BALANCER", {})
+        configured_max = int(cfg.get("max_workers", 8))
+        worker_count = int(max_workers or plan.get("planned_workers") or configured_max)
+        worker_count = max(1, min(worker_count, configured_max, 32))
+        sources = self.get_default_book_sources(source_multiplier)
+        if not sources:
+            return {"ok": False, "msg": "No hay fuentes disponibles"}
+
+        chunks = [sources[i::worker_count] for i in range(worker_count)]
+        self.learning_balancer.update({
+            "active": True,
+            "started": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "workers": worker_count,
+            "target": NEURAL_BILLION_TARGET,
+            "deadline_min": NEURAL_BILLION_DEADLINE_MIN,
+            "processed_sources": 0,
+            "last_plan": plan
+        })
+        for idx, chunk in enumerate(chunks, start=1):
+            t = threading.Thread(target=self.learning_source_worker, args=(idx, chunk), daemon=True)
+            self.active_workers[f"learn_{idx}"] = t
+            t.start()
+        return {"ok": True, "msg": f"Balanceador iniciado con {worker_count} workers y {len(sources)} fuentes", "state": self.learning_balancer}
+
+    def stop_learning_balancer(self):
+        self.learning_balancer["active"] = False
+        return {"ok": True, "msg": "Balanceador detenido", "state": self.learning_balancer}
 
     def remember_context(self, chat_id, text, role="user"):
         """Mantiene el contexto reciente de un chat para la generación de IA."""
@@ -1881,12 +2001,28 @@ class MoonCoreIA:
             cp = ord(ch)
             if 0x0600 <= cp <= 0x06FF: return "ar"   # Árabe
             if 0x0900 <= cp <= 0x097F: return "hi"   # Devanagari (Hindi)
+            if 0x0980 <= cp <= 0x09FF: return "bn"   # Bengalí/Asamés
+            if 0x0A00 <= cp <= 0x0A7F: return "pa"   # Gurmukhi/Punyabí
+            if 0x0A80 <= cp <= 0x0AFF: return "gu"   # Gujarati
+            if 0x0B80 <= cp <= 0x0BFF: return "ta"   # Tamil
+            if 0x0C00 <= cp <= 0x0C7F: return "te"   # Telugu
+            if 0x0C80 <= cp <= 0x0CFF: return "kn"   # Kannada
+            if 0x0D00 <= cp <= 0x0D7F: return "ml"   # Malayalam
+            if 0x0D80 <= cp <= 0x0DFF: return "si"   # Sinhala
             if 0x0400 <= cp <= 0x04FF: return "ru"   # Cirílico (Ruso/Ucraniano)
+            if 0x0370 <= cp <= 0x03FF: return "el"   # Griego
+            if 0x0530 <= cp <= 0x058F: return "hy"   # Armenio
+            if 0x10A0 <= cp <= 0x10FF: return "ka"   # Georgiano
+            if 0x1200 <= cp <= 0x137F: return "am"   # Etíope/Amhárico
             if 0x4E00 <= cp <= 0x9FFF: return "zh"   # CJK (Chino)
             if 0x3040 <= cp <= 0x30FF: return "ja"   # Hiragana/Katakana (Japonés)
             if 0xAC00 <= cp <= 0xD7A3: return "ko"   # Hangul (Coreano)
             if 0x0E00 <= cp <= 0x0E7F: return "th"   # Tailandés
             if 0x0590 <= cp <= 0x05FF: return "he"   # Hebreo
+            if 0x1000 <= cp <= 0x109F: return "my"   # Birmano
+            if 0x1780 <= cp <= 0x17FF: return "km"   # Jemer
+            if 0x0E80 <= cp <= 0x0EFF: return "lo"   # Lao
+            if 0x0F00 <= cp <= 0x0FFF: return "bo"   # Tibetano
 
         # 2. Palabras clave para idiomas de escritura latina y otros
         kw_map = {
@@ -1978,6 +2114,273 @@ class MoonCoreIA:
         scores = {lang: sum(1 for kw in kws if kw in words) for lang, kws in kw_map.items()}
         best = max(scores, key=scores.get)
         return best if scores[best] > 0 else "es"
+
+    def get_language_name(self, lang):
+        names = {
+            "es": "español", "en": "inglés", "fr": "francés", "de": "alemán",
+            "it": "italiano", "pt": "portugués", "tr": "turco", "ru": "ruso",
+            "uk": "ucraniano", "zh": "chino", "ja": "japonés", "ko": "coreano",
+            "ar": "árabe", "hi": "hindi", "bn": "bengalí", "pa": "punyabí",
+            "gu": "gujarati", "ta": "tamil", "te": "telugu", "kn": "kannada",
+            "ml": "malayalam", "si": "cingalés", "he": "hebreo", "th": "tailandés",
+            "el": "griego", "hy": "armenio", "ka": "georgiano", "am": "amhárico",
+            "my": "birmano", "km": "jemer", "lo": "lao", "bo": "tibetano",
+            "nl": "neerlandés", "sv": "sueco", "pl": "polaco", "cs": "checo",
+            "hu": "húngaro", "ro": "rumano", "vi": "vietnamita", "id": "indonesio",
+            "fa": "persa", "ur": "urdu", "sw": "suajili"
+        }
+        return names.get(lang, f"idioma detectado ({lang})")
+
+    def normalize_language_code(self, lang):
+        if not lang:
+            return "es"
+        value = str(lang).strip().lower()
+        aliases = {
+            "spanish": "es", "espanol": "es", "español": "es", "castellano": "es",
+            "english": "en", "ingles": "en", "inglés": "en",
+            "french": "fr", "frances": "fr", "francés": "fr",
+            "german": "de", "aleman": "de", "alemán": "de",
+            "italian": "it", "italiano": "it",
+            "portuguese": "pt", "portugues": "pt", "portugués": "pt",
+            "chinese": "zh", "chino": "zh", "japanese": "ja", "japones": "ja", "japonés": "ja",
+            "korean": "ko", "coreano": "ko", "arabic": "ar", "arabe": "ar", "árabe": "ar",
+            "russian": "ru", "ruso": "ru", "hindi": "hi", "turkish": "tr", "turco": "tr",
+            "dutch": "nl", "neerlandes": "nl", "neerlandés": "nl",
+            "swedish": "sv", "sueco": "sv", "polish": "pl", "polaco": "pl",
+            "greek": "el", "griego": "el", "hebrew": "he", "hebreo": "he",
+            "thai": "th", "tailandes": "th", "tailandés": "th",
+            "vietnamese": "vi", "vietnamita": "vi", "indonesian": "id", "indonesio": "id",
+            "persian": "fa", "persa": "fa", "urdu": "ur", "swahili": "sw", "suajili": "sw"
+        }
+        return aliases.get(value, value[:8])
+
+    def build_multilingual_instruction(self, prompt, current_mood, memory_context):
+        lang = self.detect_lang(prompt)
+        lang_name = self.get_language_name(lang)
+        return (
+            "Eres MoonBot, una IA de gestión de Telegram. "
+            f"Mood: {current_mood}. Contexto: {memory_context}. "
+            f"Idioma detectado: {lang_name}. "
+            "Responde SIEMPRE en el mismo idioma y alfabeto del usuario. "
+            "Si el usuario mezcla idiomas, responde en el idioma dominante. "
+            "No traduzcas al español salvo que el usuario lo pida."
+        )
+
+    def clean_translation_output(self, text):
+        if not text:
+            return ""
+        cleaned = text.strip()
+        cleaned = re.sub(r"^\s*(traducci[oó]n|translation)\s*[:\-]\s*", "", cleaned, flags=re.I)
+        cleaned = cleaned.strip().strip('"').strip("'").strip()
+        return cleaned
+
+    def normalize_translation_text(self, text):
+        normalized = str(text or "").lower()
+        for src, dst in str.maketrans("áéíóúüñç", "aeiouunc").items():
+            normalized = normalized.replace(chr(src), chr(dst))
+        normalized = re.sub(r"[^\w\s]", "", normalized, flags=re.UNICODE)
+        return re.sub(r"\s+", " ", normalized).strip()
+
+    def get_translation_memory(self):
+        memory = db.get("IA_TRANSLATION_MEMORY", {})
+        return memory if isinstance(memory, dict) else {}
+
+    def learn_translation(self, original, translated, target_lang, source_lang=None, source="local"):
+        if not original or not translated:
+            return
+        target_lang = self.normalize_language_code(target_lang)
+        source_lang = self.normalize_language_code(source_lang) if source_lang else self.detect_lang(original)
+        original_key = self.normalize_translation_text(original)
+        translated_key = self.normalize_translation_text(translated)
+        if not original_key or not translated_key or original_key == translated_key:
+            return
+
+        memory = self.get_translation_memory()
+        pair_key = f"{source_lang}>{target_lang}"
+        reverse_key = f"{target_lang}>{source_lang}"
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        memory.setdefault(pair_key, {})[original_key] = {"text": translated, "source": source, "updated": now}
+        memory.setdefault(reverse_key, {})[translated_key] = {"text": original, "source": source, "updated": now}
+        db.set("IA_TRANSLATION_MEMORY", memory)
+        self.learn(f"{original} {translated}", source=f"Traducción {source_lang}>{target_lang} ({source})")
+
+    def translate_from_memory(self, text, target_lang, source_lang):
+        pair_key = f"{source_lang}>{target_lang}"
+        text_key = self.normalize_translation_text(text)
+        learned = self.get_translation_memory().get(pair_key, {}).get(text_key)
+        return learned.get("text", "") if learned else None
+
+    def _translation_result(self, translated, engine, return_meta):
+        return (translated, engine) if return_meta else translated
+
+    def local_translate_phrase(self, text, target_lang):
+        phrasebook = {
+            "hola": {"en": "hello", "fr": "bonjour", "de": "hallo", "it": "ciao", "pt": "olá"},
+            "buenos dias": {"en": "good morning", "fr": "bonjour", "de": "guten Morgen", "it": "buongiorno", "pt": "bom dia"},
+            "buenas noches": {"en": "good night", "fr": "bonne nuit", "de": "gute Nacht", "it": "buona notte", "pt": "boa noite"},
+            "gracias": {"en": "thank you", "fr": "merci", "de": "danke", "it": "grazie", "pt": "obrigado"},
+            "por favor": {"en": "please", "fr": "s'il vous plaît", "de": "bitte", "it": "per favore", "pt": "por favor"},
+            "de nada": {"en": "you're welcome", "fr": "de rien", "de": "gern geschehen", "it": "prego", "pt": "de nada"},
+            "adios": {"en": "goodbye", "fr": "au revoir", "de": "auf Wiedersehen", "it": "arrivederci", "pt": "adeus"},
+            "como estas": {"en": "how are you", "fr": "comment ça va", "de": "wie geht es dir", "it": "come stai", "pt": "como está você"},
+            "te quiero": {"en": "I love you", "fr": "je t'aime", "de": "ich liebe dich", "it": "ti amo", "pt": "eu te amo"},
+            "bienvenido": {"en": "welcome", "fr": "bienvenue", "de": "willkommen", "it": "benvenuto", "pt": "bem-vindo"},
+        }
+        normalized = text.lower()
+        for src, dst in str.maketrans("áéíóúüñç", "aeiouunc").items():
+            normalized = normalized.replace(chr(src), chr(dst))
+        normalized = re.sub(r"[^\w\s]", "", normalized, flags=re.UNICODE).strip()
+        return phrasebook.get(normalized, {}).get(target_lang)
+
+    def translate_text(self, text, target_lang, source_lang=None, return_meta=False):
+        if not text:
+            return self._translation_result("", "empty", return_meta)
+        target_lang = self.normalize_language_code(target_lang)
+        source_lang = self.normalize_language_code(source_lang) if source_lang else self.detect_lang(text)
+        target_name = self.get_language_name(target_lang)
+        source_name = self.get_language_name(source_lang)
+
+        if source_lang == target_lang:
+            return self._translation_result(text, "same_language", return_meta)
+
+        learned = self.translate_from_memory(text, target_lang, source_lang)
+        if learned:
+            return self._translation_result(learned, "local_memory", return_meta)
+
+        local = self.local_translate_phrase(text, target_lang)
+        if local:
+            self.learn_translation(text, local, target_lang, source_lang=source_lang, source="phrasebook")
+            return self._translation_result(local, "local_phrasebook", return_meta)
+
+        try:
+            if LLM_PROVIDER == "gemini" and GEMINI_API_KEY:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+                payload = {
+                    "contents": [{
+                        "parts": [{
+                            "text": (
+                                f"Traduce del {source_name} al {target_name}. "
+                                "Devuelve solo la traducción, sin explicación ni comillas.\n\n"
+                                f"Texto: {text}"
+                            )
+                        }]
+                    }]
+                }
+                r = requests.post(url, json=payload, timeout=15)
+                if r.status_code == 200:
+                    translated = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                    translated = self.clean_translation_output(translated)
+                    self.learn_translation(text, translated, target_lang, source_lang=source_lang, source="gemini")
+                    return self._translation_result(translated, "gemini_learned", return_meta)
+
+            if LLM_PROVIDER == "ollama":
+                payload = {
+                    "model": OLLAMA_MODEL,
+                    "prompt": (
+                        f"Translate from {source_name} to {target_name}. "
+                        "Return only the translation, without notes or quotes.\n\n"
+                        f"Text: {text}\nTranslation:"
+                    ),
+                    "stream": False
+                }
+                r = requests.post(OLLAMA_URL, json=payload, timeout=35)
+                if r.status_code == 200:
+                    translated = self.clean_translation_output(r.json().get("response", ""))
+                    self.learn_translation(text, translated, target_lang, source_lang=source_lang, source="ollama")
+                    return self._translation_result(translated, "ollama_learned", return_meta)
+                add_web_log("WARNING", f"Ollama traducción respondió {r.status_code}: {r.text[:200]}")
+        except requests.exceptions.ConnectionError:
+            add_web_log("ERROR", f"No se puede conectar con {LLM_PROVIDER.upper()} para traducir.")
+        except requests.exceptions.Timeout:
+            add_web_log("WARNING", f"Timeout al traducir con {LLM_PROVIDER.upper()}.")
+        except Exception as e:
+            add_web_log("ERROR", f"Fallo traduciendo con IA externa: {e}")
+
+        if LLM_PROVIDER != "ollama":
+            try:
+                payload = {
+                    "model": OLLAMA_MODEL,
+                    "prompt": (
+                        f"Translate from {source_name} to {target_name}. "
+                        "Return only the translation, without notes or quotes.\n\n"
+                        f"Text: {text}\nTranslation:"
+                    ),
+                    "stream": False
+                }
+                r = requests.post(OLLAMA_URL, json=payload, timeout=35)
+                if r.status_code == 200:
+                    translated = self.clean_translation_output(r.json().get("response", ""))
+                    if translated:
+                        self.learn_translation(text, translated, target_lang, source_lang=source_lang, source="ollama_fallback")
+                        return self._translation_result(translated, "ollama_fallback_learned", return_meta)
+                add_web_log("WARNING", f"Ollama fallback traducción respondió {r.status_code}: {r.text[:200]}")
+            except requests.exceptions.ConnectionError:
+                add_web_log("ERROR", f"No se puede conectar con Ollama fallback para traducir ({OLLAMA_URL}).")
+            except requests.exceptions.Timeout:
+                add_web_log("WARNING", "Timeout al traducir con Ollama fallback.")
+            except Exception as e:
+                add_web_log("ERROR", f"Fallo traduciendo con Ollama fallback: {e}")
+
+        fallback = (
+            f"[Traducción no disponible sin Gemini/Ollama] {text}"
+            if source_lang != target_lang else text
+        )
+        return self._translation_result(fallback, "unavailable", return_meta)
+
+    def parse_translation_request(self, text):
+        if not text:
+            return None
+        clean = re.sub(r"\s+", " ", str(text)).strip()
+        clean = re.sub(r"@\w+", "", clean).strip()
+        lang_token = r"[a-zA-ZáéíóúüñÁÉÍÓÚÜÑçÇ]{2,24}"
+        patterns = [
+            rf"(?i)^(?:traduce|traducir|traduceme|tradúceme)\s+(?:esto\s+)?(?:al|a|en)\s+({lang_token})\s*[:\-]\s*(.+)$",
+            rf"(?i)^(?:traduce|traducir|traduceme|tradúceme)\s+(.+?)\s+(?:al|a|en)\s+({lang_token})\s*$",
+            rf"(?i)^como\s+se\s+dice\s+(.+?)\s+en\s+({lang_token})\s*\??$",
+            rf"(?i)^cómo\s+se\s+dice\s+(.+?)\s+en\s+({lang_token})\s*\??$",
+            rf"(?i)^translate\s+(?:this\s+)?(?:to|into)\s+({lang_token})\s*[:\-]\s*(.+)$",
+            rf"(?i)^translate\s+(.+?)\s+(?:to|into)\s+({lang_token})\s*$",
+            rf"(?i)^how\s+do\s+you\s+say\s+(.+?)\s+in\s+({lang_token})\s*\??$",
+        ]
+        target_first = {0, 4}
+        for idx, pattern in enumerate(patterns):
+            match = re.match(pattern, clean)
+            if not match:
+                continue
+            if idx in target_first:
+                target_lang, source_text = match.group(1), match.group(2)
+            else:
+                source_text, target_lang = match.group(1), match.group(2)
+            source_text = source_text.strip().strip('"').strip("'").strip()
+            source_text = re.sub(r"^(esto|this)\s*[:\-]?\s*", "", source_text, flags=re.I).strip()
+            return {
+                "text": source_text,
+                "target_lang": self.normalize_language_code(target_lang)
+            }
+        return None
+
+    def answer_translation_request(self, text, fallback_text=None):
+        request_data = self.parse_translation_request(text)
+        if not request_data:
+            return None
+        source_text = request_data.get("text", "")
+        if fallback_text and self.normalize_translation_text(source_text) in ["", "esto", "this", "eso", "that"]:
+            source_text = fallback_text
+        if not source_text:
+            return "Necesito el texto que quieres traducir."
+        target_lang = request_data["target_lang"]
+        translated, engine = self.translate_text(source_text, target_lang, return_meta=True)
+        target_name = self.get_language_name(target_lang)
+        engine_labels = {
+            "local_memory": "memoria local",
+            "local_phrasebook": "IA local",
+            "gemini_learned": "Gemini + aprendido",
+            "ollama_learned": "Ollama + aprendido",
+            "ollama_fallback_learned": "Ollama + aprendido",
+            "same_language": "mismo idioma",
+            "unavailable": "sin traducción"
+        }
+        return f"Traducción a {target_name} ({engine_labels.get(engine, engine)}):\n\n{translated}"
 
     def evolve_process(self):
         add_web_log("INFO", "🧠 Iniciando Protocolo de Evolución Neuronal...")
@@ -2121,6 +2524,7 @@ class MoonCoreIA:
                 if LLM_PROVIDER == "gemini" and GEMINI_API_KEY:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
                     system_instruction = f"Eres MoonBot, una IA de gestión de Telegram. Mood: {current_mood}. Contexto: {memory_context}"
+                    system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
                     payload = {
                         "contents": [{
                             "parts": [{
@@ -2134,11 +2538,13 @@ class MoonCoreIA:
                         cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
                 
                 elif LLM_PROVIDER == "ollama":
+                    system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
                     payload = {
                         "model": OLLAMA_MODEL,
                         "prompt": f"Mood: {current_mood}\nContexto: {memory_context}\nUsuario: {prompt}\nMoonBot:",
                         "stream": False
                     }
+                    payload["prompt"] = f"{system_instruction}\n\nUsuario: {prompt}\nMoonBot:"
                     r = requests.post(OLLAMA_URL, json=payload, timeout=30)
                     if r.status_code == 200:
                         cloud_response = r.json().get("response", "")
@@ -2334,6 +2740,7 @@ class MoonCoreIA:
 
         # Prefijo por intención detectada
         intent = detect_intent(prompt)
+        lang = self.detect_lang(prompt)
         intent_prefixes = {
             "greeting":  ["¡Hola! ", "¡Buenas! ", "¡Hey! ", "¡Qué tal! "],
             "farewell":  ["¡Hasta luego! ", "¡Cuídate! ", "¡Nos vemos! "],
@@ -2341,6 +2748,38 @@ class MoonCoreIA:
             "complaint": ["Entiendo. ", "Veamos ese problema. ", "Te ayudo. "],
             "question":  ["Sobre eso... ", "Déjame pensar. ", "Interesante pregunta. "],
         }
+        localized_intent_prefixes = {
+            "en": {
+                "greeting":  ["Hello! ", "Hi! ", "Hey! "],
+                "farewell":  ["See you! ", "Take care! "],
+                "thanks":    ["You're welcome. ", "Glad to help. "],
+                "complaint": ["I understand. ", "Let's look at that. "],
+                "question":  ["About that... ", "Let me think. "],
+            },
+            "fr": {
+                "greeting":  ["Bonjour ! ", "Salut ! "],
+                "farewell":  ["À bientôt ! ", "Prends soin de toi ! "],
+                "thanks":    ["Avec plaisir. ", "Je t'en prie. "],
+                "complaint": ["Je comprends. ", "Regardons ça. "],
+                "question":  ["À ce sujet... ", "Je réfléchis. "],
+            },
+            "de": {
+                "greeting":  ["Hallo! ", "Guten Tag! "],
+                "farewell":  ["Bis später! ", "Pass auf dich auf! "],
+                "thanks":    ["Gern geschehen. ", "Gerne. "],
+                "complaint": ["Ich verstehe. ", "Schauen wir uns das an. "],
+                "question":  ["Dazu... ", "Ich denke nach. "],
+            },
+            "pt": {
+                "greeting":  ["Olá! ", "Oi! "],
+                "farewell":  ["Até logo! ", "Cuida-te! "],
+                "thanks":    ["De nada. ", "Com prazer. "],
+                "complaint": ["Entendo. ", "Vamos ver isso. "],
+                "question":  ["Sobre isso... ", "Deixa-me pensar. "],
+            },
+        }
+        if lang in localized_intent_prefixes:
+            intent_prefixes = localized_intent_prefixes[lang]
         if intent in intent_prefixes:
             final_text = random.choice(intent_prefixes[intent]) + final_text
 
@@ -2349,8 +2788,12 @@ class MoonCoreIA:
         if self.mood == "friendly":
             final_text += f" {random.choice(['😊', '✨', '🙌', '🌙'])}"
         elif self.mood == "sarcastic":
+            if lang != "es":
+                return final_text
             final_text = f"Bueno, {final_text.lower()} {random.choice(['... o eso creo.', '🙄', '¡Genial!', 'Vaya tela.'])}"
         elif self.mood == "philosophical":
+            if lang != "es":
+                return final_text
             final_text = f"Reflexionando: {final_text} ¿No es fascinante?"
         elif self.mood == "cyberpunk":
             final_text = f"[CORE]: {final_text.upper()} // LINK_ACTIVE"
@@ -2382,21 +2825,58 @@ class MoonCoreIA:
         elapsed = (time.time() - self.start_time) / 60 # Minutos
         rate = self.session_words / elapsed if elapsed > 0 else 0
         
-        # Estimación de madurez (meta 100.000 palabras)
-        target = 100000
+        # Estimación de madurez (meta 1.000.000 palabras)
+        target = 1000000
+        milestone_minutes = 60
         remaining = max(0, target - words_count)
         est_minutes = (remaining / rate) if rate > 0 else 0
+        required_rate = remaining / milestone_minutes if remaining > 0 else 0
+        progress = min(100, (words_count / target) * 100) if target > 0 else 0
+        milestone_status = "COMPLETADO" if words_count >= target else (
+            "EN RITMO 1H" if rate >= required_rate and rate > 0 else "ACELERAR APRENDIZAJE"
+        )
         
         status = "Bebé (Aprendiendo)"
-        if words_count > 100000: status = "Dios Neuronal (Omnisciente)"
+        if words_count >= 1000000: status = "Singularidad Neural (1M)"
+        elif words_count > 100000: status = "Dios Neuronal (Omnisciente)"
         elif words_count > 50000: status = "Eminencia (Superior)"
         elif words_count > 10000: status = "Madura (Estable)"
         elif words_count > 1000: status = "Juvenil (Curiosa)"
+        billion_remaining = max(0, NEURAL_BILLION_TARGET - words_count)
+        billion_required_rate = billion_remaining / NEURAL_BILLION_DEADLINE_MIN if billion_remaining > 0 else 0
+        billion_progress = min(100, (words_count / NEURAL_BILLION_TARGET) * 100) if NEURAL_BILLION_TARGET else 0
+        balancer_cfg = db.get("IA_LOAD_BALANCER", {})
+        per_worker_rate = max(1, int(balancer_cfg.get("per_worker_rate", 2500)))
+        max_workers = max(1, int(balancer_cfg.get("max_workers", 8)))
+        needed_workers = max(0, int((billion_required_rate + per_worker_rate - 1) // per_worker_rate))
+        planned_workers = min(max_workers, needed_workers)
+        billion_status = "COMPLETADO" if words_count >= NEURAL_BILLION_TARGET else (
+            "EN RITMO 12H" if rate >= billion_required_rate and rate > 0 else "REQUIERE BALANCEADOR"
+        )
+        self.learning_balancer["last_plan"] = {
+            "needed_workers": needed_workers,
+            "planned_workers": planned_workers,
+            "max_workers": max_workers,
+            "per_worker_rate": per_worker_rate
+        }
         
         return {
             "words": words_count,
             "connections": connections,
             "rate": f"{rate:.2f} p/min",
+            "milestone_target": target,
+            "milestone_deadline_min": milestone_minutes,
+            "milestone_progress": f"{progress:.2f}%",
+            "milestone_remaining": remaining,
+            "milestone_required_rate": f"{required_rate:.2f} p/min",
+            "milestone_status": milestone_status,
+            "billion_target": NEURAL_BILLION_TARGET,
+            "billion_deadline_min": NEURAL_BILLION_DEADLINE_MIN,
+            "billion_progress": f"{billion_progress:.8f}%",
+            "billion_remaining": billion_remaining,
+            "billion_required_rate": f"{billion_required_rate:.2f} p/min",
+            "billion_status": billion_status,
+            "load_balancer": self.learning_balancer,
             "est_maturity": f"{status} | {est_minutes:.1f} min" if words_count < target else status
         }
 
@@ -2866,6 +3346,7 @@ class MoonBot:
         if raw_cmd in ["/ayuda", "/comandos", "/help"]:
             help_text = "📖 **MANUAL DE OPERACIONES MOON**\n\n"
             help_text += "✨ **General:** `/perfil`, `/top`, `/notas`, `/search`, `/ia_info`\n"
+            help_text += "🌐 **Traducción:** `/traducir`, `/aprender_traduccion es en hola = hello`\n"
             if rk in ["Admin", "Master"]:
                 help_text += "🛡️ **Moderación:** `/mute`, `/ban`, `/warn`, `/ia`, `/setup`\n"
                 help_text += "⚙️ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`\n"
@@ -2917,6 +3398,49 @@ class MoonBot:
             self.send_msg(cid, "🔍 Consultando fuentes globales...")
             res = ia_nativa.search_web(arg_str)
             self.send_msg(cid, f"🌐 **Resultado:**\n\n{res}")
+            return True
+
+        if raw_cmd in ["/traducir", "/translate", "/tr"]:
+            if not args:
+                self.send_msg(cid, "🌐 Uso: `/traducir en hola mundo` o responde a un mensaje con `/traducir en`.")
+                return True
+
+            target_lang = args[0]
+            text_to_translate = " ".join(args[1:]).strip()
+            if not text_to_translate and msg.get("reply_to_message"):
+                text_to_translate = msg["reply_to_message"].get("text") or msg["reply_to_message"].get("caption", "")
+
+            if not text_to_translate:
+                self.send_msg(cid, "⚠️ No encontré texto para traducir.")
+                return True
+
+            translated = ia_nativa.translate_text(text_to_translate, target_lang)
+            target_code = ia_nativa.normalize_language_code(target_lang)
+            target_name = ia_nativa.get_language_name(target_code)
+            self.send_msg(cid, f"🌐 **Traducción a {target_name}:**\n\n{translated}")
+            return True
+
+        if raw_cmd in ["/aprender_traduccion", "/learn_translation"]:
+            lesson = arg_str
+            if "=" not in lesson:
+                self.send_msg(cid, "🌐 Uso: `/aprender_traduccion es en hola mundo = hello world`.")
+                return True
+
+            left, translated = lesson.split("=", 1)
+            lesson_parts = left.strip().split(maxsplit=2)
+            if len(lesson_parts) < 3:
+                self.send_msg(cid, "🌐 Uso: `/aprender_traduccion es en hola mundo = hello world`.")
+                return True
+
+            source_lang, target_lang, original = lesson_parts
+            ia_nativa.learn_translation(
+                original.strip(),
+                translated.strip(),
+                target_lang,
+                source_lang=source_lang,
+                source=f"telegram:{uname}"
+            )
+            self.send_msg(cid, "✅ Traducción aprendida por la IA local.")
             return True
 
         # 3. Comandos de Configuración & Moderación (Admin/Master)
@@ -3448,12 +3972,18 @@ class MoonBot:
                     # 3. Activación IA por Mención o Master (Fuera de Comandos)
                     is_ia_call = (self.bot_username in text)
                     is_master_natural = (uid == str(MASTER_ID) and not text.startswith("/"))
+                    natural_translation = ia_nativa.parse_translation_request(text)
                     
-                    if is_ia_call or is_master_natural:
+                    if is_ia_call or is_master_natural or natural_translation:
                         cfg = db.get(f"CONFIG_{cid}", {"ia_mood": "friendly"})
                         clean_text = text.replace(f"@{self.bot_username}", "").strip()
                         ia_nativa.remember_context(cid, clean_text, role="user")
-                        resp = ia_nativa.generate(clean_text, chat_id=cid, mood_override=cfg.get("ia_mood"))
+                        reply_text = ""
+                        if msg.get("reply_to_message"):
+                            reply_text = msg["reply_to_message"].get("text") or msg["reply_to_message"].get("caption", "")
+                        resp = ia_nativa.answer_translation_request(clean_text, fallback_text=reply_text)
+                        if not resp:
+                            resp = ia_nativa.generate(clean_text, chat_id=cid, mood_override=cfg.get("ia_mood"))
                         ia_nativa.remember_context(cid, resp, role="bot")
                         self.send_msg(cid, f"🌌 [Moon IA]: {resp}")
                         continue
@@ -3493,6 +4023,28 @@ class MoonBot:
                                 else:
                                     add_web_log("ERROR", "Fallo al enviar backup automático.")
                         threading.Thread(target=_auto_backup, daemon=True).start()
+
+                # 4. Backup de aprendizaje cada 1h al Master
+                learning_backup_interval = int(db.get("GLOBAL_SETTINGS", {}).get("learning_backup_interval", 3600))
+                if now_s - db.get("LAST_LEARNING_BACKUP", 0) > learning_backup_interval:
+                    db.set("LAST_LEARNING_BACKUP", now_s)
+                    if MASTER_ID:
+                        def _learning_backup():
+                            db_path = "data/moon_database.db"
+                            if os.path.exists(db_path):
+                                size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+                                stats = ia_nativa.get_stats()
+                                caption = (
+                                    f"🧠 Backup aprendizaje 1h — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)\n"
+                                    f"Neuronas: {stats.get('words')}\n"
+                                    f"Hito 1B/12H: {stats.get('billion_progress')} | {stats.get('billion_status')}"
+                                )
+                                res = self.send_document(MASTER_ID, db_path, caption)
+                                if res.get("ok"):
+                                    add_web_log("SUCCESS", f"Backup de aprendizaje enviado al Master ({size_mb} MB).")
+                                else:
+                                    add_web_log("ERROR", "Fallo al enviar backup de aprendizaje.")
+                        threading.Thread(target=_learning_backup, daemon=True).start()
 
             except Exception as e:
                 logger.error(f"FATAL ERROR in Message Loop: {str(e)}")

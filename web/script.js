@@ -550,11 +550,27 @@ function fetchIAFeeders() {
         const connections = document.getElementById("iaConnections");
         const rate = document.getElementById("iaRate");
         const eta = document.getElementById("iaETA");
+        const millionGoal = document.getElementById("iaMillionGoal");
+        const billionGoal = document.getElementById("iaBillionGoal");
+        const balancerState = document.getElementById("iaBalancerState");
         
         if(words) words.innerText = data.stats.words;
         if(connections) connections.innerText = data.stats.connections;
         if(rate) rate.innerText = data.stats.rate;
         if(eta) eta.innerText = data.stats.est_maturity;
+        if(millionGoal) {
+            millionGoal.innerText = `${data.stats.milestone_progress} | ${data.stats.milestone_status}`;
+            millionGoal.title = `Restan ${data.stats.milestone_remaining} palabras. Ritmo requerido: ${data.stats.milestone_required_rate}`;
+        }
+        if(billionGoal) {
+            billionGoal.innerText = `${data.stats.billion_progress} | ${data.stats.billion_status}`;
+            billionGoal.title = `Restan ${data.stats.billion_remaining} palabras. Ritmo requerido: ${data.stats.billion_required_rate}`;
+        }
+        if(balancerState && data.stats.load_balancer) {
+            const lb = data.stats.load_balancer;
+            const plan = lb.last_plan || {};
+            balancerState.innerText = `${lb.active ? "ACTIVO" : "PAUSADO"} | Workers: ${lb.workers || 0}/${plan.max_workers || 0} | Necesarios: ${plan.needed_workers || 0} | Fuentes: ${lb.processed_sources || 0}`;
+        }
 
         // Update language stats
         const langStats = document.getElementById("iaLangStats");
@@ -1427,6 +1443,38 @@ async function injectExpansionTopics() {
     input.disabled = false;
 }
 
+
+async function startIALoadBalancer() {
+    const workers = parseInt(document.getElementById("iaBalancerWorkers")?.value || "8", 10);
+    const sourceMultiplier = parseInt(document.getElementById("iaBalancerSources")?.value || "3", 10);
+    try {
+        const res = await fetch("/api/ia/load_balancer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            body: JSON.stringify({ action: "start", max_workers: workers, source_multiplier: sourceMultiplier })
+        });
+        const data = await res.json();
+        showToast(data.ok ? "Balanceador" : "Error", data.msg || "Solicitud procesada");
+        fetchIAFeeders();
+    } catch (e) {
+        showToast("Error", "No se pudo iniciar el balanceador");
+    }
+}
+
+async function stopIALoadBalancer() {
+    try {
+        const res = await fetch("/api/ia/load_balancer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            body: JSON.stringify({ action: "stop" })
+        });
+        const data = await res.json();
+        showToast(data.ok ? "Balanceador" : "Error", data.msg || "Solicitud procesada");
+        fetchIAFeeders();
+    } catch (e) {
+        showToast("Error", "No se pudo detener el balanceador");
+    }
+}
 
 // --- IA: Configuración Híbrida ---
 let currentIAProvider = "gemini";
