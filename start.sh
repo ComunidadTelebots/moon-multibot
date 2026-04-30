@@ -249,7 +249,6 @@ if os.path.exists("data/bots.json"):
 PYTHON_EOF
 
     echo ""
-fi
 }
 
 # 1. Instalación automática de dependencias si se solicita
@@ -312,7 +311,7 @@ if os.path.exists("data/bots.json"):
         print(f"✅ Tokens encriptados: {encrypted}/{len(bots)}")
     else:
         print("⚠️  ADVERTENCIA: Tokens en plain text (ejecuta 'bash start.sh tokens')")
-EOF
+PYTHON_EOF
 
     # 6. Comprobar librerías críticas
     echo "⏳ Verificando librerías requeridas..."
@@ -364,7 +363,13 @@ if command -v git &>/dev/null; then
     git fetch origin master &>/dev/null
     BEHIND=$(git status -uno | grep "Your branch is behind")
     if [ ! -z "$BEHIND" ]; then
-        echo "⚠️  NUEVA VERSIÓN DETECTADA. Ejecuta 'bash start.sh update' para actualizar."
+        if [ "${AUTO_DOCKER_UPDATE:-true}" = "true" ]; then
+            echo "Auto-update: nueva version detectada. Aplicando git pull..."
+            git pull origin master
+            echo "Auto-update: actualizacion aplicada."
+        else
+            echo "Nueva version detectada. Ejecuta bash start.sh update para actualizar."
+        fi
     else
         echo "✅ El sistema está al día."
     fi

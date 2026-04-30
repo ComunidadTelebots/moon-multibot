@@ -1,5 +1,29 @@
 # Changelog - Moon Multibot
 
+## [v16.26.0] - 2026-04-30
+### Aprendizaje de Programacion para Moon IA
+- **Nueva fuente Programming**: La expansion multifuente acepta `programming` para enseñar lenguajes y patrones de desarrollo.
+- **Semillas de programacion**: La IA aprende fundamentos, estructuras de datos, algoritmos, testing, debugging, seguridad, APIs, bases de datos, concurrencia y DevOps.
+- **Lenguajes incluidos**: Python, JavaScript, TypeScript, SQL, HTML, CSS, Java, Go, Rust, PHP y Bash, con fallback para lenguajes personalizados.
+- **Dashboard actualizado**: Nueva opcion `Programacion (Lenguajes)` y boton `ENSEÑAR PROGRAMACION CORE`.
+- **Comando Telegram Admin/Master**: Nuevo `/ia_programar python,javascript,sql` con alias `/ia_code` y `/programar_ia`.
+
+## [v16.25.0] - 2026-04-30
+### Auto-Update Docker Sin Interaccion
+- **Actualizacion automatica en arranque Docker**: `start.sh` aplica `git pull origin master` automaticamente si detecta que el contenedor esta atrasado.
+- **Control por entorno**: `AUTO_DOCKER_UPDATE=true` queda activado en `docker-compose.yml`; puede desactivarse con `false`.
+- **Dashboard sin confirmacion manual**: El boton de actualizacion ya no muestra `confirm()` y ejecuta la actualizacion directamente.
+- **Rebuild Docker automatizado**: El endpoint `/api/system/update` intenta ejecutar `docker compose up -d --build --remove-orphans` cuando Docker esta disponible.
+- **Reinicio automatico del proceso**: Tras aplicar cambios, el bot programa un reinicio del proceso para cargar el codigo actualizado.
+
+## [v16.24.0] - 2026-04-30
+### Mantenimiento Autonomo y Backups en Silencio
+- **Mantenimiento desacoplado**: Las tareas periodicas se mueven a `run_periodic_maintenance()` para reutilizar el mismo flujo sin duplicar logica.
+- **Backups sin actividad de chat**: El backup 24H y el backup de aprendizaje 1H ahora se comprueban tambien cuando Telegram no entrega mensajes nuevos.
+- **Backup 24H intacto**: Se conserva la copia completa diaria al Master.
+- **Backup aprendizaje 1H intacto**: Se conserva la copia horaria con progreso neural e hito 1B/12H.
+- **Mayor fiabilidad operativa**: Sincronizacion de seguridad y purga multimedia tambien quedan protegidas contra periodos de silencio.
+
 ## [v16.23.0] - 2026-04-30
 ### Hito 1 Billon / 12H y Balanceador Neural
 - **Nueva meta extrema**: Objetivo de 1 billon de palabras aprendidas en 12 horas.

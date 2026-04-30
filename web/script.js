@@ -1443,6 +1443,14 @@ async function injectExpansionTopics() {
     input.disabled = false;
 }
 
+function injectProgrammingCore() {
+    const source = document.getElementById("expansionSource");
+    const input = document.getElementById("wikiTopicsInput");
+    if(source) source.value = "programming";
+    if(input) input.value = "python,javascript,typescript,sql,html,css,bash,go,rust,java";
+    injectExpansionTopics();
+}
+
 
 async function startIALoadBalancer() {
     const workers = parseInt(document.getElementById("iaBalancerWorkers")?.value || "8", 10);
@@ -2495,17 +2503,15 @@ function checkSystemUpdate() {
 }
 
 function applySystemUpdate() {
-    if(!confirm("¿Estás seguro de que deseas actualizar el sistema? Se realizará un 'git pull' y podrías necesitar reiniciar el bot manualmente.")) return;
-    
-    showToast("⚙️ Actualizando", "Descargando cambios desde GitHub...");
+    showToast("Auto-update", "Descargando, reconstruyendo Docker y reiniciando sin intervencion...");
     fetch('/api/system/update', { 
         method: 'POST',
         headers: { 'Authorization': authToken }
     })
     .then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("✅ Éxito", "Sistema actualizado. Reiniciando módulos...");
-            setTimeout(() => location.reload(), 2000);
+            showToast("Exito", data.msg || "Sistema actualizado. Reinicio automatico en curso...");
+            setTimeout(() => location.reload(), 8000);
         } else {
             showToast("❌ Error", data.error);
         }

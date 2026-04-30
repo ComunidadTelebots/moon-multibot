@@ -515,12 +515,50 @@ def web_system_update():
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)})
 
-    # Aplicar actualización (POST)
+    # Aplicar actualización (POST) sin interacción humana
     try:
         add_audit_log("Actualización del sistema iniciada desde GitHub")
-        res = subprocess.run([git_path, "pull", "origin", "master"], capture_output=True, text=True)
-        add_web_log("SUCCESS", "Sistema actualizado correctamente desde GitHub.")
-        return jsonify({"ok": True, "output": res.stdout})
+        outputs = []
+        pull = subprocess.run([git_path, "pull", "origin", "master"], capture_output=True, text=True, timeout=120)
+        outputs.append(pull.stdout or pull.stderr)
+        if pull.returncode != 0:
+            add_web_log("ERROR", f"Falló git pull: {pull.stderr[:300]}")
+            return jsonify({"ok": False, "error": pull.stderr or pull.stdout}), 500
+
+        docker_output = ""
+        docker_cmd = None
+        if os.name != 'nt':
+            if subprocess.run(["sh", "-c", "command -v docker >/dev/null 2>&1"], capture_output=True).returncode == 0:
+                docker_cmd = ["docker", "compose", "up", "-d", "--build", "--remove-orphans"]
+        else:
+            docker_cmd = ["docker", "compose", "up", "-d", "--build", "--remove-orphans"]
+
+        if docker_cmd:
+            try:
+                compose = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=300)
+                docker_output = (compose.stdout or "") + (compose.stderr or "")
+                outputs.append(docker_output)
+                if compose.returncode == 0:
+                    add_web_log("SUCCESS", "Docker Compose actualizado y relanzado automáticamente.")
+                else:
+                    add_web_log("WARNING", f"Docker Compose no completó la actualización: {docker_output[:300]}")
+            except Exception as docker_error:
+                docker_output = str(docker_error)
+                add_web_log("WARNING", f"No se pudo ejecutar Docker Compose automático: {docker_output}")
+
+        def _restart_after_update():
+            time.sleep(2)
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        threading.Thread(target=_restart_after_update, daemon=True).start()
+
+        add_web_log("SUCCESS", "Sistema actualizado correctamente desde GitHub. Reinicio automático programado.")
+        return jsonify({
+            "ok": True,
+            "output": "\n".join(outputs),
+            "docker_output": docker_output,
+            "restart": True,
+            "msg": "Actualización aplicada automáticamente. Reinicio programado."
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
@@ -1237,6 +1275,8 @@ def api_ia_expand():
         threading.Thread(target=ia_nativa.seed_wikipedia_topics, args=(items, "es.wikisource.org")).start()
     elif source == "gutenberg":
         threading.Thread(target=ia_nativa.seed_gutenberg_books, args=(items,)).start()
+    elif source == "programming":
+        threading.Thread(target=ia_nativa.seed_programming_knowledge, args=(items,)).start()
         
     return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(items)} fuentes de {source}"})
 
@@ -1863,6 +1903,95 @@ class MoonCoreIA:
         add_web_log("SUCCESS", f"✅ Proceso Gutenberg finalizado: {count} libros integrados.")
         if send_backup:
             self.send_db_to_master()
+
+    def seed_programming_knowledge(self, languages):
+        """Inyecta conocimiento de programación por lenguaje y patrones prácticos."""
+        if not languages:
+            languages = ["python", "javascript", "sql"]
+        languages = [str(lang).strip().lower() for lang in languages if str(lang).strip()]
+        if not languages:
+            return
+
+        core_topics = [
+            "variables, tipos de datos, operadores, control de flujo, funciones y módulos",
+            "estructuras de datos: listas, diccionarios, conjuntos, pilas, colas, árboles y grafos",
+            "algoritmos: búsqueda, ordenación, recursión, programación dinámica y complejidad Big O",
+            "diseño limpio: nombres claros, funciones pequeñas, separación de responsabilidades y pruebas",
+            "depuración: leer trazas, aislar errores, crear casos mínimos y validar hipótesis",
+            "seguridad: validar entradas, evitar secretos en código, permisos mínimos y manejo seguro de errores",
+            "APIs: contratos claros, códigos de estado, paginación, rate limits y compatibilidad hacia atrás",
+            "bases de datos: índices, transacciones, migraciones, normalización y consultas preparadas",
+            "concurrencia: hilos, procesos, async, colas de trabajo, bloqueos y condiciones de carrera",
+            "DevOps: logs útiles, configuración por entorno, health checks, Docker y despliegues reproducibles"
+        ]
+        language_patterns = {
+            "python": [
+                "Python usa indentación significativa, funciones con def, clases, list comprehensions, context managers y excepciones.",
+                "Ejemplo Python: def suma(a, b): return a + b. Usa pytest para pruebas y typing para contratos legibles.",
+                "Python async usa async def, await, asyncio.gather y timeouts para tareas de red sin bloquear el proceso."
+            ],
+            "javascript": [
+                "JavaScript usa let, const, funciones flecha, Promises, async/await, módulos ES y manipulación del DOM.",
+                "Ejemplo JavaScript: const suma = (a, b) => a + b; fetch(url).then(r => r.json()).",
+                "Node.js organiza servicios con módulos, middlewares, variables de entorno y manejo explícito de errores async."
+            ],
+            "typescript": [
+                "TypeScript añade tipos estáticos, interfaces, generics, union types y narrowing sobre JavaScript.",
+                "Ejemplo TypeScript: function suma(a: number, b: number): number { return a + b; }",
+                "TypeScript mejora mantenibilidad cuando los tipos describen contratos de APIs, estados y eventos."
+            ],
+            "sql": [
+                "SQL consulta datos con SELECT, WHERE, JOIN, GROUP BY, HAVING, ORDER BY, índices y transacciones.",
+                "Ejemplo SQL: SELECT user_id, COUNT(*) FROM messages GROUP BY user_id ORDER BY COUNT(*) DESC;",
+                "Evita inyección SQL usando parámetros preparados y nunca concatenando entradas de usuario."
+            ],
+            "html": [
+                "HTML estructura contenido con etiquetas semánticas como header, main, section, article, nav y footer.",
+                "Los formularios HTML deben tener labels, inputs adecuados, validación y atributos accesibles."
+            ],
+            "css": [
+                "CSS controla presentación con cascada, especificidad, flexbox, grid, variables, media queries y estados.",
+                "Diseños robustos usan constraints, gap, minmax, overflow controlado y contraste suficiente."
+            ],
+            "java": [
+                "Java usa clases, interfaces, paquetes, tipos estáticos, excepciones, colecciones y streams.",
+                "Buenas prácticas Java: inyección de dependencias, pruebas unitarias, DTOs claros y manejo explícito de null."
+            ],
+            "go": [
+                "Go usa paquetes, structs, interfaces implícitas, goroutines, channels y manejo explícito de errores.",
+                "Ejemplo Go: if err != nil { return err }. La simplicidad y composición suelen ganar frente a jerarquías complejas."
+            ],
+            "rust": [
+                "Rust usa ownership, borrowing, lifetimes, traits, enums Result/Option y seguridad de memoria sin GC.",
+                "Rust expresa errores con Result<T, E> y evita data races mediante reglas de préstamo en compilación."
+            ],
+            "php": [
+                "PHP moderno usa namespaces, Composer, tipos, PDO, frameworks MVC y separación entre lógica y vistas.",
+                "En PHP usa consultas preparadas, sanitización de salida y configuración fuera del repositorio."
+            ],
+            "bash": [
+                "Bash automatiza tareas con pipes, variables, funciones, códigos de salida y set -euo pipefail cuando conviene.",
+                "Scripts shell robustos validan argumentos, citan variables y evitan borrar rutas no verificadas."
+            ],
+        }
+
+        count = 0
+        for topic in core_topics:
+            self.learn(topic, source="Programming Core")
+            count += 1
+        for lang in languages:
+            patterns = language_patterns.get(lang, [
+                f"{lang} requiere entender sintaxis, tipos, control de flujo, funciones, módulos, pruebas y depuración.",
+                f"Para programar bien en {lang}, escribe código legible, prueba casos límite y documenta contratos importantes."
+            ])
+            self.learn(f"Lenguaje {lang}: fundamentos, sintaxis, patrones, testing, debugging, seguridad y rendimiento.", source=f"Programming {lang}")
+            count += 1
+            for pattern in patterns:
+                self.learn(pattern, source=f"Programming {lang}")
+                count += 1
+        db.set("IA_BRAIN", self.brain)
+        add_web_log("SUCCESS", f"💻 Conocimiento de programación inyectado ({count} bloques, {len(languages)} lenguajes).")
+        self.send_db_to_master()
 
     def get_default_book_sources(self, multiplier=1):
         multiplier = max(1, min(int(multiplier or 1), 50))
@@ -3349,7 +3478,7 @@ class MoonBot:
             help_text += "🌐 **Traducción:** `/traducir`, `/aprender_traduccion es en hola = hello`\n"
             if rk in ["Admin", "Master"]:
                 help_text += "🛡️ **Moderación:** `/mute`, `/ban`, `/warn`, `/ia`, `/setup`\n"
-                help_text += "⚙️ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`\n"
+                help_text += "⚙️ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`, `/ia_programar`\n"
             
             help_text += "\n🧠 **Arquitectura Híbrida:** Cintia combina IA Nativa con Gemini (Nube) y Ollama (Local)."
             self.send_msg(cid, help_text)
@@ -3448,6 +3577,12 @@ class MoonBot:
             # Detectar si es una respuesta (Reply)
             target_uid = arg_str if arg_str else (str(msg.get("reply_to_message", {}).get("from", {}).get("id", "")) if msg.get("reply_to_message") else None)
             target_name = msg.get("reply_to_message", {}).get("from", {}).get("first_name", target_uid) if msg.get("reply_to_message") else target_uid
+
+            if raw_cmd in ["/ia_programar", "/ia_code", "/programar_ia"]:
+                langs = [x.strip() for x in (arg_str or "python,javascript,typescript,sql,html,css,bash,go,rust,java").split(",")]
+                threading.Thread(target=ia_nativa.seed_programming_knowledge, args=(langs,), daemon=True).start()
+                self.send_msg(cid, f"💻 **IA Programadora:** aprendizaje iniciado para `{', '.join([l for l in langs if l])}`.")
+                return True
 
             if raw_cmd == "/settings":
                 c = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "ia_mood": "friendly"})
@@ -3554,6 +3689,59 @@ class MoonBot:
             return True
 
         return False
+
+    def run_periodic_maintenance(self):
+        now_s = int(time.time())
+
+        # 1. Sincronización de Seguridad (Hashes Externos)
+        sync_freq = int(db.get("GLOBAL_SETTINGS", {}).get("sync_frequency", 21600))
+        if now_s - db.get("LAST_SECURITY_SYNC", 0) > sync_freq:
+            threading.Thread(target=self.sync_security_hashes).start()
+            db.set("LAST_SECURITY_SYNC", now_s)
+
+        # 2. Purga de Archivos Multimedia (Downloads)
+        purge_days = int(db.get("GLOBAL_SETTINGS", {}).get("media_purge_days", 7))
+        if now_s - db.get("LAST_MEDIA_PURGE", 0) > 86400:
+            self.purge_old_media(purge_days)
+            db.set("LAST_MEDIA_PURGE", now_s)
+
+        # 3. Backup automático de la base de datos cada 24h al Master
+        if now_s - db.get("LAST_AUTO_BACKUP", 0) > 86400:
+            db.set("LAST_AUTO_BACKUP", now_s)
+            if MASTER_ID:
+                def _auto_backup():
+                    db_path = "data/moon_database.db"
+                    if os.path.exists(db_path):
+                        size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+                        res = self.send_document(MASTER_ID, db_path, f"🔄 Backup automático 24h — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)")
+                        if res.get("ok"):
+                            add_web_log("SUCCESS", f"Backup automático enviado al Master ({size_mb} MB).")
+                        else:
+                            add_web_log("ERROR", "Fallo al enviar backup automático.")
+                threading.Thread(target=_auto_backup, daemon=True).start()
+
+        # 4. Backup de aprendizaje cada 1h al Master
+        learning_backup_interval = int(db.get("GLOBAL_SETTINGS", {}).get("learning_backup_interval", 3600))
+        if now_s - db.get("LAST_LEARNING_BACKUP", 0) > learning_backup_interval:
+            db.set("LAST_LEARNING_BACKUP", now_s)
+            if MASTER_ID:
+                def _learning_backup():
+                    db_path = "data/moon_database.db"
+                    if os.path.exists(db_path):
+                        size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+                        stats = ia_nativa.get_stats()
+                        caption = (
+                            f"🧠 Backup aprendizaje 1h — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)\n"
+                            f"Neuronas: {stats.get('words')}\n"
+                            f"Hito 1B/12H: {stats.get('billion_progress')} | {stats.get('billion_status')}"
+                        )
+                        res = self.send_document(MASTER_ID, db_path, caption)
+                        if res.get("ok"):
+                            add_web_log("SUCCESS", f"Backup de aprendizaje enviado al Master ({size_mb} MB).")
+                        else:
+                            add_web_log("ERROR", "Fallo al enviar backup de aprendizaje.")
+                threading.Thread(target=_learning_backup, daemon=True).start()
+
     def run(self):
         global listen_mode
         offset = 0
@@ -3567,6 +3755,7 @@ class MoonBot:
                 if not res.get("result"): 
                     # Solo logueamos cada 10 intentos vacíos para no saturar
                     if random.random() < 0.1: add_web_log("DEBUG", "Esperando nuevos mensajes de Telegram...")
+                    self.run_periodic_maintenance()
                     continue
                 
                 for u in res["result"]:
@@ -3995,56 +4184,7 @@ class MoonBot:
                     else: global_user_stats[uid]["badge"] = "👤 Miembro"
 
                 # --- Tareas Periódicas de Mantenimiento ---
-                now_s = int(time.time())
-                
-                # 1. Sincronización de Seguridad (Hashes Externos)
-                sync_freq = int(db.get("GLOBAL_SETTINGS", {}).get("sync_frequency", 21600))
-                if now_s - db.get("LAST_SECURITY_SYNC", 0) > sync_freq:
-                    threading.Thread(target=self.sync_security_hashes).start()
-                    db.set("LAST_SECURITY_SYNC", now_s)
-                
-                # 2. Purga de Archivos Multimedia (Downloads)
-                purge_days = int(db.get("GLOBAL_SETTINGS", {}).get("media_purge_days", 7))
-                if now_s - db.get("LAST_MEDIA_PURGE", 0) > 86400: # Una vez al día
-                    self.purge_old_media(purge_days)
-                    db.set("LAST_MEDIA_PURGE", now_s)
-
-                # 3. Backup automático de la base de datos cada 24h al Master
-                if now_s - db.get("LAST_AUTO_BACKUP", 0) > 86400:
-                    db.set("LAST_AUTO_BACKUP", now_s)
-                    if MASTER_ID:
-                        def _auto_backup():
-                            db_path = "data/moon_database.db"
-                            if os.path.exists(db_path):
-                                size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
-                                res = self.send_document(MASTER_ID, db_path, f"🔄 Backup automático 24h — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)")
-                                if res.get("ok"):
-                                    add_web_log("SUCCESS", f"Backup automático enviado al Master ({size_mb} MB).")
-                                else:
-                                    add_web_log("ERROR", "Fallo al enviar backup automático.")
-                        threading.Thread(target=_auto_backup, daemon=True).start()
-
-                # 4. Backup de aprendizaje cada 1h al Master
-                learning_backup_interval = int(db.get("GLOBAL_SETTINGS", {}).get("learning_backup_interval", 3600))
-                if now_s - db.get("LAST_LEARNING_BACKUP", 0) > learning_backup_interval:
-                    db.set("LAST_LEARNING_BACKUP", now_s)
-                    if MASTER_ID:
-                        def _learning_backup():
-                            db_path = "data/moon_database.db"
-                            if os.path.exists(db_path):
-                                size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
-                                stats = ia_nativa.get_stats()
-                                caption = (
-                                    f"🧠 Backup aprendizaje 1h — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)\n"
-                                    f"Neuronas: {stats.get('words')}\n"
-                                    f"Hito 1B/12H: {stats.get('billion_progress')} | {stats.get('billion_status')}"
-                                )
-                                res = self.send_document(MASTER_ID, db_path, caption)
-                                if res.get("ok"):
-                                    add_web_log("SUCCESS", f"Backup de aprendizaje enviado al Master ({size_mb} MB).")
-                                else:
-                                    add_web_log("ERROR", "Fallo al enviar backup de aprendizaje.")
-                        threading.Thread(target=_learning_backup, daemon=True).start()
+                self.run_periodic_maintenance()
 
             except Exception as e:
                 logger.error(f"FATAL ERROR in Message Loop: {str(e)}")

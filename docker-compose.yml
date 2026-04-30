@@ -13,6 +13,7 @@ services:
       - "5000:5000"
     environment:
       - MOON_ENV=prod
+      - AUTO_DOCKER_UPDATE=true
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.moonbot.rule=Host(`cintiabot.todosobreall.tech`)"
