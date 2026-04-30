@@ -1,7 +1,9 @@
-import os, sys, json, time, threading, logging, datetime, random, psutil, requests, sqlite3, jwt, importlib, re, struct, hashlib, subprocess
+﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, sqlite3, jwt, importlib, re, struct, hashlib, subprocess
 from flask import Flask, request, jsonify, send_from_directory, Response
 from dotenv import load_dotenv
 from collections import Counter
+from token_manager import token_manager
+from ban_manager import BanManager
 
 load_dotenv()
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", "moon")
@@ -13,7 +15,23 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
 HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50"))
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini") # "gemini" o "ollama"
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://moon_ollama:11434/api/generate")
+
+def _detect_ollama_url():
+    """Auto-detecta la URL de Ollama: primero localhost, luego Docker"""
+    env_url = os.getenv("OLLAMA_URL")
+    if env_url:
+        return env_url
+    # Intentar localhost (Ollama nativo en Windows/Linux)
+    for port in [11434, 11435]:
+        try:
+            requests.get(f"http://localhost:{port}/api/tags", timeout=2)
+            return f"http://localhost:{port}/api/generate"
+        except:
+            pass
+    # Fallback: hostname Docker
+    return "http://moon_ollama:11434/api/generate"
+
+OLLAMA_URL = _detect_ollama_url()
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2:0.5b")
 DEEP_DREAM_MODE = os.getenv("DEEP_DREAM_MODE", "false").lower() == "true"
 
@@ -43,6 +61,7 @@ class DBManager:
             self.conn.commit()
 
 db = DBManager()
+ban_manager = BanManager(db)  # Gestor centralizado de baneos
 
 # --- Moon Proxy Manager ---
 class ProxyManager:
@@ -566,22 +585,64 @@ def web_user_ban():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     u = str(request.json.get("uid"))
     cid = request.json.get("cid")
-    st = db.get("ST_FILE", {"bans": []})
-    if u not in st["bans"]: 
-        st["bans"].append(u)
-        db.set("ST_FILE", st)
-    
+    reason = request.json.get("reason", "Manual ban from web")
+
+    # Usar ban_manager para baneo global
+    ban_manager.ban_user(u, reason=reason, source="web_manual")
+    add_audit_log(f"Usuario {u} baneado manualmente desde web. Razón: {reason}")
+
     # Expulsar de inmediato si se proporciona CID
-    if cid:
+    if cid and active_bots:
         try:
             active_bots[0].kick_user(cid, u)
-            add_web_log("SECURITY", f"Usuario {u} expulsado tras baneo manual.")
+            add_web_log("SECURITY", f"Usuario {u} expulsado tras baneo global.")
         except: pass
-    return jsonify({"ok": True})
+
+    return jsonify({"ok": True, "message": "Usuario baneado globalmente"})
 
 @app.route("/api/ping")
 def web_ping():
     return jsonify({"ok": True, "status": "online", "time": time.time()})
+
+@app.route("/api/users/bans", methods=['GET'])
+def web_get_bans():
+    """Obtiene lista de todos los usuarios baneados"""
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    bans_data = ban_manager.get_all_bans()
+    return jsonify({
+        "ok": True,
+        "total": len(bans_data.get("users", [])),
+        "bans": bans_data.get("users", [])
+    })
+
+@app.route("/api/users/bans/stats", methods=['GET'])
+def web_get_ban_stats():
+    """Obtiene estadísticas de baneos"""
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    stats = ban_manager.get_ban_stats()
+    return jsonify({"ok": True, **stats})
+
+@app.route("/api/users/bans/history", methods=['GET'])
+def web_get_ban_history():
+    """Obtiene historial de baneos recientes"""
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    limit = request.args.get("limit", 50, type=int)
+    history = ban_manager.get_ban_history(limit)
+    return jsonify({"ok": True, "history": history})
+
+@app.route("/api/users/unban", methods=['POST'])
+def web_user_unban():
+    """Desbaña un usuario"""
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    u = str(request.json.get("uid"))
+    result = ban_manager.unban_user(u)
+
+    if result:
+        add_audit_log(f"Usuario {u} desbaneado desde web")
+        add_web_log("SECURITY", f"Usuario {u} desbaneado")
+        return jsonify({"ok": True, "message": "Usuario desbaneado"})
+    else:
+        return jsonify({"ok": False, "message": "Usuario no estaba baneado"})
 
 @app.route("/api/users/notes", methods=['POST'])
 def web_user_notes():
@@ -1040,7 +1101,7 @@ def web_ia_evolve():
 
 @app.route("/api/ia/config", methods=['GET', 'POST'])
 def api_ia_config():
-    global USE_EXTERNAL_LLM, GEMINI_API_KEY, HYBRID_PERCENTAGE, LLM_PROVIDER, OLLAMA_MODEL
+    global USE_EXTERNAL_LLM, GEMINI_API_KEY, HYBRID_PERCENTAGE, LLM_PROVIDER, OLLAMA_MODEL, OLLAMA_URL
     if not check_jwt(request): return jsonify({"ok": False}), 401
     
     if request.method == 'POST':
@@ -1051,9 +1112,18 @@ def api_ia_config():
         LLM_PROVIDER = data.get("provider", LLM_PROVIDER)
         OLLAMA_MODEL = data.get("ollama_model", OLLAMA_MODEL)
         
+        # Si se establece un proveedor externo, activar LLM automáticamente
+        if data.get("provider") in ["ollama", "gemini"]:
+            USE_EXTERNAL_LLM = True
+        
+        # Si se proporciona una URL personalizada de Ollama, usarla
+        if data.get("ollama_url"):
+            OLLAMA_URL = data.get("ollama_url")
+        
         global DEEP_DREAM_MODE
         DEEP_DREAM_MODE = data.get("deep_dream", DEEP_DREAM_MODE)
         
+        add_web_log("IA", f"Config actualizada: Provider={LLM_PROVIDER}, External={USE_EXTERNAL_LLM}, Model={OLLAMA_MODEL}, Dream={DEEP_DREAM_MODE}")
         return jsonify({"ok": True, "msg": "Configuración de IA actualizada"})
     
     return jsonify({
@@ -1063,7 +1133,51 @@ def api_ia_config():
         "hybrid_ratio": HYBRID_PERCENTAGE,
         "provider": LLM_PROVIDER,
         "ollama_model": OLLAMA_MODEL,
+        "ollama_url": OLLAMA_URL,
         "deep_dream": DEEP_DREAM_MODE
+    })
+
+@app.route("/api/ia/ollama/test", methods=['POST'])
+def api_ia_ollama_test():
+    """Prueba la conectividad con Ollama y devuelve modelos disponibles"""
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    
+    # Intentar múltiples URLs
+    urls_to_try = []
+    custom_url = (request.json or {}).get("url", "")
+    if custom_url:
+        urls_to_try.append(custom_url.rstrip("/"))
+    urls_to_try.extend([
+        "http://localhost:11434",
+        "http://localhost:11435",
+        "http://127.0.0.1:11434",
+        "http://moon_ollama:11434"
+    ])
+    
+    for base_url in urls_to_try:
+        try:
+            r = requests.get(f"{base_url}/api/tags", timeout=5)
+            if r.status_code == 200:
+                models = [m["name"] for m in r.json().get("models", [])]
+                # Actualizar la URL global si encontramos una que funciona
+                global OLLAMA_URL
+                OLLAMA_URL = f"{base_url}/api/generate"
+                add_web_log("IA", f"✅ Ollama detectado en {base_url} con {len(models)} modelo(s)")
+                return jsonify({
+                    "ok": True, 
+                    "url": base_url,
+                    "generate_url": OLLAMA_URL,
+                    "models": models,
+                    "msg": f"Conectado a Ollama ({base_url}). Modelos: {', '.join(models) if models else 'Ninguno instalado'}"
+                })
+        except Exception:
+            continue
+    
+    add_web_log("ERROR", "❌ No se pudo conectar con Ollama en ninguna URL conocida")
+    return jsonify({
+        "ok": False, 
+        "msg": "No se pudo conectar con Ollama. Asegúrate de que está ejecutándose (ollama serve) o que el contenedor Docker está activo.",
+        "tried": urls_to_try
     })
 def web_ia_seed():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -1517,6 +1631,7 @@ def detect_intent(text):
 class MoonCoreIA:
     def __init__(self):
         self.brain = db.get("IA_BRAIN", {"keywords": {}, "patterns": {}})
+        self.brain_lock = threading.Lock()  # Protege acceso concurrente al cerebro
         # Ensure keywords are Counter objects for stability
         self._ensure_counters()
         self.active_workers = {}
@@ -1724,8 +1839,14 @@ class MoonCoreIA:
                             if knowledge:
                                 self.learn(knowledge, source="Deep Dream (Ollama)")
                                 add_web_log("IA", f"🌙 Sueño Profundo: Aprendido sobre '{word}'")
+                        else:
+                            add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}")
+                except requests.exceptions.ConnectionError:
+                    add_web_log("ERROR", f"Deep Dream: No se puede conectar con Ollama ({OLLAMA_URL}). ¿Está ejecutándose?")
+                except requests.exceptions.Timeout:
+                    add_web_log("WARNING", "Deep Dream: Timeout al contactar Ollama (>45s)")
                 except Exception as e:
-                    pass
+                    add_web_log("ERROR", f"Deep Dream: Error inesperado: {str(e)}")
             
             # Pausa entre 'sueños' para no saturar
             time.sleep(random.randint(60, 120))
@@ -2021,10 +2142,16 @@ class MoonCoreIA:
                     r = requests.post(OLLAMA_URL, json=payload, timeout=30)
                     if r.status_code == 200:
                         cloud_response = r.json().get("response", "")
+                    else:
+                        add_web_log("WARNING", f"Ollama respondió con código {r.status_code}: {r.text[:200]}")
 
                 if cloud_response:
                     self.learn(cloud_response, source=f"{LLM_PROVIDER.capitalize()} Cloud Feedback")
                     return cloud_response
+            except requests.exceptions.ConnectionError:
+                add_web_log("ERROR", f"❌ No se puede conectar con {LLM_PROVIDER.upper()} ({OLLAMA_URL if LLM_PROVIDER == 'ollama' else 'Gemini API'}). Usando IA Nativa.")
+            except requests.exceptions.Timeout:
+                add_web_log("WARNING", f"⏱️ Timeout al contactar {LLM_PROVIDER.upper()}. Usando IA Nativa.")
             except Exception as e:
                 add_web_log("ERROR", f"Fallo LLM Externo ({LLM_PROVIDER}): {e}")
 
@@ -2243,8 +2370,15 @@ class MoonCoreIA:
         add_web_log("SUCCESS", f"Alimentación forzada completada. {count} mensajes re-procesados.")
 
     def get_stats(self):
-        words_count = len(self.brain["keywords"])
-        connections = sum(sum(v.values()) if isinstance(v, Counter) else len(v) for v in self.brain["keywords"].values())
+        try:
+            with self.brain_lock:
+                keywords_snapshot = dict(self.brain["keywords"])
+            words_count = len(keywords_snapshot)
+            connections = sum(sum(v.values()) if isinstance(v, Counter) else len(v) for v in keywords_snapshot.values())
+        except RuntimeError:
+            # Fallback si aún hay conflicto
+            words_count = len(self.brain.get("keywords", {}))
+            connections = 0
         elapsed = (time.time() - self.start_time) / 60 # Minutos
         rate = self.session_words / elapsed if elapsed > 0 else 0
         
@@ -3057,11 +3191,9 @@ class MoonBot:
                     settings = db.get("GLOBAL_SETTINGS", {})
                     if settings.get("cas_protection", "on") == "on" and is_cas_banned(uid):
                         add_web_log("SECURITY", f"⚠️ CAS BANNED DETECTADO: {uname} ({uid})")
-                        if uid not in bans_list:
-                            bans_list.append(uid)
-                            st["bans"] = bans_list
-                            db.set("ST_FILE", st)
-                            add_audit_log(f"Auto-Baneo CAS aplicado a {uname} ({uid})")
+                        # Sincronizar con ban_manager (global)
+                        ban_manager.sync_with_cas(uid, True)
+                        add_audit_log(f"Auto-Baneo CAS aplicado a {uname} ({uid})")
                         continue
                     
                     if maintenance_mode and uid != str(MASTER_ID):
@@ -3388,10 +3520,8 @@ proxy_bot = None
 
 if __name__ == "__main__":
     start_time, bots_data = time.time(), []
-    if os.path.exists("data/bots.json"):
-        with open("data/bots.json", "r") as f: 
-            raw_data = json.load(f)
-            bots_data = raw_data if isinstance(raw_data, list) else [raw_data]
+    # Cargar bots con soporte para encriptación
+    bots_data = token_manager.load_bots_from_file("data/bots.json", encrypted=True)
     
     active_bots = []
     

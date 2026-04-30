@@ -232,11 +232,27 @@
                 <div class="status-badge" id="ollamaStatusBadge" style="background: #64748b;">INACTIVO</div>
             </div>
             <p class="section-desc">Usa tu propio servidor para máxima privacidad y aprendizaje gratuito.</p>
+            
             <div class="input-group" style="margin-top: 15px;">
-                <label style="font-size: 11px; color: var(--primary);">MODELO LOCAL</label>
-                <input type="text" id="ollamaModel" placeholder="Ej: qwen2:0.5b, llama3..." style="width: 100%;">
+                <label style="font-size: 11px; color: var(--primary);">URL DEL SERVIDOR</label>
+                <input type="text" id="ollamaUrl" placeholder="Auto-detectado (ej: http://localhost:11434)" style="width: 100%;">
             </div>
-            <button onclick="setProvider('ollama')" class="btn-glow-mini" style="width: 100%; margin-top: 15px;">USAR OLLAMA COMO CEREBRO EXTERNO</button>
+            <div class="input-group" style="margin-top: 10px;">
+                <label style="font-size: 11px; color: var(--primary);">MODELO LOCAL</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="ollamaModel" placeholder="Ej: qwen2:0.5b, llama3..." style="flex: 1;">
+                    <select id="ollamaModelSelect" onchange="if(this.value) document.getElementById('ollamaModel').value = this.value" style="flex: 0; min-width: 40px; background: rgba(139,92,246,0.2); border: 1px solid var(--primary); color: white; border-radius: 8px; padding: 0 8px; cursor: pointer; font-size: 11px;">
+                        <option value="">▼</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="ollamaTestResult" style="display: none; margin-top: 12px; padding: 10px; border-radius: 8px; font-size: 11px; font-weight: 600;"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="testOllamaConnection()" class="btn-glow-mini" style="flex: 1; background: transparent; border-color: var(--primary); color: var(--primary);">🔍 PROBAR CONEXIÓN</button>
+                <button onclick="setProvider('ollama')" class="btn-glow-mini" style="flex: 1;">🦙 ACTIVAR OLLAMA</button>
+            </div>
         </div>
 
         <!-- Ajustes Globales Híbridos -->

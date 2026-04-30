@@ -1466,8 +1466,71 @@ function updateProviderUI(provider) {
 }
 
 function setProvider(provider) {
+    // Auto-activar LLM externo al seleccionar proveedor
+    const checkbox = document.getElementById("useExternalLLM");
+    if (checkbox) checkbox.checked = true;
     updateProviderUI(provider);
     saveIAConfig();
+    showToast("🧠 Proveedor Activado", `${provider.toUpperCase()} configurado como cerebro externo.`);
+}
+
+async function testOllamaConnection() {
+    const resultDiv = document.getElementById("ollamaTestResult");
+    const modelSelect = document.getElementById("ollamaModelSelect");
+    const urlInput = document.getElementById("ollamaUrl");
+    resultDiv.style.display = "block";
+    resultDiv.style.background = "rgba(139, 92, 246, 0.1)";
+    resultDiv.style.border = "1px solid var(--primary)";
+    resultDiv.style.color = "var(--primary)";
+    resultDiv.innerHTML = "⏳ Probando conexión con Ollama...";
+
+    try {
+        const res = await fetch("/api/ia/ollama/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            body: JSON.stringify({ url: urlInput?.value || "" })
+        });
+        const data = await res.json();
+        if (data.ok) {
+            resultDiv.style.background = "rgba(34, 197, 94, 0.1)";
+            resultDiv.style.border = "1px solid #4ade80";
+            resultDiv.style.color = "#4ade80";
+            resultDiv.innerHTML = `✅ ${data.msg}`;
+            
+            // Actualizar URL detectada
+            if (urlInput && data.url) urlInput.placeholder = data.url;
+            if (urlInput && data.generate_url) urlInput.value = "";
+            
+            // Poblar dropdown de modelos
+            if (modelSelect && data.models && data.models.length > 0) {
+                modelSelect.innerHTML = '<option value="">▼ Modelos</option>';
+                data.models.forEach(m => {
+                    const opt = document.createElement("option");
+                    opt.value = m;
+                    opt.textContent = m;
+                    modelSelect.appendChild(opt);
+                });
+                // Si el campo de modelo está vacío, seleccionar el primero
+                const modelInput = document.getElementById("ollamaModel");
+                if (modelInput && !modelInput.value) {
+                    modelInput.value = data.models[0];
+                }
+            }
+        } else {
+            resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
+            resultDiv.style.border = "1px solid #f87171";
+            resultDiv.style.color = "#f87171";
+            resultDiv.innerHTML = `❌ ${data.msg}`;
+            if (data.tried) {
+                resultDiv.innerHTML += `<br><small style="opacity: 0.7;">URLs probadas: ${data.tried.join(", ")}</small>`;
+            }
+        }
+    } catch (e) {
+        resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
+        resultDiv.style.border = "1px solid #f87171";
+        resultDiv.style.color = "#f87171";
+        resultDiv.innerHTML = "❌ Error de conexión con el servidor del bot.";
+    }
 }
 
 async function updateNeuralFeed() {
@@ -1509,6 +1572,13 @@ async function loadIAConfig() {
             document.getElementById("deepDreamMode").checked = data.deep_dream;
             document.getElementById("hybridRatio").value = data.hybrid_ratio;
             document.getElementById("ollamaModel").value = data.ollama_model || "qwen2:0.5b";
+            
+            // Cargar URL de Ollama
+            const urlInput = document.getElementById("ollamaUrl");
+            if (urlInput && data.ollama_url) {
+                urlInput.placeholder = data.ollama_url.replace("/api/generate", "");
+            }
+            
             updateProviderUI(data.provider || "gemini");
             if (data.api_key === "***") document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
             updateRatioLabel();
@@ -1527,19 +1597,24 @@ async function saveIAConfig() {
     const api_key = document.getElementById("geminiKey").value;
     const hybrid_ratio = document.getElementById("hybridRatio").value;
     const ollama_model = document.getElementById("ollamaModel").value;
+    const ollama_url_input = document.getElementById("ollamaUrl")?.value;
+    const ollama_url = ollama_url_input ? (ollama_url_input.replace(/\/$/, "") + "/api/generate") : "";
 
     try {
+        const payload = { 
+            use_external, 
+            deep_dream,
+            api_key, 
+            hybrid_ratio, 
+            provider: currentIAProvider, 
+            ollama_model 
+        };
+        if (ollama_url) payload.ollama_url = ollama_url;
+        
         const res = await fetch("/api/ia/config", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
-            body: JSON.stringify({ 
-                use_external, 
-                deep_dream,
-                api_key, 
-                hybrid_ratio, 
-                provider: currentIAProvider, 
-                ollama_model 
-            })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.ok) {
@@ -1769,6 +1844,75 @@ function modSendToGroup() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ target: currentModCid, text: msg })
     }).then(() => { showToast("📢 Enviado", "Mensaje enviado al grupo."); document.getElementById("modBroadcastMsg").value = ""; });
+}
+
+// --- Global Bans Management ---
+function loadGlobalBans() {
+    if (!authToken) return;
+
+    // Cargar estadísticas
+    fetch("/api/users/bans/stats", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        if (data.ok) {
+            document.getElementById("totalBans").innerText = data.total_banned_users;
+            document.getElementById("recentBans").innerText = data.recent_bans;
+
+            // Mostrar breakdown por fuente
+            let breakdown = "<strong>Por fuente:</strong> ";
+            for (let [source, count] of Object.entries(data.sources || {})) {
+                breakdown += `${source}: ${count} | `;
+            }
+            document.getElementById("banSourcesBreakdown").innerText = breakdown.slice(0, -3);
+        }
+    });
+
+    // Cargar lista de baneados
+    fetch("/api/users/bans", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        if (data.ok) {
+            const bans = data.bans || [];
+            const list = document.getElementById("globalBansList");
+            if (bans.length === 0) {
+                list.innerHTML = "<div style='color: var(--text-muted);'>Sin usuarios baneados</div>";
+            } else {
+                list.innerHTML = bans.map((uid, i) => `
+                    <div style="padding: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                        <span>${uid}</span>
+                        <button class="btn-mod-mini" onclick="unbanUser('${uid}')">DESBANEAR</button>
+                    </div>
+                `).join("");
+            }
+        }
+    });
+}
+
+function unbanUser(uid) {
+    if (!uid) uid = document.getElementById("unbanUid").value.trim();
+    if (!uid) { showToast("⚠️", "Ingresa un UID"); return; }
+    if (!confirm(`¿Desbanear ${uid}?`)) return;
+
+    fetch("/api/users/unban", {
+        method: "POST",
+        headers: { "Authorization": authToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: uid })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            showToast("✅ Desbaneado", data.message);
+            document.getElementById("unbanUid").value = "";
+            loadGlobalBans();
+        } else {
+            showToast("❌ Error", data.message);
+        }
+    });
+}
+
+// Cargar baneos al abrir moderación
+const origLoadModerationData = typeof loadModerationData === 'function' ? loadModerationData : null;
+if (origLoadModerationData) {
+    window.loadModerationData = function() {
+        origLoadModerationData();
+        setTimeout(loadGlobalBans, 300);
+    };
 }
 
 // --- Plugin Commands ---

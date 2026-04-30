@@ -75,6 +75,40 @@
         </div>
     </div>
 
+    <!-- LISTA GLOBAL DE BANEOS (SINCRONIZADA) -->
+    <div class="glass-panel" style="margin-top: 20px; border-left: 3px solid #ef4444; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin:0;">🌐 Lista Negra Global (Sincronizada)</h3>
+            <button class="tab-btn" style="width: auto; padding: 6px 14px; margin:0; font-size: 12px;" onclick="loadGlobalBans()">🔄 Actualizar</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 700;">ESTADÍSTICAS</label>
+                <div id="banStatsContainer" style="margin-top: 10px; font-size: 12px;">
+                    <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 10px;">
+                        <div>Total baneado: <strong id="totalBans">0</strong></div>
+                        <div>Últimas 24h: <strong id="recentBans">0</strong></div>
+                        <div style="margin-top: 5px; font-size: 10px; color: var(--text-muted);" id="banSourcesBreakdown"></div>
+                    </div>
+                </div>
+
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 15px;">DESBANEAR USUARIO</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <input type="text" id="unbanUid" class="input-style" placeholder="UID a desbanear..." style="flex:1;">
+                    <button class="btn-glow" style="margin:0; padding: 8px 15px; background: rgba(34,197,94,0.2); border-color: #22c55e;" onclick="unbanUser()">✓</button>
+                </div>
+            </div>
+
+            <div class="glass-panel" style="background: rgba(0,0,0,0.2); padding: 15px;">
+                <label style="font-size: 10px; color: #f87171; font-weight: 800; letter-spacing: 1px;">USUARIOS BANEADOS</label>
+                <div id="globalBansList" style="margin-top: 10px; font-family: monospace; font-size: 10px; color: var(--text-muted); max-height: 200px; overflow-y: auto;">
+                    Cargando...
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Seguridad Avanzada: Huellas Digitales -->
     <div class="glass-panel" style="margin-top: 20px; border-left: 3px solid #f87171; position: relative;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">

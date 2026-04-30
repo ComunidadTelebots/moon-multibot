@@ -23,6 +23,10 @@ downloads/
 logs/
 *.log
 
+# Análisis y Reportes
+export.csv
+spam_analysis_report.json
+
 # Python
 __pycache__/
 *.py[cod]
