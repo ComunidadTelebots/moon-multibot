@@ -1049,6 +1049,20 @@ def api_ia_wikipedia():
     threading.Thread(target=ia_nativa.seed_wikipedia_topics, args=(topics,)).start()
     return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(topics)} temas"})
 
+@app.route("/api/ia/backup", methods=['POST'])
+@requires_auth
+def api_ia_backup():
+    if not MASTER_ID or not proxy_bot: return jsonify({"ok": False, "msg": "Master ID no configurado"})
+    db_path = "data/moon_database.db"
+    if not os.path.exists(db_path): return jsonify({"ok": False, "msg": "Base de datos no encontrada"})
+    
+    size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+    def _manual_backup():
+        proxy_bot.send_document(MASTER_ID, db_path, f"📁 Backup Manual Solicitado — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)")
+    
+    threading.Thread(target=_manual_backup).start()
+    return jsonify({"ok": True, "msg": "Backup enviado a tu Telegram"})
+
 @app.route("/api/ia/force_feed", methods=['POST'])
 def web_ia_force_feed():
     if not check_jwt(request): return jsonify({"ok": False}), 401

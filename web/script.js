@@ -1294,6 +1294,21 @@ function injectWikipediaTopics() {
     });
 }
 
+function requestIABackup() {
+    if(!authToken) return;
+    showToast("💾 Backup", "Solicitando copia de seguridad...");
+    fetch("/api/ia/backup", {
+        method: "POST",
+        headers: { "Authorization": authToken }
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("✅ Enviado", "La copia ha sido enviada a tu Telegram.");
+        } else {
+            showToast("❌ Error", data.msg || "Fallo al solicitar backup.");
+        }
+    });
+}
+
 // --- Neuro-Search ---
 function runNeuralSearch() {
     const input = document.getElementById('neuralSearchInput');
