@@ -394,7 +394,16 @@ def web_telegram_file_proxy(file_id):
 def web_send():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     d = request.json
-    proxy_bot.send_msg(d["target"], d["text"])
+    text = d.get("text", "")
+    target = d.get("target")
+    
+    # 1. Enviar a Telegram
+    proxy_bot.send_msg(target, text)
+    
+    # 2. Aprender del mensaje enviado (Dashboard también enseña)
+    if text:
+        ia_nativa.learn(text, source="Web Dashboard")
+        
     return jsonify({"ok": True})
 
 @app.route("/api/replies", methods=['GET', 'POST', 'DELETE'])
