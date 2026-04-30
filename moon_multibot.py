@@ -1537,37 +1537,53 @@ class MoonCoreIA:
         for conv in conversations:
             self.learn(conv, source="Patrón Humano")
 
-        # 2. Wikipedia Seeding
-        topics = [
-            "Inteligencia_artificial", "Universo", "Historia_de_España", "Internet",
-            "Ciencia", "Tecnología", "Filosofía", "Psicología", "Criptografía",
-            "Física_cuántica", "Biología", "Astronáutica", "Derecho_romano",
-            "Revolución_Industrial", "Renacimiento", "Arquitectura", "Cine",
-            "Literatura", "Medicina", "Economía", "Sociología", "Matemáticas",
-            "Astronomía", "Geografía", "Derecho_Constitucional", "Historia_Universal",
-            "Arte_contemporáneo", "Mitología_griega", "Ecología", "Nanotecnología",
-            "Energías_renovables", "Exploración_espacial", "Inteligencia_emocional"
-        ]
+        # 2. Wikipedia Seeding (Multilingüe)
+        lang_topics = {
+            "es": ["Inteligencia_artificial", "Universo", "Historia_de_España", "Tecnología", "Filosofía", "Psicología", "Física_cuántica", "Biología", "Astronomía"],
+            "en": ["Artificial_intelligence", "Universe", "History_of_England", "Technology", "Philosophy", "Psychology", "Quantum_mechanics", "Biology", "Astronomy"],
+            "fr": ["Intelligence_artificielle", "Univers", "Histoire_de_France", "Technologie", "Philosophie", "Psychologie", "Mécanique_quantique", "Biologie", "Astronomie"],
+            "it": ["Intelligenza_artificiale", "Universo", "Storia_d'Italia", "Tecnologia", "Filosofia", "Psicologia", "Meccanica_quantistica", "Biologia", "Astronomia"]
+        }
         
         headers = {'User-Agent': 'MoonBotMasterSeed/1.0'}
         count = 0
-        for topic in topics:
-            try:
-                url = f"https://es.wikipedia.org/api/rest_v1/page/summary/{topic}"
-                r = requests.get(url, headers=headers, timeout=10)
-                if r.status_code == 200:
-                    data = r.json()
-                    extract = data.get("extract", "")
-                    if extract:
-                        self.learn(extract, source=f"Wikipedia: {topic.replace('_', ' ')}")
-                        count += 1
-                time.sleep(0.3)
-            except Exception as e:
-                add_web_log("DEBUG", f"Error en tópico Wikipedia {topic}: {e}")
+        for lang, topics in lang_topics.items():
+            for topic in topics:
+                try:
+                    url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{topic}"
+                    r = requests.get(url, headers=headers, timeout=10)
+                    if r.status_code == 200:
+                        data = r.json()
+                        extract = data.get("extract", "")
+                        if extract:
+                            self.learn(extract, source=f"Wikipedia ({lang.upper()}): {topic.replace('_', ' ')}")
+                            count += 1
+                    time.sleep(0.3)
+                except: continue
+        
+        # 3. Gutenberg Seeding (Clásicos)
+        gutenberg_ids = ["17013", "1661", "1342", "11"] # Quijote, Sherlock, Pride & Prejudice, Alice
+        self.seed_gutenberg_books(gutenberg_ids)
         
         db.set("IA_BRAIN", self.brain) # Forzar guardado
-        add_web_log("SUCCESS", f"🔥 EXPANSIÓN MAESTRA COMPLETADA: {count} tópicos enciclopédicos absorbidos.")
-        self.send_master_report("🚀 REPORTE DE EXPANSIÓN MAESTRA")
+        add_web_log("SUCCESS", f"🔥 EXPANSIÓN MAESTRA COMPLETADA: {count} tópicos y {len(gutenberg_ids)} libros absorbidos.")
+        
+        if MASTER_ID:
+            self.send_master_report("🚀 REPORTE DE EXPANSIÓN MAESTRA")
+            self.send_db_to_master()
+
+    def send_db_to_master(self):
+        """Envía una copia de la base de datos al Master."""
+        if not MASTER_ID: return
+        db_path = "data/moon_database.db"
+        if os.path.exists(db_path):
+            try:
+                proxy_bot.api_call("sendDocument", {
+                    "chat_id": MASTER_ID, 
+                    "caption": f"💾 **Backup Automático (Post-Expansión)**\nFecha: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}\nNeuronas: {len(self.brain.get('keywords', {}))}"
+                }, files={"document": open(db_path, "rb")})
+            except Exception as e:
+                add_web_log("ERROR", f"Fallo al enviar DB al Master: {e}")
 
     def seed_wikipedia_topics(self, topics_list, domain="es.wikipedia.org"):
         """Inyecta conocimiento desde una lista específica de Wikipedia o Wikisource."""
@@ -1594,6 +1610,7 @@ class MoonCoreIA:
                 add_web_log("DEBUG", f"Error en tópico {source_name} {topic}: {e}")
         
         add_web_log("SUCCESS", f"✅ Inyección de {source_name} completada: {count} temas aprendidos.")
+        self.send_db_to_master()
 
     def seed_gutenberg_books(self, book_ids):
         """Inyecta libros completos desde Project Gutenberg."""
@@ -1629,8 +1646,21 @@ class MoonCoreIA:
                 add_web_log("ERROR", f"Error con libro Gutenberg {b_id}: {e}")
         
         add_web_log("SUCCESS", f"✅ Proceso Gutenberg finalizado: {count} libros integrados.")
+        self.send_db_to_master()
 
     def remember_context(self, chat_id, text, role="user"):
+        """Mantiene el contexto reciente de un chat para la generación de IA."""
+        if chat_id not in global_chat_history:
+            global_chat_history[chat_id] = []
+        global_chat_history[chat_id].append({
+            "role": role,
+            "text": text,
+            "time": datetime.datetime.now().strftime("%H:%M")
+        })
+        # Mantener solo los últimos 15 mensajes de contexto
+        if len(global_chat_history[chat_id]) > 15:
+            global_chat_history[chat_id].pop(0)
+
     def seed_knowledge(self):
         global multilingual_seeds
         add_web_log("INFO", "🌱 Iniciando sembrado de conocimiento masivo...")
