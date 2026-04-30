@@ -193,7 +193,19 @@
         <div id="shieldStatus" style="font-size: 11px; font-weight: 700; margin-top: 10px; color: #f87171;">🛡️ ESCUDO DESACTIVADO</div>
         <div class="help-hint" title="Si se activa, el bot expulsará y borrará automáticamente cualquier contenido peligroso detectado.">?</div>
     </div>
-    <div class="glass-panel" style="margin-top: 25px;">
+        <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--secondary);">
+            <div class="panel-header-flex">
+                <h3>🌐 Expansión por Tópicos (Wikipedia)</h3>
+                <span class="status-badge online">BETA</span>
+            </div>
+            <p class="section-desc">Escribe temas separados por comas y la IA buscará sus definiciones en Wikipedia para absorber el conocimiento.</p>
+            <div class="input-group">
+                <input type="text" id="wikiTopicsInput" placeholder="Ej: Agujeros negros, Gran Muralla China, Bitcoin, Realismo mágico...">
+                <button onclick="injectWikipediaTopics()" class="btn-glow-mini" style="background: var(--secondary); border-color: var(--secondary);">INYECTAR TEMAS</button>
+            </div>
+        </div>
+
+        <div class="glass-panel" style="margin-top: 25px;">
         <div class="panel-header-flex">
             <h3>📋 Registro Histórico de Peritajes</h3>
             <button onclick="clearAuditHistory()" class="btn-mini" style="color: var(--danger); border-color: var(--danger); font-size: 10px;">Limpiar Historial</button>

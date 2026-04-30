@@ -1035,10 +1035,19 @@ def web_ia_seed():
     return jsonify({"ok": True, "msg": "Conocimiento inyectado con éxito"})
 
 @app.route("/api/ia/master_seed", methods=['POST'])
-def web_ia_master_seed():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
+@requires_auth
+def api_ia_master_seed():
     threading.Thread(target=ia_nativa.seed_master_intelligence).start()
-    return jsonify({"ok": True, "msg": "Expansión Maestra iniciada en segundo plano."})
+    return jsonify({"ok": True, "msg": "Expansión Maestra iniciada"})
+
+@app.route("/api/ia/wikipedia", methods=['POST'])
+@requires_auth
+def api_ia_wikipedia():
+    data = request.json
+    topics = data.get("topics", "").split(",")
+    if not topics: return jsonify({"ok": False, "msg": "No hay tópicos"})
+    threading.Thread(target=ia_nativa.seed_wikipedia_topics, args=(topics,)).start()
+    return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(topics)} temas"})
 
 @app.route("/api/ia/force_feed", methods=['POST'])
 def web_ia_force_feed():
@@ -1532,6 +1541,38 @@ class MoonCoreIA:
         db.set("IA_BRAIN", self.brain) # Forzar guardado
         add_web_log("SUCCESS", f"🔥 EXPANSIÓN MAESTRA COMPLETADA: {count} tópicos enciclopédicos absorbidos.")
         self.send_master_report("🚀 REPORTE DE EXPANSIÓN MAESTRA")
+
+    def seed_wikipedia_topics(self, topics_list):
+        """Inyecta conocimiento desde una lista específica de tópicos de Wikipedia."""
+        if not topics_list: return
+        add_web_log("INFO", f"🌐 Iniciando sembrado personalizado de Wikipedia ({len(topics_list)} temas)...")
+        if MASTER_ID:
+            try:
+                proxy_bot.api_call("sendMessage", {"chat_id": MASTER_ID, "text": f"📚 *Expansión por Tópicos Iniciada*\nTemas: {', '.join(topics_list[:5])}...", "parse_mode": "Markdown"})
+            except: pass
+
+        headers = {'User-Agent': 'MoonBotCustomSeed/1.0'}
+        count = 0
+        for topic in topics_list:
+            topic = topic.strip().replace(" ", "_")
+            if not topic: continue
+            try:
+                url = f"https://es.wikipedia.org/api/rest_v1/page/summary/{topic}"
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    data = r.json()
+                    extract = data.get("extract", "")
+                    if extract:
+                        self.learn(extract, source=f"Wikipedia: {topic.replace('_', ' ')}")
+                        count += 1
+                time.sleep(0.3)
+            except Exception as e:
+                add_web_log("DEBUG", f"Error en tópico Wikipedia {topic}: {e}")
+        
+        db.set("IA_BRAIN", self.brain)
+        add_web_log("SUCCESS", f"✅ Sembrado personalizado finalizado: {count} temas absorbidos.")
+        if MASTER_ID:
+            self.send_master_report("📊 REPORTE DE EXPANSIÓN POR TÓPICOS")
 
     def seed_knowledge(self):
         global multilingual_seeds

@@ -1275,6 +1275,25 @@ function injectMasterIntelligence() {
     });
 }
 
+function injectWikipediaTopics() {
+    const input = document.getElementById("wikiTopicsInput");
+    if(!input || !input.value.trim()) return;
+    if(!authToken) return;
+
+    fetch("/api/ia/wikipedia", {
+        method: "POST",
+        headers: { "Authorization": authToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ topics: input.value.trim() })
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("🌐 Wikipedia Boost", data.msg);
+            input.value = "";
+        } else {
+            showToast("❌ Error", data.msg);
+        }
+    });
+}
+
 // --- Neuro-Search ---
 function runNeuralSearch() {
     const input = document.getElementById('neuralSearchInput');
