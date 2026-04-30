@@ -2731,13 +2731,31 @@ class MoonBot:
         
         if raw_cmd in ["/ayuda", "/comandos", "/help"]:
             help_text = "📖 **MANUAL DE OPERACIONES MOON**\n\n"
-            help_text += "✨ **General:** `/perfil`, `/top`, `/notas`, `/search`\n"
+            help_text += "✨ **General:** `/perfil`, `/top`, `/notas`, `/search`, `/ia_info`\n"
             if rk in ["Admin", "Master"]:
-                help_text += "🛡️ **Moderación:** `/mute`, `/ban`, `/warn`, `/warns`, `/flag`\n"
+                help_text += "🛡️ **Moderación:** `/mute`, `/ban`, `/warn`, `/ia`, `/setup`\n"
                 help_text += "⚙️ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`\n"
-            if rk == "Master":
-                help_text += "⚡ **Master:** `/listen`, `/backup_db`, `/ban_media`\n"
+            
+            help_text += "\n🧠 **Arquitectura Híbrida:** Cintia combina IA Nativa con Gemini (Nube) y Ollama (Local)."
             self.send_msg(cid, help_text)
+            return True
+
+        if raw_cmd == "/ia_info":
+            mode_text = "🌙 IA Nativa (Moon)"
+            if USE_EXTERNAL_LLM:
+                mode_text = f"🌐 Híbrida ({LLM_PROVIDER.upper()})"
+                if DEEP_DREAM_MODE: mode_text += " + 🌙 Sueño Profundo"
+            
+            info = (
+                "🧠 *Cintia Intelligence Report*\n"
+                "--------------------------------\n"
+                f"⚙️ *Modo Actual:* {mode_text}\n"
+                f"📊 *Conocimiento:* {len(self.ia.brain)} palabras\n"
+                f"🔗 *Conexiones:* {sum(len(v) for v in self.ia.brain.values())}\n"
+                "--------------------------------\n"
+                "Cintia ahora usa una arquitectura híbrida que combina su red neuronal local con modelos de lenguaje avanzados (Gemini/Ollama)."
+            )
+            self.send_msg(cid, info)
             return True
 
         if raw_cmd == "/ping":
