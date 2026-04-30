@@ -1756,17 +1756,20 @@ class MoonCoreIA:
 
     
     def learn(self, text, source="Cerebro Local"):
-        settings = db.get("GLOBAL_SETTINGS", {})
-        if settings.get("spam_filter", "on") == "on":
-            spam_triggers = ["gane", "euros", "bancaria", "billetera", "dinero gratis", "inversi", "rentabilidad"]
-            if any(t in text.lower() for t in spam_triggers):
-                return
+        if not text or len(text) < 2: return
+        
+        # Logs de depuración para confirmar recepción
+        add_web_log("IA", f"🧠 Aprendiendo de '{source}': {text[:30]}...")
 
         words = text.lower().split()
         new_words = 0
         now_str = datetime.datetime.now().strftime("%H:%M:%S")
 
         for i, w in enumerate(words):
+            # Limpiar caracteres especiales
+            w = "".join(filter(str.isalnum, w))
+            if not w or len(w) < 2: continue
+
             if w not in self.brain["keywords"]:
                 self.brain["keywords"][w] = Counter()
                 new_words += 1
@@ -1777,9 +1780,11 @@ class MoonCoreIA:
                 self._activity_cache.append({"word": w, "source": source, "time": now_str})
 
             if i < len(words) - 1:
-                if isinstance(self.brain["keywords"][w], list):
-                    self.brain["keywords"][w] = Counter(self.brain["keywords"][w])
-                self.brain["keywords"][w][words[i+1]] += 1
+                next_w = "".join(filter(str.isalnum, words[i+1]))
+                if next_w:
+                    if not isinstance(self.brain["keywords"][w], Counter):
+                        self.brain["keywords"][w] = Counter(self.brain["keywords"][w])
+                    self.brain["keywords"][w][next_w] += 1
 
         self.session_words += new_words
         self._learn_count += 1
@@ -1788,11 +1793,12 @@ class MoonCoreIA:
         if len(self._activity_cache) > 200:
             self._activity_cache = self._activity_cache[-50:]
 
-        # Escritura en BD por lotes cada 20 aprendizajes para no saturar SQLite
-        if self._learn_count % 20 == 0:
+        # Escritura en BD más frecuente (cada 5 aprendizajes) para feedback visual
+        if self._learn_count % 5 == 0:
             db.set("IA_BRAIN", self.brain)
             db.set("IA_SOURCES", self._sources_cache)
             db.set("IA_ACTIVITY", self._activity_cache[-50:])
+            add_web_log("DEBUG", f"💾 Cerebro persistido en DB (Total: {len(self.brain['keywords'])} neuronas)")
 
     def remember_context(self, chat_id, text, role="user"):
         """Guarda el mensaje en la ventana de contexto del chat (en memoria y BD)."""
