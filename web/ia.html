@@ -240,6 +240,19 @@
                 </div>
                 <input type="range" id="hybridRatio" min="0" max="100" value="50" class="mood-range" style="width: 100%;" oninput="updateRatioLabel()">
             </div>
+
+            <!-- Opción Sueño Profundo -->
+            <div class="panel-header-flex" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div>
+                    <h4 style="font-size: 13px; margin: 0;">🌙 Modo Sueño Profundo (Auto-Estudio)</h4>
+                    <p style="font-size: 10px; color: #94a3b8; margin: 3px 0 0 0;">Cintia estudiará sola usando Ollama cuando nadie hable.</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="deepDreamMode" onchange="saveIAConfig()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            
             <button onclick="saveIAConfig()" class="btn-glow-mini" style="width: 100%; margin-top: 20px; opacity: 0.8;">GUARDAR PREFERENCIAS GLOBALES</button>
         </div>
 

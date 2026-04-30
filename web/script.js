@@ -1458,6 +1458,7 @@ async function loadIAConfig() {
         const data = await res.json();
         if (data.ok) {
             document.getElementById("useExternalLLM").checked = data.use_external;
+            document.getElementById("deepDreamMode").checked = data.deep_dream;
             document.getElementById("hybridRatio").value = data.hybrid_ratio;
             document.getElementById("ollamaModel").value = data.ollama_model || "qwen2:0.5b";
             updateProviderUI(data.provider || "gemini");
@@ -1469,6 +1470,7 @@ async function loadIAConfig() {
 
 async function saveIAConfig() {
     const use_external = document.getElementById("useExternalLLM").checked;
+    const deep_dream = document.getElementById("deepDreamMode").checked;
     const api_key = document.getElementById("geminiKey").value;
     const hybrid_ratio = document.getElementById("hybridRatio").value;
     const ollama_model = document.getElementById("ollamaModel").value;
@@ -1479,6 +1481,7 @@ async function saveIAConfig() {
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
             body: JSON.stringify({ 
                 use_external, 
+                deep_dream,
                 api_key, 
                 hybrid_ratio, 
                 provider: currentIAProvider, 

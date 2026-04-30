@@ -15,6 +15,7 @@ HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50"))
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini") # "gemini" o "ollama"
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://moon_ollama:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2:0.5b")
+DEEP_DREAM_MODE = os.getenv("DEEP_DREAM_MODE", "false").lower() == "true"
 
 app = Flask(__name__)
 # Configuración según ambiente
@@ -1049,6 +1050,10 @@ def api_ia_config():
         HYBRID_PERCENTAGE = int(data.get("hybrid_ratio", HYBRID_PERCENTAGE))
         LLM_PROVIDER = data.get("provider", LLM_PROVIDER)
         OLLAMA_MODEL = data.get("ollama_model", OLLAMA_MODEL)
+        
+        global DEEP_DREAM_MODE
+        DEEP_DREAM_MODE = data.get("deep_dream", DEEP_DREAM_MODE)
+        
         return jsonify({"ok": True, "msg": "Configuración de IA actualizada"})
     
     return jsonify({
@@ -1057,7 +1062,8 @@ def api_ia_config():
         "api_key": "***" if GEMINI_API_KEY else "",
         "hybrid_ratio": HYBRID_PERCENTAGE,
         "provider": LLM_PROVIDER,
-        "ollama_model": OLLAMA_MODEL
+        "ollama_model": OLLAMA_MODEL,
+        "deep_dream": DEEP_DREAM_MODE
     })
 def web_ia_seed():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -1695,6 +1701,35 @@ class MoonCoreIA:
         if len(global_chat_history[chat_id]) > 15:
             global_chat_history[chat_id].pop(0)
 
+    def deep_dream_worker(self):
+        """Hilo de auto-estudio autónomo cuando el bot está ocioso"""
+        add_web_log("IA", "Iniciando motor de Sueño Profundo (Auto-Estudio)...")
+        while True:
+            if DEEP_DREAM_MODE and LLM_PROVIDER == "ollama":
+                try:
+                    # Elegir una semilla aleatoria del cerebro
+                    brain = self.brain
+                    if brain:
+                        word = random.choice(list(brain.keys()))
+                        prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
+                        
+                        payload = {
+                            "model": OLLAMA_MODEL,
+                            "prompt": prompt,
+                            "stream": False
+                        }
+                        r = requests.post(OLLAMA_URL, json=payload, timeout=45)
+                        if r.status_code == 200:
+                            knowledge = r.json().get("response", "")
+                            if knowledge:
+                                self.learn(knowledge, source="Deep Dream (Ollama)")
+                                add_web_log("IA", f"🌙 Sueño Profundo: Aprendido sobre '{word}'")
+                except Exception as e:
+                    pass
+            
+            # Pausa entre 'sueños' para no saturar
+            time.sleep(random.randint(60, 120))
+
     def seed_knowledge(self):
         global multilingual_seeds
         add_web_log("INFO", "🌱 Iniciando sembrado de conocimiento masivo...")
@@ -2330,7 +2365,10 @@ class MoonBot:
     def __init__(self, token):
         self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", requests.Session(), []
         self.ia = ia_nativa
-        self.load_plugins()
+        # Iniciar hilo de sueño profundo (vía IA)
+        threading.Thread(target=self.ia.deep_dream_worker, daemon=True).start()
+        
+        self.ia.load_brain()
         me = self.api_call("getMe")
         self.bot_username = me.get("result", {}).get("username", "MoonBot")
         self.bot_id = me.get("result", {}).get("id")
