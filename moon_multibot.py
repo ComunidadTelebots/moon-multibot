@@ -1035,14 +1035,14 @@ def web_ia_seed():
     return jsonify({"ok": True, "msg": "Conocimiento inyectado con éxito"})
 
 @app.route("/api/ia/master_seed", methods=['POST'])
-@requires_auth
 def api_ia_master_seed():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
     threading.Thread(target=ia_nativa.seed_master_intelligence).start()
     return jsonify({"ok": True, "msg": "Expansión Maestra iniciada"})
 
 @app.route("/api/ia/wikipedia", methods=['POST'])
-@requires_auth
 def api_ia_wikipedia():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
     data = request.json
     topics = data.get("topics", "").split(",")
     if not topics: return jsonify({"ok": False, "msg": "No hay tópicos"})
@@ -1050,8 +1050,18 @@ def api_ia_wikipedia():
     return jsonify({"ok": True, "msg": f"Iniciado aprendizaje de {len(topics)} temas"})
 
 @app.route("/api/ia/backup", methods=['POST'])
-@requires_auth
 def api_ia_backup():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    if not MASTER_ID or not proxy_bot: return jsonify({"ok": False, "msg": "Master ID no configurado"})
+    db_path = "data/moon_database.db"
+    if not os.path.exists(db_path): return jsonify({"ok": False, "msg": "Base de datos no encontrada"})
+    
+    size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+    def _manual_backup():
+        proxy_bot.send_document(MASTER_ID, db_path, f"📁 Backup Manual Solicitado — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)")
+    
+    threading.Thread(target=_manual_backup).start()
+    return jsonify({"ok": True, "msg": "Backup enviado a tu Telegram"})
     if not MASTER_ID or not proxy_bot: return jsonify({"ok": False, "msg": "Master ID no configurado"})
     db_path = "data/moon_database.db"
     if not os.path.exists(db_path): return jsonify({"ok": False, "msg": "Base de datos no encontrada"})
