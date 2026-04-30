@@ -1537,12 +1537,19 @@ class MoonCoreIA:
         for conv in conversations:
             self.learn(conv, source="Patrón Humano")
 
-        # 2. Wikipedia Seeding (Multilingüe)
+        # 2. Wikipedia Seeding (Multilingüe Masivo)
         lang_topics = {
-            "es": ["Inteligencia_artificial", "Universo", "Historia_de_España", "Tecnología", "Filosofía", "Psicología", "Física_cuántica", "Biología", "Astronomía"],
-            "en": ["Artificial_intelligence", "Universe", "History_of_England", "Technology", "Philosophy", "Psychology", "Quantum_mechanics", "Biology", "Astronomy"],
-            "fr": ["Intelligence_artificielle", "Univers", "Histoire_de_France", "Technologie", "Philosophie", "Psychologie", "Mécanique_quantique", "Biologie", "Astronomie"],
-            "it": ["Intelligenza_artificiale", "Universo", "Storia_d'Italia", "Tecnologia", "Filosofia", "Psicologia", "Meccanica_quantistica", "Biologia", "Astronomia"]
+            "es": [
+                "Inteligencia_artificial", "Universo", "Historia_de_España", "Tecnología", "Filosofía", "Psicología", 
+                "Física_cuántica", "Biología", "Astronomía", "Imperio_Romano", "Revolución_Francesa", "Derecho",
+                "Literatura_clásica", "Cine_de_culto", "Gastronomía", "Mitología", "Arquitectura_gótica", "Bitcoin",
+                "Cambio_climático", "Exploración_del_espacio", "Neurociencia", "Renacimiento", "Edad_Media"
+            ],
+            "en": [
+                "Artificial_intelligence", "Universe", "History_of_England", "Technology", "Philosophy", "Psychology", 
+                "Quantum_mechanics", "Biology", "Astronomy", "Roman_Empire", "French_Revolution", "Law",
+                "World_War_II", "Internet", "Software_engineering", "Robotics", "Genetics", "Evolution", "SpaceX"
+            ]
         }
         
         headers = {'User-Agent': 'MoonBotMasterSeed/1.0'}
@@ -1561,8 +1568,10 @@ class MoonCoreIA:
                     time.sleep(0.3)
                 except: continue
         
-        # 3. Gutenberg Seeding (Clásicos)
-        gutenberg_ids = ["17013", "1661", "1342", "11"] # Quijote, Sherlock, Pride & Prejudice, Alice
+        # 3. Gutenberg Seeding (Librería Clásica)
+        gutenberg_ids = [
+            "17013", "1661", "1342", "11", "2000", "76", "158", "84", "1952", "2701", "345"
+        ] # Quijote, Sherlock, Holmes, Pride, Alice, Adventures of Huckleberry Finn, Moby Dick, Frankenstein, Yellow Wallpaper, Dracula, etc.
         self.seed_gutenberg_books(gutenberg_ids)
         
         db.set("IA_BRAIN", self.brain) # Forzar guardado
@@ -2165,15 +2174,22 @@ class MoonCoreIA:
         elapsed = (time.time() - self.start_time) / 60 # Minutos
         rate = self.session_words / elapsed if elapsed > 0 else 0
         
-        # Estimación de madurez (meta 5000 palabras)
-        target = 5000
+        # Estimación de madurez (meta 100.000 palabras)
+        target = 100000
         remaining = max(0, target - words_count)
         est_minutes = (remaining / rate) if rate > 0 else 0
+        
+        status = "Bebé (Aprendiendo)"
+        if words_count > 100000: status = "Dios Neuronal (Omnisciente)"
+        elif words_count > 50000: status = "Eminencia (Superior)"
+        elif words_count > 10000: status = "Madura (Estable)"
+        elif words_count > 1000: status = "Juvenil (Curiosa)"
+        
         return {
             "words": words_count,
             "connections": connections,
             "rate": f"{rate:.2f} p/min",
-            "est_maturity": "Madura (Estable)" if words_count > 5000 else f"{est_minutes:.1f} min"
+            "est_maturity": f"{status} | {est_minutes:.1f} min" if words_count < target else status
         }
 
     def send_master_report(self, title="Reporte de Inteligencia"):
