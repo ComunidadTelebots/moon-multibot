@@ -1,5 +1,21 @@
 # Changelog - Moon Multibot
 
+## [v16.20.0] - 2026-04-30
+### 🛡️ Seguridad y Respaldo Total
+- **Copias de Seguridad Manuales**: Añadido botón en el Dashboard para solicitar una copia completa del "cerebro" (DB) enviada instantáneamente por Telegram.
+- **Backup Automático 24h**: El sistema ahora envía automáticamente un respaldo de seguridad al Administrador cada 24 horas.
+
+## [v16.19.0] - 2026-04-30
+### 🌐 Expansión de Conocimiento Personalizada
+- **Inyector por Tópicos**: Nueva herramienta que permite escribir una lista de temas separados por comas para que la IA aprenda de Wikipedia de forma dirigida.
+- **Reportes de Tópicos**: Informe detallado al finalizar el aprendizaje de temas específicos.
+
+## [v16.18.0] - 2026-04-30
+### 🔎 Auditoría Neuronal Interactiva
+- **Fuentes Desplegables**: Ahora se puede hacer clic en las "Top Fuentes" para ver una muestra real de las palabras aprendidas de cada origen.
+- **Actualización Real-Time (2s)**: Reducido el intervalo de actualización de estadísticas en el panel a 2 segundos para una monitorización fluida.
+
+
 ## [v16.17.0] - 2026-04-30
 ### 📊 Sistema de Reportes y Notificaciones Automatizadas
 - **Reportes de Inteligencia Maestra**: Ahora el bot envía un resumen detallado vía Telegram al Administrador cuando finaliza un proceso de sembrado masivo (Wikipedia/Patrones).
