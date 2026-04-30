@@ -14,7 +14,7 @@ USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
 HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50"))
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini") # "gemini" o "ollama"
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434/api/generate")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2:0.5b")
 
 app = Flask(__name__)
 # Configuración según ambiente

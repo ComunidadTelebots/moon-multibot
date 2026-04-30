@@ -30,5 +30,7 @@ services:
       - ./ollama_data:/root/.ollama
     ports:
       - "11434:11434"
+    # Auto-descarga del modelo Qwen2-0.5B al iniciar
+    entrypoint: /bin/sh -c "/bin/ollama serve & sleep 10 && ollama pull qwen2:0.5b && wait"
 
 # Persistencia via carpetas locales (Bind Mounts)
