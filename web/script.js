@@ -1445,6 +1445,24 @@ function updateProviderUI(provider) {
     document.getElementById("ollamaStatusBadge").style.background = provider === "ollama" ? "var(--primary)" : "#64748b";
     
     document.getElementById("activeProviderLabel").innerText = provider.toUpperCase();
+    
+    // Actualizar Pill de Cabecera
+    const pill = document.getElementById("ai-mode-pill");
+    if (pill) {
+        const useExternal = document.getElementById("useExternalLLM")?.checked;
+        const dreaming = document.getElementById("deepDreamMode")?.checked;
+        
+        pill.className = "ai-status-pill";
+        if (!useExternal) {
+            pill.innerText = "MOON";
+        } else if (dreaming) {
+            pill.innerText = "DREAMING";
+            pill.classList.add("dreaming");
+        } else {
+            pill.innerText = provider.toUpperCase();
+            pill.classList.add(provider);
+        }
+    }
 }
 
 function setProvider(provider) {
