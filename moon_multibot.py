@@ -6,6 +6,7 @@ from token_manager import token_manager
 from ban_manager import BanManager
 
 load_dotenv()
+BOT_STORE_PATH = "data/bots.json"
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", "moon")
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 MOON_ENV = os.getenv("MOON_ENV", "prod").lower()
@@ -382,6 +383,9 @@ class TaskQueue:
             return False
 
 task_queue = TaskQueue()
+start_time = time.time()
+bots_data = []
+active_bots = []
 
 def queue_worker():
     while True:
@@ -471,6 +475,24 @@ def check_jwt(req):
         else: return False
     try: jwt.decode(auth.split(" ")[1], JWT_SECRET, algorithms=["HS256"]); return True
     except: return False
+
+def bot_public_id(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+
+def mask_bot_token(token):
+    if not token:
+        return ""
+    if ":" in token:
+        left, right = token.split(":", 1)
+        return f"{left[:4]}...:{right[:4]}..."
+    return f"{token[:4]}...{token[-4:]}"
+
+def find_bot_index(identifier):
+    for i, bot in enumerate(bots_data):
+        token = bot.get("token", "")
+        if identifier in (token, bot_public_id(token)):
+            return i
+    return None
 
 def is_cas_banned(uid):
     """Verifica si un usuario est en la lista negra global de Combot Anti-Spam (CAS)"""
@@ -870,6 +892,7 @@ global_bot_names_cache = {}
 @app.route("/api/bots", methods=['GET', 'POST', 'DELETE'])
 def web_bots():
     if not check_jwt(request): return jsonify({"ok": False}), 401
+    global bots_data, proxy_bot
     if request.method == 'GET':
         resolved_bots = []
         for b in bots_data:
@@ -888,11 +911,47 @@ def web_bots():
             resolved_chats = [{"id": cid, "name": chat_names.get(cid, cid)} for cid in bot_chats]
             
             resolved_bots.append({
-                "token": tk, 
+                "id": bot_public_id(tk),
+                "token_preview": mask_bot_token(tk),
                 "name": global_bot_names_cache[tk],
                 "chats": resolved_chats
             })
         return jsonify({"ok": True, "bots": resolved_bots})
+    if request.method == 'POST':
+        data = request.json or {}
+        token = data.get("token", "").strip()
+        if not token:
+            return jsonify({"ok": False, "msg": "Token requerido"}), 400
+        if any(b.get("token") == token for b in bots_data):
+            return jsonify({"ok": False, "msg": "Ese bot ya existe"}), 409
+        bot_info = {"token": token, "enabled": True}
+        bots_data.append(bot_info)
+        token_manager.save_bots_to_file(bots_data, BOT_STORE_PATH, encrypt=True)
+        try:
+            bot_instance = MoonBot(token)
+            active_bots.append(bot_instance)
+            if not proxy_bot:
+                proxy_bot = bot_instance
+            threading.Thread(target=bot_instance.run, daemon=True).start()
+            global_bot_names_cache[token] = "@" + getattr(bot_instance, "bot_username", "Bot")
+            add_audit_log(f"Bot añadido: {mask_bot_token(token)}")
+        except Exception as e:
+            add_web_log("ERROR", f"Bot guardado, pero no pudo arrancar: {e}")
+            return jsonify({"ok": True, "warning": "Bot guardado, pero no pudo arrancar en caliente."})
+        return jsonify({"ok": True, "id": bot_public_id(token), "token_preview": mask_bot_token(token)})
+    if request.method == 'DELETE':
+        data = request.json or {}
+        identifier = data.get("id") or data.get("token") or ""
+        idx = find_bot_index(identifier)
+        if idx is None:
+            return jsonify({"ok": False, "msg": "Bot no encontrado"}), 404
+        token = bots_data[idx].get("token", "")
+        bots_data.pop(idx)
+        token_manager.save_bots_to_file(bots_data, BOT_STORE_PATH, encrypt=True)
+        active_bots[:] = [bot for bot in active_bots if getattr(bot, "token", None) != token]
+        global_bot_names_cache.pop(token, None)
+        add_audit_log(f"Bot eliminado: {mask_bot_token(token)}")
+        return jsonify({"ok": True})
     return jsonify({"ok": True})
 
 @app.route("/api/automation/faq", methods=['GET'])
@@ -4378,7 +4437,7 @@ proxy_bot = None
 if __name__ == "__main__":
     start_time, bots_data = time.time(), []
     # Cargar bots con soporte para encriptación
-    bots_data = token_manager.load_bots_from_file("data/bots.json", encrypted=True)
+    bots_data = token_manager.load_bots_from_file(BOT_STORE_PATH, encrypted=True)
     
     active_bots = []
     

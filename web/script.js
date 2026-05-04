@@ -1,4 +1,4 @@
-// --- Moon Multibot v16.14.0 - Clean Neural Logic ---
+﻿// --- Moon Multibot v16.14.0 - Clean Neural Logic ---
 console.log("Moon Multibot Core v16.14.0 Loaded");
 
 let authToken = localStorage.getItem('moon_token') || "";
@@ -12,6 +12,31 @@ let perfChart = null;
 let cpuData = [];
 let ramData = [];
 let matrixInterval = null;
+
+function getStoredAuthToken() {
+    return authToken || localStorage.getItem('moon_token') || "";
+}
+
+function escapeJsArg(value) {
+    return String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function downloadWithAuth(url, filename) {
+    const res = await fetch(url, { headers: { "Authorization": getStoredAuthToken() } });
+    if (!res.ok) {
+        showToast("Error", "No se pudo descargar el archivo.");
+        return;
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+}
 
 // --- Session Management ---
 function login() {
@@ -30,9 +55,9 @@ function login() {
             document.getElementById("loginScreen").style.display = "none";
             document.getElementById("dashboard").style.display = "block";
             switchTab('dashboard');
-            showToast("🌙 Bienvenido", "Conexión neuronal establecida.");
+            showToast("ðŸŒ™ Bienvenido", "ConexiÃ³n neuronal establecida.");
         } else {
-            document.getElementById("loginError").innerText = "❌ Clave Incorrecta";
+            document.getElementById("loginError").innerText = "âŒ Clave Incorrecta";
         }
     });
 }
@@ -82,7 +107,7 @@ function switchTab(tabId, btn) {
         window.MOON_CONFIG = window.MOON_CONFIG || {};
         window.MOON_CONFIG.currentTab = tabId;
         
-        // Aplicar traducciones al nuevo contenido dinámico
+        // Aplicar traducciones al nuevo contenido dinÃ¡mico
         if(typeof applyTranslations === 'function') applyTranslations();
         
         // Tab-specific initializers
@@ -175,27 +200,28 @@ function fetchBots() {
         const countEl = document.getElementById("activeBotsCount");
         
         if(data.bots) {
-            const html = data.bots.map(b => `<div class="user-row">🤖 <b>${b.name}</b><br><small>${b.token.substring(0,15)}...</small></div>`).join("");
+            const html = data.bots.map(b => `<div class="user-row">Bot <b>${escapeHtml(b.name)}</b><br><small>${escapeHtml(b.token_preview || "token protegido")}</small></div>`).join("");
             if(list) list.innerHTML = html;
             if(fullList) fullList.innerHTML = data.bots.map(b => `
                 <div class="glass-panel bot-card" style="padding: 20px; position: relative; overflow: visible;">
-                    <div style="font-size: 40px; filter: drop-shadow(0 0 10px var(--primary)); margin-bottom: 10px;">🤖</div>
-                    <h4 style="margin: 0; font-size: 16px;">${b.name}</h4>
+                    <div style="font-size: 40px; filter: drop-shadow(0 0 10px var(--primary)); margin-bottom: 10px;">Bot</div>
+                    <h4 style="margin: 0; font-size: 16px;">${escapeHtml(b.name)}</h4>
+                    <small style="display:block;color:var(--text-muted);margin-top:6px;">${escapeHtml(b.token_preview || "token protegido")}</small>
                     <span class="status-badge online" style="font-size: 8px; padding: 2px 8px; margin-top: 5px;">NODO ACTIVO</span>
                     
                     <div class="bot-controls-area" style="margin-top: 20px;">
-                        <button onclick="toggleBotDropdown('${b.token.substring(0,10)}')" class="btn-glow-mini" style="width: 100%; font-size: 10px; font-weight: 800;">⚙️ AJUSTES NODO</button>
+                        <button onclick="toggleBotDropdown('${escapeJsArg(b.id)}')" class="btn-glow-mini" style="width: 100%; font-size: 10px; font-weight: 800;">AJUSTES NODO</button>
                         
-                        <div id="drop-${b.token.substring(0,10)}" class="bot-settings-dropdown" style="display: none;">
-                            <label>🌐 GRUPOS VINCULADOS</label>
+                        <div id="drop-${escapeHtml(b.id)}" class="bot-settings-dropdown" style="display: none;">
+                            <label>GRUPOS VINCULADOS</label>
                             <select class="input-style-mini" onchange="openGroupSettings(this.value)">
                                 <option value="">-- Ver Chats --</option>
-                                ${(b.chats || []).map(c => `<option value="${c.id}">${c.name}</option>`).join("")}
+                                ${(b.chats || []).map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("")}
                             </select>
                             
                             <div class="drop-actions" style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                                <button class="btn-mini-wide" style="font-size: 8px;" onclick="renameBot('${b.token}')">REBAUTIZAR</button>
-                                <button class="btn-mini-wide" style="font-size: 8px; border-color: var(--danger); color: var(--danger);" onclick="deleteBot('${b.token}')">ELIMINAR</button>
+                                <button class="btn-mini-wide" style="font-size: 8px;" onclick="renameBot('${escapeJsArg(b.id)}')">REBAUTIZAR</button>
+                                <button class="btn-mini-wide" style="font-size: 8px; border-color: var(--danger); color: var(--danger);" onclick="deleteBot('${escapeJsArg(b.id)}')">ELIMINAR</button>
                             </div>
                         </div>
                     </div>
@@ -210,28 +236,27 @@ function toggleBotDropdown(id) {
     if(el) el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
-function renameBot(token) {
+function renameBot(id) {
     const name = prompt("Nuevo nombre para este bot:");
     if(!name) return;
-    // Lógica para renombrar bot (ej: set alias en DB)
-    showToast("📝 Renombrar", `Solicitud enviada para ${name}`);
+    showToast("Renombrar", `Solicitud enviada para ${name}`);
 }
 
-function deleteBot(token) {
-    if(!confirm("¿Seguro que quieres desconectar este bot?")) return;
+function deleteBot(id) {
+    if(!confirm("Seguro que quieres desconectar este bot?")) return;
     fetch('/api/bots', {
         method: 'DELETE',
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token })
+        body: JSON.stringify({ id })
     }).then(r => r.json()).then(data => {
-        if(data.ok) { showToast("🗑️ Eliminado", "Bot desconectado."); fetchBots(); }
+        if(data.ok) { showToast("Eliminado", "Bot desconectado."); fetchBots(); }
+        else showToast("Error", data.msg || "No se pudo eliminar el bot.");
     });
 }
-
 function openGroupSettings(cid) {
     if(!cid) return;
-    showToast("⚙️ Ajustes de Grupo", `Abriendo configuración para ${cid}...`);
-    // Aquí se podría abrir un modal específico para ese grupo
+    showToast("âš™ï¸ Ajustes de Grupo", `Abriendo configuraciÃ³n para ${cid}...`);
+    // AquÃ­ se podrÃ­a abrir un modal especÃ­fico para ese grupo
 }
 
 function addBot() {
@@ -245,7 +270,7 @@ function addBot() {
         if(data.ok) {
             document.getElementById("botTokenInput").value = "";
             fetchBots();
-            showToast("🤖 Bot", "Nueva instancia vinculada.");
+            showToast("ðŸ¤– Bot", "Nueva instancia vinculada.");
         }
     });
 }
@@ -313,7 +338,7 @@ function updateDirectory() {
             <div class="chat-contact-item ${(currentChatId === v.id) ? 'active' : ''}" onclick="selectChat('${v.id}', '${v.name}')">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <strong>${v.name}</strong>
-                    <span class="badge-ch">${v.type === 'private' ? '👤' : '👥'}</span>
+                    <span class="badge-ch">${v.type === 'private' ? 'ðŸ‘¤' : 'ðŸ‘¥'}</span>
                 </div>
                 <small style="opacity: 0.5; font-size: 10px;">ID: ${v.id}</small>
             </div>`).join("");
@@ -390,7 +415,7 @@ function saveGroupSettings() {
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ cid: currentChatId, config: config })
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("✅ Configuración Guardada", "Los cambios se han aplicado al nodo.");
+        if(data.ok) showToast("âœ… ConfiguraciÃ³n Guardada", "Los cambios se han aplicado al nodo.");
     });
 
     fetch('/api/moderation/notes', {
@@ -413,7 +438,7 @@ function quickAction(uid, type, name) {
     const endpoint = endpoints[type];
     if(!endpoint) return;
 
-    showToast(`⚡ Acción: ${type.toUpperCase()}`, `Procesando para ${name}...`);
+    showToast(`âš¡ AcciÃ³n: ${type.toUpperCase()}`, `Procesando para ${name}...`);
     
     fetch(endpoint, {
         method: 'POST',
@@ -423,10 +448,10 @@ function quickAction(uid, type, name) {
     .then(r => r.json()).then(data => {
         if(data.ok) {
             Swal.close(); // Cerrar carga si existe
-            showToast("✅ Éxito", `${name} ha sido procesado.`);
+            showToast("âœ… Ã‰xito", `${name} ha sido procesado.`);
             fetchChatHistory();
         } else {
-            showToast("❌ Error", data.msg || "No se pudo ejecutar la acción.");
+            showToast("âŒ Error", data.msg || "No se pudo ejecutar la acciÃ³n.");
         }
     });
 }
@@ -445,7 +470,7 @@ function fetchChatHistory() {
             const bubbleClass = isBot ? 'right' : 'left';
             const senderColor = isBot ? '#fff' : (m.sender === 'Sistema' ? '#f59e0b' : '#38bdf8');
             
-            // Lógica de Trust Score y Estados
+            // LÃ³gica de Trust Score y Estados
             const score = m.trust_score || 50;
             const scoreColor = score > 80 ? '#10b981' : (score > 40 ? '#f59e0b' : '#ef4444');
             
@@ -461,10 +486,10 @@ function fetchChatHistory() {
             if (!isBot && m.sender !== 'Sistema') {
                 actionsHtml = `
                 <div class="chat-actions">
-                    <button onclick="quickAction('${m.uid}', 'mute', '${m.sender}')" title="Silenciar (30m)">🔇</button>
-                    <button onclick="quickAction('${m.uid}', 'ban', '${m.sender}')" title="Banear">🚫</button>
-                    <button onclick="quickAction('${m.uid}', 'warn', '${m.sender}')" title="Advertir">⚠️</button>
-                    <button onclick="quickAction('${m.uid}', 'karma', '${m.sender}')" title="Dar Karma">⭐</button>
+                    <button onclick="quickAction('${m.uid}', 'mute', '${m.sender}')" title="Silenciar (30m)">ðŸ”‡</button>
+                    <button onclick="quickAction('${m.uid}', 'ban', '${m.sender}')" title="Banear">ðŸš«</button>
+                    <button onclick="quickAction('${m.uid}', 'warn', '${m.sender}')" title="Advertir">âš ï¸</button>
+                    <button onclick="quickAction('${m.uid}', 'karma', '${m.sender}')" title="Dar Karma">â­</button>
                 </div>`;
             }
 
@@ -480,7 +505,7 @@ function fetchChatHistory() {
                 } else if(m.media.type === 'sticker') {
                     mediaHtml = `<div class="msg-media" style="margin-bottom:10px;"><img src="${fileUrl}" style="width:120px; height:120px; object-fit:contain;"></div>`;
                 } else if(m.media.type === 'document') {
-                    mediaHtml = `<div class="msg-media" style="margin-bottom:10px;"><a href="${fileUrl}" target="_blank" class="btn-mini-wide" style="display:block; text-align:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">📄 ${m.media.name || 'Archivo'}</a></div>`;
+                    mediaHtml = `<div class="msg-media" style="margin-bottom:10px;"><a href="${fileUrl}" target="_blank" class="btn-mini-wide" style="display:block; text-align:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">ðŸ“„ ${m.media.name || 'Archivo'}</a></div>`;
                 }
             }
 
@@ -601,14 +626,14 @@ function fetchIAFeeders() {
             list.innerHTML = data.feeders.map(f => `
                 <div class="user-row feeder-row">
                     <div class="feeder-info">
-                        <span class="feeder-icon">📡</span>
+                        <span class="feeder-icon">ðŸ“¡</span>
                         <div>
                             <b>${f.name}</b><br>
-                            <small>ID: ${f.id} | Último: ${f.last}</small>
+                            <small>ID: ${f.id} | Ãšltimo: ${f.last}</small>
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn-link-mini" onclick="downloadAudit('${f.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 8px;">📊 CSV</button>
+                        <button class="btn-link-mini" onclick="downloadAudit('${f.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 8px;">ðŸ“Š CSV</button>
                         <button class="btn-link-mini" onclick="quickAudit('${f.id}')" style="background: rgba(99, 102, 241, 0.1); border-color: #6366f1; color: #a5b4fc; font-size: 8px;">AUDITAR</button>
                         <button class="btn-link-mini" onclick="removeIAFeeder('${f.id}')" style="background: rgba(239, 68, 68, 0.1); border-color: #f87171; color: #f87171; font-size: 8px;">BORRAR</button>
                         <span class="status-tag ${f.status.toLowerCase()}">${f.status}</span>
@@ -626,7 +651,7 @@ function fetchIAFeeders() {
                     return;
                 }
                 
-                // Obtener auditorías actuales para marcar en la lista
+                // Obtener auditorÃ­as actuales para marcar en la lista
                 fetch("/api/ia/audit/status", { headers: { "Authorization": authToken } })
                 .then(r => r.json()).then(auditData => {
                     const audits = auditData.audits || {};
@@ -643,7 +668,7 @@ function fetchIAFeeders() {
                         return `
                         <div class="user-row potential-row" style="opacity: 0.8; border-left: 3px solid #6366f1;">
                             <div class="feeder-info">
-                                <span class="feeder-icon" style="filter: grayscale(1);">📡</span>
+                                <span class="feeder-icon" style="filter: grayscale(1);">ðŸ“¡</span>
                                 <div>
                                     <b>${name}</b> ${statusTag}<br>
                                     <small>ID: ${k}</small>
@@ -692,10 +717,10 @@ function testIA() {
         if(data.ok) {
             res.innerHTML = `<div class="res-content">${data.response}</div>`;
         } else {
-            res.innerHTML = `<div class="res-content error">❌ Error: ${data.msg || 'Fallo en la conexión neural'}</div>`;
+            res.innerHTML = `<div class="res-content error">âŒ Error: ${data.msg || 'Fallo en la conexiÃ³n neural'}</div>`;
         }
     }).catch(err => {
-        res.innerHTML = `<div class="res-content error">❌ Error crítico: ${err.message}</div>`;
+        res.innerHTML = `<div class="res-content error">âŒ Error crÃ­tico: ${err.message}</div>`;
     });
 }
 
@@ -707,14 +732,14 @@ function addIAFeeder() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ id: input.value })
     }).then(r => r.json()).then(data => {
-        if(data.ok) { showToast("📡 IA Feed", "Fuente vinculada."); input.value = ""; fetchIAFeeders(); }
-        else { showToast("❌ Error", data.msg); }
+        if(data.ok) { showToast("ðŸ“¡ IA Feed", "Fuente vinculada."); input.value = ""; fetchIAFeeders(); }
+        else { showToast("âŒ Error", data.msg); }
     });
 }
 
 function downloadAudit(id) {
     if(!authToken) return;
-    window.open(`/api/ia/audit/export?id=${id}&token=${authToken}`, "_blank");
+    downloadWithAuth(`/api/ia/audit/export?id=${encodeURIComponent(id)}`, `audit_${id}.csv`);
 }
 
 function quickAudit(id) {
@@ -725,8 +750,8 @@ function quickAudit(id) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ id: id })
     }).then(res => res.json()).then(data => {
-        if(data.ok) showToast("🛡️ Auditoría", "Análisis de calidad iniciado.");
-        else { showToast("❌ Error", data.msg || "No se pudo iniciar."); closeAuditModal(); }
+        if(data.ok) showToast("ðŸ›¡ï¸ AuditorÃ­a", "AnÃ¡lisis de calidad iniciado.");
+        else { showToast("âŒ Error", data.msg || "No se pudo iniciar."); closeAuditModal(); }
     });
 }
 
@@ -738,7 +763,7 @@ function quickLinkFeeder(id) {
         body: JSON.stringify({ link: id })
     }).then(r => r.json()).then(data => {
         if(data.ok) { 
-            showToast("📡 IA Feed", "Fuente vinculada con éxito.");
+            showToast("ðŸ“¡ IA Feed", "Fuente vinculada con Ã©xito.");
             fetchIAFeeders(); 
         }
     });
@@ -751,7 +776,7 @@ function clearPotentials() {
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🧹 Limpieza", "Sugerencias eliminadas.");
+            showToast("ðŸ§¹ Limpieza", "Sugerencias eliminadas.");
             fetchIAFeeders();
         }
     });
@@ -759,7 +784,7 @@ function clearPotentials() {
 
 function startIAAudit() {
     const input = document.getElementById("feederInput");
-    if(!input.value) return showToast("⚠️ Error", "Introduce un ID o enlace.");
+    if(!input.value) return showToast("âš ï¸ Error", "Introduce un ID o enlace.");
     openAuditModal(input.value);
     fetch("/api/ia/audit/start", {
         method: "POST",
@@ -767,10 +792,10 @@ function startIAAudit() {
         body: JSON.stringify({ id: input.value })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🛡️ Auditoría", "Análisis de calidad iniciado.");
+            showToast("ðŸ›¡ï¸ AuditorÃ­a", "AnÃ¡lisis de calidad iniciado.");
             input.value = "";
         } else {
-            showToast("❌ Error", data.msg || "No se pudo iniciar la auditoría.");
+            showToast("âŒ Error", data.msg || "No se pudo iniciar la auditorÃ­a.");
             closeAuditModal();
         }
     });
@@ -783,7 +808,7 @@ function refreshAuditStatus() {
         const zone = document.getElementById("auditProgressZone");
         const count = document.getElementById("activeAuditsCount");
         const audits = Object.keys(data.audits);
-        if(count) count.innerText = `${audits.length} Auditorías en curso`;
+        if(count) count.innerText = `${audits.length} AuditorÃ­as en curso`;
         
         if(zone) {
             if(audits.length === 0) { zone.innerHTML = ""; return; }
@@ -806,10 +831,10 @@ function refreshAuditStatus() {
                         </div>
                         ${a.report ? `
                             <div style="font-size: 9px; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); color: var(--text-muted);">
-                                <b style="color: var(--primary);">📝 INFORME DE PERITAJE:</b><br>
-                                📏 Longitud media: ${a.report.avg_len} caracteres<br>
-                                📚 Vocabulario único: ${a.report.unique_words} palabras<br>
-                                ⚖️ Veredicto: <span style="color: ${a.final_score > 60 ? '#4ade80' : '#f87171'}">${a.report.verdict}</span>
+                                <b style="color: var(--primary);">ðŸ“ INFORME DE PERITAJE:</b><br>
+                                ðŸ“ Longitud media: ${a.report.avg_len} caracteres<br>
+                                ðŸ“š Vocabulario Ãºnico: ${a.report.unique_words} palabras<br>
+                                âš–ï¸ Veredicto: <span style="color: ${a.final_score > 60 ? '#4ade80' : '#f87171'}">${a.report.verdict}</span>
                             </div>
                         ` : ''}
                         ${a.status === 'finished' ? `<button onclick="quickLinkFeeder('${k}')" style="width: 100%; margin-top: 10px; padding: 5px; background: rgba(74, 222, 128, 0.2); border: 1px solid #4ade80; color: #4ade80; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: 800;">VINCULAR FUENTE APROBADA</button>` : ''}
@@ -832,7 +857,7 @@ function openAuditModal(targetId) {
     document.getElementById("spam-status").innerText = "Analizando patrones de estafa...";
     document.getElementById("audit-live-results").innerHTML = `<p>Analizando grupo: <b>${targetId}</b>...</p>`;
     
-    // Simulación de pasos para feedback visual inmediato
+    // SimulaciÃ³n de pasos para feedback visual inmediato
     setTimeout(() => {
         const nStat = document.getElementById("neural-status");
         const nBar = document.getElementById("neural-bar");
@@ -874,7 +899,7 @@ function refreshAuditHistory() {
                     <td><b>${h.chat}</b></td>
                     <td style="color: var(--accent); font-weight: 800;">${h.score}%</td>
                     <td style="color: ${h.score > 60 ? '#4ade80' : '#f87171'}; font-weight: 800; font-size: 11px;">${h.verdict}</td>
-                    <td>${h.cid ? `<button class="btn-link-mini" onclick="downloadAudit('${h.cid}')">📥 CSV</button>` : '-'}</td>
+                    <td>${h.cid ? `<button class="btn-link-mini" onclick="downloadAudit('${h.cid}')">ðŸ“¥ CSV</button>` : '-'}</td>
                 </tr>
             `).join("");
         }
@@ -885,27 +910,27 @@ setInterval(refreshAuditHistory, 10000);
 setInterval(fetchIAFeeders, 2000);
 
 function removeIAFeeder(id) {
-    if(!confirm("¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
+    if(!confirm("Â¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
     fetch('/api/ia/feeders/remove', {
         method: 'POST',
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("📡 Fuente Eliminada", data.msg);
+            showToast("ðŸ“¡ Fuente Eliminada", data.msg);
             fetchIAFeeders();
         }
     });
 }
 
 function clearAuditHistory() {
-    if(!confirm("¿Seguro que quieres vaciar todo el historial de auditorías?")) return;
+    if(!confirm("Â¿Seguro que quieres vaciar todo el historial de auditorÃ­as?")) return;
     fetch('/api/ia/audit/history/clear', {
         method: 'POST',
         headers: { 'Authorization': authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("📋 Historial Limpio", data.msg);
+            showToast("ðŸ“‹ Historial Limpio", data.msg);
             refreshAuditHistory();
         }
     });
@@ -964,7 +989,7 @@ function drawNeuralMap() {
             if(dist < n.size * 4) found = n;
         });
         if(found) {
-            showToast("🧠 Inspección Neuronal", `CONCEPTO: ${found.text.toUpperCase()}\nORIGEN: ${found.source}`);
+            showToast("ðŸ§  InspecciÃ³n Neuronal", `CONCEPTO: ${found.text.toUpperCase()}\nORIGEN: ${found.source}`);
         }
     };
 
@@ -1028,7 +1053,7 @@ function drawNeuralMap() {
         if(document.getElementById("edgeCount")) document.getElementById("edgeCount").innerText = edgeCount;
         
         if(Math.random() < 0.015) {
-             const samples = ["Procesando...", "Aprendiendo", "Enlazando", "Infiltración", "Sinapsis"];
+             const samples = ["Procesando...", "Aprendiendo", "Enlazando", "InfiltraciÃ³n", "Sinapsis"];
              pulses.push(new ActivityPulse(samples[Math.floor(Math.random()*samples.length)]));
         }
         
@@ -1062,7 +1087,7 @@ function exportLogs() {
         a.href = url;
         a.download = `moon_logs_${Date.now()}.json`;
         a.click();
-        showToast("📂 Exportar", "Logs descargados.");
+        showToast("ðŸ“‚ Exportar", "Logs descargados.");
     });
 }
 
@@ -1122,14 +1147,14 @@ function updateClock() {
 }
 
 async function injectMultilingual() {
-    if (!confirm("¿Deseas inyectar semillas de conocimiento en múltiples idiomas (EN, FR, IT, DE, PT)?")) return;
+    if (!confirm("Â¿Deseas inyectar semillas de conocimiento en mÃºltiples idiomas (EN, FR, IT, DE, PT)?")) return;
     try {
         const r = await fetch('/api/ia/multilingual', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('moon_token') }
+            headers: { 'Authorization': getStoredAuthToken() }
         });
         if (r.ok) {
-            showToast("🌎 Iniciando expansión multilingüe...", "success");
+            showToast("ðŸŒŽ Iniciando expansiÃ³n multilingÃ¼e...", "success");
         }
     } catch (e) { console.error(e); }
 }
@@ -1188,7 +1213,7 @@ function saveGlobalSettings() {
         body: JSON.stringify(data)
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("✅ Éxito", "Ajustes globales aplicados.");
+            showToast("âœ… Ã‰xito", "Ajustes globales aplicados.");
             const stat = document.getElementById("settingsStatus");
             if(stat) { stat.innerText = "SINCRO OK"; stat.style.color = "#10b981"; }
         }
@@ -1227,16 +1252,16 @@ function toggleJoinDelete() {
 
 function setIAPower() {
     const mode = document.getElementById("iaPowerMode").value;
-    showToast("🧠 IA Power", `Cambiando a modo ${mode.toUpperCase()}`);
+    showToast("ðŸ§  IA Power", `Cambiando a modo ${mode.toUpperCase()}`);
 }
 
 function toggleJoinDelete() {
-    showToast("🛡️ Seguridad", "Limpieza de uniones: ACTIVA");
+    showToast("ðŸ›¡ï¸ Seguridad", "Limpieza de uniones: ACTIVA");
 }
 
 function changeLanguage() {
     const lang = document.getElementById("langSelect")?.value;
-    showToast("🌐 Idioma", "Cambiando a: " + (lang === 'es' ? 'Español' : 'English'));
+    showToast("ðŸŒ Idioma", "Cambiando a: " + (lang === 'es' ? 'EspaÃ±ol' : 'English'));
 }
 
 function setIAMood(mood) {
@@ -1246,7 +1271,7 @@ function setIAMood(mood) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ mood: mood })
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("🎭 Humor", `Estado de ánimo cambiado a ${mood}`);
+        if(data.ok) showToast("ðŸŽ­ Humor", `Estado de Ã¡nimo cambiado a ${mood}`);
     });
 }
 
@@ -1257,7 +1282,7 @@ function setIAMode(mode) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ mode: mode })
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("⚙️ Modo", `Perfil de potencia cambiado a ${mode}`);
+        if(data.ok) showToast("âš™ï¸ Modo", `Perfil de potencia cambiado a ${mode}`);
     });
 }
 
@@ -1267,7 +1292,7 @@ function evolveIA() {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("🧬 Evolución", "Disparando evolución neuronal...");
+        if(data.ok) showToast("ðŸ§¬ EvoluciÃ³n", "Disparando evoluciÃ³n neuronal...");
     });
 }
 
@@ -1277,7 +1302,7 @@ function forceFeedIA() {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("🧠 IA Boost", "Inyectando conocimiento del historial...");
+        if(data.ok) showToast("ðŸ§  IA Boost", "Inyectando conocimiento del historial...");
     });
 }
 
@@ -1287,7 +1312,7 @@ function injectMasterIntelligence() {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("🧠 Master IA", "Expansión Maestra iniciada (Wikipedia + Patrones).");
+        if(data.ok) showToast("ðŸ§  Master IA", "ExpansiÃ³n Maestra iniciada (Wikipedia + Patrones).");
     });
 }
 
@@ -1302,25 +1327,25 @@ function injectWikipediaTopics() {
         body: JSON.stringify({ topics: input.value.trim() })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🌐 Wikipedia Boost", data.msg);
+            showToast("ðŸŒ Wikipedia Boost", data.msg);
             input.value = "";
         } else {
-            showToast("❌ Error", data.msg);
+            showToast("âŒ Error", data.msg);
         }
     });
 }
 
 function requestIABackup() {
     if(!authToken) return;
-    showToast("💾 Backup", "Solicitando copia de seguridad...");
+    showToast("ðŸ’¾ Backup", "Solicitando copia de seguridad...");
     fetch("/api/ia/backup", {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("✅ Enviado", "La copia ha sido enviada a tu Telegram.");
+            showToast("âœ… Enviado", "La copia ha sido enviada a tu Telegram.");
         } else {
-            showToast("❌ Error", data.msg || "Fallo al solicitar backup.");
+            showToast("âŒ Error", data.msg || "Fallo al solicitar backup.");
         }
     });
 }
@@ -1333,7 +1358,7 @@ function runNeuralSearch() {
     if(!input || !input.value) return;
     
     resPanel.style.display = 'flex';
-    resContent.innerHTML = '<span style="color: var(--primary);">🔍 Escaneando satélites... conectando con nodos globales...</span>';
+    resContent.innerHTML = '<span style="color: var(--primary);">ðŸ” Escaneando satÃ©lites... conectando con nodos globales...</span>';
     
     fetch('/api/ia/search', {
         method: 'POST',
@@ -1342,9 +1367,9 @@ function runNeuralSearch() {
     })
     .then(r => r.json()).then(data => {
         if(data.ok) {
-            resContent.innerHTML = '<i style="color: var(--accent);">Resultado del análisis:</i><br><br>' + data.result;
+            resContent.innerHTML = '<i style="color: var(--accent);">Resultado del anÃ¡lisis:</i><br><br>' + data.result;
         } else {
-            resContent.innerText = '❌ Error en la conexión neuronal.';
+            resContent.innerText = 'âŒ Error en la conexiÃ³n neuronal.';
         }
     });
 }
@@ -1367,7 +1392,7 @@ function handleGlobalSearch(e) {
             const div = document.createElement("div");
             div.className = "search-item";
             div.style = "padding: 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 11px;";
-            div.innerHTML = `💬 <b>${m.name}</b> <small style="color: var(--text-muted)">(Grupo)</small>`;
+            div.innerHTML = `ðŸ’¬ <b>${m.name}</b> <small style="color: var(--text-muted)">(Grupo)</small>`;
             div.onmouseover = () => div.style.background = "rgba(139,92,246,0.1)";
             div.onmouseout = () => div.style.background = "transparent";
             div.onclick = () => { switchTab('chat'); setTimeout(() => selectChat(m.id, m.name), 200); suggestions.style.display = "none"; };
@@ -1384,7 +1409,7 @@ function handleGlobalSearch(e) {
             const div = document.createElement("div");
             div.className = "search-item";
             div.style = "padding: 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 11px;";
-            div.innerHTML = `🤖 <b>${m.name}</b> <small style="color: var(--text-muted)">(Nodo)</small>`;
+            div.innerHTML = `ðŸ¤– <b>${m.name}</b> <small style="color: var(--text-muted)">(Nodo)</small>`;
             div.onmouseover = () => div.style.background = "rgba(139,92,246,0.1)";
             div.onmouseout = () => div.style.background = "transparent";
             div.onclick = () => { switchTab('bots'); suggestions.style.display = "none"; };
@@ -1411,7 +1436,7 @@ function quickSeed() {
         body: JSON.stringify({ text: input.value.trim() })
     }).then(r => r.json()).then(data => {
         if (data.ok) {
-            showToast("🧠 Semilla Inyectada", `IA procesó: "${input.value.trim()}"`);
+            showToast("ðŸ§  Semilla Inyectada", `IA procesÃ³: "${input.value.trim()}"`);
             input.value = "";
         }
     });
@@ -1427,18 +1452,18 @@ async function injectExpansionTopics() {
     try {
         const res = await fetch("/api/ia/expand", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            headers: { "Content-Type": "application/json", "Authorization": getStoredAuthToken() },
             body: JSON.stringify({ source, items: topics })
         });
         const data = await res.json();
         if (data.ok) {
-            showToast("🚀 Expansión Iniciada", `Absorbiendo de ${source.toUpperCase()}...`);
+            showToast("ðŸš€ ExpansiÃ³n Iniciada", `Absorbiendo de ${source.toUpperCase()}...`);
             input.value = "";
         } else {
-            showToast("❌ Error", data.msg);
+            showToast("âŒ Error", data.msg);
         }
     } catch (e) {
-        showToast("❌ Error", "Fallo de conexión");
+        showToast("âŒ Error", "Fallo de conexiÃ³n");
     }
     input.disabled = false;
 }
@@ -1458,7 +1483,7 @@ async function startIALoadBalancer() {
     try {
         const res = await fetch("/api/ia/load_balancer", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            headers: { "Content-Type": "application/json", "Authorization": getStoredAuthToken() },
             body: JSON.stringify({ action: "start", max_workers: workers, source_multiplier: sourceMultiplier })
         });
         const data = await res.json();
@@ -1473,7 +1498,7 @@ async function stopIALoadBalancer() {
     try {
         const res = await fetch("/api/ia/load_balancer", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            headers: { "Content-Type": "application/json", "Authorization": getStoredAuthToken() },
             body: JSON.stringify({ action: "stop" })
         });
         const data = await res.json();
@@ -1484,7 +1509,7 @@ async function stopIALoadBalancer() {
     }
 }
 
-// --- IA: Configuración Híbrida ---
+// --- IA: ConfiguraciÃ³n HÃ­brida ---
 let currentIAProvider = "gemini";
 
 function updateRatioLabel() {
@@ -1527,7 +1552,7 @@ function setProvider(provider) {
     if (checkbox) checkbox.checked = true;
     updateProviderUI(provider);
     saveIAConfig();
-    showToast("🧠 Proveedor Activado", `${provider.toUpperCase()} configurado como cerebro externo.`);
+    showToast("ðŸ§  Proveedor Activado", `${provider.toUpperCase()} configurado como cerebro externo.`);
 }
 
 async function testOllamaConnection() {
@@ -1538,12 +1563,12 @@ async function testOllamaConnection() {
     resultDiv.style.background = "rgba(139, 92, 246, 0.1)";
     resultDiv.style.border = "1px solid var(--primary)";
     resultDiv.style.color = "var(--primary)";
-    resultDiv.innerHTML = "⏳ Probando conexión con Ollama...";
+    resultDiv.innerHTML = "â³ Probando conexiÃ³n con Ollama...";
 
     try {
         const res = await fetch("/api/ia/ollama/test", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            headers: { "Content-Type": "application/json", "Authorization": getStoredAuthToken() },
             body: JSON.stringify({ url: urlInput?.value || "" })
         });
         const data = await res.json();
@@ -1551,7 +1576,7 @@ async function testOllamaConnection() {
             resultDiv.style.background = "rgba(34, 197, 94, 0.1)";
             resultDiv.style.border = "1px solid #4ade80";
             resultDiv.style.color = "#4ade80";
-            resultDiv.innerHTML = `✅ ${data.msg}`;
+            resultDiv.innerHTML = `âœ… ${data.msg}`;
             
             // Actualizar URL detectada
             if (urlInput && data.url) urlInput.placeholder = data.url;
@@ -1559,14 +1584,14 @@ async function testOllamaConnection() {
             
             // Poblar dropdown de modelos
             if (modelSelect && data.models && data.models.length > 0) {
-                modelSelect.innerHTML = '<option value="">▼ Modelos</option>';
+                modelSelect.innerHTML = '<option value="">â–¼ Modelos</option>';
                 data.models.forEach(m => {
                     const opt = document.createElement("option");
                     opt.value = m;
                     opt.textContent = m;
                     modelSelect.appendChild(opt);
                 });
-                // Si el campo de modelo está vacío, seleccionar el primero
+                // Si el campo de modelo estÃ¡ vacÃ­o, seleccionar el primero
                 const modelInput = document.getElementById("ollamaModel");
                 if (modelInput && !modelInput.value) {
                     modelInput.value = data.models[0];
@@ -1576,7 +1601,7 @@ async function testOllamaConnection() {
             resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
             resultDiv.style.border = "1px solid #f87171";
             resultDiv.style.color = "#f87171";
-            resultDiv.innerHTML = `❌ ${data.msg}`;
+            resultDiv.innerHTML = `âŒ ${data.msg}`;
             if (data.tried) {
                 resultDiv.innerHTML += `<br><small style="opacity: 0.7;">URLs probadas: ${data.tried.join(", ")}</small>`;
             }
@@ -1585,19 +1610,19 @@ async function testOllamaConnection() {
         resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
         resultDiv.style.border = "1px solid #f87171";
         resultDiv.style.color = "#f87171";
-        resultDiv.innerHTML = "❌ Error de conexión con el servidor del bot.";
+        resultDiv.innerHTML = "âŒ Error de conexiÃ³n con el servidor del bot.";
     }
 }
 
 async function updateNeuralFeed() {
     try {
-        const res = await fetch("/api/ia/library", { headers: { "Authorization": "Bearer " + localStorage.getItem("moon_token") } });
+        const res = await fetch("/api/ia/library", { headers: { "Authorization": getStoredAuthToken() } });
         const data = await res.json();
         if (data.ok && data.library) {
             const container = document.getElementById("neuralLiveFeed");
             if (!container) return;
             
-            // Tomar los últimos 10
+            // Tomar los Ãºltimos 10
             const recent = data.library.slice(0, 10);
             if (recent.length > 0) {
                 container.innerHTML = "";
@@ -1621,7 +1646,7 @@ async function updateNeuralFeed() {
 
 async function loadIAConfig() {
     try {
-        const res = await fetch("/api/ia/config", { headers: { "Authorization": "Bearer " + localStorage.getItem("moon_token") } });
+        const res = await fetch("/api/ia/config", { headers: { "Authorization": getStoredAuthToken() } });
         const data = await res.json();
         if (data.ok) {
             document.getElementById("useExternalLLM").checked = data.use_external;
@@ -1669,18 +1694,18 @@ async function saveIAConfig() {
         
         const res = await fetch("/api/ia/config", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + localStorage.getItem("moon_token") },
+            headers: { "Content-Type": "application/json", "Authorization": getStoredAuthToken() },
             body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.ok) {
-            showToast("🧠 Configuración Guardada", use_external ? `Modo Híbrido: ${currentIAProvider.toUpperCase()}` : "Solo IA Nativa");
+            showToast("ðŸ§  ConfiguraciÃ³n Guardada", use_external ? `Modo HÃ­brido: ${currentIAProvider.toUpperCase()}` : "Solo IA Nativa");
             if (api_key) {
                 document.getElementById("geminiKey").value = "";
                 document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
             }
         }
-    } catch (e) { showToast("❌ Error", "Fallo al guardar"); }
+    } catch (e) { showToast("âŒ Error", "Fallo al guardar"); }
 }
 
 // Lote inicial al cargar IA
@@ -1701,7 +1726,7 @@ function execCmd() {
     if (cmd === "backup") { runBackup(); return; }
     if (cmd === "reboot") {
         fetch("/api/reboot", { method: "POST", headers: { "Authorization": authToken } })
-            .then(() => showToast("🔄 Reinicio", "El servidor se está reiniciando..."));
+            .then(() => showToast("ðŸ”„ Reinicio", "El servidor se estÃ¡ reiniciando..."));
         return;
     }
     if (cmd.startsWith("send ")) {
@@ -1712,13 +1737,13 @@ function execCmd() {
             method: "POST",
             headers: { "Authorization": authToken, "Content-Type": "application/json" },
             body: JSON.stringify({ target: cid, text: msg })
-        }).then(() => showToast("📤 Enviado", `Mensaje enviado a ${cid}`));
+        }).then(() => showToast("ðŸ“¤ Enviado", `Mensaje enviado a ${cid}`));
         return;
     }
     // Comando desconocido - registrar
     const entry = document.createElement("div");
     entry.style = "color: #f87171; font-size: 11px; margin-bottom: 4px;";
-    entry.textContent = `❌ Comando no reconocido: "${cmd}". Disponibles: clear, backup, reboot, send <cid> <msg>`;
+    entry.textContent = `âŒ Comando no reconocido: "${cmd}". Disponibles: clear, backup, reboot, send <cid> <msg>`;
     log.appendChild(entry);
     log.scrollTop = log.scrollHeight;
 }
@@ -1726,7 +1751,7 @@ function execCmd() {
 // --- Dashboard: clearLogs ---
 function clearLogs() {
     const log = document.getElementById("webLog");
-    if (log) { log.innerHTML = ""; showToast("🗑️ Consola", "Logs limpiados."); }
+    if (log) { log.innerHTML = ""; showToast("ðŸ—‘ï¸ Consola", "Logs limpiados."); }
 }
 
 // --- Dashboard: exportLogs ---
@@ -1740,7 +1765,7 @@ function exportLogs() {
         a.href = URL.createObjectURL(blob);
         a.download = `moon_audit_${Date.now()}.txt`;
         a.click();
-        showToast("📤 Exportado", "Logs de auditoría descargados.");
+        showToast("ðŸ“¤ Exportado", "Logs de auditorÃ­a descargados.");
     });
 }
 
@@ -1748,18 +1773,18 @@ function exportLogs() {
 function runBackup() {
     fetch("/api/admin/backup", { method: "POST", headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
-        if (data.ok) showToast("💾 Backup", `Copia de seguridad creada: ${data.file}`);
-        else showToast("❌ Error", "No se pudo crear el backup.");
+        if (data.ok) showToast("ðŸ’¾ Backup", `Copia de seguridad creada: ${data.file}`);
+        else showToast("âŒ Error", "No se pudo crear el backup.");
     });
 }
 
 // --- Audit CSV Download ---
 function downloadAudit(cid) {
-    const token = authToken.replace("Bearer ", "");
-    window.open(`/api/ia/audit/export?id=${cid}&token=${token}`, "_blank");
+    if(!authToken) return;
+    downloadWithAuth(`/api/ia/audit/export?id=${encodeURIComponent(cid)}`, `audit_${cid}.csv`);
 }
 
-// === PESTAÑA DE MODERACIÓN ===
+// === PESTAÃ‘A DE MODERACIÃ“N ===
 let currentModCid = null;
 
 function loadModerationTab() {
@@ -1768,7 +1793,7 @@ function loadModerationTab() {
     .then(r => r.json()).then(data => {
         const sel = document.getElementById("modGroupSelect");
         if (!sel) return;
-        sel.innerHTML = '<option value="">— Seleccionar Grupo —</option>';
+        sel.innerHTML = '<option value="">â€” Seleccionar Grupo â€”</option>';
         (data.vistos_obj || []).forEach(c => {
             const opt = document.createElement("option");
             opt.value = c.id;
@@ -1794,12 +1819,12 @@ function loadModerationData() {
         if (warnsList) {
             const warns = data.warns || {};
             if (Object.keys(warns).length === 0) {
-                warnsList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">✅ Sin advertencias</div>';
+                warnsList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">âœ… Sin advertencias</div>';
             } else {
                 warnsList.innerHTML = Object.entries(warns).map(([k, v]) =>
                     `<div class="mod-item">
-                        <span>${k} <b style="color:#f87171">⚠️ ${v}/3</b></span>
-                        <button class="btn-mod-mini" onclick="webUnwarn('${k}')">✕ Quitar</button>
+                        <span>${k} <b style="color:#f87171">âš ï¸ ${v}/3</b></span>
+                        <button class="btn-mod-mini" onclick="webUnwarn('${k}')">âœ• Quitar</button>
                     </div>`
                 ).join("");
             }
@@ -1810,12 +1835,12 @@ function loadModerationData() {
         if (mutesList) {
             const muted = data.muted || [];
             if (muted.length === 0) {
-                mutesList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">✅ Sin silenciados</div>';
+                mutesList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">âœ… Sin silenciados</div>';
             } else {
                 mutesList.innerHTML = muted.map(m =>
                     `<div class="mod-item">
-                        <span>🔇 ${m}</span>
-                        <button class="btn-mod-mini" onclick="webUnmute('${m}')">🔊</button>
+                        <span>ðŸ”‡ ${m}</span>
+                        <button class="btn-mod-mini" onclick="webUnmute('${m}')">ðŸ”Š</button>
                     </div>`
                 ).join("");
             }
@@ -1833,7 +1858,7 @@ function webUnwarn(target) {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ cid: currentModCid, target })
-    }).then(() => { showToast("✅ Warn eliminado", target); loadModerationData(); });
+    }).then(() => { showToast("âœ… Warn eliminado", target); loadModerationData(); });
 }
 
 function webUnmute(target) {
@@ -1842,18 +1867,18 @@ function webUnmute(target) {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ cid: currentModCid, target })
-    }).then(() => { showToast("🔊 Silencio levantado", target); loadModerationData(); });
+    }).then(() => { showToast("ðŸ”Š Silencio levantado", target); loadModerationData(); });
 }
 
 function saveGroupNotes() {
-    if (!currentModCid) { showToast("⚠️ Sin grupo", "Selecciona un grupo primero."); return; }
+    if (!currentModCid) { showToast("âš ï¸ Sin grupo", "Selecciona un grupo primero."); return; }
     const note = document.getElementById("modGroupNotes").value;
     fetch("/api/moderation/notes", {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ cid: currentModCid, note })
     }).then(r => r.json()).then(data => {
-        if (data.ok) showToast("📝 Nota guardada", "La nota se ha guardado en la base de datos.");
+        if (data.ok) showToast("ðŸ“ Nota guardada", "La nota se ha guardado en la base de datos.");
     });
 }
 
@@ -1864,10 +1889,10 @@ function refreshLeaderboard() {
         if (!body) return;
         const lb = data.leaderboard || [];
         if (lb.length === 0) {
-            body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 20px;">Sin datos de actividad aún.</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 20px;">Sin datos de actividad aÃºn.</td></tr>';
             return;
         }
-        const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+        const medals = ["ðŸ¥‡", "ðŸ¥ˆ", "ðŸ¥‰", "4ï¸âƒ£", "5ï¸âƒ£", "6ï¸âƒ£", "7ï¸âƒ£", "8ï¸âƒ£", "9ï¸âƒ£", "ðŸ”Ÿ"];
         body.innerHTML = lb.map((u, i) => `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <td style="padding: 10px; color: var(--text-muted);">${medals[i] || (i+1)}</td>
@@ -1888,25 +1913,25 @@ function modBanUser() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ uid })
     }).then(r => r.json()).then(data => {
-        if (data.ok) { showToast("⛔ Usuario baneado", `UID ${uid} añadido a la lista negra.`); document.getElementById("modBanUid").value = ""; }
+        if (data.ok) { showToast("â›” Usuario baneado", `UID ${uid} aÃ±adido a la lista negra.`); document.getElementById("modBanUid").value = ""; }
     });
 }
 
 function modSendToGroup() {
     const msg = document.getElementById("modBroadcastMsg").value.trim();
-    if (!msg || !currentModCid) { showToast("⚠️", "Selecciona un grupo y escribe un mensaje."); return; }
+    if (!msg || !currentModCid) { showToast("âš ï¸", "Selecciona un grupo y escribe un mensaje."); return; }
     fetch("/api/send", {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ target: currentModCid, text: msg })
-    }).then(() => { showToast("📢 Enviado", "Mensaje enviado al grupo."); document.getElementById("modBroadcastMsg").value = ""; });
+    }).then(() => { showToast("ðŸ“¢ Enviado", "Mensaje enviado al grupo."); document.getElementById("modBroadcastMsg").value = ""; });
 }
 
 // --- Global Bans Management ---
 function loadGlobalBans() {
     if (!authToken) return;
 
-    // Cargar estadísticas
+    // Cargar estadÃ­sticas
     fetch("/api/users/bans/stats", { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
         if (data.ok) {
@@ -1944,8 +1969,8 @@ function loadGlobalBans() {
 
 function unbanUser(uid) {
     if (!uid) uid = document.getElementById("unbanUid").value.trim();
-    if (!uid) { showToast("⚠️", "Ingresa un UID"); return; }
-    if (!confirm(`¿Desbanear ${uid}?`)) return;
+    if (!uid) { showToast("âš ï¸", "Ingresa un UID"); return; }
+    if (!confirm(`Â¿Desbanear ${uid}?`)) return;
 
     fetch("/api/users/unban", {
         method: "POST",
@@ -1953,16 +1978,16 @@ function unbanUser(uid) {
         body: JSON.stringify({ uid: uid })
     }).then(r => r.json()).then(data => {
         if (data.ok) {
-            showToast("✅ Desbaneado", data.message);
+            showToast("âœ… Desbaneado", data.message);
             document.getElementById("unbanUid").value = "";
             loadGlobalBans();
         } else {
-            showToast("❌ Error", data.message);
+            showToast("âŒ Error", data.message);
         }
     });
 }
 
-// Cargar baneos al abrir moderación
+// Cargar baneos al abrir moderaciÃ³n
 const origLoadModerationData = typeof loadModerationData === 'function' ? loadModerationData : null;
 if (origLoadModerationData) {
     window.loadModerationData = function() {
@@ -1974,7 +1999,7 @@ if (origLoadModerationData) {
 // --- Plugin Commands ---
 function sendPluginCommand(cmd) {
     if (!currentChatId) {
-        showToast("❌ Error", "Selecciona un chat primero.");
+        showToast("âŒ Error", "Selecciona un chat primero.");
         return;
     }
     fetch("/api/send", {
@@ -1982,7 +2007,7 @@ function sendPluginCommand(cmd) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ target: currentChatId, text: cmd })
     }).then(() => {
-        showToast("🔌 Comando", "Enviado al bot.");
+        showToast("ðŸ”Œ Comando", "Enviado al bot.");
         setTimeout(fetchChatHistory, 1000); // Actualizar chat
     });
 }
@@ -2002,7 +2027,7 @@ function fetchVisionStats() {
             const statusText = document.getElementById("shieldStatus");
             if(toggle && statusText) {
                 toggle.checked = data.shield_enabled;
-                statusText.innerText = data.shield_enabled ? "🛡️ ESCUDO ACTIVO" : "🛡️ ESCUDO DESACTIVADO";
+                statusText.innerText = data.shield_enabled ? "ðŸ›¡ï¸ ESCUDO ACTIVO" : "ðŸ›¡ï¸ ESCUDO DESACTIVADO";
                 statusText.style.color = data.shield_enabled ? "#4ade80" : "#f87171";
             }
         }
@@ -2015,7 +2040,7 @@ function toggleNeuralShield() {
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🛡️ Neural Shield", data.enabled ? "Protección activada." : "Protección desactivada.");
+            showToast("ðŸ›¡ï¸ Neural Shield", data.enabled ? "ProtecciÃ³n activada." : "ProtecciÃ³n desactivada.");
             fetchVisionStats();
         }
     });
@@ -2033,14 +2058,14 @@ function fetchSecurityBlacklist() {
                 list.innerHTML = data.blacklist.map(h => `
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 5px 0;">
                         <span>${h.substring(0, 16)}...${h.substring(h.length-8)}</span>
-                        <i style="color: #f87171; cursor: pointer;" title="Eliminar">🗑️</i>
+                        <i style="color: #f87171; cursor: pointer;" title="Eliminar">ðŸ—‘ï¸</i>
                     </div>
                 `).join("");
             }
         }
         const syncList = document.getElementById("syncUrlsList");
         if(syncList && data.sync_urls) {
-            syncList.innerHTML = data.sync_urls.map(u => `<div>🔗 ${u}</div>`).join("");
+            syncList.innerHTML = data.sync_urls.map(u => `<div>ðŸ”— ${u}</div>`).join("");
         }
     });
 }
@@ -2054,7 +2079,7 @@ function addSyncUrl() {
         body: JSON.stringify({ url })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🌐 Sync", "URL añadida. Sincronizando hashes...");
+            showToast("ðŸŒ Sync", "URL aÃ±adida. Sincronizando hashes...");
             document.getElementById("syncUrlInput").value = "";
             fetchSecurityBlacklist();
         }
@@ -2070,7 +2095,7 @@ function addManualHash() {
         body: JSON.stringify({ hash })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🛡️ Seguridad", "Hash añadido a la lista negra.");
+            showToast("ðŸ›¡ï¸ Seguridad", "Hash aÃ±adido a la lista negra.");
             document.getElementById("manualHashInput").value = "";
             fetchSecurityBlacklist();
         }
@@ -2123,7 +2148,7 @@ function saveBusConfig() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify(config)
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("💼 Business", "Configuración guardada.");
+        if(data.ok) showToast("ðŸ’¼ Business", "ConfiguraciÃ³n guardada.");
     });
 }
 
@@ -2133,7 +2158,7 @@ function fetchQuickReplies() {
         const list = document.getElementById("quickRepliesList");
         if(list && data.replies) {
             if(data.replies.length === 0) {
-                list.innerHTML = `<div class="subtitle" style="text-align:center; padding:20px;">No hay respuestas rápidas.</div>`;
+                list.innerHTML = `<div class="subtitle" style="text-align:center; padding:20px;">No hay respuestas rÃ¡pidas.</div>`;
             } else {
                 list.innerHTML = data.replies.map((r, index) => `
                     <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
@@ -2141,7 +2166,7 @@ function fetchQuickReplies() {
                             <code style="color: var(--primary); font-weight: 800;">${r.cmd}</code>
                             <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">${r.text.substring(0, 40)}${r.text.length > 40 ? '...' : ''}</div>
                         </div>
-                        <button onclick="removeQuickReply(${index})" style="width: auto; margin:0; padding: 5px; background:transparent;">🗑️</button>
+                        <button onclick="removeQuickReply(${index})" style="width: auto; margin:0; padding: 5px; background:transparent;">ðŸ—‘ï¸</button>
                     </div>
                 `).join("");
             }
@@ -2167,7 +2192,7 @@ function addQuickReply() {
                 document.getElementById("newQuickCmd").value = "";
                 document.getElementById("newQuickText").value = "";
                 fetchQuickReplies();
-                showToast("⚡ Quick Reply", "Atajo añadido.");
+                showToast("âš¡ Quick Reply", "Atajo aÃ±adido.");
             }
         });
     });
@@ -2201,7 +2226,7 @@ function loadProxiesTab() {
         if(grid && data.proxies) {
             if(data.proxies.length === 0) {
                 grid.innerHTML = `<div class="glass-panel" style="grid-column: 1/-1; text-align:center; padding: 40px;">
-                    <div style="font-size: 40px; margin-bottom: 20px;">🌐</div>
+                    <div style="font-size: 40px; margin-bottom: 20px;">ðŸŒ</div>
                     <h3 data-i18n="prox_no_nodes">No hay nodos configurados</h3>
                     <p class="subtitle">Despliega tu primer proxy MTProto para empezar.</p>
                 </div>`;
@@ -2215,8 +2240,8 @@ function loadProxiesTab() {
                                 <code style="font-size: 10px; color: var(--text-muted);">${p.secret.substring(0,16)}...</code>
                             </div>
                             <div style="display: flex; gap: 8px;">
-                                <button onclick="toggleProxy(${p.index}, '${p.status === 'ONLINE' ? 'stop' : 'start'}')" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0;">${p.status === 'ONLINE' ? '⏹️' : '▶️'}</button>
-                                <button onclick="removeProxy(${p.index})" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0; background: rgba(239,68,68,0.1);">🗑️</button>
+                                <button onclick="toggleProxy(${p.index}, '${p.status === 'ONLINE' ? 'stop' : 'start'}')" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0;">${p.status === 'ONLINE' ? 'â¹ï¸' : 'â–¶ï¸'}</button>
+                                <button onclick="removeProxy(${p.index})" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0; background: rgba(239,68,68,0.1);">ðŸ—‘ï¸</button>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
@@ -2356,7 +2381,7 @@ function deployProxy() {
         if(data.ok) {
             closeProxyModal();
             loadProxiesTab();
-            showToast("🌐 Proxy", "Configuración guardada.");
+            showToast("ðŸŒ Proxy", "ConfiguraciÃ³n guardada.");
         }
     });
 }
@@ -2368,14 +2393,14 @@ function toggleProxy(index, action) {
         body: JSON.stringify({ index, action })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("🌐 Proxy", action === 'start' ? "Nodo iniciado." : "Nodo detenido.");
+            showToast("ðŸŒ Proxy", action === 'start' ? "Nodo iniciado." : "Nodo detenido.");
             loadProxiesTab();
         }
     });
 }
 
 function removeProxy(index) {
-    if(!confirm("¿Eliminar este nodo?")) return;
+    if(!confirm("Â¿Eliminar este nodo?")) return;
     fetch("/api/proxies/remove", {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
@@ -2408,7 +2433,7 @@ function fetchSecurityAudit() {
                 <td title="${log.hash}"><code>${log.hash.substring(0, 8)}...</code></td>
                 <td>${log.user}</td>
                 <td>
-                    <span class="vt-badge ${isMalicious ? 'danger' : 'success'}">${isMalicious ? '🚨 ' + (log.vt_malicious || 'Malware') : '✅ OK'}</span>
+                    <span class="vt-badge ${isMalicious ? 'danger' : 'success'}">${isMalicious ? 'ðŸš¨ ' + (log.vt_malicious || 'Malware') : 'âœ… OK'}</span>
                 </td>
             `;
             body.appendChild(row);
@@ -2431,16 +2456,16 @@ function scanHashVT() {
     }).then(r => r.json()).then(data => {
         if(data.error) {
             resultDiv.innerHTML = `<div class="vt-card" style="border-color: var(--danger);">
-                <h4 style="color: var(--danger);">❌ Error</h4>
+                <h4 style="color: var(--danger);">âŒ Error</h4>
                 <p style="font-size: 13px;">${data.error}</p>
-                <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">Asegúrate de configurar VT_API_KEY en el archivo .env</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">AsegÃºrate de configurar VT_API_KEY en el archivo .env</p>
             </div>`;
             return;
         }
         
         if(data.not_found) {
             resultDiv.innerHTML = `<div class="vt-card">
-                <h4>⚪ No encontrado</h4>
+                <h4>âšª No encontrado</h4>
                 <p style="font-size: 13px;">El hash no figura en la base de datos de VirusTotal. Puede ser una amenaza nueva o un archivo limpio desconocido.</p>
             </div>`;
             return;
@@ -2450,8 +2475,8 @@ function scanHashVT() {
         resultDiv.innerHTML = `
             <div class="vt-card" style="border-color: ${isDangerous ? 'var(--danger)' : 'var(--success)'}">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h4 style="color: ${isDangerous ? 'var(--danger)' : 'var(--success)'}">${isDangerous ? '🚨 AMENAZA DETECTADA' : '✅ ARCHIVO LIMPIO'}</h4>
-                    <a href="${data.link}" target="_blank" style="font-size: 11px; color: var(--primary);">Ver en VirusTotal ↗️</a>
+                    <h4 style="color: ${isDangerous ? 'var(--danger)' : 'var(--success)'}">${isDangerous ? 'ðŸš¨ AMENAZA DETECTADA' : 'âœ… ARCHIVO LIMPIO'}</h4>
+                    <a href="${data.link}" target="_blank" style="font-size: 11px; color: var(--primary);">Ver en VirusTotal â†—ï¸</a>
                 </div>
                 <div class="vt-stat-grid">
                     <div class="vt-stat-item danger">
@@ -2475,7 +2500,7 @@ function scanHashVT() {
         `;
         
         if(isDangerous) {
-            showToast("🚨 SEGURIDAD", "Se ha detectado un hash malicioso en el análisis.");
+            showToast("ðŸš¨ SEGURIDAD", "Se ha detectado un hash malicioso en el anÃ¡lisis.");
         }
     });
 }
@@ -2508,8 +2533,8 @@ function loadQueueTab() {
                 <td><span class="priority-badge">${t.priority}</span></td>
                 <td><span class="status-pill ${t.status.toLowerCase()}">${t.status}</span></td>
                 <td>
-                    <button onclick="prioritizeTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);">↑ UP</button>
-                    <button onclick="cancelTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3);">❌ CANCEL</button>
+                    <button onclick="prioritizeTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);">â†‘ UP</button>
+                    <button onclick="cancelTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3);">âŒ CANCEL</button>
                 </td>
             `;
             body.appendChild(row);
@@ -2545,22 +2570,22 @@ function fetchTelegramHealth() {
 }
 
 function scanDocker() {
-    showToast("📦 Docker", "Escaneando red en busca de proxies...");
+    showToast("ðŸ“¦ Docker", "Escaneando red en busca de proxies...");
     fetch("/api/proxies/scan", { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
         if(data.ok && data.detected) {
             if(data.detected.length > 0) {
-                showToast("✅ Docker", `Se detectaron ${data.detected.length} proxies activos.`);
+                showToast("âœ… Docker", `Se detectaron ${data.detected.length} proxies activos.`);
                 console.table(data.detected);
-                // Aquí podrías añadir lógica para importarlos automáticamente
+                // AquÃ­ podrÃ­as aÃ±adir lÃ³gica para importarlos automÃ¡ticamente
             } else {
-                showToast("⚠️ Docker", "No se detectaron contenedores compatibles.");
+                showToast("âš ï¸ Docker", "No se detectaron contenedores compatibles.");
             }
         }
     });
 }
 
-// Integración en Polling
+// IntegraciÃ³n en Polling
 setInterval(fetchVisionStats, 5000);
 setInterval(fetchSecurityBlacklist, 10000);
 setInterval(() => { 
@@ -2584,21 +2609,21 @@ function checkSystemUpdate() {
             if(commitEl) commitEl.innerText = data.current_commit || "Unknown";
             if(data.behind) {
                 if(remoteEl) {
-                    remoteEl.innerText = "🚀 NUEVA VERSIÓN DISPONIBLE EN GITHUB";
+                    remoteEl.innerText = "ðŸš€ NUEVA VERSIÃ“N DISPONIBLE EN GITHUB";
                     remoteEl.style.color = "#3b82f6";
                 }
                 if(applyBtn) applyBtn.style.display = "block";
-                showToast("🚀 Actualización", "Hay una nueva versión disponible en el repositorio.");
+                showToast("ðŸš€ ActualizaciÃ³n", "Hay una nueva versiÃ³n disponible en el repositorio.");
             } else {
                 if(remoteEl) {
-                    remoteEl.innerText = "✅ El sistema está actualizado.";
+                    remoteEl.innerText = "âœ… El sistema estÃ¡ actualizado.";
                     remoteEl.style.color = "#10b981";
                 }
                 if(applyBtn) applyBtn.style.display = "none";
             }
         } else {
-            if(remoteEl) remoteEl.innerText = "❌ Error: " + data.error;
-            showToast("❌ Git Error", data.error);
+            if(remoteEl) remoteEl.innerText = "âŒ Error: " + data.error;
+            showToast("âŒ Git Error", data.error);
         }
     });
 }
@@ -2614,7 +2639,7 @@ function applySystemUpdate() {
             showToast("Exito", data.msg || "Sistema actualizado. Reinicio automatico en curso...");
             setTimeout(() => location.reload(), 8000);
         } else {
-            showToast("❌ Error", data.error);
+            showToast("âŒ Error", data.error);
         }
     });
 }
@@ -2653,17 +2678,17 @@ function fetchMoonProcesses() {
 }
 
 function killMoonProcess(pid) {
-    if(!confirm("¿Seguro que quieres matar el proceso " + pid + "?")) return;
+    if(!confirm("Â¿Seguro que quieres matar el proceso " + pid + "?")) return;
     fetch('/api/system/kill', {
         method: 'POST',
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ pid: pid })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("💀 Eliminado", data.msg);
+            showToast("ðŸ’€ Eliminado", data.msg);
             fetchMoonProcesses();
         } else {
-            showToast("❌ Error", data.msg || data.error);
+            showToast("âŒ Error", data.msg || data.error);
         }
     });
 }
