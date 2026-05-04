@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.29.0] - 2026-05-04
+### Primer Corte Modular y Versionado Sincronizado
+- **Modulo `core.config`**: Centraliza version, rutas, credenciales web, entorno, claves IA y seleccion de base de datos.
+- **Modulo `core.db`**: Extrae `DBManager` fuera de `moon_multibot.py` para aislar SQLite y facilitar pruebas.
+- **Compatibilidad preservada**: `moon_multibot.py` conserva las mismas variables globales importadas para evitar cambiar el comportamiento runtime.
+- **Version visible sincronizada**: Banner de `start.sh`, badge del dashboard y `/api/status.version` quedan alineados con `v16.29.0`.
+- **Base para futuros modulos**: Deja preparado el siguiente corte hacia rutas Flask, servicios de seguridad y runtime Telegram sin mover todo de golpe.
+
 ## [v16.28.0] - 2026-05-04
 ### Bans CAS, Globales y Locales Reforzados
 - **CAS ahora aplica bans reales**: La deteccion de `api.cas.chat` ya no se limita a registrar el evento; ahora borra el mensaje, guarda el ban global y ejecuta `banChatMember`.

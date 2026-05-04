@@ -1,21 +1,28 @@
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, sqlite3, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response
 from dotenv import load_dotenv
 from collections import Counter
+from core.config import (
+    APP_VERSION,
+    BOT_STORE_PATH,
+    WEB_PASSWORD,
+    JWT_SECRET,
+    MOON_ENV,
+    MOON_ROLE,
+    MASTER_ID,
+    GEMINI_API_KEY,
+    USE_EXTERNAL_LLM,
+    HYBRID_PERCENTAGE,
+    LLM_PROVIDER,
+    OLLAMA_MODEL,
+    DEEP_DREAM_MODE,
+    DB_PATH,
+)
+from core.db import DBManager
 from token_manager import token_manager
 from ban_manager import BanManager
 
 load_dotenv()
-BOT_STORE_PATH = "data/bots.json"
-WEB_PASSWORD = os.getenv("WEB_PASSWORD", "moon")
-JWT_SECRET = os.getenv("JWT_SECRET", "secret")
-MOON_ENV = os.getenv("MOON_ENV", "prod").lower()
-MOON_ROLE = os.getenv("MOON_ROLE", "master").lower()
-MASTER_ID = int(os.getenv("MASTER_ID", 0))
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-USE_EXTERNAL_LLM = os.getenv("USE_EXTERNAL_LLM", "false").lower() == "true"
-HYBRID_PERCENTAGE = int(os.getenv("HYBRID_PERCENTAGE", "50"))
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini") # "gemini" o "ollama"
 
 def _detect_ollama_url():
     """Auto-detecta la URL de Ollama: primero localhost, luego Docker"""
@@ -33,8 +40,6 @@ def _detect_ollama_url():
     return "http://moon_ollama:11434/api/generate"
 
 OLLAMA_URL = _detect_ollama_url()
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2:0.5b")
-DEEP_DREAM_MODE = os.getenv("DEEP_DREAM_MODE", "false").lower() == "true"
 NEURAL_BILLION_TARGET = 1000000000000  # 1 billon en escala larga (1.000.000.000.000)
 NEURAL_BILLION_DEADLINE_MIN = 12 * 60
 DEFAULT_BOOK_SOURCE_IDS = [
@@ -53,34 +58,9 @@ DEFAULT_BOOK_SOURCE_IDS = [
 app = Flask(__name__)
 # Configuración según ambiente
 LOG_LEVEL = logging.DEBUG if MOON_ENV == "dev" else logging.INFO
-DB_PATH = "data/moon_dev.db" if MOON_ENV == "dev" else "data/moon_database.db"
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("MoonBot")
-
-class DBManager:
-    def __init__(self, db_path=DB_PATH):
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute("CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value TEXT)")
-        self.conn.commit()
-        self.lock = threading.Lock()
-    def get(self, key, default=None):
-        with self.lock:
-            self.cursor.execute("SELECT value FROM kv_store WHERE key=?", (key,))
-            res = self.cursor.fetchone()
-            return json.loads(res[0]) if res else default
-    def set(self, key, value):
-        with self.lock:
-            self.cursor.execute("INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)", (key, json.dumps(value)))
-            self.conn.commit()
-    def keys(self, prefix=None):
-        with self.lock:
-            if prefix is None:
-                self.cursor.execute("SELECT key FROM kv_store")
-            else:
-                self.cursor.execute("SELECT key FROM kv_store WHERE key LIKE ?", (f"{prefix}%",))
-            return [row[0] for row in self.cursor.fetchall()]
 
 db = DBManager()
 ban_manager = BanManager(db)  # Gestor centralizado de baneos
