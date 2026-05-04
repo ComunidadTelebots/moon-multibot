@@ -1,144 +1,210 @@
 """
-Ban Manager - Gestión centralizada de baneos entre múltiples bots
-Mantiene una lista negra global sincronizada
+Ban Manager - gestion centralizada de baneos globales y locales.
 """
 
+import datetime
+
+
 class BanManager:
-    """Gestiona baneos globales y locales entre múltiples bots"""
+    """Gestiona baneos globales y baneos locales por grupo."""
+
+    GLOBAL_KEY = "GLOBAL_BANS"
+    HISTORY_KEY = "BAN_HISTORY"
+    LEGACY_KEY = "ST_FILE"
+    LOCAL_PREFIX = "BANS_"
 
     def __init__(self, db_manager):
-        """
-        Args:
-            db_manager: Instancia de DBManager para persistencia
-        """
         self.db = db_manager
-        self.local_bans = set()  # Cache en memoria para rápido acceso
+        self.global_bans = set()
         self.load_from_db()
 
-    def load_from_db(self):
-        """Carga la lista de baneos desde BD"""
-        bans_data = self.db.get("GLOBAL_BANS", {"users": [], "hashes": []})
-        self.local_bans = set(str(uid) for uid in bans_data.get("users", []))
+    def _normalize_uid(self, uid) -> str:
+        return str(uid).strip()
 
-    def is_banned(self, uid: str) -> bool:
-        """Verifica si un UID está baneado globalmente"""
-        return str(uid) in self.local_bans
+    def _normalize_cid(self, cid) -> str:
+        return str(cid).strip()
 
-    def ban_user(self, uid: str, reason: str = "", source: str = "manual") -> bool:
-        """
-        Baña un usuario globalmente
+    def _empty_global(self) -> dict:
+        return {"users": [], "hashes": []}
 
-        Args:
-            uid: User ID a banear
-            reason: Razón del baneo
-            source: Fuente del baneo (manual, cas, spam, etc)
+    def _empty_local(self) -> dict:
+        return {"users": []}
 
-        Returns:
-            True si se baneó, False si ya estaba baneado
-        """
-        uid_str = str(uid)
+    def _local_key(self, cid) -> str:
+        return f"{self.LOCAL_PREFIX}{self._normalize_cid(cid)}"
 
-        if uid_str in self.local_bans:
-            return False  # Ya estaba baneado
-
-        # Añadir a caché local
-        self.local_bans.add(uid_str)
-
-        # Guardar en BD
-        bans_data = self.db.get("GLOBAL_BANS", {"users": [], "hashes": []})
-        if uid_str not in bans_data["users"]:
-            bans_data["users"].append(uid_str)
-
-        # Registrar información del baneo
-        ban_record = {
-            "uid": uid_str,
+    def _record(self, uid, reason, source, scope, cid=None, action="ban"):
+        history = self.db.get(self.HISTORY_KEY, [])
+        history.append({
+            "uid": self._normalize_uid(uid),
+            "cid": self._normalize_cid(cid) if cid is not None else None,
             "reason": reason,
             "source": source,
+            "scope": scope,
+            "action": action,
             "timestamp": datetime.datetime.now().isoformat(),
-        }
+        })
+        self.db.set(self.HISTORY_KEY, history[-1000:])
 
-        ban_history = self.db.get("BAN_HISTORY", [])
-        ban_history.append(ban_record)
+    def _global_data(self) -> dict:
+        data = self.db.get(self.GLOBAL_KEY, self._empty_global())
+        if not isinstance(data, dict):
+            data = self._empty_global()
+        data.setdefault("users", [])
+        data.setdefault("hashes", [])
+        return data
 
-        self.db.set("GLOBAL_BANS", bans_data)
-        self.db.set("BAN_HISTORY", ban_history[-1000:])  # Mantener últimos 1000
+    def _legacy_users(self) -> list:
+        legacy = self.db.get(self.LEGACY_KEY, {})
+        if not isinstance(legacy, dict):
+            return []
+        users = legacy.get("bans", [])
+        return [self._normalize_uid(uid) for uid in users if self._normalize_uid(uid)]
 
-        return True
+    def _remove_legacy_user(self, uid) -> None:
+        uid_str = self._normalize_uid(uid)
+        legacy = self.db.get(self.LEGACY_KEY, {})
+        if not isinstance(legacy, dict) or "bans" not in legacy:
+            return
+        users = [self._normalize_uid(item) for item in legacy.get("bans", [])]
+        if uid_str in users:
+            legacy["bans"] = [item for item in users if item != uid_str]
+            self.db.set(self.LEGACY_KEY, legacy)
 
-    def unban_user(self, uid: str) -> bool:
-        """
-        Quita baneo a un usuario
+    def load_from_db(self):
+        """Carga baneos globales y migra en memoria los legacy de ST_FILE."""
+        data = self._global_data()
+        users = {self._normalize_uid(uid) for uid in data.get("users", []) if self._normalize_uid(uid)}
+        legacy_users = set(self._legacy_users())
+        merged = sorted(users | legacy_users)
+        self.global_bans = set(merged)
+        if merged != data.get("users", []):
+            data["users"] = merged
+            self.db.set(self.GLOBAL_KEY, data)
 
-        Args:
-            uid: User ID a desbanear
+    def is_global_banned(self, uid) -> bool:
+        return self._normalize_uid(uid) in self.global_bans
 
-        Returns:
-            True si se desbaneó, False si no estaba baneado
-        """
-        uid_str = str(uid)
+    def get_local_bans(self, cid) -> dict:
+        data = self.db.get(self._local_key(cid), self._empty_local())
+        if isinstance(data, list):
+            data = {"users": data}
+        if not isinstance(data, dict):
+            data = self._empty_local()
+        data.setdefault("users", [])
+        data["users"] = [self._normalize_uid(uid) for uid in data["users"] if self._normalize_uid(uid)]
+        return data
 
-        if uid_str not in self.local_bans:
+    def is_local_banned(self, cid, uid) -> bool:
+        return self._normalize_uid(uid) in set(self.get_local_bans(cid).get("users", []))
+
+    def is_banned(self, uid, cid=None) -> bool:
+        if self.is_global_banned(uid):
+            return True
+        return cid is not None and self.is_local_banned(cid, uid)
+
+    def ban_user(self, uid, reason="", source="manual") -> bool:
+        """Banea un usuario globalmente en todos los grupos."""
+        uid_str = self._normalize_uid(uid)
+        if not uid_str:
+            return False
+        if uid_str in self.global_bans:
             return False
 
-        # Remover de caché local
-        self.local_bans.discard(uid_str)
+        self.global_bans.add(uid_str)
+        data = self._global_data()
+        if uid_str not in data["users"]:
+            data["users"].append(uid_str)
+        self.db.set(self.GLOBAL_KEY, data)
+        self._record(uid_str, reason, source, scope="global")
+        return True
 
-        # Remover de BD
-        bans_data = self.db.get("GLOBAL_BANS", {"users": [], "hashes": []})
-        if uid_str in bans_data["users"]:
-            bans_data["users"].remove(uid_str)
+    def ban_local_user(self, cid, uid, reason="", source="manual") -> bool:
+        """Banea un usuario solo para un grupo concreto."""
+        uid_str = self._normalize_uid(uid)
+        cid_str = self._normalize_cid(cid)
+        if not uid_str or not cid_str:
+            return False
 
-        self.db.set("GLOBAL_BANS", bans_data)
+        data = self.get_local_bans(cid_str)
+        if uid_str in data["users"]:
+            return False
 
+        data["users"].append(uid_str)
+        self.db.set(self._local_key(cid_str), data)
+        self._record(uid_str, reason, source, scope="local", cid=cid_str)
+        return True
+
+    def unban_user(self, uid) -> bool:
+        uid_str = self._normalize_uid(uid)
+        if uid_str not in self.global_bans:
+            return False
+
+        self.global_bans.discard(uid_str)
+        data = self._global_data()
+        if uid_str in data["users"]:
+            data["users"].remove(uid_str)
+        self.db.set(self.GLOBAL_KEY, data)
+        self._remove_legacy_user(uid_str)
+        self._record(uid_str, "Manual global unban", "manual", scope="global", action="unban")
+        return True
+
+    def unban_local_user(self, cid, uid) -> bool:
+        uid_str = self._normalize_uid(uid)
+        cid_str = self._normalize_cid(cid)
+        data = self.get_local_bans(cid_str)
+        if uid_str not in data["users"]:
+            return False
+
+        data["users"].remove(uid_str)
+        self.db.set(self._local_key(cid_str), data)
+        self._record(uid_str, "Manual local unban", "manual", scope="local", cid=cid_str, action="unban")
         return True
 
     def get_all_bans(self) -> dict:
-        """Obtiene todos los baneos (usuarios y hashes)"""
-        return self.db.get("GLOBAL_BANS", {"users": [], "hashes": []})
+        return self._global_data()
 
-    def get_ban_history(self, limit: int = 100) -> list:
-        """Obtiene historial de baneos recientes"""
-        history = self.db.get("BAN_HISTORY", [])
+    def get_all_local_bans(self) -> dict:
+        keys = self.db.keys(self.LOCAL_PREFIX) if hasattr(self.db, "keys") else []
+        result = {}
+        for key in keys:
+            cid = key[len(self.LOCAL_PREFIX):]
+            result[cid] = self.get_local_bans(cid).get("users", [])
+        return result
+
+    def get_ban_history(self, limit=100) -> list:
+        history = self.db.get(self.HISTORY_KEY, [])
         return history[-limit:]
 
     def get_ban_stats(self) -> dict:
-        """Obtiene estadísticas de baneos"""
-        bans_data = self.get_all_bans()
+        global_data = self.get_all_bans()
+        local_data = self.get_all_local_bans()
         history = self.get_ban_history(1000)
 
-        # Contar por fuente
         sources = {}
         for record in history:
             source = record.get("source", "unknown")
             sources[source] = sources.get(source, 0) + 1
 
+        now = datetime.datetime.now()
+        recent = 0
+        for record in history:
+            try:
+                if datetime.datetime.fromisoformat(record["timestamp"]) > now - datetime.timedelta(days=1):
+                    recent += 1
+            except Exception:
+                pass
+
         return {
-            "total_banned_users": len(bans_data.get("users", [])),
-            "total_banned_hashes": len(bans_data.get("hashes", [])),
-            "recent_bans": len([r for r in history if (
-                datetime.datetime.fromisoformat(r["timestamp"]) >
-                datetime.datetime.now() - datetime.timedelta(days=1)
-            )]),
-            "sources": sources
+            "total_banned_users": len(global_data.get("users", [])),
+            "total_local_banned_users": sum(len(users) for users in local_data.values()),
+            "groups_with_local_bans": len([users for users in local_data.values() if users]),
+            "total_banned_hashes": len(global_data.get("hashes", [])),
+            "recent_bans": recent,
+            "sources": sources,
         }
 
-    def sync_with_cas(self, uid: str, cas_banned: bool) -> bool:
-        """
-        Sincroniza estado de baneo con CAS
-
-        Args:
-            uid: User ID
-            cas_banned: True si está baneado en CAS
-
-        Returns:
-            True si se realizó algún cambio
-        """
-        if cas_banned and not self.is_banned(uid):
-            # Usuario está en CAS pero no en nuestro local
-            self.ban_user(uid, reason="Auto-sync from CAS", source="cas")
-            return True
-
+    def sync_with_cas(self, uid, cas_banned) -> bool:
+        if cas_banned and not self.is_global_banned(uid):
+            return self.ban_user(uid, reason="CAS global blacklist", source="cas")
         return False
-
-
-import datetime

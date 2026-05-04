@@ -74,6 +74,13 @@ class DBManager:
         with self.lock:
             self.cursor.execute("INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)", (key, json.dumps(value)))
             self.conn.commit()
+    def keys(self, prefix=None):
+        with self.lock:
+            if prefix is None:
+                self.cursor.execute("SELECT key FROM kv_store")
+            else:
+                self.cursor.execute("SELECT key FROM kv_store WHERE key LIKE ?", (f"{prefix}%",))
+            return [row[0] for row in self.cursor.fetchall()]
 
 db = DBManager()
 ban_manager = BanManager(db)  # Gestor centralizado de baneos
@@ -401,6 +408,7 @@ vt_mgr = VirusTotalManager(os.getenv("VT_API_KEY"))
 proxy_mgr = ProxyManager()
 web_logs = []
 flood_cache = {}  # {f"{cid}_{uid}": [timestamps]} — en memoria para evitar ops SQLite por mensaje
+cas_cache = {}  # {uid: {"time": ts, "status": {...}}}
 global_chat_history, global_chat_names, global_user_stats, global_media_list, global_msg_log = {}, {}, {}, [], []
 maintenance_mode = False
 voice_log = []
@@ -494,15 +502,67 @@ def find_bot_index(identifier):
             return i
     return None
 
-def is_cas_banned(uid):
-    """Verifica si un usuario est en la lista negra global de Combot Anti-Spam (CAS)"""
+def get_bot_for_chat(cid):
+    cid_str = str(cid)
+    for bot in active_bots:
+        if cid_str in [str(x) for x in db.get(f"CHATS_{bot.token}", [])]:
+            return bot
+    return active_bots[0] if active_bots else None
+
+def iter_known_group_targets():
+    seen = set()
+    for bot in active_bots:
+        for cid in db.get(f"CHATS_{bot.token}", []):
+            cid_str = str(cid)
+            key = (getattr(bot, "token", ""), cid_str)
+            if cid_str.startswith("-") and key not in seen:
+                seen.add(key)
+                yield bot, cid_str
+
+def check_cas_status(uid, use_cache=True):
+    """Verifica CAS y devuelve estado normalizado con cache corta."""
+    uid_str = str(uid).strip()
+    if not uid_str:
+        return {"ok": False, "banned": False, "description": "UID vacio"}
+    if uid_str.startswith("-"):
+        return {"ok": True, "banned": False, "description": "CAS solo aplica a usuarios"}
+
+    ttl = int(os.getenv("CAS_CACHE_TTL", "1800"))
+    now = time.time()
+    cached = cas_cache.get(uid_str)
+    if use_cache and cached and now - cached.get("time", 0) < ttl:
+        return cached["status"]
+
     try:
-        r = requests.get(f"https://api.cas.chat/check?user_id={uid}", timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            return data.get("ok", False)
-    except: pass
-    return False
+        headers = {"User-Agent": "MoonMultibot/ban-check"}
+        r = requests.get(f"https://api.cas.chat/check?user_id={uid_str}", headers=headers, timeout=5)
+        data = r.json() if r.content else {}
+        banned = False
+        if data.get("ok") is True:
+            result = data.get("result", True)
+            if isinstance(result, bool):
+                banned = result
+            elif isinstance(result, dict):
+                offenses = result.get("offenses")
+                banned = True if offenses is None else int(offenses or 0) > 0
+            else:
+                banned = bool(result)
+        status = {
+            "ok": r.status_code == 200,
+            "banned": bool(banned),
+            "description": data.get("description", ""),
+            "result": data.get("result"),
+            "status_code": r.status_code,
+        }
+    except Exception as e:
+        status = {"ok": False, "banned": False, "description": str(e)}
+
+    cas_cache[uid_str] = {"time": now, "status": status}
+    return status
+
+def is_cas_banned(uid):
+    """Verifica si un usuario esta en la lista negra global de Combot Anti-Spam (CAS)."""
+    return check_cas_status(uid).get("banned", False)
 
 @app.route("/")
 def index(): return send_from_directory("web", "index.html")
@@ -579,7 +639,9 @@ def web_history():
         "history": enriched_history,
         "warns": db.get(f"WARNS_{cid}", {}),
         "muted_users": db.get(f"MUTED_{cid}", []),
-        "banned_users": db.get("ST_FILE", {}).get("bans", [])
+        "banned_users": sorted(set(ban_manager.get_all_bans().get("users", [])) | set(ban_manager.get_local_bans(cid).get("users", []))),
+        "global_banned_users": ban_manager.get_all_bans().get("users", []),
+        "local_banned_users": ban_manager.get_local_bans(cid).get("users", [])
     })
 
 @app.route("/api/telegram/file/<file_id>")
@@ -805,22 +867,43 @@ def web_user_stats():
 @app.route("/api/users/ban", methods=['POST'])
 def web_user_ban():
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    u = str(request.json.get("uid"))
-    cid = request.json.get("cid")
-    reason = request.json.get("reason", "Manual ban from web")
+    data = request.json or {}
+    u = str(data.get("uid", "")).strip()
+    cid = data.get("cid")
+    reason = data.get("reason", "Manual ban from web")
+    scope = data.get("scope") or ("local" if cid else "global")
+    if not u:
+        return jsonify({"ok": False, "msg": "UID requerido"}), 400
 
-    # Usar ban_manager para baneo global
-    ban_manager.ban_user(u, reason=reason, source="web_manual")
-    add_audit_log(f"Usuario {u} baneado manualmente desde web. Razón: {reason}")
+    if scope == "local":
+        if not cid:
+            return jsonify({"ok": False, "msg": "CID requerido para ban local"}), 400
+        ban_manager.ban_local_user(cid, u, reason=reason, source="web_manual")
+        audit_msg = f"Usuario {u} baneado localmente en {cid}. Razón: {reason}"
+    else:
+        ban_manager.ban_user(u, reason=reason, source="web_manual")
+        audit_msg = f"Usuario {u} baneado globalmente. Razón: {reason}"
 
-    # Expulsar de inmediato si se proporciona CID
-    if cid and active_bots:
-        try:
-            active_bots[0].kick_user(cid, u)
-            add_web_log("SECURITY", f"Usuario {u} expulsado tras baneo global.")
-        except: pass
+    add_audit_log(audit_msg)
+    bot = get_bot_for_chat(cid) if cid else None
+    telegram_result = None
+    telegram_results = []
+    if cid and bot:
+        telegram_result = bot.kick_user(cid, u)
+        telegram_results.append({"cid": str(cid), "ok": telegram_result.get("ok"), "description": telegram_result.get("description")})
+        if telegram_result.get("ok"):
+            add_web_log("SECURITY", f"Usuario {u} expulsado de {cid} ({scope}).")
+        else:
+            add_web_log("ERROR", f"No se pudo expulsar a {u} de {cid}: {telegram_result.get('description')}")
+    elif scope == "global":
+        for target_bot, target_cid in iter_known_group_targets():
+            res = target_bot.kick_user(target_cid, u)
+            telegram_results.append({"cid": target_cid, "ok": res.get("ok"), "description": res.get("description")})
+        if telegram_results:
+            ok_count = len([r for r in telegram_results if r.get("ok")])
+            add_web_log("SECURITY", f"Ban global de {u} propagado a {ok_count}/{len(telegram_results)} grupos conocidos.")
 
-    return jsonify({"ok": True, "message": "Usuario baneado globalmente"})
+    return jsonify({"ok": True, "scope": scope, "telegram": telegram_result, "telegram_results": telegram_results, "message": audit_msg})
 
 @app.route("/api/ping")
 def web_ping():
@@ -830,9 +913,12 @@ def web_ping():
 def web_get_bans():
     """Obtiene lista de todos los usuarios baneados"""
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    bans_data = ban_manager.get_all_bans()
+    cid = request.args.get("cid")
+    bans_data = ban_manager.get_local_bans(cid) if cid else ban_manager.get_all_bans()
     return jsonify({
         "ok": True,
+        "scope": "local" if cid else "global",
+        "cid": cid,
         "total": len(bans_data.get("users", [])),
         "bans": bans_data.get("users", [])
     })
@@ -854,15 +940,32 @@ def web_get_ban_history():
 
 @app.route("/api/users/unban", methods=['POST'])
 def web_user_unban():
-    """Desbaña un usuario"""
+    """Desbanea un usuario global o localmente."""
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    u = str(request.json.get("uid"))
-    result = ban_manager.unban_user(u)
+    data = request.json or {}
+    u = str(data.get("uid", "")).strip()
+    cid = data.get("cid")
+    scope = data.get("scope") or ("local" if cid else "global")
+    if not u:
+        return jsonify({"ok": False, "message": "UID requerido"}), 400
+
+    result = ban_manager.unban_local_user(cid, u) if scope == "local" and cid else ban_manager.unban_user(u)
+    telegram_result = None
+    telegram_results = []
+    if cid:
+        bot = get_bot_for_chat(cid)
+        if bot:
+            telegram_result = bot.api_call("unbanChatMember", {"chat_id": cid, "user_id": u})
+            telegram_results.append({"cid": str(cid), "ok": telegram_result.get("ok"), "description": telegram_result.get("description")})
+    elif scope == "global":
+        for target_bot, target_cid in iter_known_group_targets():
+            res = target_bot.api_call("unbanChatMember", {"chat_id": target_cid, "user_id": u})
+            telegram_results.append({"cid": target_cid, "ok": res.get("ok"), "description": res.get("description")})
 
     if result:
-        add_audit_log(f"Usuario {u} desbaneado desde web")
-        add_web_log("SECURITY", f"Usuario {u} desbaneado")
-        return jsonify({"ok": True, "message": "Usuario desbaneado"})
+        add_audit_log(f"Usuario {u} desbaneado desde web ({scope})")
+        add_web_log("SECURITY", f"Usuario {u} desbaneado ({scope})")
+        return jsonify({"ok": True, "scope": scope, "telegram": telegram_result, "telegram_results": telegram_results, "message": "Usuario desbaneado"})
     else:
         return jsonify({"ok": False, "message": "Usuario no estaba baneado"})
 
@@ -1692,8 +1795,8 @@ def api_security_vt_scan():
 @app.route('/api/security/cas/check/<uid>')
 def api_security_cas_check(uid):
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    banned = is_cas_banned(uid)
-    return jsonify({"ok": True, "cas_banned": banned})
+    status = check_cas_status(uid, use_cache=False)
+    return jsonify({"ok": True, "cas_banned": status.get("banned", False), "cas": status})
 
 @app.route('/api/security/audit')
 def api_security_audit():
@@ -1834,7 +1937,7 @@ def web_mod_get(cid):
     feeders = db.get("IA_FEEDERS", [])
     if str(cid) in [str(x) for x in feeders]: config["ia_learning"] = True
     
-    return jsonify({"ok": True, "warns": warns, "notes": notes, "config": config})
+    return jsonify({"ok": True, "warns": warns, "notes": notes, "config": config, "local_bans": ban_manager.get_local_bans(cid).get("users", [])})
 
 @app.route("/api/moderation/settings", methods=['POST'])
 def web_mod_settings():
@@ -1885,9 +1988,13 @@ def web_warn():
     warns = db.get(f"WARNS_{cid}", {})
     warns[uid] = warns.get(uid, 0) + 1
     db.set(f"WARNS_{cid}", warns)
-    active_bots[0].send_msg(cid, f"⚠️ Usuario `{uid}` advertido ({warns[uid]}/3)")
+    bot = get_bot_for_chat(cid)
+    if not bot:
+        return jsonify({"ok": False, "msg": "Bot no encontrado para este grupo"}), 404
+    bot.send_msg(cid, f"⚠️ Usuario `{uid}` advertido ({warns[uid]}/3)")
     if warns[uid] >= 3:
-        active_bots[0].kick_user(cid, uid)
+        ban_manager.ban_local_user(cid, uid, reason="3 warns", source="warns")
+        bot.kick_user(cid, uid)
         add_web_log("SECURITY", f"Usuario {uid} auto-baneado por acumulación de warns.")
     return jsonify({"ok": True, "count": warns[uid]})
 
@@ -1897,7 +2004,10 @@ def web_mute():
     d = request.json
     cid, uid = d["cid"], d["uid"]
     until = int(time.time()) + 1800 
-    active_bots[0].restrict_user(cid, uid, until=until, can_send=False)
+    bot = get_bot_for_chat(cid)
+    if not bot:
+        return jsonify({"ok": False, "msg": "Bot no encontrado para este grupo"}), 404
+    bot.restrict_user(cid, uid, until=until, can_send=False)
     return jsonify({"ok": True})
 
 @app.route("/api/moderation/karma", methods=['POST'])
@@ -3515,9 +3625,10 @@ class MoonBot:
         # 4. Decisión Final: Umbral de Expulsión (Score >= 80)
         if score >= 80:
             add_web_log("SECURITY", f"🚨 DECISIÓN IA: Expulsando a {uname} por riesgo crítico ({score}/100). Razones: {security_event['reasons']}")
-            self.call_api("deleteMessage", {"chat_id": cid, "message_id": self.last_msg_id}, silent=True)
-            self.call_api("kickChatMember", {"chat_id": cid, "user_id": uid})
-            
+            scope = "global" if cas_banned else "local"
+            source = "cas" if cas_banned else "neural_shield"
+            self.apply_user_ban(cid, uid, uname, reason=security_event["reasons"], source=source, scope=scope, message_id=self.last_msg_id)
+             
             # Notificar en el grupo
             self.send_msg(cid, f"⚖️ **SENTENCIA IA:** {uname} ha sido expulsado.\n\n🛡️ **Nivel de Riesgo:** `{score}/100`\n🔍 **Motivos:** {security_event['reasons']}\n\nProtegiendo la integridad del nodo Moon.")
             return True
@@ -3554,8 +3665,7 @@ class MoonBot:
         if is_banned_hash or has_banned_caption or has_suspicious_visual:
             reason = "Hash Blacklist" if is_banned_hash else ("Patrón Visual Sospechoso" if has_suspicious_visual else f"Contenido Prohibido ('{caption}')")
             add_web_log("SECURITY", f"🚨 ESCUDO ACTIVO: {uname} bloqueado por {reason}.")
-            self.call_api("deleteMessage", {"chat_id": cid, "message_id": self.last_msg_id}, silent=True)
-            self.call_api("kickChatMember", {"chat_id": cid, "user_id": uid})
+            self.apply_user_ban(cid, uid, uname, reason=reason, source="neural_shield", scope="local", message_id=self.last_msg_id)
             self.send_msg(cid, f"🚫 **NEURAL SHIELD:** Contenido prohibido detectado por {reason}. Usuario expulsado permanentemente.")
             return True
         return False
@@ -3635,6 +3745,53 @@ class MoonBot:
     def kick_user(self, cid, uid):
         return self.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
 
+    def apply_user_ban(self, cid, uid, uname=None, reason="", source="runtime", scope="local", message_id=None, notify=False):
+        uid_str = str(uid)
+        cid_str = str(cid)
+        uname = uname or uid_str
+        if scope == "global":
+            ban_manager.ban_user(uid_str, reason=reason, source=source)
+        else:
+            ban_manager.ban_local_user(cid_str, uid_str, reason=reason, source=source)
+
+        if message_id:
+            self.api_call("deleteMessage", {"chat_id": cid_str, "message_id": message_id}, silent=True)
+
+        res = self.kick_user(cid_str, uid_str)
+        if res.get("ok"):
+            add_web_log("SECURITY", f"Ban {scope} aplicado a {uname} ({uid_str}) en {cid_str}: {reason}")
+            if notify:
+                self.send_msg(cid_str, f"🚫 **Usuario expulsado:** {uname}\nMotivo: `{reason}`")
+        else:
+            add_web_log("ERROR", f"Fallo aplicando ban {scope} a {uid_str} en {cid_str}: {res.get('description')}")
+        return res
+
+    def enforce_existing_ban(self, cid, uid, uname, message_id=None):
+        if ban_manager.is_global_banned(uid):
+            self.apply_user_ban(cid, uid, uname, reason="Global ban persistente", source="global_enforcer", scope="global", message_id=message_id)
+            return True
+        if ban_manager.is_local_banned(cid, uid):
+            self.apply_user_ban(cid, uid, uname, reason="Local ban persistente", source="local_enforcer", scope="local", message_id=message_id)
+            return True
+        return False
+
+    def enforce_cas_ban(self, cid, uid, uname, message_id=None):
+        settings = db.get("GLOBAL_SETTINGS", {})
+        if settings.get("cas_protection", "on") != "on":
+            return False
+        cas_status = check_cas_status(uid)
+        if not cas_status.get("banned"):
+            if not cas_status.get("ok"):
+                add_web_log("WARNING", f"CAS no disponible para {uid}: {cas_status.get('description')}")
+            return False
+        reason = "CAS global blacklist"
+        details = cas_status.get("result")
+        if isinstance(details, dict) and details.get("offenses"):
+            reason = f"CAS global blacklist ({details.get('offenses')} offense/s)"
+        self.apply_user_ban(cid, uid, uname, reason=reason, source="cas", scope="global", message_id=message_id, notify=True)
+        add_audit_log(f"Auto-ban CAS aplicado a {uname} ({uid}) en {cid}")
+        return True
+
     def restrict_user(self, cid, uid, until=0, can_send=False):
         permissions = {
             "can_send_messages": can_send, "can_send_media_messages": can_send,
@@ -3701,7 +3858,7 @@ class MoonBot:
             help_text += "✨ **General:** `/perfil`, `/top`, `/notas`, `/search`, `/ia_info`\n"
             help_text += "🌐 **Traducción:** `/traducir`, `/aprender_traduccion es en hola = hello`\n"
             if rk in ["Admin", "Master"]:
-                help_text += "🛡️ **Moderación:** `/mute`, `/ban`, `/warn`, `/ia`, `/setup`\n"
+                help_text += "🛡️ **Moderación:** `/mute`, `/ban`, `/unban`, `/gban`, `/ungban`, `/warn`\n"
                 help_text += "⚙️ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`, `/ia_programar`\n"
             
             help_text += "\n🧠 **Arquitectura Híbrida:** Cintia combina IA Nativa con Gemini (Nube) y Ollama (Local)."
@@ -3818,14 +3975,15 @@ class MoonBot:
                 self.send_msg(cid, txt)
                 return True
 
-            if raw_cmd == "/ban":
+            if raw_cmd in ["/ban", "/gban"]:
                 if not target_uid:
                     self.send_msg(cid, "⚠️ **ERROR:** Debes responder a un mensaje o indicar el ID del usuario para banear.")
                     return True
-                self.kick_user(cid, target_uid)
-                st = db.get("ST_FILE", {"bans": []})
-                if target_uid not in st["bans"]: st["bans"].append(target_uid); db.set("ST_FILE", st)
-                self.send_msg(cid, f"🚫 **{target_name}** expulsado y baneado permanentemente.")
+                scope = "global" if raw_cmd == "/gban" else "local"
+                reply_mid = msg.get("reply_to_message", {}).get("message_id") if msg.get("reply_to_message") else None
+                reason = "Comando /gban" if scope == "global" else f"Comando /ban en {cid}"
+                self.apply_user_ban(cid, target_uid, target_name, reason=reason, source="command", scope=scope, message_id=reply_mid)
+                self.send_msg(cid, f"🚫 **{target_name}** expulsado y baneado ({scope}).")
                 return True
 
             if raw_cmd == "/mute":
@@ -3846,11 +4004,15 @@ class MoonBot:
                 self.send_msg(cid, f"🔊 **{target_name}** puede hablar de nuevo.")
                 return True
 
-            if raw_cmd == "/unban" and target_uid:
+            if raw_cmd in ["/unban", "/ungban"] and target_uid:
                 self.api_call("unbanChatMember", {"chat_id": cid, "user_id": target_uid})
-                st = db.get("ST_FILE", {"bans": []})
-                if target_uid in st["bans"]: st["bans"].remove(target_uid); db.set("ST_FILE", st)
-                self.send_msg(cid, f"✅ **{target_uid}** ha sido indultado.")
+                if raw_cmd == "/ungban":
+                    ban_manager.unban_user(target_uid)
+                    scope = "global"
+                else:
+                    ban_manager.unban_local_user(cid, target_uid)
+                    scope = "local"
+                self.send_msg(cid, f"✅ **{target_uid}** ha sido indultado ({scope}).")
                 return True
 
             if raw_cmd == "/warn":
@@ -3862,7 +4024,7 @@ class MoonBot:
                 db.set(f"WARNS_{cid}", warns)
                 self.send_msg(cid, f"⚠️ **{target_name}**: Advertencia {warns[target_uid]}/3.")
                 if warns[target_uid] >= 3:
-                    self.kick_user(cid, target_uid)
+                    self.apply_user_ban(cid, target_uid, target_name, reason="3 advertencias", source="warns", scope="local")
                     self.send_msg(cid, f"💀 **{target_name}** expulsado por acumulación de advertencias.")
                 return True
 
@@ -4003,7 +4165,13 @@ class MoonBot:
                     if user.get("is_bot"): continue # Ignorar otros bots
                     uid, uname = str(user.get("id", cid)), user.get("first_name", "Chat")
                     add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | Verificando Permisos...")
-                    
+
+                    # Cortafuegos temprano: no dar karma, aprendizaje ni proceso a usuarios baneados.
+                    if self.enforce_existing_ban(cid, uid, uname, msg.get("message_id")):
+                        continue
+                    if self.enforce_cas_ban(cid, uid, uname, msg.get("message_id")):
+                        continue
+                     
                     # Sistema de Auditoría IA (Evaluación de Calidad)
                     if cid in active_audits:
                         audit = active_audits[cid]
@@ -4072,6 +4240,20 @@ class MoonBot:
                     
                     # Anti-Raid 2.0 (Mass Join Detection)
                     if "new_chat_members" in msg:
+                        join_security_hit = False
+                        for member in msg.get("new_chat_members", []):
+                            if member.get("is_bot"):
+                                continue
+                            member_uid = str(member.get("id", ""))
+                            member_name = member.get("first_name", member_uid)
+                            if member_uid and self.enforce_existing_ban(cid, member_uid, member_name, msg.get("message_id")):
+                                join_security_hit = True
+                                continue
+                            if member_uid and self.enforce_cas_ban(cid, member_uid, member_name, msg.get("message_id")):
+                                join_security_hit = True
+                                continue
+                        if join_security_hit:
+                            continue
                         join_count = len(msg["new_chat_members"])
                         if join_count > 5:
                             self.send_msg(cid, "🚨 **ANTI-RAID 2.0 ACTIVADO:** Detectada entrada masiva. Bloqueando acceso temporalmente...")
@@ -4095,13 +4277,6 @@ class MoonBot:
                     global global_msg_log
                     global_msg_log = history
                     
-                    # Global Blacklist Check
-                    st = db.get("ST_FILE", {"bans": []})
-                    if not st: st = {"bans": []} # Fallback
-                    bans_list = st.get("bans", [])
-                    if not isinstance(bans_list, list): bans_list = [] # Sanitizar si es un int (Legacy)
-                    if uid in bans_list: continue
-
                     # Mute Check - Usuarios silenciados por admin
                     muted_list = db.get(f"MUTED_{cid}", [])
                     uname_at = f"@{user.get('username', '')}" if user.get('username') else ""
@@ -4124,15 +4299,6 @@ class MoonBot:
                                 self.send_msg(cid, f"🌊 **ANTI-FLOOD:** {uname}, demasiados mensajes seguidos. Espera un momento.")
                             continue
 
-                    # CAS Global Protection (Combot Anti-Spam)
-                    settings = db.get("GLOBAL_SETTINGS", {})
-                    if settings.get("cas_protection", "on") == "on" and is_cas_banned(uid):
-                        add_web_log("SECURITY", f"⚠️ CAS BANNED DETECTADO: {uname} ({uid})")
-                        # Sincronizar con ban_manager (global)
-                        ban_manager.sync_with_cas(uid, True)
-                        add_audit_log(f"Auto-Baneo CAS aplicado a {uname} ({uid})")
-                        continue
-                    
                     if maintenance_mode and uid != str(MASTER_ID):
                         self.send_msg(cid, "⚠️ El bot está en modo mantenimiento. Inténtalo más tarde.")
                         continue

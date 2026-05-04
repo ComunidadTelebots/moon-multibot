@@ -1,5 +1,29 @@
 # Changelog - Moon Multibot
 
+## [v16.28.0] - 2026-05-04
+### Bans CAS, Globales y Locales Reforzados
+- **CAS ahora aplica bans reales**: La deteccion de `api.cas.chat` ya no se limita a registrar el evento; ahora borra el mensaje, guarda el ban global y ejecuta `banChatMember`.
+- **Bans locales por grupo**: Nuevo almacenamiento `BANS_{cid}` para separar bans locales de cada grupo y evitar que `/ban` contamine una lista global legacy.
+- **Bans globales persistentes**: `GLOBAL_BANS` se consulta en el runtime y se re-aplica si el usuario vuelve a escribir o entra en otro grupo conocido.
+- **Migracion legacy**: Los antiguos `ST_FILE["bans"]` se incorporan al sistema global para no perder baneos existentes.
+- **Motor unico de enforcement**: Nuevo flujo `apply_user_ban`, `enforce_existing_ban` y `enforce_cas_ban` para centralizar guardado, borrado de mensaje, expulsion y logs.
+- **Comandos claros**: `/ban` y `/unban` actuan localmente en el grupo actual; `/gban` y `/ungban` gestionan bans globales.
+- **Panel y API ajustados**: `/api/users/ban` con `cid` crea ban local por defecto; sin `cid` crea ban global y lo propaga a grupos conocidos.
+- **CAS en entradas nuevas**: `new_chat_members` tambien pasa por CAS y por bans persistidos antes de permitir actividad.
+- **Bot correcto por grupo**: Las acciones del panel intentan usar el bot asociado al chat en vez de asumir siempre `active_bots[0]`.
+- **Validacion realizada**: Compilacion Python, pruebas unitarias del gestor, simulacion runtime de Telegram, endpoints Flask temporales y consulta real a CAS.
+
+## [v16.27.1] - 2026-05-04
+### Seguridad de Tokens y Gestion de Bots
+- **Tokens ocultos en el panel**: `/api/bots` deja de devolver tokens completos y expone solo `id` publico y `token_preview`.
+- **Identificadores seguros**: La interfaz usa IDs derivados del token para acciones como desplegar ajustes o eliminar bots, sin incrustar el token real en HTML/JS.
+- **Alta de bots persistente**: `POST /api/bots` guarda nuevos bots en `data/bots.json` cifrado y los arranca en caliente cuando es posible.
+- **Eliminacion persistente**: `DELETE /api/bots` elimina por `id`, actualiza `data/bots.json` y limpia cache/runtime del bot.
+- **Descargas autenticadas sin token en URL**: Los CSV de auditoria usan cabecera `Authorization` en vez de pasar el JWT por query string.
+- **Cabeceras auth normalizadas**: El frontend evita construir `Bearer Bearer ...` al reutilizar tokens guardados.
+- **Documentacion saneada**: README, `.env.example` y Dockerfile se limpiaron para quitar mojibake y documentar mejor `CIPHER_KEY`, variables seguras y arranque.
+- **Validacion realizada**: Compilacion Python de modulos principales y `node --check web/script.js`.
+
 ## [v16.27.0] - 2026-04-30
 ### Estadisticas Reales VPS para MTProto
 - **Asistente `start.sh mtproto`**: Permite introducir secrets MTProto existentes, generar uno nuevo o cargar varios secrets/puertos locales en `.env`.
