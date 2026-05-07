@@ -1,7 +1,7 @@
 # ── Etapa 1: compilar TDLib ──────────────────────────────────────
 FROM ubuntu:22.04 AS tdlib-builder
 
-RUN apt-get update && apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
     make git zlib1g-dev libssl-dev gperf php-cli cmake \
     clang-14 libc++-14-dev libc++abi-14-dev \
     && rm -rf /var/lib/apt/lists/*
