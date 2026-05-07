@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.40.0] - 2026-05-07
+### Modularización: ProxyManager, VirusTotalManager y TaskQueue
+- **`core/proxy_manager.py`**: Extrae la clase `ProxyManager` (~220 líneas). Constructor recibe `db` y `log_func` inyectados; elimina dependencia directa con el estado global de `moon_multibot.py`.
+- **`core/vt_manager.py`**: Extrae `VirusTotalManager` (30 líneas). Clase autocontenida que solo necesita `requests`; se instancia con la API key directamente.
+- **`core/task_queue.py`**: Extrae `TaskQueue` (60 líneas). Recibe `log_func` opcional; usa no-op hasta que `add_web_log` está disponible y se conecta a posteriori con `task_queue._log = add_web_log`.
+- **`moon_multibot.py` reducido de 4794 → 4497 líneas** (−297 líneas / −6%). El archivo principal ahora solo contiene `MoonCoreIA` y `MoonBot` como clases definidas localmente.
+- **Inyección de dependencias**: `proxy_mgr = ProxyManager(db)` en vez de acceder al global directamente. El logger se conecta con `proxy_mgr._log = add_web_log` después de que `add_web_log` esté definido.
+
 ## [v16.39.0] - 2026-05-07
 ### Persistencia del Historial de Chat
 - **Historial persistente en SQLite**: Los mensajes del chat (usuarios y bot) ahora se guardan en la base de datos con la clave `CHAT_HIST_{cid}`. El historial sobrevive reinicios del bot; antes se perdía al reiniciar porque solo existía en memoria.
