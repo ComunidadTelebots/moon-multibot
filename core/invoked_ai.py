@@ -21,6 +21,87 @@ class InvokedAIService:
     def set_bot_username(self, bot_username):
         self.bot_username = bot_username or self.bot_username
 
+    def _record_ai_usage(self, mode, uid, uname, cid, ai_used, elapsed_time, success):
+        """Registra estadísticas de uso de IA."""
+        stats_key = f"INLINE_GUEST_AI_STATS"
+        stats = self.db.get(stats_key, {
+            "inline_total": 0,
+            "guest_total": 0,
+            "ollama_count": 0,
+            "gemini_count": 0,
+            "hybrid_count": 0,
+            "success_count": 0,
+            "failed_count": 0,
+            "total_time": 0,
+            "recent_events": []
+        })
+        
+        # Actualizar contadores
+        if mode == "inline":
+            stats["inline_total"] += 1
+        elif mode == "guest":
+            stats["guest_total"] += 1
+        
+        if ai_used == "ollama":
+            stats["ollama_count"] += 1
+        elif ai_used == "gemini":
+            stats["gemini_count"] += 1
+        else:
+            stats["hybrid_count"] += 1
+        
+        if success:
+            stats["success_count"] += 1
+        else:
+            stats["failed_count"] += 1
+        
+        stats["total_time"] += elapsed_time
+        
+        # Guardar evento reciente
+        event = {
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "mode": mode,
+            "user_id": uid,
+            "user_name": uname,
+            "chat_id": cid,
+            "ai_used": ai_used,
+            "elapsed_ms": int(elapsed_time * 1000),
+            "success": success
+        }
+        stats["recent_events"].append(event)
+        
+        # Mantener solo últimos 500 eventos
+        if len(stats["recent_events"]) > 500:
+            stats["recent_events"] = stats["recent_events"][-500:]
+        
+        self.db.set(stats_key, stats)
+
+    def get_ai_statistics(self):
+        """Obtiene estadísticas de uso de IA para inline y guest."""
+        stats = self.db.get("INLINE_GUEST_AI_STATS", {})
+        total = stats.get("inline_total", 0) + stats.get("guest_total", 0)
+        avg_time = stats.get("total_time", 0) / max(1, total)
+        success_rate = (stats.get("success_count", 0) / max(1, total)) * 100
+        
+        return {
+            "summary": {
+                "total_requests": total,
+                "inline_requests": stats.get("inline_total", 0),
+                "guest_requests": stats.get("guest_total", 0),
+                "success_rate_percent": round(success_rate, 2),
+                "avg_response_time_ms": round(avg_time * 1000, 2)
+            },
+            "ai_distribution": {
+                "ollama": stats.get("ollama_count", 0),
+                "gemini": stats.get("gemini_count", 0),
+                "hybrid": stats.get("hybrid_count", 0)
+            },
+            "results": {
+                "success": stats.get("success_count", 0),
+                "failed": stats.get("failed_count", 0)
+            },
+            "recent_events": stats.get("recent_events", [])[-20:]  # Últimos 20 eventos
+        }
+
     def build_prompt(self, mode, text, uname="Usuario", context_text=""):
         mode_label = "Guest Mode" if mode == "guest" else "Inline Mode"
         parts = [
@@ -37,14 +118,38 @@ class InvokedAIService:
         parts.append(f"{uname}: {text[:700]}")
         return "\n".join(parts)
 
-    def generate_reply(self, mode, text, uid, uname="Usuario", cid=None, context_text=""):
+    def generate_reply(self, mode, text, uid, uname="Usuario", cid=None, context_text="", ai_preference="hybrid"):
+        """
+        Genera respuesta de IA con opción de seleccionar qué modelo usar.
+        
+        Args:
+            ai_preference: "ollama", "gemini", o "hybrid" (default)
+        """
         text = (text or "").strip() or "Crea una respuesta breve y util."
         chat_key = f"{mode}:{cid or uid}"
         prompt = self.build_prompt(mode, text, uname, context_text)
-        answer = (self.ia.generate(prompt[:1000], chat_id=chat_key) or "").strip()
+        
+        start_time = time.time()
+        answer = ""
+        ai_used = "unknown"
+        
+        try:
+            # Pasar preferencia de IA al servicio
+            answer = (self.ia.generate(prompt[:1000], chat_id=chat_key, ai_preference=ai_preference) or "").strip()
+            ai_used = ai_preference if ai_preference in ["ollama", "gemini"] else "hybrid"
+        except Exception as e:
+            self.log("ERROR", f"Error generando respuesta: {e}")
+            answer = ""
+        
+        elapsed_time = time.time() - start_time
+        
         if not answer:
             answer = "Estoy listo. Dame un poco mas de contexto y te respondo mejor."
-        return answer[:3500]
+        
+        # Registrar estadísticas
+        self._record_ai_usage(mode, uid, uname, cid, ai_used, elapsed_time, len(answer) > 0)
+        
+        return answer[:3500], ai_used
 
     def is_user_blocked_for_remote_ai(self, uid):
         if self.ban_manager.is_global_banned(uid):
@@ -54,6 +159,26 @@ class InvokedAIService:
             return False
         cas_status = self.cas_checker(uid)
         return bool(cas_status.get("banned"))
+
+    def _extract_ai_preference(self, text):
+        """
+        Extrae la preferencia de IA del texto.
+        Soporta: /ollama, /gemini, /hybrid o por defecto devuelve la preferencia global.
+        """
+        text_lower = (text or "").lower()
+        
+        # Detección de comandos
+        if text_lower.startswith("/ollama"):
+            return "ollama"
+        elif text_lower.startswith("/gemini"):
+            return "gemini"
+        elif text_lower.startswith("/hybrid"):
+            return "hybrid"
+        
+        # Preferencia global del sistema
+        settings = self.db.get("GLOBAL_SETTINGS", {})
+        default_ai = settings.get("default_ai_mode", "hybrid")
+        return default_ai if default_ai in ["ollama", "gemini", "hybrid"] else "hybrid"
 
     def build_inline_results(self, query, answer):
         digest = hashlib.sha1(f"{query}|{answer}|{time.time()}".encode("utf-8")).hexdigest()[:16]
@@ -97,19 +222,22 @@ class InvokedAIService:
             },
         ]
 
-    def get_cached_inline_answer(self, query, uid, uname):
-        cache_key = f"{uid}:{query.lower().strip()}"
+    def get_cached_inline_answer(self, query, uid, uname, ai_preference="hybrid"):
+        cache_key = f"{uid}:{query.lower().strip()}:{ai_preference}"
         now_s = time.time()
         cached = self.inline_answer_cache.get(cache_key)
         if cached and now_s - cached["time"] < 20:
-            return cached["answer"]
-        answer = self.generate_reply("inline", query, uid or "inline", uname=uname)
-        self.inline_answer_cache[cache_key] = {"time": now_s, "answer": answer}
+            return cached["answer"], cached.get("ai_used", "hybrid")
+        
+        answer, ai_used = self.generate_reply("inline", query, uid or "inline", uname=uname, ai_preference=ai_preference)
+        self.inline_answer_cache[cache_key] = {"time": now_s, "answer": answer, "ai_used": ai_used}
+        
         if len(self.inline_answer_cache) > 200:
             oldest = sorted(self.inline_answer_cache.items(), key=lambda item: item[1]["time"])[:50]
             for key, _ in oldest:
                 self.inline_answer_cache.pop(key, None)
-        return answer
+        
+        return answer, ai_used
 
     def answer_inline_query(self, update, answer_inline_query):
         inline = update.get("inline_query")
@@ -136,10 +264,12 @@ class InvokedAIService:
             return True
 
         try:
-            answer = self.get_cached_inline_answer(query, uid or "inline", uname)
+            # Detectar preferencia de IA del query (ej: "/ollama", "/gemini")
+            ai_preference = self._extract_ai_preference(query)
+            answer, ai_used = self.get_cached_inline_answer(query, uid or "inline", uname, ai_preference=ai_preference)
             results = self.build_inline_results(query or "Moon IA", answer)
             answer_inline_query(query_id, results, cache_time=2, is_personal=True)
-            self.log("IA", f"Inline IA respondida para {uname} ({uid}).")
+            self.log("IA", f"Inline IA respondida para {uname} ({uid}) usando {ai_used}.")
         except Exception as e:
             self.log("ERROR", f"Fallo procesando inline IA: {e}")
             answer_inline_query(query_id, [], cache_time=1)
@@ -194,9 +324,10 @@ class InvokedAIService:
 
         try:
             quoted = msg.get("reply_to_message", {}).get("text", "") if msg.get("reply_to_message") else ""
-            answer = self.generate_reply("guest", text, uid, uname=uname, cid=cid, context_text=quoted)
+            ai_preference = self._extract_ai_preference(text)
+            answer, ai_used = self.generate_reply("guest", text, uid, uname=uname, cid=cid, context_text=quoted, ai_preference=ai_preference)
             send_msg(cid, answer)
-            self.log("INFO", f"Guest Bot respondio en {cid} a {uname}.")
+            self.log("INFO", f"Guest Bot respondio en {cid} a {uname} usando {ai_used}.")
         except Exception as e:
             self.log("ERROR", f"Fallo procesando Guest Bot update: {e}")
         return True

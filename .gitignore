@@ -27,6 +27,13 @@ logs/
 export.csv
 spam_analysis_report.json
 
+# Customización de Agentes IA (local, no commitear)
+AGENTS.md
+.instructions.md
+.prompt.md
+.agent.md
+copilot-instructions.md
+
 # Python
 __pycache__/
 *.py[cod]
