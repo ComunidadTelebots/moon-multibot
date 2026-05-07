@@ -55,9 +55,9 @@ function login() {
             document.getElementById("loginScreen").style.display = "none";
             document.getElementById("dashboard").style.display = "block";
             switchTab('dashboard');
-            showToast("ðŸŒ™ Bienvenido", "ConexiÃ³n neuronal establecida.");
+            showToast("🌙 Bienvenido", "Conexión neuronal establecida.");
         } else {
-            document.getElementById("loginError").innerText = "âŒ Clave Incorrecta";
+            document.getElementById("loginError").innerText = "❌ Clave Incorrecta";
         }
     });
 }
@@ -107,7 +107,7 @@ function switchTab(tabId, btn) {
         window.MOON_CONFIG = window.MOON_CONFIG || {};
         window.MOON_CONFIG.currentTab = tabId;
         
-        // Aplicar traducciones al nuevo contenido dinÃ¡mico
+        // Aplicar traducciones al nuevo contenido dinámico
         if(typeof applyTranslations === 'function') applyTranslations();
         
         // Tab-specific initializers
@@ -255,8 +255,8 @@ function deleteBot(id) {
 }
 function openGroupSettings(cid) {
     if(!cid) return;
-    showToast("âš™ï¸ Ajustes de Grupo", `Abriendo configuraciÃ³n para ${cid}...`);
-    // AquÃ­ se podrÃ­a abrir un modal especÃ­fico para ese grupo
+    showToast("⚙️ Ajustes de Grupo", `Abriendo configuración para ${cid}...`);
+    // Aquí se podría abrir un modal específico para ese grupo
 }
 
 function addBot() {
@@ -270,7 +270,7 @@ function addBot() {
         if(data.ok) {
             document.getElementById("botTokenInput").value = "";
             fetchBots();
-            showToast("ðŸ¤– Bot", "Nueva instancia vinculada.");
+            showToast("🤖 Bot", "Nueva instancia vinculada.");
         }
     });
 }
@@ -338,7 +338,7 @@ function updateDirectory() {
             <div class="chat-contact-item ${(currentChatId === v.id) ? 'active' : ''}" onclick="selectChat('${v.id}', '${v.name}')">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <strong>${v.name}</strong>
-                    <span class="badge-ch">${v.type === 'private' ? 'ðŸ‘¤' : 'ðŸ‘¥'}</span>
+                    <span class="badge-ch">${v.type === 'private' ? '👤' : '👥'}</span>
                 </div>
                 <small style="opacity: 0.5; font-size: 10px;">ID: ${v.id}</small>
             </div>`).join("");
@@ -415,7 +415,7 @@ function saveGroupSettings() {
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ cid: currentChatId, config: config })
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("âœ… ConfiguraciÃ³n Guardada", "Los cambios se han aplicado al nodo.");
+        if(data.ok) showToast("✅ Configuración Guardada", "Los cambios se han aplicado al nodo.");
     });
 
     fetch('/api/moderation/notes', {
@@ -438,7 +438,7 @@ function quickAction(uid, type, name) {
     const endpoint = endpoints[type];
     if(!endpoint) return;
 
-    showToast(`âš¡ AcciÃ³n: ${type.toUpperCase()}`, `Procesando para ${name}...`);
+    showToast(`⚡ Acción: ${type.toUpperCase()}`, `Procesando para ${name}...`);
     
     fetch(endpoint, {
         method: 'POST',
@@ -448,10 +448,10 @@ function quickAction(uid, type, name) {
     .then(r => r.json()).then(data => {
         if(data.ok) {
             Swal.close(); // Cerrar carga si existe
-            showToast("âœ… Ã‰xito", `${name} ha sido procesado.`);
+            showToast("✅ Éxito", `${name} ha sido procesado.`);
             fetchChatHistory();
         } else {
-            showToast("âŒ Error", data.msg || "No se pudo ejecutar la acciÃ³n.");
+            showToast("❌ Error", data.msg || "No se pudo ejecutar la acción.");
         }
     });
 }
@@ -463,14 +463,20 @@ function fetchChatHistory() {
     
     fetch(`/api/history?chat_id=${currentChatId}`, { headers: { "Authorization": authToken } })
     .then(res => res.json()).then(data => {
+        const history = data.history || [];
         const isAtBottom = body.scrollHeight - body.clientHeight <= body.scrollTop + 100;
-        
-        body.innerHTML = data.history.map(m => {
+
+        if (!history.length) {
+            body.innerHTML = '<div class="empty-state"><p>Sin mensajes registrados en este canal aún.</p></div>';
+            return;
+        }
+
+        body.innerHTML = history.map(m => {
             const isBot = m.sender === 'Bot';
             const bubbleClass = isBot ? 'right' : 'left';
             const senderColor = isBot ? '#fff' : (m.sender === 'Sistema' ? '#f59e0b' : '#38bdf8');
             
-            // LÃ³gica de Trust Score y Estados
+            // Lógica de Trust Score y Estados
             const score = m.trust_score || 50;
             const scoreColor = score > 80 ? '#10b981' : (score > 40 ? '#f59e0b' : '#ef4444');
             
@@ -486,10 +492,10 @@ function fetchChatHistory() {
             if (!isBot && m.sender !== 'Sistema') {
                 actionsHtml = `
                 <div class="chat-actions">
-                    <button onclick="quickAction('${m.uid}', 'mute', '${m.sender}')" title="Silenciar (30m)">ðŸ”‡</button>
-                    <button onclick="quickAction('${m.uid}', 'ban', '${m.sender}')" title="Banear">ðŸš«</button>
-                    <button onclick="quickAction('${m.uid}', 'warn', '${m.sender}')" title="Advertir">âš ï¸</button>
-                    <button onclick="quickAction('${m.uid}', 'karma', '${m.sender}')" title="Dar Karma">â­</button>
+                    <button onclick="quickAction('${m.uid}', 'mute', '${m.sender}')" title="Silenciar (30m)">🔇</button>
+                    <button onclick="quickAction('${m.uid}', 'ban', '${m.sender}')" title="Banear">🚫</button>
+                    <button onclick="quickAction('${m.uid}', 'warn', '${m.sender}')" title="Advertir">⚠️</button>
+                    <button onclick="quickAction('${m.uid}', 'karma', '${m.sender}')" title="Dar Karma">⭐</button>
                 </div>`;
             }
 
@@ -505,7 +511,7 @@ function fetchChatHistory() {
                 } else if(m.media.type === 'sticker') {
                     mediaHtml = `<div class="msg-media" style="margin-bottom:10px;"><img src="${fileUrl}" style="width:120px; height:120px; object-fit:contain;"></div>`;
                 } else if(m.media.type === 'document') {
-                    mediaHtml = `<div class="msg-media" style="margin-bottom:10px;"><a href="${fileUrl}" target="_blank" class="btn-mini-wide" style="display:block; text-align:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">ðŸ“„ ${m.media.name || 'Archivo'}</a></div>`;
+                    mediaHtml = `<div class="msg-media" style="margin-bottom:10px;"><a href="${fileUrl}" target="_blank" class="btn-mini-wide" style="display:block; text-align:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">📄 ${m.media.name || 'Archivo'}</a></div>`;
                 }
             }
 
@@ -525,11 +531,11 @@ function fetchChatHistory() {
                 ${actionsHtml}
             </div>`;
         }).join("");
-        
+
         if(isAtBottom || body.innerHTML.length < 500) {
             body.scrollTop = body.scrollHeight;
         }
-    });
+    }).catch(() => {});
 }
 
 // Auto-refrescar chat activo cada 3 segundos
@@ -626,14 +632,14 @@ function fetchIAFeeders() {
             list.innerHTML = data.feeders.map(f => `
                 <div class="user-row feeder-row">
                     <div class="feeder-info">
-                        <span class="feeder-icon">ðŸ“¡</span>
+                        <span class="feeder-icon">📡</span>
                         <div>
                             <b>${f.name}</b><br>
-                            <small>ID: ${f.id} | Ãšltimo: ${f.last}</small>
+                            <small>ID: ${f.id} | Último: ${f.last}</small>
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn-link-mini" onclick="downloadAudit('${f.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 8px;">ðŸ“Š CSV</button>
+                        <button class="btn-link-mini" onclick="downloadAudit('${f.id}')" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 8px;">📊 CSV</button>
                         <button class="btn-link-mini" onclick="quickAudit('${f.id}')" style="background: rgba(99, 102, 241, 0.1); border-color: #6366f1; color: #a5b4fc; font-size: 8px;">AUDITAR</button>
                         <button class="btn-link-mini" onclick="removeIAFeeder('${f.id}')" style="background: rgba(239, 68, 68, 0.1); border-color: #f87171; color: #f87171; font-size: 8px;">BORRAR</button>
                         <span class="status-tag ${f.status.toLowerCase()}">${f.status}</span>
@@ -651,7 +657,7 @@ function fetchIAFeeders() {
                     return;
                 }
                 
-                // Obtener auditorÃ­as actuales para marcar en la lista
+                // Obtener auditorías actuales para marcar en la lista
                 fetch("/api/ia/audit/status", { headers: { "Authorization": authToken } })
                 .then(r => r.json()).then(auditData => {
                     const audits = auditData.audits || {};
@@ -668,7 +674,7 @@ function fetchIAFeeders() {
                         return `
                         <div class="user-row potential-row" style="opacity: 0.8; border-left: 3px solid #6366f1;">
                             <div class="feeder-info">
-                                <span class="feeder-icon" style="filter: grayscale(1);">ðŸ“¡</span>
+                                <span class="feeder-icon" style="filter: grayscale(1);">📡</span>
                                 <div>
                                     <b>${name}</b> ${statusTag}<br>
                                     <small>ID: ${k}</small>
@@ -717,10 +723,10 @@ function testIA() {
         if(data.ok) {
             res.innerHTML = `<div class="res-content">${data.response}</div>`;
         } else {
-            res.innerHTML = `<div class="res-content error">âŒ Error: ${data.msg || 'Fallo en la conexiÃ³n neural'}</div>`;
+            res.innerHTML = `<div class="res-content error">❌ Error: ${data.msg || 'Fallo en la conexión neural'}</div>`;
         }
     }).catch(err => {
-        res.innerHTML = `<div class="res-content error">âŒ Error crÃ­tico: ${err.message}</div>`;
+        res.innerHTML = `<div class="res-content error">❌ Error crítico: ${err.message}</div>`;
     });
 }
 
@@ -732,8 +738,8 @@ function addIAFeeder() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ id: input.value })
     }).then(r => r.json()).then(data => {
-        if(data.ok) { showToast("ðŸ“¡ IA Feed", "Fuente vinculada."); input.value = ""; fetchIAFeeders(); }
-        else { showToast("âŒ Error", data.msg); }
+        if(data.ok) { showToast("📡 IA Feed", "Fuente vinculada."); input.value = ""; fetchIAFeeders(); }
+        else { showToast("❌ Error", data.msg); }
     });
 }
 
@@ -750,8 +756,8 @@ function quickAudit(id) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ id: id })
     }).then(res => res.json()).then(data => {
-        if(data.ok) showToast("ðŸ›¡ï¸ AuditorÃ­a", "AnÃ¡lisis de calidad iniciado.");
-        else { showToast("âŒ Error", data.msg || "No se pudo iniciar."); closeAuditModal(); }
+        if(data.ok) showToast("🛡️ Auditoría", "Análisis de calidad iniciado.");
+        else { showToast("❌ Error", data.msg || "No se pudo iniciar."); closeAuditModal(); }
     });
 }
 
@@ -763,7 +769,7 @@ function quickLinkFeeder(id) {
         body: JSON.stringify({ link: id })
     }).then(r => r.json()).then(data => {
         if(data.ok) { 
-            showToast("ðŸ“¡ IA Feed", "Fuente vinculada con Ã©xito.");
+            showToast("📡 IA Feed", "Fuente vinculada con éxito.");
             fetchIAFeeders(); 
         }
     });
@@ -776,7 +782,7 @@ function clearPotentials() {
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ§¹ Limpieza", "Sugerencias eliminadas.");
+            showToast("🧹 Limpieza", "Sugerencias eliminadas.");
             fetchIAFeeders();
         }
     });
@@ -784,7 +790,7 @@ function clearPotentials() {
 
 function startIAAudit() {
     const input = document.getElementById("feederInput");
-    if(!input.value) return showToast("âš ï¸ Error", "Introduce un ID o enlace.");
+    if(!input.value) return showToast("⚠️ Error", "Introduce un ID o enlace.");
     openAuditModal(input.value);
     fetch("/api/ia/audit/start", {
         method: "POST",
@@ -792,10 +798,10 @@ function startIAAudit() {
         body: JSON.stringify({ id: input.value })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ›¡ï¸ AuditorÃ­a", "AnÃ¡lisis de calidad iniciado.");
+            showToast("🛡️ Auditoría", "Análisis de calidad iniciado.");
             input.value = "";
         } else {
-            showToast("âŒ Error", data.msg || "No se pudo iniciar la auditorÃ­a.");
+            showToast("❌ Error", data.msg || "No se pudo iniciar la auditoría.");
             closeAuditModal();
         }
     });
@@ -808,7 +814,7 @@ function refreshAuditStatus() {
         const zone = document.getElementById("auditProgressZone");
         const count = document.getElementById("activeAuditsCount");
         const audits = Object.keys(data.audits);
-        if(count) count.innerText = `${audits.length} AuditorÃ­as en curso`;
+        if(count) count.innerText = `${audits.length} Auditorías en curso`;
         
         if(zone) {
             if(audits.length === 0) { zone.innerHTML = ""; return; }
@@ -831,10 +837,10 @@ function refreshAuditStatus() {
                         </div>
                         ${a.report ? `
                             <div style="font-size: 9px; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); color: var(--text-muted);">
-                                <b style="color: var(--primary);">ðŸ“ INFORME DE PERITAJE:</b><br>
-                                ðŸ“ Longitud media: ${a.report.avg_len} caracteres<br>
-                                ðŸ“š Vocabulario Ãºnico: ${a.report.unique_words} palabras<br>
-                                âš–ï¸ Veredicto: <span style="color: ${a.final_score > 60 ? '#4ade80' : '#f87171'}">${a.report.verdict}</span>
+                                <b style="color: var(--primary);">📝 INFORME DE PERITAJE:</b><br>
+                                📏 Longitud media: ${a.report.avg_len} caracteres<br>
+                                📚 Vocabulario único: ${a.report.unique_words} palabras<br>
+                                ⚖️ Veredicto: <span style="color: ${a.final_score > 60 ? '#4ade80' : '#f87171'}">${a.report.verdict}</span>
                             </div>
                         ` : ''}
                         ${a.status === 'finished' ? `<button onclick="quickLinkFeeder('${k}')" style="width: 100%; margin-top: 10px; padding: 5px; background: rgba(74, 222, 128, 0.2); border: 1px solid #4ade80; color: #4ade80; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: 800;">VINCULAR FUENTE APROBADA</button>` : ''}
@@ -857,7 +863,7 @@ function openAuditModal(targetId) {
     document.getElementById("spam-status").innerText = "Analizando patrones de estafa...";
     document.getElementById("audit-live-results").innerHTML = `<p>Analizando grupo: <b>${targetId}</b>...</p>`;
     
-    // SimulaciÃ³n de pasos para feedback visual inmediato
+    // Simulación de pasos para feedback visual inmediato
     setTimeout(() => {
         const nStat = document.getElementById("neural-status");
         const nBar = document.getElementById("neural-bar");
@@ -899,7 +905,7 @@ function refreshAuditHistory() {
                     <td><b>${h.chat}</b></td>
                     <td style="color: var(--accent); font-weight: 800;">${h.score}%</td>
                     <td style="color: ${h.score > 60 ? '#4ade80' : '#f87171'}; font-weight: 800; font-size: 11px;">${h.verdict}</td>
-                    <td>${h.cid ? `<button class="btn-link-mini" onclick="downloadAudit('${h.cid}')">ðŸ“¥ CSV</button>` : '-'}</td>
+                    <td>${h.cid ? `<button class="btn-link-mini" onclick="downloadAudit('${h.cid}')">📥 CSV</button>` : '-'}</td>
                 </tr>
             `).join("");
         }
@@ -912,27 +918,27 @@ setInterval(fetchInlineStats, 15000);
 fetchInlineStats();
 
 function removeIAFeeder(id) {
-    if(!confirm("Â¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
+    if(!confirm("¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
     fetch('/api/ia/feeders/remove', {
         method: 'POST',
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ“¡ Fuente Eliminada", data.msg);
+            showToast("📡 Fuente Eliminada", data.msg);
             fetchIAFeeders();
         }
     });
 }
 
 function clearAuditHistory() {
-    if(!confirm("Â¿Seguro que quieres vaciar todo el historial de auditorÃ­as?")) return;
+    if(!confirm("¿Seguro que quieres vaciar todo el historial de auditorías?")) return;
     fetch('/api/ia/audit/history/clear', {
         method: 'POST',
         headers: { 'Authorization': authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ“‹ Historial Limpio", data.msg);
+            showToast("📋 Historial Limpio", data.msg);
             refreshAuditHistory();
         }
     });
@@ -991,7 +997,7 @@ function drawNeuralMap() {
             if(dist < n.size * 4) found = n;
         });
         if(found) {
-            showToast("ðŸ§  InspecciÃ³n Neuronal", `CONCEPTO: ${found.text.toUpperCase()}\nORIGEN: ${found.source}`);
+            showToast("🧠 Inspección Neuronal", `CONCEPTO: ${found.text.toUpperCase()}\nORIGEN: ${found.source}`);
         }
     };
 
@@ -1055,7 +1061,7 @@ function drawNeuralMap() {
         if(document.getElementById("edgeCount")) document.getElementById("edgeCount").innerText = edgeCount;
         
         if(Math.random() < 0.015) {
-             const samples = ["Procesando...", "Aprendiendo", "Enlazando", "InfiltraciÃ³n", "Sinapsis"];
+             const samples = ["Procesando...", "Aprendiendo", "Enlazando", "Infiltración", "Sinapsis"];
              pulses.push(new ActivityPulse(samples[Math.floor(Math.random()*samples.length)]));
         }
         
@@ -1089,7 +1095,7 @@ function exportLogs() {
         a.href = url;
         a.download = `moon_logs_${Date.now()}.json`;
         a.click();
-        showToast("ðŸ“‚ Exportar", "Logs descargados.");
+        showToast("📂 Exportar", "Logs descargados.");
     });
 }
 
@@ -1149,14 +1155,14 @@ function updateClock() {
 }
 
 async function injectMultilingual() {
-    if (!confirm("Â¿Deseas inyectar semillas de conocimiento en mÃºltiples idiomas (EN, FR, IT, DE, PT)?")) return;
+    if (!confirm("¿Deseas inyectar semillas de conocimiento en múltiples idiomas (EN, FR, IT, DE, PT)?")) return;
     try {
         const r = await fetch('/api/ia/multilingual', {
             method: 'POST',
             headers: { 'Authorization': getStoredAuthToken() }
         });
         if (r.ok) {
-            showToast("ðŸŒŽ Iniciando expansiÃ³n multilingÃ¼e...", "success");
+            showToast("🌎 Iniciando expansión multilingüe...", "success");
         }
     } catch (e) { console.error(e); }
 }
@@ -1215,7 +1221,7 @@ function saveGlobalSettings() {
         body: JSON.stringify(data)
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("âœ… Ã‰xito", "Ajustes globales aplicados.");
+            showToast("✅ Éxito", "Ajustes globales aplicados.");
             const stat = document.getElementById("settingsStatus");
             if(stat) { stat.innerText = "SINCRO OK"; stat.style.color = "#10b981"; }
         }
@@ -1254,16 +1260,16 @@ function toggleJoinDelete() {
 
 function setIAPower() {
     const mode = document.getElementById("iaPowerMode").value;
-    showToast("ðŸ§  IA Power", `Cambiando a modo ${mode.toUpperCase()}`);
+    showToast("🧠 IA Power", `Cambiando a modo ${mode.toUpperCase()}`);
 }
 
 function toggleJoinDelete() {
-    showToast("ðŸ›¡ï¸ Seguridad", "Limpieza de uniones: ACTIVA");
+    showToast("🛡️ Seguridad", "Limpieza de uniones: ACTIVA");
 }
 
 function changeLanguage() {
     const lang = document.getElementById("langSelect")?.value;
-    showToast("ðŸŒ Idioma", "Cambiando a: " + (lang === 'es' ? 'EspaÃ±ol' : 'English'));
+    showToast("🌐 Idioma", "Cambiando a: " + (lang === 'es' ? 'Español' : 'English'));
 }
 
 // --- Inline / Guest AI Stats ---
@@ -1346,7 +1352,7 @@ function setIAMood(mood) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ mood: mood })
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("ðŸŽ­ Humor", `Estado de Ã¡nimo cambiado a ${mood}`);
+        if(data.ok) showToast("🎭 Humor", `Estado de ánimo cambiado a ${mood}`);
     });
 }
 
@@ -1357,7 +1363,7 @@ function setIAMode(mode) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ mode: mode })
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("âš™ï¸ Modo", `Perfil de potencia cambiado a ${mode}`);
+        if(data.ok) showToast("⚙️ Modo", `Perfil de potencia cambiado a ${mode}`);
     });
 }
 
@@ -1367,7 +1373,7 @@ function evolveIA() {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("ðŸ§¬ EvoluciÃ³n", "Disparando evoluciÃ³n neuronal...");
+        if(data.ok) showToast("🧬 Evolución", "Disparando evolución neuronal...");
     });
 }
 
@@ -1377,7 +1383,7 @@ function forceFeedIA() {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("ðŸ§  IA Boost", "Inyectando conocimiento del historial...");
+        if(data.ok) showToast("🧠 IA Boost", "Inyectando conocimiento del historial...");
     });
 }
 
@@ -1387,7 +1393,7 @@ function injectMasterIntelligence() {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("ðŸ§  Master IA", "ExpansiÃ³n Maestra iniciada (Wikipedia + Patrones).");
+        if(data.ok) showToast("🧠 Master IA", "Expansión Maestra iniciada (Wikipedia + Patrones).");
     });
 }
 
@@ -1402,25 +1408,25 @@ function injectWikipediaTopics() {
         body: JSON.stringify({ topics: input.value.trim() })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸŒ Wikipedia Boost", data.msg);
+            showToast("🌐 Wikipedia Boost", data.msg);
             input.value = "";
         } else {
-            showToast("âŒ Error", data.msg);
+            showToast("❌ Error", data.msg);
         }
     });
 }
 
 function requestIABackup() {
     if(!authToken) return;
-    showToast("ðŸ’¾ Backup", "Solicitando copia de seguridad...");
+    showToast("💾 Backup", "Solicitando copia de seguridad...");
     fetch("/api/ia/backup", {
         method: "POST",
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("âœ… Enviado", "La copia ha sido enviada a tu Telegram.");
+            showToast("✅ Enviado", "La copia ha sido enviada a tu Telegram.");
         } else {
-            showToast("âŒ Error", data.msg || "Fallo al solicitar backup.");
+            showToast("❌ Error", data.msg || "Fallo al solicitar backup.");
         }
     });
 }
@@ -1433,7 +1439,7 @@ function runNeuralSearch() {
     if(!input || !input.value) return;
     
     resPanel.style.display = 'flex';
-    resContent.innerHTML = '<span style="color: var(--primary);">ðŸ” Escaneando satÃ©lites... conectando con nodos globales...</span>';
+    resContent.innerHTML = '<span style="color: var(--primary);">🔍 Escaneando satélites... conectando con nodos globales...</span>';
     
     fetch('/api/ia/search', {
         method: 'POST',
@@ -1442,9 +1448,9 @@ function runNeuralSearch() {
     })
     .then(r => r.json()).then(data => {
         if(data.ok) {
-            resContent.innerHTML = '<i style="color: var(--accent);">Resultado del anÃ¡lisis:</i><br><br>' + data.result;
+            resContent.innerHTML = '<i style="color: var(--accent);">Resultado del análisis:</i><br><br>' + data.result;
         } else {
-            resContent.innerText = 'âŒ Error en la conexiÃ³n neuronal.';
+            resContent.innerText = '❌ Error en la conexión neuronal.';
         }
     });
 }
@@ -1467,7 +1473,7 @@ function handleGlobalSearch(e) {
             const div = document.createElement("div");
             div.className = "search-item";
             div.style = "padding: 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 11px;";
-            div.innerHTML = `ðŸ’¬ <b>${m.name}</b> <small style="color: var(--text-muted)">(Grupo)</small>`;
+            div.innerHTML = `💬 <b>${m.name}</b> <small style="color: var(--text-muted)">(Grupo)</small>`;
             div.onmouseover = () => div.style.background = "rgba(139,92,246,0.1)";
             div.onmouseout = () => div.style.background = "transparent";
             div.onclick = () => { switchTab('chat'); setTimeout(() => selectChat(m.id, m.name), 200); suggestions.style.display = "none"; };
@@ -1484,7 +1490,7 @@ function handleGlobalSearch(e) {
             const div = document.createElement("div");
             div.className = "search-item";
             div.style = "padding: 8px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 11px;";
-            div.innerHTML = `ðŸ¤– <b>${m.name}</b> <small style="color: var(--text-muted)">(Nodo)</small>`;
+            div.innerHTML = `🤖 <b>${m.name}</b> <small style="color: var(--text-muted)">(Nodo)</small>`;
             div.onmouseover = () => div.style.background = "rgba(139,92,246,0.1)";
             div.onmouseout = () => div.style.background = "transparent";
             div.onclick = () => { switchTab('bots'); suggestions.style.display = "none"; };
@@ -1511,7 +1517,7 @@ function quickSeed() {
         body: JSON.stringify({ text: input.value.trim() })
     }).then(r => r.json()).then(data => {
         if (data.ok) {
-            showToast("ðŸ§  Semilla Inyectada", `IA procesÃ³: "${input.value.trim()}"`);
+            showToast("🧠 Semilla Inyectada", `IA procesó: "${input.value.trim()}"`);
             input.value = "";
         }
     });
@@ -1532,13 +1538,13 @@ async function injectExpansionTopics() {
         });
         const data = await res.json();
         if (data.ok) {
-            showToast("ðŸš€ ExpansiÃ³n Iniciada", `Absorbiendo de ${source.toUpperCase()}...`);
+            showToast("🚀 Expansión Iniciada", `Absorbiendo de ${source.toUpperCase()}...`);
             input.value = "";
         } else {
-            showToast("âŒ Error", data.msg);
+            showToast("❌ Error", data.msg);
         }
     } catch (e) {
-        showToast("âŒ Error", "Fallo de conexiÃ³n");
+        showToast("❌ Error", "Fallo de conexión");
     }
     input.disabled = false;
 }
@@ -1584,7 +1590,7 @@ async function stopIALoadBalancer() {
     }
 }
 
-// --- IA: ConfiguraciÃ³n HÃ­brida ---
+// --- IA: Configuración Híbrida ---
 let currentIAProvider = "gemini";
 
 function updateRatioLabel() {
@@ -1627,7 +1633,7 @@ function setProvider(provider) {
     if (checkbox) checkbox.checked = true;
     updateProviderUI(provider);
     saveIAConfig();
-    showToast("ðŸ§  Proveedor Activado", `${provider.toUpperCase()} configurado como cerebro externo.`);
+    showToast("🧠 Proveedor Activado", `${provider.toUpperCase()} configurado como cerebro externo.`);
 }
 
 async function testOllamaConnection() {
@@ -1638,7 +1644,7 @@ async function testOllamaConnection() {
     resultDiv.style.background = "rgba(139, 92, 246, 0.1)";
     resultDiv.style.border = "1px solid var(--primary)";
     resultDiv.style.color = "var(--primary)";
-    resultDiv.innerHTML = "â³ Probando conexiÃ³n con Ollama...";
+    resultDiv.innerHTML = "⏳ Probando conexión con Ollama...";
 
     try {
         const res = await fetch("/api/ia/ollama/test", {
@@ -1651,7 +1657,7 @@ async function testOllamaConnection() {
             resultDiv.style.background = "rgba(34, 197, 94, 0.1)";
             resultDiv.style.border = "1px solid #4ade80";
             resultDiv.style.color = "#4ade80";
-            resultDiv.innerHTML = `âœ… ${data.msg}`;
+            resultDiv.innerHTML = `✅ ${data.msg}`;
             
             // Actualizar URL detectada
             if (urlInput && data.url) urlInput.placeholder = data.url;
@@ -1659,14 +1665,14 @@ async function testOllamaConnection() {
             
             // Poblar dropdown de modelos
             if (modelSelect && data.models && data.models.length > 0) {
-                modelSelect.innerHTML = '<option value="">â–¼ Modelos</option>';
+                modelSelect.innerHTML = '<option value="">▼ Modelos</option>';
                 data.models.forEach(m => {
                     const opt = document.createElement("option");
                     opt.value = m;
                     opt.textContent = m;
                     modelSelect.appendChild(opt);
                 });
-                // Si el campo de modelo estÃ¡ vacÃ­o, seleccionar el primero
+                // Si el campo de modelo está vacío, seleccionar el primero
                 const modelInput = document.getElementById("ollamaModel");
                 if (modelInput && !modelInput.value) {
                     modelInput.value = data.models[0];
@@ -1676,7 +1682,7 @@ async function testOllamaConnection() {
             resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
             resultDiv.style.border = "1px solid #f87171";
             resultDiv.style.color = "#f87171";
-            resultDiv.innerHTML = `âŒ ${data.msg}`;
+            resultDiv.innerHTML = `❌ ${data.msg}`;
             if (data.tried) {
                 resultDiv.innerHTML += `<br><small style="opacity: 0.7;">URLs probadas: ${data.tried.join(", ")}</small>`;
             }
@@ -1685,7 +1691,7 @@ async function testOllamaConnection() {
         resultDiv.style.background = "rgba(239, 68, 68, 0.1)";
         resultDiv.style.border = "1px solid #f87171";
         resultDiv.style.color = "#f87171";
-        resultDiv.innerHTML = "âŒ Error de conexiÃ³n con el servidor del bot.";
+        resultDiv.innerHTML = "❌ Error de conexión con el servidor del bot.";
     }
 }
 
@@ -1697,7 +1703,7 @@ async function updateNeuralFeed() {
             const container = document.getElementById("neuralLiveFeed");
             if (!container) return;
             
-            // Tomar los Ãºltimos 10
+            // Tomar los últimos 10
             const recent = data.library.slice(0, 10);
             if (recent.length > 0) {
                 container.innerHTML = "";
@@ -1774,13 +1780,13 @@ async function saveIAConfig() {
         });
         const data = await res.json();
         if (data.ok) {
-            showToast("ðŸ§  ConfiguraciÃ³n Guardada", use_external ? `Modo HÃ­brido: ${currentIAProvider.toUpperCase()}` : "Solo IA Nativa");
+            showToast("🧠 Configuración Guardada", use_external ? `Modo Híbrido: ${currentIAProvider.toUpperCase()}` : "Solo IA Nativa");
             if (api_key) {
                 document.getElementById("geminiKey").value = "";
                 document.getElementById("geminiKey").placeholder = "Clave guardada (********)";
             }
         }
-    } catch (e) { showToast("âŒ Error", "Fallo al guardar"); }
+    } catch (e) { showToast("❌ Error", "Fallo al guardar"); }
 }
 
 // Lote inicial al cargar IA
@@ -1801,7 +1807,7 @@ function execCmd() {
     if (cmd === "backup") { runBackup(); return; }
     if (cmd === "reboot") {
         fetch("/api/reboot", { method: "POST", headers: { "Authorization": authToken } })
-            .then(() => showToast("ðŸ”„ Reinicio", "El servidor se estÃ¡ reiniciando..."));
+            .then(() => showToast("🔄 Reinicio", "El servidor se está reiniciando..."));
         return;
     }
     if (cmd.startsWith("send ")) {
@@ -1812,13 +1818,13 @@ function execCmd() {
             method: "POST",
             headers: { "Authorization": authToken, "Content-Type": "application/json" },
             body: JSON.stringify({ target: cid, text: msg })
-        }).then(() => showToast("ðŸ“¤ Enviado", `Mensaje enviado a ${cid}`));
+        }).then(() => showToast("📤 Enviado", `Mensaje enviado a ${cid}`));
         return;
     }
     // Comando desconocido - registrar
     const entry = document.createElement("div");
     entry.style = "color: #f87171; font-size: 11px; margin-bottom: 4px;";
-    entry.textContent = `âŒ Comando no reconocido: "${cmd}". Disponibles: clear, backup, reboot, send <cid> <msg>`;
+    entry.textContent = `❌ Comando no reconocido: "${cmd}". Disponibles: clear, backup, reboot, send <cid> <msg>`;
     log.appendChild(entry);
     log.scrollTop = log.scrollHeight;
 }
@@ -1826,7 +1832,7 @@ function execCmd() {
 // --- Dashboard: clearLogs ---
 function clearLogs() {
     const log = document.getElementById("webLog");
-    if (log) { log.innerHTML = ""; showToast("ðŸ—‘ï¸ Consola", "Logs limpiados."); }
+    if (log) { log.innerHTML = ""; showToast("🗑️ Consola", "Logs limpiados."); }
 }
 
 // --- Dashboard: exportLogs ---
@@ -1840,7 +1846,7 @@ function exportLogs() {
         a.href = URL.createObjectURL(blob);
         a.download = `moon_audit_${Date.now()}.txt`;
         a.click();
-        showToast("ðŸ“¤ Exportado", "Logs de auditorÃ­a descargados.");
+        showToast("📤 Exportado", "Logs de auditoría descargados.");
     });
 }
 
@@ -1848,8 +1854,8 @@ function exportLogs() {
 function runBackup() {
     fetch("/api/admin/backup", { method: "POST", headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
-        if (data.ok) showToast("ðŸ’¾ Backup", `Copia de seguridad creada: ${data.file}`);
-        else showToast("âŒ Error", "No se pudo crear el backup.");
+        if (data.ok) showToast("💾 Backup", `Copia de seguridad creada: ${data.file}`);
+        else showToast("❌ Error", "No se pudo crear el backup.");
     });
 }
 
@@ -1859,7 +1865,7 @@ function downloadAudit(cid) {
     downloadWithAuth(`/api/ia/audit/export?id=${encodeURIComponent(cid)}`, `audit_${cid}.csv`);
 }
 
-// === PESTAÃ‘A DE MODERACIÃ“N ===
+// === PESTAÑA DE MODERACIÓN ===
 let currentModCid = null;
 
 function loadModerationTab() {
@@ -1868,7 +1874,7 @@ function loadModerationTab() {
     .then(r => r.json()).then(data => {
         const sel = document.getElementById("modGroupSelect");
         if (!sel) return;
-        sel.innerHTML = '<option value="">â€” Seleccionar Grupo â€”</option>';
+        sel.innerHTML = '<option value="">— Seleccionar Grupo —</option>';
         (data.vistos_obj || []).forEach(c => {
             const opt = document.createElement("option");
             opt.value = c.id;
@@ -1894,12 +1900,12 @@ function loadModerationData() {
         if (warnsList) {
             const warns = data.warns || {};
             if (Object.keys(warns).length === 0) {
-                warnsList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">âœ… Sin advertencias</div>';
+                warnsList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">✅ Sin advertencias</div>';
             } else {
                 warnsList.innerHTML = Object.entries(warns).map(([k, v]) =>
                     `<div class="mod-item">
-                        <span>${k} <b style="color:#f87171">âš ï¸ ${v}/3</b></span>
-                        <button class="btn-mod-mini" onclick="webUnwarn('${k}')">âœ• Quitar</button>
+                        <span>${k} <b style="color:#f87171">⚠️ ${v}/3</b></span>
+                        <button class="btn-mod-mini" onclick="webUnwarn('${k}')">✕ Quitar</button>
                     </div>`
                 ).join("");
             }
@@ -1910,12 +1916,12 @@ function loadModerationData() {
         if (mutesList) {
             const muted = data.muted || [];
             if (muted.length === 0) {
-                mutesList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">âœ… Sin silenciados</div>';
+                mutesList.innerHTML = '<div style="color: var(--accent); text-align: center; margin-top: 20px;">✅ Sin silenciados</div>';
             } else {
                 mutesList.innerHTML = muted.map(m =>
                     `<div class="mod-item">
-                        <span>ðŸ”‡ ${m}</span>
-                        <button class="btn-mod-mini" onclick="webUnmute('${m}')">ðŸ”Š</button>
+                        <span>🔇 ${m}</span>
+                        <button class="btn-mod-mini" onclick="webUnmute('${m}')">🔊</button>
                     </div>`
                 ).join("");
             }
@@ -1933,7 +1939,7 @@ function webUnwarn(target) {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ cid: currentModCid, target })
-    }).then(() => { showToast("âœ… Warn eliminado", target); loadModerationData(); });
+    }).then(() => { showToast("✅ Warn eliminado", target); loadModerationData(); });
 }
 
 function webUnmute(target) {
@@ -1942,18 +1948,18 @@ function webUnmute(target) {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ cid: currentModCid, target })
-    }).then(() => { showToast("ðŸ”Š Silencio levantado", target); loadModerationData(); });
+    }).then(() => { showToast("🔊 Silencio levantado", target); loadModerationData(); });
 }
 
 function saveGroupNotes() {
-    if (!currentModCid) { showToast("âš ï¸ Sin grupo", "Selecciona un grupo primero."); return; }
+    if (!currentModCid) { showToast("⚠️ Sin grupo", "Selecciona un grupo primero."); return; }
     const note = document.getElementById("modGroupNotes").value;
     fetch("/api/moderation/notes", {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ cid: currentModCid, note })
     }).then(r => r.json()).then(data => {
-        if (data.ok) showToast("ðŸ“ Nota guardada", "La nota se ha guardado en la base de datos.");
+        if (data.ok) showToast("📝 Nota guardada", "La nota se ha guardado en la base de datos.");
     });
 }
 
@@ -1964,10 +1970,10 @@ function refreshLeaderboard() {
         if (!body) return;
         const lb = data.leaderboard || [];
         if (lb.length === 0) {
-            body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 20px;">Sin datos de actividad aÃºn.</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted); padding: 20px;">Sin datos de actividad aún.</td></tr>';
             return;
         }
-        const medals = ["ðŸ¥‡", "ðŸ¥ˆ", "ðŸ¥‰", "4ï¸âƒ£", "5ï¸âƒ£", "6ï¸âƒ£", "7ï¸âƒ£", "8ï¸âƒ£", "9ï¸âƒ£", "ðŸ”Ÿ"];
+        const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
         body.innerHTML = lb.map((u, i) => `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <td style="padding: 10px; color: var(--text-muted);">${medals[i] || (i+1)}</td>
@@ -1988,25 +1994,25 @@ function modBanUser() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ uid })
     }).then(r => r.json()).then(data => {
-        if (data.ok) { showToast("â›” Usuario baneado", `UID ${uid} aÃ±adido a la lista negra.`); document.getElementById("modBanUid").value = ""; }
+        if (data.ok) { showToast("⛔ Usuario baneado", `UID ${uid} añadido a la lista negra.`); document.getElementById("modBanUid").value = ""; }
     });
 }
 
 function modSendToGroup() {
     const msg = document.getElementById("modBroadcastMsg").value.trim();
-    if (!msg || !currentModCid) { showToast("âš ï¸", "Selecciona un grupo y escribe un mensaje."); return; }
+    if (!msg || !currentModCid) { showToast("⚠️", "Selecciona un grupo y escribe un mensaje."); return; }
     fetch("/api/send", {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ target: currentModCid, text: msg })
-    }).then(() => { showToast("ðŸ“¢ Enviado", "Mensaje enviado al grupo."); document.getElementById("modBroadcastMsg").value = ""; });
+    }).then(() => { showToast("📢 Enviado", "Mensaje enviado al grupo."); document.getElementById("modBroadcastMsg").value = ""; });
 }
 
 // --- Global Bans Management ---
 function loadGlobalBans() {
     if (!authToken) return;
 
-    // Cargar estadÃ­sticas
+    // Cargar estadísticas
     fetch("/api/users/bans/stats", { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
         if (data.ok) {
@@ -2044,8 +2050,8 @@ function loadGlobalBans() {
 
 function unbanUser(uid) {
     if (!uid) uid = document.getElementById("unbanUid").value.trim();
-    if (!uid) { showToast("âš ï¸", "Ingresa un UID"); return; }
-    if (!confirm(`Â¿Desbanear ${uid}?`)) return;
+    if (!uid) { showToast("⚠️", "Ingresa un UID"); return; }
+    if (!confirm(`¿Desbanear ${uid}?`)) return;
 
     fetch("/api/users/unban", {
         method: "POST",
@@ -2053,16 +2059,16 @@ function unbanUser(uid) {
         body: JSON.stringify({ uid: uid })
     }).then(r => r.json()).then(data => {
         if (data.ok) {
-            showToast("âœ… Desbaneado", data.message);
+            showToast("✅ Desbaneado", data.message);
             document.getElementById("unbanUid").value = "";
             loadGlobalBans();
         } else {
-            showToast("âŒ Error", data.message);
+            showToast("❌ Error", data.message);
         }
     });
 }
 
-// Cargar baneos al abrir moderaciÃ³n
+// Cargar baneos al abrir moderación
 const origLoadModerationData = typeof loadModerationData === 'function' ? loadModerationData : null;
 if (origLoadModerationData) {
     window.loadModerationData = function() {
@@ -2074,7 +2080,7 @@ if (origLoadModerationData) {
 // --- Plugin Commands ---
 function sendPluginCommand(cmd) {
     if (!currentChatId) {
-        showToast("âŒ Error", "Selecciona un chat primero.");
+        showToast("❌ Error", "Selecciona un chat primero.");
         return;
     }
     fetch("/api/send", {
@@ -2082,7 +2088,7 @@ function sendPluginCommand(cmd) {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify({ target: currentChatId, text: cmd })
     }).then(() => {
-        showToast("ðŸ”Œ Comando", "Enviado al bot.");
+        showToast("🔌 Comando", "Enviado al bot.");
         setTimeout(fetchChatHistory, 1000); // Actualizar chat
     });
 }
@@ -2102,7 +2108,7 @@ function fetchVisionStats() {
             const statusText = document.getElementById("shieldStatus");
             if(toggle && statusText) {
                 toggle.checked = data.shield_enabled;
-                statusText.innerText = data.shield_enabled ? "ðŸ›¡ï¸ ESCUDO ACTIVO" : "ðŸ›¡ï¸ ESCUDO DESACTIVADO";
+                statusText.innerText = data.shield_enabled ? "🛡️ ESCUDO ACTIVO" : "🛡️ ESCUDO DESACTIVADO";
                 statusText.style.color = data.shield_enabled ? "#4ade80" : "#f87171";
             }
         }
@@ -2115,7 +2121,7 @@ function toggleNeuralShield() {
         headers: { "Authorization": authToken }
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ›¡ï¸ Neural Shield", data.enabled ? "ProtecciÃ³n activada." : "ProtecciÃ³n desactivada.");
+            showToast("🛡️ Neural Shield", data.enabled ? "Protección activada." : "Protección desactivada.");
             fetchVisionStats();
         }
     });
@@ -2133,14 +2139,14 @@ function fetchSecurityBlacklist() {
                 list.innerHTML = data.blacklist.map(h => `
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 5px 0;">
                         <span>${h.substring(0, 16)}...${h.substring(h.length-8)}</span>
-                        <i style="color: #f87171; cursor: pointer;" title="Eliminar">ðŸ—‘ï¸</i>
+                        <i style="color: #f87171; cursor: pointer;" title="Eliminar">🗑️</i>
                     </div>
                 `).join("");
             }
         }
         const syncList = document.getElementById("syncUrlsList");
         if(syncList && data.sync_urls) {
-            syncList.innerHTML = data.sync_urls.map(u => `<div>ðŸ”— ${u}</div>`).join("");
+            syncList.innerHTML = data.sync_urls.map(u => `<div>🔗 ${u}</div>`).join("");
         }
     });
 }
@@ -2154,7 +2160,7 @@ function addSyncUrl() {
         body: JSON.stringify({ url })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸŒ Sync", "URL aÃ±adida. Sincronizando hashes...");
+            showToast("🌐 Sync", "URL añadida. Sincronizando hashes...");
             document.getElementById("syncUrlInput").value = "";
             fetchSecurityBlacklist();
         }
@@ -2170,7 +2176,7 @@ function addManualHash() {
         body: JSON.stringify({ hash })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ›¡ï¸ Seguridad", "Hash aÃ±adido a la lista negra.");
+            showToast("🛡️ Seguridad", "Hash añadido a la lista negra.");
             document.getElementById("manualHashInput").value = "";
             fetchSecurityBlacklist();
         }
@@ -2223,7 +2229,7 @@ function saveBusConfig() {
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
         body: JSON.stringify(config)
     }).then(r => r.json()).then(data => {
-        if(data.ok) showToast("ðŸ’¼ Business", "ConfiguraciÃ³n guardada.");
+        if(data.ok) showToast("💼 Business", "Configuración guardada.");
     });
 }
 
@@ -2233,7 +2239,7 @@ function fetchQuickReplies() {
         const list = document.getElementById("quickRepliesList");
         if(list && data.replies) {
             if(data.replies.length === 0) {
-                list.innerHTML = `<div class="subtitle" style="text-align:center; padding:20px;">No hay respuestas rÃ¡pidas.</div>`;
+                list.innerHTML = `<div class="subtitle" style="text-align:center; padding:20px;">No hay respuestas rápidas.</div>`;
             } else {
                 list.innerHTML = data.replies.map((r, index) => `
                     <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
@@ -2241,7 +2247,7 @@ function fetchQuickReplies() {
                             <code style="color: var(--primary); font-weight: 800;">${r.cmd}</code>
                             <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">${r.text.substring(0, 40)}${r.text.length > 40 ? '...' : ''}</div>
                         </div>
-                        <button onclick="removeQuickReply(${index})" style="width: auto; margin:0; padding: 5px; background:transparent;">ðŸ—‘ï¸</button>
+                        <button onclick="removeQuickReply(${index})" style="width: auto; margin:0; padding: 5px; background:transparent;">🗑️</button>
                     </div>
                 `).join("");
             }
@@ -2267,7 +2273,7 @@ function addQuickReply() {
                 document.getElementById("newQuickCmd").value = "";
                 document.getElementById("newQuickText").value = "";
                 fetchQuickReplies();
-                showToast("âš¡ Quick Reply", "Atajo aÃ±adido.");
+                showToast("⚡ Quick Reply", "Atajo añadido.");
             }
         });
     });
@@ -2301,7 +2307,7 @@ function loadProxiesTab() {
         if(grid && data.proxies) {
             if(data.proxies.length === 0) {
                 grid.innerHTML = `<div class="glass-panel" style="grid-column: 1/-1; text-align:center; padding: 40px;">
-                    <div style="font-size: 40px; margin-bottom: 20px;">ðŸŒ</div>
+                    <div style="font-size: 40px; margin-bottom: 20px;">🌐</div>
                     <h3 data-i18n="prox_no_nodes">No hay nodos configurados</h3>
                     <p class="subtitle">Despliega tu primer proxy MTProto para empezar.</p>
                 </div>`;
@@ -2315,8 +2321,8 @@ function loadProxiesTab() {
                                 <code style="font-size: 10px; color: var(--text-muted);">${p.secret.substring(0,16)}...</code>
                             </div>
                             <div style="display: flex; gap: 8px;">
-                                <button onclick="toggleProxy(${p.index}, '${p.status === 'ONLINE' ? 'stop' : 'start'}')" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0;">${p.status === 'ONLINE' ? 'â¹ï¸' : 'â–¶ï¸'}</button>
-                                <button onclick="removeProxy(${p.index})" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0; background: rgba(239,68,68,0.1);">ðŸ—‘ï¸</button>
+                                <button onclick="toggleProxy(${p.index}, '${p.status === 'ONLINE' ? 'stop' : 'start'}')" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0;">${p.status === 'ONLINE' ? '⏹️' : '▶️'}</button>
+                                <button onclick="removeProxy(${p.index})" class="btn-mini-wide" style="width: 32px; height: 32px; padding: 0; background: rgba(239,68,68,0.1);">🗑️</button>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
@@ -2456,7 +2462,7 @@ function deployProxy() {
         if(data.ok) {
             closeProxyModal();
             loadProxiesTab();
-            showToast("ðŸŒ Proxy", "ConfiguraciÃ³n guardada.");
+            showToast("🌐 Proxy", "Configuración guardada.");
         }
     });
 }
@@ -2468,14 +2474,14 @@ function toggleProxy(index, action) {
         body: JSON.stringify({ index, action })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸŒ Proxy", action === 'start' ? "Nodo iniciado." : "Nodo detenido.");
+            showToast("🌐 Proxy", action === 'start' ? "Nodo iniciado." : "Nodo detenido.");
             loadProxiesTab();
         }
     });
 }
 
 function removeProxy(index) {
-    if(!confirm("Â¿Eliminar este nodo?")) return;
+    if(!confirm("¿Eliminar este nodo?")) return;
     fetch("/api/proxies/remove", {
         method: "POST",
         headers: { "Authorization": authToken, "Content-Type": "application/json" },
@@ -2508,7 +2514,7 @@ function fetchSecurityAudit() {
                 <td title="${log.hash}"><code>${log.hash.substring(0, 8)}...</code></td>
                 <td>${log.user}</td>
                 <td>
-                    <span class="vt-badge ${isMalicious ? 'danger' : 'success'}">${isMalicious ? 'ðŸš¨ ' + (log.vt_malicious || 'Malware') : 'âœ… OK'}</span>
+                    <span class="vt-badge ${isMalicious ? 'danger' : 'success'}">${isMalicious ? '🚨 ' + (log.vt_malicious || 'Malware') : '✅ OK'}</span>
                 </td>
             `;
             body.appendChild(row);
@@ -2531,16 +2537,16 @@ function scanHashVT() {
     }).then(r => r.json()).then(data => {
         if(data.error) {
             resultDiv.innerHTML = `<div class="vt-card" style="border-color: var(--danger);">
-                <h4 style="color: var(--danger);">âŒ Error</h4>
+                <h4 style="color: var(--danger);">❌ Error</h4>
                 <p style="font-size: 13px;">${data.error}</p>
-                <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">AsegÃºrate de configurar VT_API_KEY en el archivo .env</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">Asegúrate de configurar VT_API_KEY en el archivo .env</p>
             </div>`;
             return;
         }
         
         if(data.not_found) {
             resultDiv.innerHTML = `<div class="vt-card">
-                <h4>âšª No encontrado</h4>
+                <h4>⚪ No encontrado</h4>
                 <p style="font-size: 13px;">El hash no figura en la base de datos de VirusTotal. Puede ser una amenaza nueva o un archivo limpio desconocido.</p>
             </div>`;
             return;
@@ -2550,8 +2556,8 @@ function scanHashVT() {
         resultDiv.innerHTML = `
             <div class="vt-card" style="border-color: ${isDangerous ? 'var(--danger)' : 'var(--success)'}">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h4 style="color: ${isDangerous ? 'var(--danger)' : 'var(--success)'}">${isDangerous ? 'ðŸš¨ AMENAZA DETECTADA' : 'âœ… ARCHIVO LIMPIO'}</h4>
-                    <a href="${data.link}" target="_blank" style="font-size: 11px; color: var(--primary);">Ver en VirusTotal â†—ï¸</a>
+                    <h4 style="color: ${isDangerous ? 'var(--danger)' : 'var(--success)'}">${isDangerous ? '🚨 AMENAZA DETECTADA' : '✅ ARCHIVO LIMPIO'}</h4>
+                    <a href="${data.link}" target="_blank" style="font-size: 11px; color: var(--primary);">Ver en VirusTotal ↗️</a>
                 </div>
                 <div class="vt-stat-grid">
                     <div class="vt-stat-item danger">
@@ -2575,7 +2581,7 @@ function scanHashVT() {
         `;
         
         if(isDangerous) {
-            showToast("ðŸš¨ SEGURIDAD", "Se ha detectado un hash malicioso en el anÃ¡lisis.");
+            showToast("🚨 SEGURIDAD", "Se ha detectado un hash malicioso en el análisis.");
         }
     });
 }
@@ -2608,8 +2614,8 @@ function loadQueueTab() {
                 <td><span class="priority-badge">${t.priority}</span></td>
                 <td><span class="status-pill ${t.status.toLowerCase()}">${t.status}</span></td>
                 <td>
-                    <button onclick="prioritizeTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);">â†‘ UP</button>
-                    <button onclick="cancelTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3);">âŒ CANCEL</button>
+                    <button onclick="prioritizeTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);">↑ UP</button>
+                    <button onclick="cancelTask(${t.id})" class="btn-glow-mini" style="width: auto; padding: 2px 8px; font-size: 10px; background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3);">❌ CANCEL</button>
                 </td>
             `;
             body.appendChild(row);
@@ -2645,22 +2651,22 @@ function fetchTelegramHealth() {
 }
 
 function scanDocker() {
-    showToast("ðŸ“¦ Docker", "Escaneando red en busca de proxies...");
+    showToast("📦 Docker", "Escaneando red en busca de proxies...");
     fetch("/api/proxies/scan", { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
         if(data.ok && data.detected) {
             if(data.detected.length > 0) {
-                showToast("âœ… Docker", `Se detectaron ${data.detected.length} proxies activos.`);
+                showToast("✅ Docker", `Se detectaron ${data.detected.length} proxies activos.`);
                 console.table(data.detected);
-                // AquÃ­ podrÃ­as aÃ±adir lÃ³gica para importarlos automÃ¡ticamente
+                // Aquí podrías añadir lógica para importarlos automáticamente
             } else {
-                showToast("âš ï¸ Docker", "No se detectaron contenedores compatibles.");
+                showToast("⚠️ Docker", "No se detectaron contenedores compatibles.");
             }
         }
     });
 }
 
-// IntegraciÃ³n en Polling
+// Integración en Polling
 setInterval(fetchVisionStats, 5000);
 setInterval(fetchSecurityBlacklist, 10000);
 setInterval(() => { 
@@ -2684,21 +2690,21 @@ function checkSystemUpdate() {
             if(commitEl) commitEl.innerText = data.current_commit || "Unknown";
             if(data.behind) {
                 if(remoteEl) {
-                    remoteEl.innerText = "ðŸš€ NUEVA VERSIÃ“N DISPONIBLE EN GITHUB";
+                    remoteEl.innerText = "🚀 NUEVA VERSIÓN DISPONIBLE EN GITHUB";
                     remoteEl.style.color = "#3b82f6";
                 }
                 if(applyBtn) applyBtn.style.display = "block";
-                showToast("ðŸš€ ActualizaciÃ³n", "Hay una nueva versiÃ³n disponible en el repositorio.");
+                showToast("🚀 Actualización", "Hay una nueva versión disponible en el repositorio.");
             } else {
                 if(remoteEl) {
-                    remoteEl.innerText = "âœ… El sistema estÃ¡ actualizado.";
+                    remoteEl.innerText = "✅ El sistema está actualizado.";
                     remoteEl.style.color = "#10b981";
                 }
                 if(applyBtn) applyBtn.style.display = "none";
             }
         } else {
-            if(remoteEl) remoteEl.innerText = "âŒ Error: " + data.error;
-            showToast("âŒ Git Error", data.error);
+            if(remoteEl) remoteEl.innerText = "❌ Error: " + data.error;
+            showToast("❌ Git Error", data.error);
         }
     });
 }
@@ -2714,7 +2720,7 @@ function applySystemUpdate() {
             showToast("Exito", data.msg || "Sistema actualizado. Reinicio automatico en curso...");
             setTimeout(() => location.reload(), 8000);
         } else {
-            showToast("âŒ Error", data.error);
+            showToast("❌ Error", data.error);
         }
     });
 }
@@ -2753,17 +2759,17 @@ function fetchMoonProcesses() {
 }
 
 function killMoonProcess(pid) {
-    if(!confirm("Â¿Seguro que quieres matar el proceso " + pid + "?")) return;
+    if(!confirm("¿Seguro que quieres matar el proceso " + pid + "?")) return;
     fetch('/api/system/kill', {
         method: 'POST',
         headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ pid: pid })
     }).then(r => r.json()).then(data => {
         if(data.ok) {
-            showToast("ðŸ’€ Eliminado", data.msg);
+            showToast("💀 Eliminado", data.msg);
             fetchMoonProcesses();
         } else {
-            showToast("âŒ Error", data.msg || data.error);
+            showToast("❌ Error", data.msg || data.error);
         }
     });
 }

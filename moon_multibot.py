@@ -3505,7 +3505,17 @@ class MoonBot:
         payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
         if business_connection_id:
             payload["business_connection_id"] = business_connection_id
-        return self.call_api("sendMessage", payload)
+        result = self.call_api("sendMessage", payload)
+        cid_str = str(chat_id)
+        if cid_str in global_chat_history:
+            global_chat_history[cid_str].append({
+                "time": datetime.datetime.now().strftime("%H:%M"),
+                "sender": "Bot",
+                "uid": self.bot_username,
+                "text": (text or "")[:1000],
+                "media": None
+            })
+        return result
 
     def send_message_draft(self, chat_id, text, message_thread_id=None):
         payload = {"chat_id": chat_id, "text": text}

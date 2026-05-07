@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [v16.38.0] - 2026-05-07
+### Fix Chat Dashboard: Mensajes Bot y Scroll
+- **Respuestas del bot visibles en el chat**: `send_msg()` ahora registra el mensaje enviado en `global_chat_history` cuando el chat ya tiene historial activo. Antes solo aparecían los mensajes de los usuarios; ahora se ve la conversación completa (bot + usuarios).
+- **Protección contra historial vacío en JS**: `fetchChatHistory()` usa `data.history || []` para no explotar si la API devuelve error o historial nulo. Se muestra estado vacío "Sin mensajes registrados" en lugar de dejar la pantalla en blanco.
+- **Scroll correcto en el área de mensajes**: Añadido `min-height: 0` a `.chat-messages` y `.chat-main` en el CSS. Sin esta propiedad, los elementos `flex-grow: 1` dentro de un contenedor flex-column no activan `overflow-y: auto` y el scroll no funciona.
+- **Error silencioso en fetch**: Añadido `.catch(() => {})` en `fetchChatHistory()` para evitar errores no capturados en la consola por fallos de red o auth expirado.
+
 ## [v16.37.0] - 2026-05-07
 ### Corrección Crítica Ollama y Selección de Motor IA
 - **Fix crítico `ai_preference`**: `MoonCoreIA.generate()` no aceptaba el parámetro `ai_preference` que `InvokedAIService` intentaba pasarle, provocando un `TypeError` silencioso en cada consulta Inline y Guest. El parámetro ya está declarado correctamente.
