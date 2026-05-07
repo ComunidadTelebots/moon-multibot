@@ -19,6 +19,14 @@ from core.config import (
     DB_PATH,
 )
 from core.db import DBManager
+from core.telegram_api import (
+    DEFAULT_ALLOWED_UPDATES,
+    TELEGRAM_BOT_API_VERSION,
+    build_get_updates_payload,
+    extract_guest_update,
+    normalize_method,
+    telegram_api_call,
+)
 from token_manager import token_manager
 from ban_manager import BanManager
 
@@ -1681,10 +1689,10 @@ def web_admin_backup():
 def business_status():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     conns = []
-    for cid, conn in bot.business_connections.items():
+    for cid, conn in proxy_bot.business_connections.items():
         conns.append({
             "id": cid,
-            "user": conn["user"].get("first_name", "Business"),
+            "user": conn.get("user", {}).get("first_name", "Business"),
             "enabled": conn.get("is_enabled", False)
         })
     return jsonify({"ok": True, "connections": conns})
@@ -3429,26 +3437,30 @@ class MoonBot:
         me = self.api_call("getMe")
         self.bot_username = me.get("result", {}).get("username", "MoonBot")
         self.bot_id = me.get("result", {}).get("id")
+        self.business_connections = db.get("BUSINESS_CONNECTIONS", {})
+        self.guest_reply_times = {}
         self.last_msg_id = None
         self.last_media_hash = None
         if not os.path.exists("downloads"): os.makedirs("downloads")
 
     def call_api(self, m, p=None, silent=False):
-        try:
-            r = self.session.post(self.url + m, json=p, timeout=35)
-            data = r.json()
-            if not data.get("ok") and not silent:
-                add_web_log("ERROR", f"Telegram API Fail ({m}): {data.get('description')}")
-            return data
-        except Exception as e:
-            if not silent: add_web_log("ERROR", f"Error {m}: {str(e)}")
-            return {"ok": False, "description": str(e)}
+        method = normalize_method(m)
+        data = telegram_api_call(self.session, self.url, method, p, timeout=35)
+        if not data.get("ok") and not silent:
+            add_web_log("ERROR", f"Telegram API Fail ({method}, Bot API {TELEGRAM_BOT_API_VERSION}): {data.get('description')}")
+        return data
 
     def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None):
         payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
         if business_connection_id:
             payload["business_connection_id"] = business_connection_id
         return self.call_api("sendMessage", payload)
+
+    def send_message_draft(self, chat_id, text, message_thread_id=None):
+        payload = {"chat_id": chat_id, "text": text}
+        if message_thread_id is not None:
+            payload["message_thread_id"] = message_thread_id
+        return self.api_call("sendMessageDraft", payload)
 
     def analyze_image(self, path):
         """Neural Perception Engine (NPHE-I) - 100% Local & Open Source"""
@@ -3697,9 +3709,19 @@ class MoonBot:
     def send_document(self, chat_id, file_path, caption=""):
         try:
             with open(file_path, 'rb') as f:
-                r = self.session.post(self.url + "sendDocument", data={"chat_id": chat_id, "caption": caption}, files={"document": f}, timeout=60)
-                return r.json()
-        except: return {"ok": False}
+                res = telegram_api_call(
+                    self.session,
+                    self.url,
+                    "sendDocument",
+                    {"chat_id": chat_id, "caption": caption},
+                    files={"document": f},
+                    timeout=60,
+                )
+                if not res.get("ok"):
+                    add_web_log("ERROR", f"Telegram API Fail (sendDocument): {res.get('description')}")
+                return res
+        except Exception as e:
+            return {"ok": False, "description": str(e)}
 
     def send_photo(self, cid, photo, caption=""):
         return self.api_call("sendPhoto", {"chat_id": cid, "photo": photo, "caption": caption, "parse_mode": "Markdown"})
@@ -3724,6 +3746,78 @@ class MoonBot:
 
     def kick_user(self, cid, uid):
         return self.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
+
+    def get_managed_bot_token(self, bot_id):
+        return self.api_call("getManagedBotToken", {"bot_id": bot_id})
+
+    def replace_managed_bot_token(self, bot_id):
+        return self.api_call("replaceManagedBotToken", {"bot_id": bot_id})
+
+    def record_managed_bot_update(self, update):
+        managed = update.get("managed_bot")
+        if not managed:
+            return False
+        events = db.get("MANAGED_BOT_UPDATES", [])
+        events.append({
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "update": managed,
+        })
+        db.set("MANAGED_BOT_UPDATES", events[-100:])
+        add_web_log("INFO", "Managed bot update recibido desde Telegram Bot API.")
+        return True
+
+    def record_business_update(self, update):
+        conn = update.get("business_connection")
+        if not conn:
+            return False
+        conn_id = conn.get("id")
+        if conn_id:
+            self.business_connections[conn_id] = conn
+            db.set("BUSINESS_CONNECTIONS", self.business_connections)
+        add_web_log("INFO", f"Business connection actualizada: {conn_id or 'sin id'}")
+        return True
+
+    def handle_guest_update(self, update):
+        field, guest = extract_guest_update(update)
+        if not guest:
+            return False
+        msg = guest.get("message") or guest.get("summoning_message") or guest
+        if not isinstance(msg, dict) or "chat" not in msg:
+            events = db.get("GUEST_BOT_UPDATES", [])
+            events.append({"time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "field": field, "update": guest})
+            db.set("GUEST_BOT_UPDATES", events[-100:])
+            add_web_log("INFO", f"Guest Bot update registrado ({field}) sin mensaje ejecutable.")
+            return True
+
+        cid = str(msg["chat"]["id"])
+        user = msg.get("from", {})
+        uid = str(user.get("id", cid))
+        uname = user.get("first_name", "Guest")
+        text = msg.get("text") or msg.get("caption") or ""
+        text = re.sub(rf"@{re.escape(self.bot_username)}\b", "", text, flags=re.IGNORECASE).strip()
+        if not text:
+            text = "Responde de forma breve y util a esta invocacion."
+
+        key = f"{cid}:{uid}"
+        now_s = time.time()
+        if now_s - self.guest_reply_times.get(key, 0) < 5:
+            add_web_log("DEBUG", f"Guest Bot rate limit para {key}")
+            return True
+        self.guest_reply_times[key] = now_s
+
+        if self.enforce_existing_ban(cid, uid, uname, msg.get("message_id")):
+            return True
+        if self.enforce_cas_ban(cid, uid, uname, msg.get("message_id")):
+            return True
+
+        try:
+            prompt = f"Invocacion Guest Bot en Telegram. Usuario {uname}: {text}"
+            answer = self.ia.generate(prompt[:600], chat_id=f"guest:{cid}")
+            self.send_msg(cid, answer[:3500])
+            add_web_log("INFO", f"Guest Bot respondio en {cid} a {uname}.")
+        except Exception as e:
+            add_web_log("ERROR", f"Fallo procesando Guest Bot update: {e}")
+        return True
 
     def apply_user_ban(self, cid, uid, uname=None, reason="", source="runtime", scope="local", message_id=None, notify=False):
         uid_str = str(uid)
@@ -4113,7 +4207,7 @@ class MoonBot:
         offset = 0
         while True:
             try:
-                res = self.api_call("getUpdates", {"offset": offset + 1, "timeout": 20})
+                res = self.api_call("getUpdates", build_get_updates_payload(offset, allowed_updates=DEFAULT_ALLOWED_UPDATES))
                 if not res.get("ok"):
                     add_web_log("ERROR", f"Error getUpdates: {res.get('description')}")
                     time.sleep(5); continue
@@ -4126,6 +4220,12 @@ class MoonBot:
                 
                 for u in res["result"]:
                     offset = u["update_id"]
+                    if self.record_managed_bot_update(u):
+                        continue
+                    if self.record_business_update(u):
+                        continue
+                    if self.handle_guest_update(u):
+                        continue
                     # Detección de Mensajes (Estándar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue

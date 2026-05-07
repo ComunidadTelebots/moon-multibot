@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## [v16.30.0] - 2026-05-07
+### Guest Bots y Telegram Bot API 9.6
+- **Guest Mode preparado**: `getUpdates` solicita updates modernos y el runtime detecta updates Guest Bot de forma tolerante (`guest_message`, `guest_interaction` o `guest_bot`).
+- **Respuesta puntual de invitado**: Las invocaciones guest se procesan como contexto temporal y generan una sola respuesta sin registrar el chat como grupo administrado.
+- **Proteccion mantenida**: Guest Bot pasa por bans persistentes y CAS antes de responder, con rate limit corto por usuario/chat para evitar bucles.
+- **Cliente Telegram centralizado**: Nuevo modulo `core.telegram_api` con version objetivo `9.6`, normalizacion de metodos legacy y manejo robusto de respuestas.
+- **Business y Managed Bots**: El bot acepta `business_connection` y `managed_bot`, registra sus eventos y expone helpers para `getManagedBotToken` y `replaceManagedBotToken`.
+- **Terminal RAW actualizado**: Se retira `kickChatMember`, se usa `banChatMember` y se agregan metodos recientes como `sendMessageDraft`, foto de perfil y Managed Bots.
+
 ## [v16.29.0] - 2026-05-04
 ### Primer Corte Modular y Versionado Sincronizado
 - **Modulo `core.config`**: Centraliza version, rutas, credenciales web, entorno, claves IA y seleccion de base de datos.
