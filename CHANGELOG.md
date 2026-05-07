@@ -1,5 +1,24 @@
 # Changelog - Moon Multibot
 
+## [v16.41.0] - 2026-05-07
+### Integración TDLib directa vía ctypes (MTProto completo)
+- **`core/tdlib_client.py`** (180 líneas): Wrapper Python puro sobre `libtdjson.so` usando `ctypes`. Sin librería intermedia — carga el binario compilado directamente con `CDLL`. Expone `get_history()`, `sync_to_db()` y máquina de estados de autenticación headless.
+- **`Dockerfile` multi-stage**: Etapa 1 compila TDLib desde fuente en Ubuntu 22.04 con `clang-14` y `libc++`. Etapa 2 copia solo `libtdjson.so` (~8 MB) al contenedor `python:3.12-slim`. El binario se cachea en capas Docker — sólo recompila si cambia TDLib.
+- **Autenticación headless via dashboard**: `auth_state` expuesto en `/api/tdlib/status`. El flujo teléfono → código → contraseña se completa con `POST /api/tdlib/auth` (`action`: `phone`/`code`/`password`). Sin `input()` bloqueante — compatible con Docker.
+- **Sincronización de historial**: `POST /api/tdlib/sync` con `chat_id` importa hasta 200 mensajes del servidor Telegram directamente a `CHAT_HIST_{cid}` en SQLite, deduplicando por `(time, uid, text[:20])`.
+- **Variables de entorno**: `TDLIB_API_ID` y `TDLIB_API_HASH` (obtenidos en my.telegram.org). Si no están definidas, TDLib queda deshabilitado sin error — el bot funciona igual con solo Bot API.
+- **Inicio automático**: Si las variables están presentes, `tdlib_client.start()` arranca el hilo receptor al iniciar el bot y conecta el logger con `tdlib_client._log = add_web_log`.
+
+## [FUTURO] - Integración TDLib (MTProto completo)
+### Objetivo: reemplazar/complementar Bot API con TDLib para acceso completo a Telegram
+- **TDLib como cliente MTProto**: Integrar [TDLib](https://core.telegram.org/tdlib) vía `python-tdlib` o `pytdlib` para acceder a la API completa de Telegram con una cuenta de usuario, sin las restricciones del Bot API.
+- **Recuperación de historial completo**: Con TDLib se podrán cargar todos los mensajes históricos de cualquier grupo/canal al que pertenezca la cuenta, no solo los recibidos desde que el bot está corriendo. Importarlos a `CHAT_HIST_{cid}` en SQLite.
+- **Sincronización en tiempo real**: TDLib mantiene una base de datos local cifrada (`tdlib_db/`) con el estado completo de chats, listas de miembros y metadatos — sin depender de reintentos al Bot API.
+- **Acceso a funciones exclusivas de usuario**: Reacciones, historias, chats de voz, descarga de medios grandes, gestión de supergrupos sin restricciones de Bot API.
+- **Módulo propuesto**: `core/tdlib_client.py` — wrapper que expone `get_history(chat_id, limit)`, `send_message(chat_id, text)` y `sync_to_db()`. Se instancia con `api_id`, `api_hash` y número de teléfono de la cuenta de usuario.
+- **Dependencias**: `python-tdlib` (o compilar TDLib nativo + ctypes wrapper), `api_id`/`api_hash` desde [my.telegram.org](https://my.telegram.org).
+- **Nota**: Requiere cuenta de usuario Telegram (no un token de bot). Puede coexistir con el Bot API actual: el bot sigue respondiendo mensajes, TDLib se usa solo para lectura/historial.
+
 ## [v16.40.0] - 2026-05-07
 ### Modularización: ProxyManager, VirusTotalManager y TaskQueue
 - **`core/proxy_manager.py`**: Extrae la clase `ProxyManager` (~220 líneas). Constructor recibe `db` y `log_func` inyectados; elimina dependencia directa con el estado global de `moon_multibot.py`.

@@ -1,13 +1,13 @@
 import psutil
 import time
 import json
-import os
+from core.config import MASTER_ID
 
 def handle_command(bot, cid, uid, text, rank):
     t_lower = text.lower()
-    
+
     # Solo Master
-    if str(uid) != os.getenv("MASTER_ID", "163103382"):
+    if str(uid) != str(MASTER_ID):
         return False
         
     if t_lower == "/sysinfo":

@@ -1,4 +1,3 @@
-import os
 import re
 import random
 import subprocess
@@ -6,6 +5,18 @@ import sys
 
 import paramiko
 import requests
+
+from core.config import (
+    PROXY_LOCAL_PORTS,
+    PROXY_LOCAL_SECRETS,
+    PROXY_VPS_HOST,
+    PROXY_VPS_USER,
+    PROXY_VPS_PORT,
+    PROXY_VPS_KEY_PATH,
+    PROXY_VPS_PASSWORD,
+    PROXY_VPS_KEY_PASSPHRASE,
+    PROXY_VPS_PORTS,
+)
 
 
 class ProxyManager:
@@ -18,8 +29,8 @@ class ProxyManager:
         self.load_env_proxies()
 
     def load_env_proxies(self):
-        ports = os.getenv("PROXY_LOCAL_PORTS") or os.getenv("PROXY_PORT", "")
-        secrets = os.getenv("PROXY_LOCAL_SECRETS") or os.getenv("PROXY_SECRET", "")
+        ports = PROXY_LOCAL_PORTS
+        secrets = PROXY_LOCAL_SECRETS
         if not ports or not secrets:
             return
         port_list = [p.strip() for p in ports.split(",") if p.strip().isdigit()]
@@ -76,21 +87,21 @@ class ProxyManager:
 
     def get_vps_config(self, include_secret=False):
         cfg = self.db.get("PROXY_VPS_CONFIG", {})
-        host = cfg.get("host") or os.getenv("PROXY_VPS_HOST", "")
-        user = cfg.get("user") or os.getenv("PROXY_VPS_USER", "root")
-        port = int(cfg.get("port") or os.getenv("PROXY_VPS_PORT", "22"))
-        key_path = cfg.get("key_path") or os.getenv("PROXY_VPS_KEY_PATH", "")
-        password = os.getenv("PROXY_VPS_PASSWORD", "")
-        key_passphrase = os.getenv("PROXY_VPS_KEY_PASSPHRASE", "")
-        ports = cfg.get("ports") or os.getenv("PROXY_VPS_PORTS", "8443,8444,8445,8446")
+        host = cfg.get("host") or PROXY_VPS_HOST
+        user = cfg.get("user") or PROXY_VPS_USER
+        port = int(cfg.get("port") or PROXY_VPS_PORT)
+        key_path = cfg.get("key_path") or PROXY_VPS_KEY_PATH
+        password = PROXY_VPS_PASSWORD
+        key_passphrase = PROXY_VPS_KEY_PASSPHRASE
+        ports = cfg.get("ports") or PROXY_VPS_PORTS
         if isinstance(ports, str):
             ports = [int(p.strip()) for p in ports.split(",") if p.strip().isdigit()]
         return {
             "host": host, "user": user, "port": port, "key_path": key_path,
             "password": password if include_secret else "",
             "key_passphrase": key_passphrase if include_secret else "",
-            "has_password": bool(os.getenv("PROXY_VPS_PASSWORD", "")),
-            "has_key_passphrase": bool(os.getenv("PROXY_VPS_KEY_PASSPHRASE", "")),
+            "has_password": bool(PROXY_VPS_PASSWORD),
+            "has_key_passphrase": bool(PROXY_VPS_KEY_PASSPHRASE),
             "ports": ports or self.vps_default_ports
         }
 

@@ -10,12 +10,17 @@ from core.config import (
     MOON_ENV,
     MOON_ROLE,
     MASTER_ID,
+    FLASK_PORT,
+    FLASK_THREADS,
     GEMINI_API_KEY,
     USE_EXTERNAL_LLM,
     HYBRID_PERCENTAGE,
     LLM_PROVIDER,
     OLLAMA_MODEL,
     DEEP_DREAM_MODE,
+    CAS_CACHE_TTL,
+    TDLIB_API_ID,
+    TDLIB_API_HASH,
     DB_PATH,
 )
 from core.db import DBManager
@@ -31,6 +36,7 @@ from core.telegram_events import TelegramEventStore
 from core.proxy_manager import ProxyManager
 from core.vt_manager import VirusTotalManager
 from core.task_queue import TaskQueue
+from core.tdlib_client import TDLibClient
 from token_manager import token_manager
 from ban_manager import BanManager
 
@@ -94,6 +100,7 @@ threading.Thread(target=queue_worker, daemon=True).start()
 
 vt_mgr = VirusTotalManager(os.getenv("VT_API_KEY"))
 proxy_mgr = ProxyManager(db)
+tdlib_client = TDLibClient(TDLIB_API_ID, TDLIB_API_HASH, db) if TDLIB_API_ID and TDLIB_API_HASH else None
 web_logs = []
 flood_cache = {}  # {f"{cid}_{uid}": [timestamps]} — en memoria para evitar ops SQLite por mensaje
 cas_cache = {}  # {uid: {"time": ts, "status": {...}}}
@@ -146,6 +153,9 @@ def add_web_log(lvl, txt):
 # Wire logger into extracted modules now that add_web_log is available
 task_queue._log = add_web_log
 proxy_mgr._log = add_web_log
+if tdlib_client:
+    tdlib_client._log = add_web_log
+    tdlib_client.start()
 
 # Log inicial del sistema
 add_web_log("INFO", "Sistema MoonBot iniciado y listo para operaciones.")
@@ -231,7 +241,7 @@ def check_cas_status(uid, use_cache=True):
     if uid_str.startswith("-"):
         return {"ok": True, "banned": False, "description": "CAS solo aplica a usuarios"}
 
-    ttl = int(os.getenv("CAS_CACHE_TTL", "1800"))
+    ttl = CAS_CACHE_TTL
     now = time.time()
     cached = cas_cache.get(uid_str)
     if use_cache and cached and now - cached.get("time", 0) < ttl:
@@ -1528,6 +1538,41 @@ def api_proxies_scan():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     detected = proxy_mgr.scan_docker()
     return jsonify({"ok": True, "detected": detected})
+
+@app.route('/api/tdlib/status')
+def api_tdlib_status():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    if not tdlib_client:
+        return jsonify({"ok": True, "enabled": False, "reason": "TDLIB_API_ID/TDLIB_API_HASH no configurados"})
+    return jsonify({"ok": True, "enabled": True, **tdlib_client.get_status()})
+
+@app.route('/api/tdlib/auth', methods=['POST'])
+def api_tdlib_auth():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    if not tdlib_client: return jsonify({"ok": False, "error": "TDLib no habilitado"}), 400
+    d = request.json or {}
+    action = d.get("action")
+    value = d.get("value", "")
+    if action == "phone":
+        tdlib_client.auth_set_phone(value)
+    elif action == "code":
+        tdlib_client.auth_set_code(value)
+    elif action == "password":
+        tdlib_client.auth_set_password(value)
+    else:
+        return jsonify({"ok": False, "error": "action debe ser phone, code o password"}), 400
+    return jsonify({"ok": True, "auth_state": tdlib_client._auth_state})
+
+@app.route('/api/tdlib/sync', methods=['POST'])
+def api_tdlib_sync():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    if not tdlib_client: return jsonify({"ok": False, "error": "TDLib no habilitado"}), 400
+    d = request.json or {}
+    chat_id = d.get("chat_id")
+    if not chat_id: return jsonify({"ok": False, "error": "chat_id requerido"}), 400
+    limit = int(d.get("limit", 200))
+    imported = tdlib_client.sync_to_db(int(chat_id), limit)
+    return jsonify({"ok": True, "imported": imported, "chat_id": chat_id})
 
 @app.route('/api/security/vt/scan', methods=['POST'])
 def api_security_vt_scan():
@@ -4487,11 +4532,9 @@ if __name__ == "__main__":
             add_web_log("ERROR", "No se pudo iniciar ningún bot. Verifica data/bots.json")
     
     add_web_log("INFO", f"🚀 Moon Multibot Core listo ({MOON_ENV.upper()}). Iniciando Dashboard...")
-    PORT = 5001 if MOON_ENV == "dev" else 5000
-    
     if MOON_ENV == "dev":
-        app.run(host="0.0.0.0", port=PORT, debug=True)
+        app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
     else:
         from waitress import serve
-        print(f"[*] SERVIDOR DE PRODUCCIÓN ACTIVO (Waitress) en puerto {PORT}")
-        serve(app, host="0.0.0.0", port=PORT, threads=6)
+        print(f"[*] SERVIDOR DE PRODUCCIÓN ACTIVO (Waitress) en puerto {FLASK_PORT}")
+        serve(app, host="0.0.0.0", port=FLASK_PORT, threads=FLASK_THREADS)

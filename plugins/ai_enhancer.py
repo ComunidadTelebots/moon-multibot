@@ -1,6 +1,6 @@
 import openai
-import os
 import json
+from core.config import OPENAI_API_KEY
 
 # Cargar lista blanca de APIs
 try:
@@ -25,7 +25,7 @@ def handle_command(bot, cid, uid, text, rank):
             return True
         
         if "openai" in allowed_apis:
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = OPENAI_API_KEY
             if not api_key:
                 bot.send_msg(cid, "❌ API key de OpenAI no configurada.")
                 return True
