@@ -1563,6 +1563,17 @@ def api_tdlib_auth():
         return jsonify({"ok": False, "error": "action debe ser phone, code o password"}), 400
     return jsonify({"ok": True, "auth_state": tdlib_client._auth_state})
 
+@app.route('/api/tdlib/userbot', methods=['GET', 'POST'])
+def api_tdlib_userbot():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    if not tdlib_client: return jsonify({"ok": False, "error": "TDLib no habilitado"}), 400
+    if request.method == 'GET':
+        return jsonify({"ok": True, "userbot_enabled": tdlib_client.userbot_enabled, "me": tdlib_client._me})
+    enabled = (request.json or {}).get("enabled")
+    if enabled is None: return jsonify({"ok": False, "error": "Campo 'enabled' requerido"}), 400
+    tdlib_client.set_userbot(bool(enabled))
+    return jsonify({"ok": True, "userbot_enabled": tdlib_client.userbot_enabled})
+
 @app.route('/api/tdlib/sync', methods=['POST'])
 def api_tdlib_sync():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -3240,6 +3251,90 @@ class MoonCoreIA:
             return "Error de conexión con el buscador."
 
 ia_nativa = MoonCoreIA()
+
+
+def _tdlib_on_message(msg: dict):
+    """Handler de mensajes recibidos via TDLib userbot."""
+    if not tdlib_client or not tdlib_client.userbot_enabled:
+        return
+
+    chat_id = msg["chat_id"]
+    user_id = msg["user_id"]
+    text = msg.get("text", "").strip()
+    message_id = msg["message_id"]
+    is_private = msg["is_private"]
+    me_id = msg.get("me_id")
+    me_username = msg.get("me_username", "")
+    cid = str(chat_id)
+
+    # En grupos: solo responder si hay mención directa, respuesta a nuestro mensaje
+    # o el texto empieza con /
+    if not is_private:
+        mentioned = me_username and f"@{me_username}".lower() in text.lower()
+        is_command = text.startswith("/")
+        is_reply_to_me = False
+        if msg.get("reply_to_message_id") and me_id:
+            is_reply_to_me = True
+        if not (mentioned or is_command or is_reply_to_me):
+            return
+
+    if not text:
+        return
+
+    uid = str(user_id)
+    add_web_log("TDLIB", f"Mensaje userbot: [{cid}] uid={uid} → {text[:60]}")
+    _append_chat_hist(cid, {
+        "time": datetime.datetime.now().strftime("%H:%M"),
+        "sender": uid,
+        "uid": uid,
+        "text": text[:1000],
+        "media": None,
+    })
+
+    # Comandos básicos
+    t_lower = text.lower().strip()
+    if t_lower in ("/start", "/help"):
+        reply = "🌙 *Moon Multibot Userbot activo.*\nPuede responder mensajes y aprender mediante TDLib."
+        tdlib_client.send_message(chat_id, reply, reply_to_message_id=message_id)
+        return
+
+    if t_lower == "/tdstatus":
+        st = tdlib_client.get_status()
+        reply = f"TDLib: {st['auth_state']} | Userbot: {'ON' if st['userbot_enabled'] else 'OFF'}"
+        tdlib_client.send_message(chat_id, reply, reply_to_message_id=message_id)
+        return
+
+    # Respuesta con IA nativa
+    clean_text = text
+    if me_username:
+        clean_text = clean_text.replace(f"@{me_username}", "").strip()
+
+    try:
+        response = ia_nativa.generate(clean_text)
+    except Exception:
+        response = ""
+
+    if response:
+        tdlib_client.send_message(chat_id, response, reply_to_message_id=message_id)
+        _append_chat_hist(cid, {
+            "time": datetime.datetime.now().strftime("%H:%M"),
+            "sender": "TDLib-Bot",
+            "uid": str(me_id or "tdlib"),
+            "text": response[:1000],
+            "media": None,
+        })
+
+    # Aprendizaje (mismo flujo que el bot normal)
+    if not listen_mode:
+        try:
+            ia_nativa.learn(clean_text)
+        except Exception:
+            pass
+
+
+if tdlib_client:
+    tdlib_client.on_message = _tdlib_on_message
+
 
 class MoonBot:
     def __init__(self, token):

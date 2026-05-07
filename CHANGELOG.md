@@ -1,5 +1,15 @@
 # Changelog - Moon Multibot
 
+## [v16.42.0] - 2026-05-07
+### TDLib Userbot — responder mensajes via cuenta de usuario
+- **Modo userbot activable desde dashboard**: `POST /api/tdlib/userbot {"enabled": true/false}`. El estado se persiste en SQLite (`TDLIB_USERBOT_ENABLED`).
+- **`TDLibClient.send_message(chat_id, text, reply_to_message_id)`**: envía mensajes via TDLib con `sendMessage` + `inputMessageText`. Soporta respuesta a mensaje específico.
+- **`TDLibClient.on_message` callback**: el loop receptor llama a `_handle_new_message()` en cada `updateNewMessage`. Normaliza el mensaje TDLib al formato interno y llama al handler registrado. Ignora mensajes propios (`is_outgoing`).
+- **Handler `_tdlib_on_message()` en moon_multibot.py**: procesa mensajes recibidos vía TDLib. En grupos solo responde si hay mención directa, comando `/` o respuesta a nuestro mensaje. En DMs responde a todo. Usa `ia_nativa.generate()` + `ia_nativa.learn()` igual que `MoonBot`. Persiste mensajes y respuestas en `CHAT_HIST_{cid}`.
+- **Comandos userbot**: `/start`, `/help` y `/tdstatus` disponibles via TDLib.
+- **`TDLibClient._fetch_me()`**: obtiene el propio `user_id` y `username` tras autenticar para detectar menciones correctamente.
+- **`GET /api/tdlib/userbot`**: devuelve estado actual y datos del usuario autenticado (`me`).
+
 ## [v16.41.0] - 2026-05-07
 ### Integración TDLib directa vía ctypes (MTProto completo)
 - **`core/tdlib_client.py`** (180 líneas): Wrapper Python puro sobre `libtdjson.so` usando `ctypes`. Sin librería intermedia — carga el binario compilado directamente con `CDLL`. Expone `get_history()`, `sync_to_db()` y máquina de estados de autenticación headless.

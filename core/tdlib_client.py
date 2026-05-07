@@ -21,6 +21,12 @@ class TDLibClient:
         self._extra_lock = threading.Lock()
         self._tdjson = None
         self._log_cb_ref = None
+
+        # Userbot
+        self.on_message = None          # callback(msg_dict) — wired from moon_multibot
+        self.userbot_enabled = False    # activado desde dashboard o DB
+        self._me = {}                   # info del usuario autenticado
+
         self._load_library()
 
     def _load_library(self):
@@ -51,7 +57,7 @@ class TDLibClient:
         lib.td_set_log_message_callback.argtypes = [c_int, log_cb_type]
         lib.td_set_log_message_callback(2, _on_log)
 
-        self._log_cb_ref = _on_log  # evitar que el GC lo destruya
+        self._log_cb_ref = _on_log
         self._tdjson = lib
         self._auth_state = "not_started"
         self._log("TDLIB", "Librería libtdjson cargada correctamente")
@@ -61,6 +67,7 @@ class TDLibClient:
             return False
         self._client_id = self._tdjson.td_create_client_id()
         self._running = True
+        self.userbot_enabled = bool(self._db.get("TDLIB_USERBOT_ENABLED", False))
         threading.Thread(target=self._receive_loop, daemon=True, name="tdlib-recv").start()
         self.send({"@type": "getOption", "name": "version"})
         self._log("TDLIB", f"Cliente TDLib iniciado (id={self._client_id})")
@@ -124,8 +131,15 @@ class TDLibClient:
         t = event.get("@type", "")
         if t == "updateAuthorizationState":
             self._handle_auth(event["authorization_state"])
+        elif t == "updateUser" and event.get("user", {}).get("is_contact") is not None:
+            # Capturar info del usuario propio al conectarse
+            user = event.get("user", {})
+            if not self._me.get("id"):
+                self._fetch_me()
+        elif t == "updateNewMessage":
+            self._handle_new_message(event["message"])
 
-    # ── Máquina de estados de autenticación ───────────────────────
+    # ── Autenticación ─────────────────────────────────────────────
 
     def _handle_auth(self, state: dict):
         t = state["@type"]
@@ -147,10 +161,9 @@ class TDLibClient:
             })
         elif t == "authorizationStateReady":
             self._log("TDLIB", "✅ TDLib autenticado y listo")
+            threading.Thread(target=self._fetch_me, daemon=True).start()
         elif t == "authorizationStateClosed":
             self._running = False
-
-    # ── Helpers de auth (llamados desde Flask) ────────────────────
 
     def auth_set_phone(self, phone: str):
         self.send({"@type": "setAuthenticationPhoneNumber", "phone_number": phone})
@@ -161,6 +174,91 @@ class TDLibClient:
     def auth_set_password(self, password: str):
         self.send({"@type": "checkAuthenticationPassword", "password": password})
 
+    # ── Info del usuario propio ───────────────────────────────────
+
+    def _fetch_me(self):
+        result = self.send_await({"@type": "getMe"}, timeout=10)
+        if result and result.get("@type") == "user":
+            self._me = {
+                "id": result.get("id"),
+                "username": result.get("usernames", {}).get("editable_username", ""),
+                "first_name": result.get("first_name", ""),
+            }
+            self._log("TDLIB", f"Usuario: @{self._me.get('username')} (id={self._me.get('id')})")
+
+    # ── Envío de mensajes ─────────────────────────────────────────
+
+    def send_message(self, chat_id: int, text: str, reply_to_message_id: int = None) -> dict:
+        query = {
+            "@type": "sendMessage",
+            "chat_id": chat_id,
+            "input_message_content": {
+                "@type": "inputMessageText",
+                "text": {"@type": "formattedText", "text": text},
+            },
+        }
+        if reply_to_message_id:
+            query["reply_to"] = {
+                "@type": "inputMessageReplyToMessage",
+                "message_id": reply_to_message_id,
+            }
+        return self.send_await(query, timeout=10) or {}
+
+    # ── Recepción de mensajes (userbot) ───────────────────────────
+
+    def _handle_new_message(self, msg: dict):
+        if not self.userbot_enabled or not self.on_message:
+            return
+        if msg.get("is_outgoing"):
+            return
+
+        content = msg.get("content", {})
+        content_type = content.get("@type", "")
+        text = ""
+        media_type = None
+        if content_type == "messageText":
+            text = content.get("text", {}).get("text", "")
+        else:
+            media_type = content_type
+
+        sender = msg.get("sender_id", {})
+        user_id = sender.get("user_id") or sender.get("chat_id", 0)
+        chat_id = msg.get("chat_id", 0)
+        message_id = msg.get("id", 0)
+        chat_type = msg.get("chat_id", 0)
+        is_private = chat_id > 0  # IDs positivos = chat privado
+
+        # En grupos solo responder si hay texto con mención o comando
+        if not is_private and not text:
+            return
+
+        reply_to = msg.get("reply_to", {})
+        reply_to_id = reply_to.get("message_id") if reply_to else None
+
+        normalized = {
+            "chat_id": chat_id,
+            "user_id": user_id,
+            "text": text,
+            "message_id": message_id,
+            "is_private": is_private,
+            "media_type": media_type,
+            "reply_to_message_id": reply_to_id,
+            "me_id": self._me.get("id"),
+            "me_username": self._me.get("username", ""),
+        }
+
+        try:
+            self.on_message(normalized)
+        except Exception as e:
+            self._log("ERROR", f"TDLib on_message: {e}")
+
+    # ── Userbot toggle ────────────────────────────────────────────
+
+    def set_userbot(self, enabled: bool):
+        self.userbot_enabled = enabled
+        self._db.set("TDLIB_USERBOT_ENABLED", enabled)
+        self._log("TDLIB", f"Modo userbot {'activado' if enabled else 'desactivado'}")
+
     # ── API pública ───────────────────────────────────────────────
 
     def get_status(self) -> dict:
@@ -169,6 +267,8 @@ class TDLibClient:
             "running": self._running,
             "auth_state": self._auth_state,
             "ready": self._auth_state == "authorizationStateReady",
+            "userbot_enabled": self.userbot_enabled,
+            "me": self._me,
         }
 
     def get_history(self, chat_id: int, limit: int = 100) -> list:
@@ -204,7 +304,7 @@ class TDLibClient:
                 "text": text[:1000],
                 "media": media,
             })
-        return list(reversed(entries))  # cronológico (más antiguo primero)
+        return list(reversed(entries))
 
     def sync_to_db(self, chat_id: int, limit: int = 200) -> int:
         entries = self.get_history(chat_id, limit)
