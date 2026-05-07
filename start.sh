@@ -363,6 +363,163 @@ print(f"PROXY_LOCAL_SECRETS: {mask(env.get('PROXY_LOCAL_SECRETS', ''))}")
 PYTHON_EOF
 }
 
+function configure_tdlib() {
+    echo ""
+    echo "======================================"
+    echo "    CONFIGURACION TDLIB (MTProto)     "
+    echo "======================================"
+    echo ""
+    echo "Necesitas api_id y api_hash de https://my.telegram.org"
+    echo "Inicia sesion con tu cuenta de usuario (no el bot)."
+    echo ""
+
+    $PY_CMD << PYTHON_EOF
+from pathlib import Path
+
+env = {}
+if Path(".env").exists():
+    for line in Path(".env").read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        env[k.strip()] = v.strip()
+
+api_id = env.get("TDLIB_API_ID", "")
+api_hash = env.get("TDLIB_API_HASH", "")
+status_id = "CONFIGURADO" if api_id else "NO CONFIGURADO"
+status_hash = "CONFIGURADO" if api_hash else "NO CONFIGURADO"
+print(f"TDLIB_API_ID:   {status_id}")
+print(f"TDLIB_API_HASH: {status_hash}")
+PYTHON_EOF
+
+    echo ""
+    echo "1. Configurar API ID y API Hash"
+    echo "2. Borrar configuracion TDLib"
+    echo "3. Ver estado actual"
+    echo "4. Salir"
+    echo ""
+    read -p "Selecciona una opcion (1-4): " option
+
+    case $option in
+        1)
+            read -p "API ID (numero): " tdlib_id
+            read -s -p "API Hash (32 chars hex): " tdlib_hash
+            echo ""
+            if [ -z "$tdlib_id" ] || [ -z "$tdlib_hash" ]; then
+                echo "ERROR: API ID y API Hash son obligatorios."
+                return 1
+            fi
+            set_env_value "TDLIB_API_ID" "$tdlib_id"
+            set_env_value "TDLIB_API_HASH" "$tdlib_hash"
+            echo "OK: credenciales TDLib guardadas en .env"
+            echo ""
+            echo "PROXIMO PASO: Abre el dashboard y ve a /api/tdlib/status"
+            echo "Usa POST /api/tdlib/auth con action=phone para autenticar tu cuenta."
+            ;;
+        2)
+            set_env_value "TDLIB_API_ID" ""
+            set_env_value "TDLIB_API_HASH" ""
+            echo "OK: credenciales TDLib borradas."
+            ;;
+        3)
+            $PY_CMD << PYTHON_EOF
+from pathlib import Path
+
+env = {}
+if Path(".env").exists():
+    for line in Path(".env").read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        env[k.strip()] = v.strip()
+
+api_id   = env.get("TDLIB_API_ID", "")
+api_hash = env.get("TDLIB_API_HASH", "")
+tdlib_path = env.get("TDLIB_PATH", "/usr/local/lib/libtdjson.so")
+print(f"TDLIB_API_ID:   {api_id if api_id else 'NO CONFIGURADO'}")
+print(f"TDLIB_API_HASH: {'*' * len(api_hash) if api_hash else 'NO CONFIGURADO'}")
+print(f"TDLIB_PATH:     {tdlib_path}")
+PYTHON_EOF
+            ;;
+        4)
+            return 0
+            ;;
+        *)
+            echo "Opcion no valida."
+            ;;
+    esac
+}
+
+function configure_env() {
+    echo ""
+    echo "======================================"
+    echo "   CONFIGURACION INICIAL DEL SISTEMA  "
+    echo "======================================"
+    echo ""
+    echo "Configura las keys esenciales del bot."
+    echo "Deja en blanco para mantener el valor actual."
+    echo ""
+
+    # Leer valores actuales
+    local current_pwd current_jwt current_master current_gemini current_openai
+    current_pwd=$($PY_CMD -c "
+from pathlib import Path
+env = {}
+if Path('.env').exists():
+    for l in Path('.env').read_text(encoding='utf-8').splitlines():
+        l = l.strip()
+        if l and not l.startswith('#') and '=' in l:
+            k, v = l.split('=', 1)
+            env[k.strip()] = v.strip()
+print(env.get('WEB_PASSWORD', ''))
+" 2>/dev/null)
+
+    echo "--- Acceso Web ---"
+    read -p "WEB_PASSWORD (actual: $([ -n "$current_pwd" ] && echo '***configurado***' || echo 'SIN CONFIGURAR')): " new_pwd
+    [ -n "$new_pwd" ] && set_env_value "WEB_PASSWORD" "$new_pwd"
+
+    read -s -p "JWT_SECRET (dejar en blanco para auto-generar): " new_jwt
+    echo ""
+    if [ -n "$new_jwt" ]; then
+        set_env_value "JWT_SECRET" "$new_jwt"
+    else
+        auto_jwt=$($PY_CMD -c "import secrets; print(secrets.token_hex(32))")
+        set_env_value "JWT_SECRET" "$auto_jwt"
+        echo "JWT_SECRET auto-generado y guardado."
+    fi
+
+    echo ""
+    echo "--- Telegram ---"
+    read -p "MASTER_ID (tu user_id de Telegram): " new_master
+    [ -n "$new_master" ] && set_env_value "MASTER_ID" "$new_master"
+
+    echo ""
+    echo "--- IA & LLM (opcional, Enter para saltar) ---"
+    read -p "GEMINI_API_KEY: " new_gemini
+    [ -n "$new_gemini" ] && set_env_value "GEMINI_API_KEY" "$new_gemini"
+
+    read -p "OPENAI_API_KEY: " new_openai
+    [ -n "$new_openai" ] && set_env_value "OPENAI_API_KEY" "$new_openai"
+
+    echo ""
+    echo "--- TDLib MTProto (opcional, Enter para saltar) ---"
+    read -p "TDLIB_API_ID: " new_tdlib_id
+    [ -n "$new_tdlib_id" ] && set_env_value "TDLIB_API_ID" "$new_tdlib_id"
+
+    read -s -p "TDLIB_API_HASH: " new_tdlib_hash
+    echo ""
+    [ -n "$new_tdlib_hash" ] && set_env_value "TDLIB_API_HASH" "$new_tdlib_hash"
+
+    echo ""
+    echo "======================================"
+    echo "OK: Configuracion guardada en .env"
+    echo "Ejecuta 'bash start.sh doctor' para verificar el estado del sistema."
+    echo "======================================"
+    echo ""
+}
+
 function configure_mtproto_secrets() {
     echo ""
     echo "======================================"
@@ -448,6 +605,16 @@ if [ "$1" == "mtproto" ]; then
     exit 0
 fi
 
+if [ "$1" == "tdlib" ]; then
+    configure_tdlib
+    exit 0
+fi
+
+if [ "$1" == "env" ]; then
+    configure_env
+    exit 0
+fi
+
 if [ "$1" == "modules" ]; then
     check_core_modules
     exit $?
@@ -496,6 +663,42 @@ if os.path.exists("data/bots.json"):
         print(f"✅ Tokens encriptados: {encrypted}/{len(bots)}")
     else:
         print("⚠️  ADVERTENCIA: Tokens en plain text (ejecuta 'bash start.sh tokens')")
+PYTHON_EOF
+
+    # 5b. Verificar keys criticas del .env
+    echo "🔍 Verificando configuracion .env..."
+    $PY_CMD << PYTHON_EOF
+from pathlib import Path
+
+env = {}
+if Path(".env").exists():
+    for line in Path(".env").read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        env[k.strip()] = v.strip()
+
+warnings = []
+if not env.get("WEB_PASSWORD"):
+    warnings.append("WEB_PASSWORD no configurada — el login al dashboard estara deshabilitado")
+if not env.get("JWT_SECRET"):
+    warnings.append("JWT_SECRET no configurada — ejecuta 'bash start.sh env' para generarla")
+if not env.get("MASTER_ID") or env.get("MASTER_ID") == "0":
+    warnings.append("MASTER_ID no configurado — comandos de administracion no funcionaran")
+
+for w in warnings:
+    print(f"  ⚠️  {w}")
+
+tdlib_id   = env.get("TDLIB_API_ID", "")
+tdlib_hash = env.get("TDLIB_API_HASH", "")
+if tdlib_id and tdlib_hash:
+    print("  ✅ TDLib: credenciales configuradas")
+else:
+    print("  ℹ️  TDLib: no configurado (opcional — ejecuta 'bash start.sh tdlib')")
+
+if not warnings:
+    print("  ✅ Todas las keys criticas estan configuradas")
 PYTHON_EOF
 
     # 6. Comprobar librerías críticas
