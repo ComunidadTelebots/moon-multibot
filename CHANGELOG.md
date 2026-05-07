@@ -8,11 +8,12 @@
 - **Cap de 200 mensajes por chat**: El historial almacenado en DB se limita a los últimos 200 mensajes para evitar crecimiento ilimitado en SQLite. El dashboard sigue mostrando los últimos 100.
 
 ## [v16.38.0] - 2026-05-07
-### Fix Chat Dashboard: Mensajes Bot y Scroll
+### Fix Chat Dashboard: Mensajes Bot, Scroll y Encoding
 - **Respuestas del bot visibles en el chat**: `send_msg()` ahora registra el mensaje enviado en `global_chat_history` cuando el chat ya tiene historial activo. Antes solo aparecían los mensajes de los usuarios; ahora se ve la conversación completa (bot + usuarios).
 - **Protección contra historial vacío en JS**: `fetchChatHistory()` usa `data.history || []` para no explotar si la API devuelve error o historial nulo. Se muestra estado vacío "Sin mensajes registrados" en lugar de dejar la pantalla en blanco.
 - **Scroll correcto en el área de mensajes**: Añadido `min-height: 0` a `.chat-messages` y `.chat-main` en el CSS. Sin esta propiedad, los elementos `flex-grow: 1` dentro de un contenedor flex-column no activan `overflow-y: auto` y el scroll no funciona.
 - **Error silencioso en fetch**: Añadido `.catch(() => {})` en `fetchChatHistory()` para evitar errores no capturados en la consola por fallos de red o auth expirado.
+- **Reparación de encoding mojibake en `script.js`**: 67 segmentos de emojis y texto en español estaban double-encoded (bytes UTF-8 interpretados como cp1252/Latin-1 y re-guardados como Unicode). Reparados con un algoritmo de reverse cp1252 que convierte secuencias como `â\x9dŒ` → `❌` y `ðŸŒ™` → `🌙` sin tocar el texto ASCII ni los caracteres ya correctos.
 
 ## [v16.37.0] - 2026-05-07
 ### Corrección Crítica Ollama y Selección de Motor IA
