@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [v16.33.0] - 2026-05-07
+### Modulo de Eventos Telegram
+- **Nuevo modulo `core.telegram_events`**: Extrae el almacenamiento de `business_connection` y `managed_bot` fuera de `moon_multibot.py`.
+- **Business Connections aisladas**: El panel consulta conexiones desde un store especializado en vez de leer estado directo del bot.
+- **Managed Bots desacoplados**: Los updates `managed_bot` se registran desde el nuevo store, dejando el loop principal mas delgado.
+- **Preparado para mas eventos**: Deja una ubicacion clara para futuros updates administrativos sin inflar `MoonBot`.
+
 ## [v16.32.0] - 2026-05-07
 ### Fragmentacion de IA Invocada
 - **Nuevo modulo `core.invoked_ai`**: Extrae la logica de Guest Mode e Inline Mode fuera de `moon_multibot.py`.

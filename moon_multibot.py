@@ -27,6 +27,7 @@ from core.telegram_api import (
     telegram_api_call,
 )
 from core.invoked_ai import InvokedAIService
+from core.telegram_events import TelegramEventStore
 from token_manager import token_manager
 from ban_manager import BanManager
 
@@ -1689,7 +1690,7 @@ def web_admin_backup():
 def business_status():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     conns = []
-    for cid, conn in proxy_bot.business_connections.items():
+    for cid, conn in proxy_bot.telegram_events.list_business_connections().items():
         conns.append({
             "id": cid,
             "user": conn.get("user", {}).get("first_name", "Business"),
@@ -3437,7 +3438,7 @@ class MoonBot:
         me = self.api_call("getMe")
         self.bot_username = me.get("result", {}).get("username", "MoonBot")
         self.bot_id = me.get("result", {}).get("id")
-        self.business_connections = db.get("BUSINESS_CONNECTIONS", {})
+        self.telegram_events = TelegramEventStore(db, add_web_log)
         self.invoked_ai = InvokedAIService(ia_nativa, db, ban_manager, check_cas_status, add_web_log, self.bot_username)
         self.last_msg_id = None
         self.last_media_hash = None
@@ -3762,28 +3763,10 @@ class MoonBot:
         return self.api_call("replaceManagedBotToken", {"bot_id": bot_id})
 
     def record_managed_bot_update(self, update):
-        managed = update.get("managed_bot")
-        if not managed:
-            return False
-        events = db.get("MANAGED_BOT_UPDATES", [])
-        events.append({
-            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "update": managed,
-        })
-        db.set("MANAGED_BOT_UPDATES", events[-100:])
-        add_web_log("INFO", "Managed bot update recibido desde Telegram Bot API.")
-        return True
+        return self.telegram_events.record_managed_bot_update(update)
 
     def record_business_update(self, update):
-        conn = update.get("business_connection")
-        if not conn:
-            return False
-        conn_id = conn.get("id")
-        if conn_id:
-            self.business_connections[conn_id] = conn
-            db.set("BUSINESS_CONNECTIONS", self.business_connections)
-        add_web_log("INFO", f"Business connection actualizada: {conn_id or 'sin id'}")
-        return True
+        return self.telegram_events.record_business_update(update)
 
     def handle_inline_query(self, update):
         return self.invoked_ai.answer_inline_query(update, self.answer_inline_query)
