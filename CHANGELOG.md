@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.34.0] - 2026-05-07
+### Start Script Modular
+- **Version dinamica**: `start.sh` lee `APP_VERSION` desde `core.config` para evitar banners desincronizados.
+- **Chequeo de modulos core**: Nuevo comando `bash start.sh modules` valida imports de `core.config`, `core.db`, `core.telegram_api`, `core.invoked_ai`, `core.telegram_events`, tokens y bans.
+- **Doctor reforzado**: `doctor` comprueba tambien los modulos internos antes de declarar la instancia saludable.
+- **Auto-update mas fiable**: La deteccion de commits pendientes usa `git rev-list HEAD..origin/master` en vez de depender del texto de `git status`.
+- **Arranque mas seguro**: Antes de lanzar `moon_multibot.py`, el script valida que el core modular pueda importarse.
+
 ## [v16.33.0] - 2026-05-07
 ### Modulo de Eventos Telegram
 - **Nuevo modulo `core.telegram_events`**: Extrae el almacenamiento de `business_connection` y `managed_bot` fuera de `moon_multibot.py`.

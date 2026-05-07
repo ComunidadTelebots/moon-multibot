@@ -1,8 +1,11 @@
 #!/bin/bash
-echo "======================================"
-echo "    🌙 MOON MULTIBOT CORE v16.33.0   "
-echo "    Premium Dashboard & Automation    "
-echo "======================================"
+set -o pipefail
+
+export PYTHONUTF8=1
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
 
 # Detectar comando Python
 if command -v python3 &>/dev/null; then
@@ -13,6 +16,53 @@ else
     echo "❌ ERROR FATAL: Python no está instalado en el sistema."
     exit 1
 fi
+
+# Buscar y activar entorno virtual si existe antes de leer la configuracion.
+if [ -d "venv" ]; then
+    if [ -f "venv/bin/activate" ]; then
+        source venv/bin/activate
+    elif [ -f "venv/Scripts/activate" ]; then
+        source venv/Scripts/activate
+    fi
+fi
+
+APP_VERSION="$($PY_CMD -c "from core.config import APP_VERSION; print(APP_VERSION)" 2>/dev/null || echo "unknown")"
+
+echo "======================================"
+echo "    🌙 MOON MULTIBOT CORE ${APP_VERSION}   "
+echo "    Premium Dashboard & Automation    "
+echo "======================================"
+
+function check_core_modules() {
+    $PY_CMD << PYTHON_EOF
+modules = [
+    "core.config",
+    "core.db",
+    "core.telegram_api",
+    "core.invoked_ai",
+    "core.telegram_events",
+    "ban_manager",
+]
+missing = []
+for module in modules:
+    try:
+        __import__(module)
+    except Exception as exc:
+        missing.append(f"{module}: {exc}")
+try:
+    import importlib.util
+    if importlib.util.find_spec("token_manager") is None:
+        missing.append("token_manager: modulo no encontrado")
+except Exception as exc:
+    missing.append(f"token_manager: {exc}")
+if missing:
+    print("ERROR: Fallo importando modulos core:")
+    for item in missing:
+        print(f" - {item}")
+    raise SystemExit(1)
+print("OK: modulos core cargados.")
+PYTHON_EOF
+}
 
 # 0. Migración e Importación de datos antiguos
 function run_migration() {
@@ -398,6 +448,11 @@ if [ "$1" == "mtproto" ]; then
     exit 0
 fi
 
+if [ "$1" == "modules" ]; then
+    check_core_modules
+    exit $?
+fi
+
 if [ "$1" == "doctor" ]; then
     echo "🩺 Iniciando Diagnóstico de Salud (Doctor Mode)..."
     echo "------------------------------------------------"
@@ -453,6 +508,14 @@ PYTHON_EOF
         exit 1
     fi
 
+    # 6b. Comprobar modulos internos
+    echo "Verificando modulos internos..."
+    check_core_modules
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Modulos internos incompletos. Ejecuta git pull origin master o reconstruye la imagen Docker."
+        exit 1
+    fi
+
     # 7. Comprobar Docker
     if command -v docker &>/dev/null; then
         echo "✅ Docker detectado. Escáner de Proxies activado."
@@ -491,10 +554,10 @@ run_migration
 if command -v git &>/dev/null; then
     echo "🚀 Comprobando actualizaciones en GitHub..."
     git fetch origin master &>/dev/null
-    BEHIND=$(git status -uno | grep "Your branch is behind")
-    if [ ! -z "$BEHIND" ]; then
+    BEHIND_COUNT=$(git rev-list --count HEAD..origin/master 2>/dev/null || echo "0")
+    if [ "$BEHIND_COUNT" != "0" ]; then
         if [ "${AUTO_DOCKER_UPDATE:-true}" = "true" ]; then
-            echo "Auto-update: nueva version detectada. Aplicando git pull..."
+            echo "Auto-update: nueva version detectada (${BEHIND_COUNT} commit/s). Aplicando git pull..."
             git pull origin master
             echo "Auto-update: actualizacion aplicada."
         else
@@ -515,11 +578,8 @@ fi
 # Bucle infinito para auto-reiniciar el bot
 while true; do
     echo "[*] Lanzando Moon Multibot..."
-    if command -v python3 &>/dev/null; then
-        python3 moon_multibot.py
-    else
-        python moon_multibot.py
-    fi
+    check_core_modules || exit 1
+    $PY_CMD moon_multibot.py
 
     echo "[!] El bot se ha cerrado inesperadamente."
     echo "[!] Reiniciando en 5 segundos... (Presiona Ctrl+C para cancelar)"

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-APP_VERSION = "v16.33.0"
+APP_VERSION = "v16.34.0"
 BOT_STORE_PATH = "data/bots.json"
 
 WEB_PASSWORD = os.getenv("WEB_PASSWORD", "moon")
