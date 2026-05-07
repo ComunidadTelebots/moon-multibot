@@ -400,6 +400,18 @@ flood_cache = {}  # {f"{cid}_{uid}": [timestamps]} — en memoria para evitar op
 cas_cache = {}  # {uid: {"time": ts, "status": {...}}}
 global_chat_history, global_chat_names, global_user_stats, global_media_list, global_msg_log = {}, {}, {}, [], []
 maintenance_mode = False
+
+_CHAT_HIST_MAX = 200  # mensajes máximos por chat en DB
+
+def _append_chat_hist(cid, entry):
+    """Añade un mensaje al historial en memoria y lo persiste en SQLite."""
+    if cid not in global_chat_history:
+        global_chat_history[cid] = db.get(f"CHAT_HIST_{cid}", [])
+    global_chat_history[cid].append(entry)
+    if len(global_chat_history[cid]) > _CHAT_HIST_MAX:
+        global_chat_history[cid] = global_chat_history[cid][-_CHAT_HIST_MAX:]
+    db.set(f"CHAT_HIST_{cid}", global_chat_history[cid])
+
 voice_log = []
 active_audits = db.get("ACTIVE_AUDITS", {}) # Persistencia de auditorías
 listen_mode = db.get("LISTEN_MODE", False)  # Modo escucha: solo aprende, no responde
@@ -609,8 +621,12 @@ def web_history():
     cid = request.args.get("chat_id")
     if not cid: return jsonify({"ok": False, "history": []})
     
-    hist = global_chat_history.get(cid, [])
-    
+    hist = global_chat_history.get(cid)
+    if not hist:
+        hist = db.get(f"CHAT_HIST_{cid}", [])
+        if hist:
+            global_chat_history[cid] = hist  # reconstruir caché
+
     # Enriquecer historial con Trust Score calculado en tiempo real
     enriched_history = []
     for m in hist[-100:]:
@@ -3508,7 +3524,7 @@ class MoonBot:
         result = self.call_api("sendMessage", payload)
         cid_str = str(chat_id)
         if cid_str in global_chat_history:
-            global_chat_history[cid_str].append({
+            _append_chat_hist(cid_str, {
                 "time": datetime.datetime.now().strftime("%H:%M"),
                 "sender": "Bot",
                 "uid": self.bot_username,
@@ -4510,8 +4526,9 @@ class MoonBot:
                     
                     # Engagement formula: messages * karma_factor
                     global_user_stats[uid]["engagement"] = min(100, (global_user_stats[uid]["count"] * 2) + global_user_stats[uid]["karma"])
-                    if cid not in global_chat_history: global_chat_history[cid] = []
-                    
+                    if cid not in global_chat_history:
+                        global_chat_history[cid] = db.get(f"CHAT_HIST_{cid}", [])
+
                     # Cargar configuración local
                     cfg = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "welcome": False, "anti_link": False, "clean_join": False, "ia_mood": "friendly", "anti_flood": False})
 
@@ -4549,9 +4566,9 @@ class MoonBot:
                     elif "document" in msg:
                         media_info = {"type": "document", "file_id": msg["document"].get("file_id"), "name": msg["document"].get("file_name")}
 
-                    global_chat_history[cid].append({
-                        "time": datetime.datetime.now().strftime("%H:%M"), 
-                        "sender": uname, 
+                    _append_chat_hist(cid, {
+                        "time": datetime.datetime.now().strftime("%H:%M"),
+                        "sender": uname,
                         "uid": uid,
                         "text": text,
                         "media": media_info

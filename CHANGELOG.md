@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [v16.39.0] - 2026-05-07
+### Persistencia del Historial de Chat
+- **Historial persistente en SQLite**: Los mensajes del chat (usuarios y bot) ahora se guardan en la base de datos con la clave `CHAT_HIST_{cid}`. El historial sobrevive reinicios del bot; antes se perdía al reiniciar porque solo existía en memoria.
+- **Helper `_append_chat_hist()`**: Función centralizada que añade cada mensaje al dict en memoria, recorta a los últimos 200 por chat y persiste en SQLite automáticamente. Usada tanto en el loop de mensajes entrantes como en `send_msg()`.
+- **Carga lazy desde DB**: Al seleccionar un chat en el dashboard, si la memoria no tiene historial (primer arranque tras reinicio), se recupera automáticamente desde `CHAT_HIST_{cid}` sin necesidad de reiniciar.
+- **Cap de 200 mensajes por chat**: El historial almacenado en DB se limita a los últimos 200 mensajes para evitar crecimiento ilimitado en SQLite. El dashboard sigue mostrando los últimos 100.
+
 ## [v16.38.0] - 2026-05-07
 ### Fix Chat Dashboard: Mensajes Bot y Scroll
 - **Respuestas del bot visibles en el chat**: `send_msg()` ahora registra el mensaje enviado en `global_chat_history` cuando el chat ya tiene historial activo. Antes solo aparecían los mensajes de los usuarios; ahora se ve la conversación completa (bot + usuarios).
