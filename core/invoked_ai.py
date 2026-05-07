@@ -134,9 +134,12 @@ class InvokedAIService:
         ai_used = "unknown"
         
         try:
-            # Pasar preferencia de IA al servicio
             answer = (self.ia.generate(prompt[:1000], chat_id=chat_key, ai_preference=ai_preference) or "").strip()
-            ai_used = ai_preference if ai_preference in ["ollama", "gemini"] else "hybrid"
+            ai_used = ai_preference if ai_preference in ("ollama", "gemini") else "hybrid"
+        except TypeError:
+            # Fallback si generate() no soporta ai_preference (versión antigua)
+            answer = (self.ia.generate(prompt[:1000], chat_id=chat_key) or "").strip()
+            ai_used = "hybrid"
         except Exception as e:
             self.log("ERROR", f"Error generando respuesta: {e}")
             answer = ""

@@ -114,7 +114,7 @@ function switchTab(tabId, btn) {
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
         if(tabId === 'bots') fetchBots();
-        if(tabId === 'ia') { fetchIAFeeders(); fetchVisionStats(); initIATab(); }
+        if(tabId === 'ia') { fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
         if(tabId === 'moderation') { loadModerationTab(); fetchSecurityBlacklist(); }
@@ -908,6 +908,8 @@ function refreshAuditHistory() {
 setInterval(refreshAuditStatus, 3000);
 setInterval(refreshAuditHistory, 10000);
 setInterval(fetchIAFeeders, 2000);
+setInterval(fetchInlineStats, 15000);
+fetchInlineStats();
 
 function removeIAFeeder(id) {
     if(!confirm("Â¿Deseas desvincular esta fuente de aprendizaje (" + id + ")?")) return;
@@ -1262,6 +1264,79 @@ function toggleJoinDelete() {
 function changeLanguage() {
     const lang = document.getElementById("langSelect")?.value;
     showToast("ðŸŒ Idioma", "Cambiando a: " + (lang === 'es' ? 'EspaÃ±ol' : 'English'));
+}
+
+// --- Inline / Guest AI Stats ---
+function fetchInlineStats() {
+    if (!authToken) return;
+    fetch("/api/ia/inline_stats", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        if (!data.ok) return;
+
+        const s = data.summary || {};
+        const el = id => document.getElementById(id);
+        if (el("inlineTotalReq")) el("inlineTotalReq").innerText = s.total_requests || 0;
+        if (el("inlineSuccessRate")) el("inlineSuccessRate").innerText = (s.success_rate_percent || 0) + "%";
+        if (el("inlineAvgTime")) el("inlineAvgTime").innerText = (s.avg_response_time_ms || 0) + "ms";
+        if (el("inlineCountInline")) el("inlineCountInline").innerText = s.inline_requests || 0;
+        if (el("inlineCountGuest")) el("inlineCountGuest").innerText = s.guest_requests || 0;
+
+        const res = data.results || {};
+        if (el("inlineSuccess")) el("inlineSuccess").innerText = res.success || 0;
+        if (el("inlineFailed")) el("inlineFailed").innerText = res.failed || 0;
+
+        const dist = data.ai_distribution || {};
+        if (el("inlineDistOllama")) el("inlineDistOllama").innerText = dist.ollama || 0;
+        if (el("inlineDistGemini")) el("inlineDistGemini").innerText = dist.gemini || 0;
+        if (el("inlineDistHybrid")) el("inlineDistHybrid").innerText = dist.hybrid || 0;
+
+        const mode = data.default_ai_mode || "hybrid";
+        if (el("inlineAiDefaultBadge")) el("inlineAiDefaultBadge").innerText = mode.toUpperCase();
+        ["ollama","gemini","hybrid"].forEach(m => {
+            const btn = el("aiBtnOllama".replace("ollama", m).replace("aiBtnOllama", "aiBtn" + m.charAt(0).toUpperCase() + m.slice(1)));
+            if (btn) btn.classList.toggle("active", m === mode);
+        });
+
+        const events = data.recent_events || [];
+        const feed = el("inlineRecentEvents");
+        if (feed) {
+            if (!events.length) {
+                feed.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin: 0;">Sin eventos recientes...</p>';
+            } else {
+                feed.innerHTML = events.slice().reverse().map(e => {
+                    const icon = e.mode === "inline" ? "📱" : "👤";
+                    const ok = e.success ? "✅" : "❌";
+                    const aiLabel = { ollama: "🦙", gemini: "🌐", hybrid: "⚡" }[e.ai_used] || "❓";
+                    return `<div style="padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display:flex; gap:8px; align-items:center;">
+                        <span>${ok}</span><span>${icon}</span><span style="color:#a78bfa;">${aiLabel} ${e.ai_used}</span>
+                        <span style="color:var(--text-muted);">${e.user_name || e.user_id}</span>
+                        <span style="margin-left:auto; color:var(--text-muted); font-size:10px;">${e.elapsed_ms}ms · ${e.time}</span>
+                    </div>`;
+                }).join("");
+            }
+        }
+    }).catch(() => {});
+}
+
+function refreshInlineStats() {
+    fetchInlineStats();
+    showToast("📊 Stats", "Estadísticas actualizadas");
+}
+
+function setDefaultAI(mode) {
+    if (!authToken) return;
+    fetch("/api/ia/inline_stats/set_default", {
+        method: "POST",
+        headers: { "Authorization": authToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ mode })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            showToast("⚡ IA", `Motor por defecto: ${data.new.toUpperCase()}`);
+            fetchInlineStats();
+        } else {
+            showToast("❌ Error", data.msg || "No se pudo cambiar");
+        }
+    });
 }
 
 function setIAMood(mood) {

@@ -1193,6 +1193,43 @@ def web_ia_stats():
         add_web_log("ERROR", f"Fallo crítico en /api/ia/stats: {str(e)}")
         return jsonify({"ok": False, "msg": "Error interno del servidor"})
 
+@app.route("/api/ia/inline_stats")
+def web_ia_inline_stats():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    try:
+        if proxy_bot and hasattr(proxy_bot, "invoked_ai"):
+            stats = proxy_bot.invoked_ai.get_ai_statistics()
+        else:
+            raw = db.get("INLINE_GUEST_AI_STATS", {})
+            total = raw.get("inline_total", 0) + raw.get("guest_total", 0)
+            avg_time = raw.get("total_time", 0) / max(1, total)
+            success_rate = (raw.get("success_count", 0) / max(1, total)) * 100
+            stats = {
+                "summary": {"total_requests": total, "inline_requests": raw.get("inline_total", 0), "guest_requests": raw.get("guest_total", 0), "success_rate_percent": round(success_rate, 2), "avg_response_time_ms": round(avg_time * 1000, 2)},
+                "ai_distribution": {"ollama": raw.get("ollama_count", 0), "gemini": raw.get("gemini_count", 0), "hybrid": raw.get("hybrid_count", 0)},
+                "results": {"success": raw.get("success_count", 0), "failed": raw.get("failed_count", 0)},
+                "recent_events": raw.get("recent_events", [])[-20:]
+            }
+        settings = db.get("GLOBAL_SETTINGS", {})
+        stats["default_ai_mode"] = settings.get("default_ai_mode", "hybrid")
+        return jsonify({"ok": True, **stats})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
+
+@app.route("/api/ia/inline_stats/set_default", methods=["POST"])
+def web_ia_set_default_ai():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", "hybrid")
+    if mode not in ["ollama", "gemini", "hybrid"]:
+        return jsonify({"ok": False, "msg": "Modo inválido. Usa: ollama, gemini, hybrid"})
+    settings = db.get("GLOBAL_SETTINGS", {})
+    old = settings.get("default_ai_mode", "hybrid")
+    settings["default_ai_mode"] = mode
+    db.set("GLOBAL_SETTINGS", settings)
+    add_web_log("INFO", f"IA por defecto cambiada de {old} a {mode} desde el dashboard")
+    return jsonify({"ok": True, "old": old, "new": mode})
+
 @app.route("/api/ia/potentials")
 def web_ia_potentials():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -2947,15 +2984,14 @@ class MoonCoreIA:
                     words.add(w)
         return words
 
-    def generate(self, prompt, chat_id=None, mood_override=None):
+    def generate(self, prompt, chat_id=None, mood_override=None, ai_preference=None):
         current_mood = mood_override or self.mood
-        
+
         # --- Lógica RAG (Búsqueda de Memoria Local) ---
         memory_context = ""
         if chat_id:
             prompt_words = [w for w in prompt.lower().split() if len(w) > 3]
             if prompt_words:
-                # Buscar en GLOBAL_HISTORY mensajes similares
                 history = db.get("GLOBAL_HISTORY", [])
                 relevant_msgs = []
                 for m in history:
@@ -2966,16 +3002,23 @@ class MoonCoreIA:
                     memory_context = "\n[Memoria Reciente]:\n" + "\n".join(relevant_msgs)
 
         # --- Modo Híbrido / Externo (LLM) ---
-        use_llm_this_time = USE_EXTERNAL_LLM
-        if USE_EXTERNAL_LLM and HYBRID_PERCENTAGE < 100:
-            use_llm_this_time = random.randint(1, 100) <= HYBRID_PERCENTAGE
+        # ai_preference ("ollama"/"gemini") fuerza el motor ignorando el ratio híbrido global.
+        # "hybrid" o None respetan la configuración global USE_EXTERNAL_LLM / HYBRID_PERCENTAGE.
+        forced_provider = ai_preference if ai_preference in ("ollama", "gemini") else None
+        if forced_provider:
+            use_llm_this_time = True
+            effective_provider = forced_provider
+        else:
+            use_llm_this_time = USE_EXTERNAL_LLM
+            if USE_EXTERNAL_LLM and HYBRID_PERCENTAGE < 100:
+                use_llm_this_time = random.randint(1, 100) <= HYBRID_PERCENTAGE
+            effective_provider = LLM_PROVIDER
 
         if use_llm_this_time:
             try:
                 cloud_response = ""
-                if LLM_PROVIDER == "gemini" and GEMINI_API_KEY:
+                if effective_provider == "gemini" and GEMINI_API_KEY:
                     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
-                    system_instruction = f"Eres MoonBot, una IA de gestión de Telegram. Mood: {current_mood}. Contexto: {memory_context}"
                     system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
                     payload = {
                         "contents": [{
@@ -2986,32 +3029,39 @@ class MoonCoreIA:
                     }
                     r = requests.post(url, json=payload, timeout=10)
                     if r.status_code == 200:
-                        res_json = r.json()
-                        cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
-                
-                elif LLM_PROVIDER == "ollama":
+                        try:
+                            res_json = r.json()
+                            cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
+                        except (ValueError, KeyError, IndexError) as e:
+                            add_web_log("WARNING", f"Gemini: respuesta inesperada — {e}")
+                    else:
+                        add_web_log("WARNING", f"Gemini respondió con código {r.status_code}: {r.text[:200]}")
+
+                elif effective_provider == "ollama":
                     system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
                     payload = {
                         "model": OLLAMA_MODEL,
-                        "prompt": f"Mood: {current_mood}\nContexto: {memory_context}\nUsuario: {prompt}\nMoonBot:",
+                        "prompt": f"{system_instruction}\n\nUsuario: {prompt}\nMoonBot:",
                         "stream": False
                     }
-                    payload["prompt"] = f"{system_instruction}\n\nUsuario: {prompt}\nMoonBot:"
                     r = requests.post(OLLAMA_URL, json=payload, timeout=30)
                     if r.status_code == 200:
-                        cloud_response = r.json().get("response", "")
+                        try:
+                            cloud_response = r.json().get("response", "")
+                        except ValueError as e:
+                            add_web_log("WARNING", f"Ollama: JSON inválido en respuesta — {e}")
                     else:
                         add_web_log("WARNING", f"Ollama respondió con código {r.status_code}: {r.text[:200]}")
 
                 if cloud_response:
-                    self.learn(cloud_response, source=f"{LLM_PROVIDER.capitalize()} Cloud Feedback")
+                    self.learn(cloud_response, source=f"{effective_provider.capitalize()} Cloud Feedback")
                     return cloud_response
             except requests.exceptions.ConnectionError:
-                add_web_log("ERROR", f"❌ No se puede conectar con {LLM_PROVIDER.upper()} ({OLLAMA_URL if LLM_PROVIDER == 'ollama' else 'Gemini API'}). Usando IA Nativa.")
+                add_web_log("ERROR", f"❌ No se puede conectar con {effective_provider.upper()} ({'Gemini API' if effective_provider == 'gemini' else OLLAMA_URL}). Usando IA Nativa.")
             except requests.exceptions.Timeout:
-                add_web_log("WARNING", f"⏱️ Timeout al contactar {LLM_PROVIDER.upper()}. Usando IA Nativa.")
+                add_web_log("WARNING", f"⏱️ Timeout al contactar {effective_provider.upper()}. Usando IA Nativa.")
             except Exception as e:
-                add_web_log("ERROR", f"Fallo LLM Externo ({LLM_PROVIDER}): {e}")
+                add_web_log("ERROR", f"Fallo LLM Externo ({effective_provider}): {e}")
 
         # --- Fallback: IA Nativa (Markov) ---
         # Ajustar el "peso" de las respuestas según el mood

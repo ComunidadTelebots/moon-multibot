@@ -1,5 +1,33 @@
 # Changelog - Moon Multibot
 
+## [v16.37.0] - 2026-05-07
+### Corrección Crítica Ollama y Selección de Motor IA
+- **Fix crítico `ai_preference`**: `MoonCoreIA.generate()` no aceptaba el parámetro `ai_preference` que `InvokedAIService` intentaba pasarle, provocando un `TypeError` silencioso en cada consulta Inline y Guest. El parámetro ya está declarado correctamente.
+- **Enrutamiento por motor implementado**: Al forzar `/ollama` o `/gemini` en un query, el motor seleccionado se usa directamente ignorando el ratio híbrido global (`HYBRID_PERCENTAGE`). El modo `hybrid` o sin prefijo sigue respetando la configuración global.
+- **Variable `effective_provider`**: Toda la lógica de llamada a LLM usa ahora `effective_provider` en lugar de `LLM_PROVIDER` directo, permitiendo overrides por petición sin alterar el estado global.
+- **JSON seguro en respuestas Ollama y Gemini**: Añadido `try/except` específico para `ValueError`/`KeyError`/`IndexError` al parsear las respuestas de ambos motores. Errores de JSON malformado ya no colapsan el hilo y quedan registrados en el log.
+- **Fallback de compatibilidad en `invoked_ai`**: Si `generate()` lanza `TypeError` (versión antigua del core sin `ai_preference`), el servicio reintenta sin el parámetro y registra `hybrid` como motor usado.
+
+## [v16.36.0] - 2026-05-07
+### Panel Dashboard Estadísticas Inline y Guest IA
+- **Integración dashboard estadísticas**: Nuevo panel en la pestaña IA con tarjetas de resumen (total solicitudes, tasa de éxito, tiempo promedio), desglose Inline/Guest, distribución por motor y feed de los últimos 20 eventos con tiempo de respuesta y usuario.
+- **Selector de motor por defecto**: Botones Ollama / Gemini / Hybrid en el dashboard para cambiar el motor activo en caliente, con badge visual del modo actual y refresco automático cada 15 segundos.
+- **Nuevos endpoints**: `GET /api/ia/inline_stats` y `POST /api/ia/inline_stats/set_default` para consultar y cambiar el motor por defecto desde el dashboard sin reiniciar.
+
+## [v16.35.0] - 2026-05-07
+### Selección de IA por Modo y Estadísticas Inline/Guest
+- **Selección de motor IA por query**: Inline Mode y Guest Mode detectan prefijos `/ollama`, `/gemini` o `/hybrid` al inicio del mensaje para forzar el motor concreto sin tocar la configuración global.
+- **Preferencia global persistente**: Si no se especifica prefijo, se usa `default_ai_mode` de `GLOBAL_SETTINGS`; se puede cambiar en caliente sin reiniciar.
+- **Estadísticas de uso IA**: Nuevo sistema `INLINE_GUEST_AI_STATS` en base de datos que registra cada solicitud (modo, usuario, motor usado, tiempo de respuesta, éxito/fallo) con historial de hasta 500 eventos recientes.
+- **API de estadísticas**: Nuevo método `get_ai_statistics()` en `InvokedAIService` que devuelve resumen total, desglose inline/guest, distribución por motor (ollama/gemini/hybrid), tasa de éxito y tiempo medio de respuesta.
+- **Caché inline diferenciada por IA**: La clave de caché de respuestas inline incluye ahora la preferencia de IA para evitar devolver la respuesta del motor equivocado ante el mismo query.
+- **Logs enriquecidos**: Los registros de Inline IA y Guest Bot muestran ahora qué motor respondió en cada interacción.
+- **Nuevo plugin `inline_guest_ai_settings`**: Tres comandos de gestión solo para master/admin:
+  - `/ia_stats` — Estadísticas completas de uso IA con los últimos 5 eventos detallados.
+  - `/ia_set_default <ollama|gemini|hybrid>` — Cambia el motor por defecto para inline y guest en caliente.
+  - `/ia_info` — Muestra el motor activo, disponibilidad de Ollama y Gemini, y modo de operación actual.
+- **`.gitignore` ampliado**: Se excluyen ficheros de instrucciones locales para agentes IA (`AGENTS.md`, `.instructions.md`, `.prompt.md`, `.agent.md`, `copilot-instructions.md`) para evitar commitear personalizaciones de entorno.
+
 ## [v16.34.0] - 2026-05-07
 ### Start Script Modular
 - **Version dinamica**: `start.sh` lee `APP_VERSION` desde `core.config` para evitar banners desincronizados.
