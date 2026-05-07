@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "======================================"
-echo "    🌙 MOON MULTIBOT CORE v16.30.0   "
+echo "    🌙 MOON MULTIBOT CORE v16.31.0   "
 echo "    Premium Dashboard & Automation    "
 echo "======================================"
 

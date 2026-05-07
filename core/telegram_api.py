@@ -16,6 +16,8 @@ DEFAULT_ALLOWED_UPDATES = [
     "business_message",
     "edited_business_message",
     "deleted_business_messages",
+    "inline_query",
+    "chosen_inline_result",
     "callback_query",
     "my_chat_member",
     "chat_member",

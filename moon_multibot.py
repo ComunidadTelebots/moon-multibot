@@ -3439,6 +3439,7 @@ class MoonBot:
         self.bot_id = me.get("result", {}).get("id")
         self.business_connections = db.get("BUSINESS_CONNECTIONS", {})
         self.guest_reply_times = {}
+        self.inline_reply_times = {}
         self.last_msg_id = None
         self.last_media_hash = None
         if not os.path.exists("downloads"): os.makedirs("downloads")
@@ -3461,6 +3462,14 @@ class MoonBot:
         if message_thread_id is not None:
             payload["message_thread_id"] = message_thread_id
         return self.api_call("sendMessageDraft", payload)
+
+    def answer_inline_query(self, inline_query_id, results, cache_time=2, is_personal=True):
+        return self.api_call("answerInlineQuery", {
+            "inline_query_id": inline_query_id,
+            "results": results,
+            "cache_time": cache_time,
+            "is_personal": is_personal,
+        })
 
     def analyze_image(self, path):
         """Neural Perception Engine (NPHE-I) - 100% Local & Open Source"""
@@ -3777,6 +3786,133 @@ class MoonBot:
         add_web_log("INFO", f"Business connection actualizada: {conn_id or 'sin id'}")
         return True
 
+    def build_invoked_ai_prompt(self, mode, text, uname="Usuario", context_text=""):
+        mode_label = "Guest Mode" if mode == "guest" else "Inline Mode"
+        parts = [
+            f"Modo Telegram: {mode_label}.",
+            "Responde en espanol, de forma util, breve y lista para publicar en Telegram.",
+            "No menciones limitaciones internas ni digas que eres un modelo.",
+        ]
+        if mode == "guest":
+            parts.append("Has sido invocado temporalmente en un chat donde no debes asumir permisos ni historial completo.")
+        else:
+            parts.append("El usuario esta preparando una respuesta inline; genera texto reutilizable y claro.")
+        if context_text:
+            parts.append(f"Contexto citado: {context_text[:500]}")
+        parts.append(f"{uname}: {text[:700]}")
+        return "\n".join(parts)
+
+    def generate_invoked_ai_reply(self, mode, text, uid, uname="Usuario", cid=None, context_text=""):
+        text = (text or "").strip()
+        if not text:
+            text = "Crea una respuesta breve y util."
+        chat_key = f"{mode}:{cid or uid}"
+        prompt = self.build_invoked_ai_prompt(mode, text, uname, context_text)
+        answer = self.ia.generate(prompt[:1000], chat_id=chat_key)
+        answer = (answer or "").strip()
+        if not answer:
+            answer = "Estoy listo. Dame un poco mas de contexto y te respondo mejor."
+        return answer[:3500]
+
+    def is_user_blocked_for_remote_ai(self, uid):
+        if ban_manager.is_global_banned(uid):
+            return True
+        settings = db.get("GLOBAL_SETTINGS", {})
+        if settings.get("cas_protection", "on") != "on":
+            return False
+        cas_status = check_cas_status(uid)
+        return bool(cas_status.get("banned"))
+
+    def build_inline_ai_results(self, query, answer):
+        digest = hashlib.sha1(f"{query}|{answer}|{time.time()}".encode("utf-8")).hexdigest()[:16]
+        short_answer = answer[:180]
+        concise = answer[:900]
+        refined_prompt = (
+            "Necesito una respuesta clara para Telegram sobre: "
+            f"{(query or 'esta idea')[:700]}. "
+            "Incluye puntos concretos, evita relleno y termina con una accion util."
+        )
+        return [
+            {
+                "type": "article",
+                "id": f"moon_ai_{digest}",
+                "title": "Respuesta IA",
+                "description": short_answer,
+                "input_message_content": {
+                    "message_text": answer[:4096],
+                    "parse_mode": "Markdown",
+                },
+            },
+            {
+                "type": "article",
+                "id": f"moon_ai_short_{digest}",
+                "title": "Respuesta breve",
+                "description": concise[:120],
+                "input_message_content": {
+                    "message_text": concise,
+                    "parse_mode": "Markdown",
+                },
+            },
+            {
+                "type": "article",
+                "id": f"moon_ai_prompt_{digest}",
+                "title": "Mejorar prompt",
+                "description": "Convierte la idea en una peticion mas clara para el chat.",
+                "input_message_content": {
+                    "message_text": refined_prompt,
+                    "parse_mode": "Markdown",
+                },
+            },
+        ]
+
+    def handle_inline_query(self, update):
+        inline = update.get("inline_query")
+        if not inline:
+            return False
+        query_id = inline.get("id")
+        user = inline.get("from", {})
+        uid = str(user.get("id", ""))
+        uname = user.get("first_name", "Usuario")
+        query = (inline.get("query") or "").strip()
+        if not query_id:
+            return True
+
+        key = f"inline:{uid}"
+        now_s = time.time()
+        if now_s - self.inline_reply_times.get(key, 0) < 3:
+            self.answer_inline_query(query_id, [], cache_time=1)
+            return True
+        self.inline_reply_times[key] = now_s
+
+        if uid and self.is_user_blocked_for_remote_ai(uid):
+            self.answer_inline_query(query_id, [], cache_time=10)
+            add_web_log("SECURITY", f"Inline IA bloqueada para usuario baneado/CAS {uid}.")
+            return True
+
+        try:
+            answer = self.generate_invoked_ai_reply("inline", query, uid or "inline", uname=uname)
+            results = self.build_inline_ai_results(query or "Moon IA", answer)
+            self.answer_inline_query(query_id, results, cache_time=2, is_personal=True)
+            add_web_log("IA", f"Inline IA respondida para {uname} ({uid}).")
+        except Exception as e:
+            add_web_log("ERROR", f"Fallo procesando inline IA: {e}")
+            self.answer_inline_query(query_id, [], cache_time=1)
+        return True
+
+    def handle_chosen_inline_result(self, update):
+        chosen = update.get("chosen_inline_result")
+        if not chosen:
+            return False
+        events = db.get("INLINE_AI_CHOICES", [])
+        events.append({
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "result_id": chosen.get("result_id"),
+            "query": chosen.get("query", "")[:300],
+            "user_id": str(chosen.get("from", {}).get("id", "")),
+        })
+        db.set("INLINE_AI_CHOICES", events[-100:])
+        return True
+
     def handle_guest_update(self, update):
         field, guest = extract_guest_update(update)
         if not guest:
@@ -3811,9 +3947,9 @@ class MoonBot:
             return True
 
         try:
-            prompt = f"Invocacion Guest Bot en Telegram. Usuario {uname}: {text}"
-            answer = self.ia.generate(prompt[:600], chat_id=f"guest:{cid}")
-            self.send_msg(cid, answer[:3500])
+            quoted = msg.get("reply_to_message", {}).get("text", "") if msg.get("reply_to_message") else ""
+            answer = self.generate_invoked_ai_reply("guest", text, uid, uname=uname, cid=cid, context_text=quoted)
+            self.send_msg(cid, answer)
             add_web_log("INFO", f"Guest Bot respondio en {cid} a {uname}.")
         except Exception as e:
             add_web_log("ERROR", f"Fallo procesando Guest Bot update: {e}")
@@ -4220,6 +4356,10 @@ class MoonBot:
                 
                 for u in res["result"]:
                     offset = u["update_id"]
+                    if self.handle_inline_query(u):
+                        continue
+                    if self.handle_chosen_inline_result(u):
+                        continue
                     if self.record_managed_bot_update(u):
                         continue
                     if self.record_business_update(u):

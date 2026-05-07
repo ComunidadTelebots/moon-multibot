@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.31.0] - 2026-05-07
+### IA para Guest Mode e Inline Mode
+- **Motor IA invocado**: Guest Mode e Inline Mode comparten prompts especificos para respuestas breves, utiles y listas para Telegram.
+- **Inline IA real**: Nuevo `handle_inline_query` con `answerInlineQuery` y resultados tipo articulo: respuesta completa, version breve y prompt refinado.
+- **Guest Mode mejorado**: Las invocaciones guest usan el mismo motor IA y pueden aprovechar el mensaje citado como contexto temporal.
+- **Proteccion remota**: Inline/Guest aplica bans globales y CAS antes de generar IA, con rate limit por usuario para reducir bucles.
+- **Feedback inline**: Se registran `chosen_inline_result` recientes para auditar que resultados IA se seleccionan.
+
 ## [v16.30.0] - 2026-05-07
 ### Guest Bots y Telegram Bot API 9.6
 - **Guest Mode preparado**: `getUpdates` solicita updates modernos y el runtime detecta updates Guest Bot de forma tolerante (`guest_message`, `guest_interaction` o `guest_bot`).
