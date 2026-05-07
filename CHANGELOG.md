@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.32.0] - 2026-05-07
+### Fragmentacion de IA Invocada
+- **Nuevo modulo `core.invoked_ai`**: Extrae la logica de Guest Mode e Inline Mode fuera de `moon_multibot.py`.
+- **Cache inline de baja latencia**: Reutiliza respuestas IA para consultas inline repetidas durante una ventana corta y evita regeneraciones innecesarias.
+- **Rate limits aislados**: Los controles de frecuencia de Guest e Inline viven en el servicio especializado, no en el runtime principal.
+- **Handlers delgados**: `MoonBot` conserva solo wrappers para conectar Telegram, bans y envio de mensajes con el servicio modular.
+- **Base de rendimiento**: El runtime queda preparado para mover mas servicios sin tocar el bucle principal de updates.
+
 ## [v16.31.0] - 2026-05-07
 ### IA para Guest Mode e Inline Mode
 - **Motor IA invocado**: Guest Mode e Inline Mode comparten prompts especificos para respuestas breves, utiles y listas para Telegram.
