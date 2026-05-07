@@ -3340,9 +3340,8 @@ class MoonBot:
     def __init__(self, token):
         self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", requests.Session(), []
         self.ia = ia_nativa
-        # Iniciar hilo de sueño profundo (vía IA)
         threading.Thread(target=self.ia.deep_dream_worker, daemon=True).start()
-        
+
         self.ia.load_brain()
         me = self.api_call("getMe")
         self.bot_username = me.get("result", {}).get("username", "MoonBot")
@@ -3352,6 +3351,19 @@ class MoonBot:
         self.last_msg_id = None
         self.last_media_hash = None
         if not os.path.exists("downloads"): os.makedirs("downloads")
+
+        # TDLib bot client (opcional) — autentica con bot token, sesión propia
+        self._tdlib = None
+        if TDLIB_API_ID and TDLIB_API_HASH:
+            bot_dir = f"tdlib_data/bot_{bot_public_id(token)}"
+            self._tdlib = TDLibClient(
+                TDLIB_API_ID, TDLIB_API_HASH, db,
+                log_func=add_web_log,
+                bot_token=token,
+                db_dir=bot_dir,
+            )
+            self._tdlib.start()
+            add_web_log("TDLIB", f"TDLib bot iniciado para @{self.bot_username}")
 
     def call_api(self, m, p=None, silent=False):
         method = normalize_method(m)
