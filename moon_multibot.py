@@ -423,6 +423,7 @@ def web_status():
     
     return jsonify({
         "ok": True, 
+        "version": APP_VERSION,
         "cpu": cpu, 
         "ram": mem.percent, 
         "ram_used": ram_used,

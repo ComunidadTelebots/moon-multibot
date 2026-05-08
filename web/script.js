@@ -160,6 +160,8 @@ function fetchData() {
         // Header
         const uptimeEl = document.getElementById("uptimeDisplay");
         if(uptimeEl) uptimeEl.innerText = data.uptime;
+        const versionEl = document.getElementById("appVersionTag");
+        if(versionEl && data.version) versionEl.innerText = data.version;
 
         // Hero Stats reales
         updateHeroStats(data);
