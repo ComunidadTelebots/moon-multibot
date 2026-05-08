@@ -289,6 +289,7 @@ from core.routes_ia import setup as _setup_ia
 from core.routes_admin import setup as _setup_admin
 from core.routes_system import setup as _setup_system
 from core.routes_users import setup as _setup_users
+from core.routes_ops import setup as _setup_ops
 
 app.register_blueprint(_setup_business(
     check_jwt=check_jwt,
@@ -383,6 +384,11 @@ app.register_blueprint(_setup_users(
     iter_known_group_targets=iter_known_group_targets,
     get_global_media_list=lambda: global_media_list,
     get_global_user_stats=lambda: global_user_stats,
+))
+app.register_blueprint(_setup_ops(
+    check_jwt=check_jwt,
+    db=db,
+    add_audit_log=add_audit_log,
 ))
 
 @app.route("/")
@@ -670,19 +676,7 @@ def web_settings_legacy():
         proxy_bot.api_call("setMyDescription", {"description": d["bot_description"]})
     return jsonify({"ok": True})
 
-@app.route("/api/audit")
-def web_audit():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    return jsonify({"ok": True, "logs": db.get("AUDIT_LOG", [])})
-
-@app.route("/api/logs/download")
-def web_download_logs():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if os.path.exists("data/bot.log"):
-        return send_from_directory("data", "bot.log", as_attachment=True)
-    return jsonify({"ok": False, "msg": "No log file found."})
-
-# rutas de usuarios/media/bans/stats movidas a core/routes_users.py
+# rutas audit/logs/faq y users/media/bans/stats movidas a core/routes_ops.py y core/routes_users.py
 global_bot_names_cache = {}
 
 @app.route("/api/bots", methods=['GET', 'POST', 'DELETE'])
