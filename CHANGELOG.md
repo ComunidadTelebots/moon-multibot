@@ -1,5 +1,20 @@
 # Changelog - Moon Multibot
 
+## [v16.55.0] - 2026-05-08
+### CI — Lint automático en cada push
+- **`.github/workflows/ci.yml`**: workflow que ejecuta `ruff` sobre todo el código Python en cada push a master o PR. Detecta errores de sintaxis, variables no definidas e imports rotos. Ignora líneas largas (E501) e imports al estilo del proyecto.
+
+## [v16.54.0] - 2026-05-08
+### Limpieza automática de descargas
+- **`cleanup_worker()`**: hilo daemon que llama a `purge_old_media()` en cada bot activo una vez al día. Lee `auto_cleanup_days` de `GLOBAL_SETTINGS`; si es 0 está desactivado.
+- **Selector en Settings**: dropdown "Limpieza Automática de Descargas" con opciones: Desactivado / 1 día / 3 días / 7 días / 30 días.
+- Previene que la carpeta `downloads/` llene el disco en producción.
+
+## [v16.53.0] - 2026-05-08
+### .dockerignore — build context reducido
+- **`.dockerignore`**: excluye `.git/`, `data/`, `downloads/`, `ollama_data/`, `__pycache__/`, `logs/`, `scratch/` y otros archivos que no deben entrar a la imagen Docker. El contexto de build baja de ~43MB a ~3MB, acelerando todos los futuros builds.
+- `libtdjson.so` NO está excluido para que `setup_tdlib.sh` pueda copiarlo al contexto.
+
 ## [v16.52.0] - 2026-05-08
 ### TDLib — detección dual: binario local o GitHub Release
 - **`setup_tdlib.sh`**: script que busca `libtdjson.so` en rutas conocidas del servidor (`/usr/local/lib/`, `~/td/`, `/tmp/td/`, `/opt/td/`). Si lo encuentra, lo copia al directorio del proyecto para que el Dockerfile lo use directamente, evitando la descarga desde GitHub.
