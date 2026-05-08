@@ -8,6 +8,14 @@ import requests
 from core.telegram_api import extract_guest_update
 
 
+def _safe_md(text):
+    """Elimina marcadores Markdown desbalanceados para evitar errores de parse en Telegram."""
+    for char in ("*", "_", "`"):
+        if text.count(char) % 2 != 0:
+            text = text.replace(char, "")
+    return text
+
+
 class InvokedAIService:
     def __init__(self, ia, db, ban_manager, cas_checker, log_func, bot_username="MoonBot"):
         self.ia = ia
@@ -184,10 +192,11 @@ class InvokedAIService:
         
         if not answer:
             answer = "Estoy listo. Dame un poco mas de contexto y te respondo mejor."
-        
+
+        answer = _safe_md(answer)
         # Registrar estadísticas
         self._record_ai_usage(mode, uid, uname, cid, ai_used, elapsed_time, len(answer) > 0)
-        
+
         return answer[:3500], ai_used
 
     def is_user_blocked_for_remote_ai(self, uid):

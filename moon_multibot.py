@@ -3201,6 +3201,10 @@ class MoonBot:
             if business_connection_id:
                 payload["business_connection_id"] = business_connection_id
             result = self.call_api("sendMessage", payload)
+            # Si Telegram rechaza las entidades Markdown, reintenta sin parse_mode
+            if result and not result.get("ok") and "parse entities" in str(result.get("description", "")).lower():
+                payload.pop("parse_mode", None)
+                result = self.call_api("sendMessage", payload)
 
         cid_str = str(chat_id)
         if cid_str in global_chat_history:
