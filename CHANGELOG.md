@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [v16.47.0] - 2026-05-08
+### SQLite WAL mode y conexión por hilo
+- **WAL (Write-Ahead Logging)**: `PRAGMA journal_mode=WAL` elimina el lock exclusivo de escritura. Múltiples hilos pueden leer simultáneamente mientras se escribe, reduciendo contención entre el bot, TDLib, telemetry y daily report.
+- **`PRAGMA synchronous=NORMAL`**: equilibrio entre rendimiento y durabilidad (mucho más rápido que FULL sin sacrificar integridad en caídas normales).
+- **Conexión por hilo (`threading.local`)**: cada hilo mantiene su propia conexión SQLite, eliminando el cursor compartido que podía corromperse bajo concurrencia alta.
+- **`db.delete(key)`**: nuevo método para eliminar claves individuales (usado por `_invalidate_admin_cache`).
+
 ## [v16.46.0] - 2026-05-08
 ### TDLib auto-reconexión con backoff exponencial
 - **`_watchdog()`**: hilo daemon que monitoriza `_running` cada 60 s. Si el cliente TDLib cae (`authorizationStateClosed` u otro error), espera un backoff exponencial (30 s × 2^n, máx 5 min), crea un nuevo `client_id` y relanza el `_receive_loop`. El contador `_restart_count` evita reintentos infinitos instantáneos.
