@@ -78,10 +78,13 @@ class TDLibClient:
         os.makedirs(self._db_dir + "_files", exist_ok=True)
         self._client_id = self._tdjson.td_create_client_id()
         self._running = True
+        self._restart_count = 0
         if not self._bot_token:
             self.userbot_enabled = bool(self._db.get("TDLIB_USERBOT_ENABLED", False))
         threading.Thread(target=self._receive_loop, daemon=True,
                          name=f"tdlib-{'bot' if self._bot_token else 'user'}").start()
+        threading.Thread(target=self._watchdog, daemon=True,
+                         name=f"tdlib-watchdog-{'bot' if self._bot_token else 'user'}").start()
         self.send({"@type": "getOption", "name": "version"})
         return True
 
@@ -89,6 +92,29 @@ class TDLibClient:
         self._running = False
         if self._tdjson and self._client_id is not None:
             self.send({"@type": "close"})
+
+    def _watchdog(self):
+        import time as _time
+        _time.sleep(30)
+        while True:
+            _time.sleep(60)
+            if not self._tdjson:
+                break
+            if not self._running and self._auth_state != "not_started":
+                backoff = min(300, 30 * (2 ** min(self._restart_count, 4)))
+                self._log("TDLIB", f"Watchdog: cliente caído (auth={self._auth_state}), reiniciando en {backoff}s…")
+                _time.sleep(backoff)
+                self._restart_count += 1
+                try:
+                    self._client_id = self._tdjson.td_create_client_id()
+                    self._running = True
+                    self._auth_state = "not_started"
+                    threading.Thread(target=self._receive_loop, daemon=True,
+                                     name=f"tdlib-{'bot' if self._bot_token else 'user'}-r{self._restart_count}").start()
+                    self.send({"@type": "getOption", "name": "version"})
+                    self._log("TDLIB", f"Watchdog: cliente reiniciado (intento #{self._restart_count})")
+                except Exception as e:
+                    self._log("ERROR", f"Watchdog: fallo al reiniciar TDLib: {e}")
 
     # ── Primitivas ────────────────────────────────────────────────
 

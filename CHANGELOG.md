@@ -1,5 +1,11 @@
 # Changelog - Moon Multibot
 
+## [v16.46.0] - 2026-05-08
+### TDLib auto-reconexión con backoff exponencial
+- **`_watchdog()`**: hilo daemon que monitoriza `_running` cada 60 s. Si el cliente TDLib cae (`authorizationStateClosed` u otro error), espera un backoff exponencial (30 s × 2^n, máx 5 min), crea un nuevo `client_id` y relanza el `_receive_loop`. El contador `_restart_count` evita reintentos infinitos instantáneos.
+- Backoff: intento 1 → 30 s, intento 2 → 60 s, intento 3 → 120 s, intento 4 → 240 s, intento 5+ → 300 s.
+- Funciona para el cliente usuario y para cada bot con token propio.
+
 ## [v16.45.0] - 2026-05-08
 ### Callback queries, reacciones e invalidación de caché de admins
 - **`handle_callback_query(update)`**: nuevo handler en el dispatch loop. Extrae `callback_query`, delega a plugins que implementen `handle_callback(bot, cid, uid, uname, data, cbq_id)`, y siempre llama `answerCallbackQuery` para detener el spinner de Telegram. Updates no manejados se loguean como DEBUG.
