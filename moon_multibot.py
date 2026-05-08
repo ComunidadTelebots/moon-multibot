@@ -2209,35 +2209,36 @@ class MoonCoreIA:
         add_web_log("IA", "Iniciando motor de Sueño Profundo (Auto-Estudio)...")
         while True:
             if DEEP_DREAM_MODE and LLM_PROVIDER == "ollama":
+                _dd_backoff = 60
                 try:
-                    # Elegir una semilla aleatoria del cerebro
-                    brain = self.brain
-                    if brain:
-                        word = random.choice(list(brain.keys()))
+                    keywords = self.brain.get("keywords", {})
+                    if keywords:
+                        word = random.choice([w for w in keywords if len(w) > 3] or list(keywords.keys()))
                         prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
-                        
-                        payload = {
-                            "model": OLLAMA_MODEL,
-                            "prompt": prompt,
-                            "stream": False
-                        }
+                        payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
                         r = requests.post(OLLAMA_URL, json=payload, timeout=45)
                         if r.status_code == 200:
                             knowledge = r.json().get("response", "")
                             if knowledge:
                                 self.learn(knowledge, source="Deep Dream (Ollama)")
                                 add_web_log("IA", f"🌙 Sueño Profundo: Aprendido sobre '{word}'")
+                            _dd_backoff = random.randint(60, 120)
                         else:
                             add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}")
+                            _dd_backoff = 120
                 except requests.exceptions.ConnectionError:
-                    add_web_log("ERROR", f"Deep Dream: No se puede conectar con Ollama ({OLLAMA_URL}). ¿Está ejecutándose?")
+                    add_web_log("WARNING", f"Deep Dream: Ollama no disponible, reintentando en {_dd_backoff}s")
+                    _dd_backoff = min(600, _dd_backoff * 2)
                 except requests.exceptions.Timeout:
-                    add_web_log("WARNING", "Deep Dream: Timeout al contactar Ollama (>45s)")
+                    add_web_log("WARNING", "Deep Dream: Timeout Ollama (>45s)")
+                    _dd_backoff = 180
                 except Exception as e:
-                    add_web_log("ERROR", f"Deep Dream: Error inesperado: {str(e)}")
-            
-            # Pausa entre 'sueños' para no saturar
-            time.sleep(random.randint(60, 120))
+                    add_web_log("ERROR", f"Deep Dream: Error inesperado: {e}")
+                    _dd_backoff = 120
+            else:
+                _dd_backoff = random.randint(60, 120)
+
+            time.sleep(_dd_backoff)
 
     def seed_knowledge(self):
         global multilingual_seeds
@@ -2703,26 +2704,26 @@ class MoonCoreIA:
         new_words = 0
         now_str = datetime.datetime.now().strftime("%H:%M:%S")
 
-        for i, w in enumerate(words):
-            # Limpiar caracteres especiales
-            w = "".join(filter(str.isalnum, w))
-            if not w or len(w) < 2: continue
+        with self.brain_lock:
+            for i, w in enumerate(words):
+                w = "".join(filter(str.isalnum, w))
+                if not w or len(w) < 2: continue
 
-            if w not in self.brain["keywords"]:
-                self.brain["keywords"][w] = Counter()
-                new_words += 1
-                if w not in self._sources_cache:
-                    self._sources_cache[w] = source
+                if w not in self.brain["keywords"]:
+                    self.brain["keywords"][w] = Counter()
+                    new_words += 1
+                    if w not in self._sources_cache:
+                        self._sources_cache[w] = source
 
-            if len(w) > 3:
-                self._activity_cache.append({"word": w, "source": source, "time": now_str})
+                if len(w) > 3:
+                    self._activity_cache.append({"word": w, "source": source, "time": now_str})
 
-            if i < len(words) - 1:
-                next_w = "".join(filter(str.isalnum, words[i+1]))
-                if next_w:
-                    if not isinstance(self.brain["keywords"][w], Counter):
-                        self.brain["keywords"][w] = Counter(self.brain["keywords"][w])
-                    self.brain["keywords"][w][next_w] += 1
+                if i < len(words) - 1:
+                    next_w = "".join(filter(str.isalnum, words[i+1]))
+                    if next_w:
+                        if not isinstance(self.brain["keywords"][w], Counter):
+                            self.brain["keywords"][w] = Counter(self.brain["keywords"][w])
+                        self.brain["keywords"][w][next_w] += 1
 
         self.session_words += new_words
         self._learn_count += 1
