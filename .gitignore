@@ -44,3 +44,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# TDLib binario local (copiado por setup_tdlib.sh, no commitear)
+libtdjson.so

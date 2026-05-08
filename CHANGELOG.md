@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [v16.52.0] - 2026-05-08
+### TDLib — detección dual: binario local o GitHub Release
+- **`setup_tdlib.sh`**: script que busca `libtdjson.so` en rutas conocidas del servidor (`/usr/local/lib/`, `~/td/`, `/tmp/td/`, `/opt/td/`). Si lo encuentra, lo copia al directorio del proyecto para que el Dockerfile lo use directamente, evitando la descarga desde GitHub.
+- **`Dockerfile` con fallback inteligente**: tras `COPY . .`, comprueba si `libtdjson.so` está presente en el contexto de build. Si está → lo mueve a `/usr/local/lib/`. Si no → descarga desde el GitHub Release. Un solo Dockerfile soporta ambos escenarios.
+- **`.gitignore`**: `libtdjson.so` ignorado para que el binario local nunca se comitee al repositorio.
+- **Flujo recomendado en el servidor**: `./setup_tdlib.sh && docker compose up -d --build`. Si el binario local existe, el build no accede a GitHub en absoluto.
+
 ## [v16.51.0] - 2026-05-08
 ### TDLib pre-compilado — descarga directa desde GitHub Release
 - **`Dockerfile` sin compilación**: etapa única `python:3.12-slim`. Descarga `libtdjson.so` del Release de GitHub con `curl` en ~2 segundos. Build total pasa de ~15 min a ~1 min.

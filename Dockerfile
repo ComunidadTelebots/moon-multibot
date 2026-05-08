@@ -7,17 +7,21 @@ RUN apt-get update && apt-get install -y \
     gcc git curl libssl3 zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
-# Descarga libtdjson.so pre-compilado desde el Release de GitHub.
-# Para actualizar TDLib: lanza el workflow "Compile & publish libtdjson.so"
-# en GitHub Actions y luego reconstruye esta imagen.
-ARG TDLIB_SO_URL=https://github.com/ComunidadTelebots/moon-multibot/releases/download/tdlib-prebuilt/libtdjson.so
-RUN curl -fL "${TDLIB_SO_URL}" -o /usr/local/lib/libtdjson.so \
-    && ldconfig
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+# Usa libtdjson.so local si fue copiado al contexto de build (setup_tdlib.sh),
+# de lo contrario descarga el binario pre-compilado desde el GitHub Release.
+ARG TDLIB_SO_URL=https://github.com/ComunidadTelebots/moon-multibot/releases/download/tdlib-prebuilt/libtdjson.so
+RUN if [ -f libtdjson.so ]; then \
+        echo "[TDLib] Usando binario local"; \
+        mv libtdjson.so /usr/local/lib/libtdjson.so; \
+    else \
+        echo "[TDLib] Descargando desde GitHub Release"; \
+        curl -fL "${TDLIB_SO_URL}" -o /usr/local/lib/libtdjson.so; \
+    fi && ldconfig
 
 EXPOSE 5000
 
