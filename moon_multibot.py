@@ -1941,31 +1941,32 @@ class MoonCoreIA:
             if keywords:
                 word = random.choice([w for w in keywords if len(w) > 3] or list(keywords.keys()))
 
-            if DEEP_DREAM_MODE and LLM_PROVIDER == "ollama" and word:
-                try:
-                    prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
-                    payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
-                    r = requests.post(OLLAMA_URL, json=payload, timeout=45)
-                    if r.status_code == 200:
-                        knowledge = r.json().get("response", "")
-                        if knowledge:
-                            self.learn(knowledge, source="Deep Dream (Ollama)")
-                            add_web_log("IA", f"🌙 Sueño Profundo Ollama: Aprendido sobre '{word}'")
-                        _dd_backoff = random.randint(60, 120)
-                    else:
-                        add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}, usando Wikipedia como fallback")
+            if DEEP_DREAM_MODE and word:
+                if LLM_PROVIDER == "ollama":
+                    try:
+                        prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
+                        payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
+                        r = requests.post(OLLAMA_URL, json=payload, timeout=45)
+                        if r.status_code == 200:
+                            knowledge = r.json().get("response", "")
+                            if knowledge:
+                                self.learn(knowledge, source="Deep Dream (Ollama)")
+                                add_web_log("IA", f"🌙 Sueño Profundo Ollama: Aprendido sobre '{word}'")
+                            _dd_backoff = random.randint(60, 120)
+                        else:
+                            add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}, usando Wikipedia")
+                            self._deep_dream_wikipedia(word)
+                            _dd_backoff = 120
+                    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                        add_web_log("WARNING", "Deep Dream: Ollama no disponible, usando Wikipedia")
                         self._deep_dream_wikipedia(word)
+                        _dd_backoff = 180
+                    except Exception as e:
+                        add_web_log("ERROR", f"Deep Dream: Error inesperado: {e}")
                         _dd_backoff = 120
-                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-                    add_web_log("WARNING", "Deep Dream: Ollama no disponible, usando Wikipedia como fallback")
+                else:
+                    # Modo Wikipedia (sin Ollama configurado)
                     self._deep_dream_wikipedia(word)
-                    _dd_backoff = 180
-                except Exception as e:
-                    add_web_log("ERROR", f"Deep Dream: Error inesperado: {e}")
-                    _dd_backoff = 120
-            elif word:
-                # Sin Ollama: siempre aprender de Wikipedia
-                self._deep_dream_wikipedia(word)
 
             time.sleep(_dd_backoff)
 
