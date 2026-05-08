@@ -286,6 +286,8 @@ from core.routes_security import setup as _setup_security
 from core.routes_queue import setup as _setup_queue
 from core.routes_moderation import setup as _setup_moderation
 from core.routes_ia import setup as _setup_ia
+from core.routes_admin import setup as _setup_admin
+from core.routes_system import setup as _setup_system
 
 app.register_blueprint(_setup_business(
     check_jwt=check_jwt,
@@ -353,6 +355,22 @@ app.register_blueprint(_setup_ia(
         "OLLAMA_MODEL": cfg["OLLAMA_MODEL"],
         "DEEP_DREAM_MODE": cfg["DEEP_DREAM_MODE"],
     }),
+))
+app.register_blueprint(_setup_admin(
+    check_jwt=check_jwt,
+    db=db,
+    add_audit_log=add_audit_log,
+    get_global_chat_names=lambda: global_chat_names,
+    get_proxy_bot=lambda: proxy_bot,
+    get_global_user_stats=lambda: global_user_stats,
+    get_global_msg_log=lambda: global_msg_log,
+    get_ia_nativa=lambda: ia_nativa,
+    get_maintenance_mode=lambda: maintenance_mode,
+    set_maintenance_mode=lambda value: globals().__setitem__("maintenance_mode", value),
+))
+app.register_blueprint(_setup_system(
+    check_jwt=check_jwt,
+    get_active_bots=lambda: active_bots,
 ))
 
 @app.route("/")
@@ -892,71 +910,11 @@ def web_faq_delete():
     return jsonify({"ok": True})
 
 # rutas /api/ia/* movidas a core/routes_ia.py
-@app.route("/api/admin/broadcast", methods=['POST'])
-def web_admin_broadcast():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    msg = request.json.get("message", "")
-    if not msg: return jsonify({"ok": False, "msg": "Mensaje vacÃ­o"}), 400
-    count = 0
-    for cid in global_chat_names:
-        if proxy_bot.send_msg(cid, f"ðŸ“¢ **COMUNICADO GLOBAL:**\n\n{msg}"): count += 1
-    add_audit_log(f"Broadcast enviado a {count} chats")
-    return jsonify({"ok": True, "count": count})
-
-@app.route("/api/admin/maintenance", methods=['POST'])
-def web_admin_maintenance():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    global maintenance_mode
-    maintenance_mode = not maintenance_mode
-    return jsonify({"ok": True, "enabled": maintenance_mode})
-
-@app.route("/api/admin/shield", methods=['POST'])
-def web_admin_shield():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    status = not db.get("NEURAL_SHIELD", True)
-    db.set("NEURAL_SHIELD", status)
-    return jsonify({"ok": True, "enabled": status})
-
-@app.route("/api/admin/backup", methods=['POST'])
-def web_admin_backup():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    data = { "stats": global_user_stats, "history": global_msg_log, "brain": ia_nativa.brain }
-    fname = f"data/backup_{int(time.time())}.json"
-    with open(fname, "w") as f: json.dump(data, f)
-    return jsonify({"ok": True, "file": fname})
+# rutas /api/admin/* movidas a core/routes_admin.py
 
 # (rutas de business, proxies, tdlib, security, queue â€” movidas a core/routes_*.py)
 
-@app.route("/api/telegram/call", methods=['POST'])
-def web_telegram_call():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    data = request.json
-    method = data.get("method")
-    params = data.get("params", {})
-    idx = data.get("bot_idx", 0)
-    
-    if not method: return jsonify({"ok": False, "msg": "MÃ©todo requerido"}), 400
-    if idx >= len(active_bots): return jsonify({"ok": False, "msg": "Bot no encontrado"}), 404
-    
-    bot = active_bots[idx]
-    # Intentar usar helper si existe
-    if hasattr(bot, method):
-        import inspect
-        func = getattr(bot, method)
-        try:
-            sig = inspect.signature(func)
-            res = func(**{k: v for k, v in params.items() if k in sig.parameters})
-        except:
-            res = bot.api_call(method, params)
-    else:
-        res = bot.api_call(method, params)
-    return jsonify(res)
-
-@app.route("/api/reboot", methods=['POST'])
-def web_reboot():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    threading.Thread(target=lambda: (time.sleep(1), os.execv(sys.executable, ['python'] + sys.argv))).start()
-    return jsonify({"ok": True})
+# rutas /api/telegram/call y /api/reboot movidas a core/routes_system.py
 
 # (rutas de vision/security/moderation/leaderboard â€” movidas a core/routes_*.py)
 
