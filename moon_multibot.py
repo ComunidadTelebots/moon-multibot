@@ -4800,7 +4800,30 @@ if __name__ == "__main__":
                         add_web_log("DEBUG", f"Error en daily_report_worker: {e}")
                     time.sleep(3600)
 
+            def auto_backup_worker():
+                """Envía backup de la DB al Master cada N horas según GLOBAL_SETTINGS.auto_backup_hours."""
+                time.sleep(120)
+                while True:
+                    try:
+                        interval_h = int(db.get("GLOBAL_SETTINGS", {}).get("auto_backup_hours", 0))
+                        if interval_h > 0 and MASTER_ID and proxy_bot:
+                            last_backup = db.get("LAST_AUTO_BACKUP", 0)
+                            if time.time() - last_backup >= interval_h * 3600:
+                                db_path = "data/moon_database.db"
+                                if os.path.exists(db_path):
+                                    size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+                                    proxy_bot.send_document(
+                                        MASTER_ID, db_path,
+                                        f"🗄️ Backup automático — {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)"
+                                    )
+                                    db.set("LAST_AUTO_BACKUP", time.time())
+                                    add_web_log("INFO", f"Backup automático enviado al Master ({size_mb} MB).")
+                    except Exception as e:
+                        add_web_log("DEBUG", f"Error en auto_backup_worker: {e}")
+                    time.sleep(3600)
+
             threading.Thread(target=daily_report_worker, daemon=True).start()
+            threading.Thread(target=auto_backup_worker, daemon=True).start()
             threading.Thread(target=health_monitor, daemon=True).start()
         else:
             add_web_log("ERROR", "No se pudo iniciar ningún bot. Verifica data/bots.json")

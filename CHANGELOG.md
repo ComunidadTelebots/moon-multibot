@@ -1,5 +1,11 @@
 # Changelog - Moon Multibot
 
+## [v16.50.0] - 2026-05-08
+### Backup automático programado
+- **`auto_backup_worker()`**: hilo daemon que envía la DB al Master cada N horas. Lee `GLOBAL_SETTINGS.auto_backup_hours`; si es 0 está desactivado. Persiste `LAST_AUTO_BACKUP` en SQLite para no enviar duplicados al reiniciar.
+- **Selector en Settings**: dropdown "Backup Automático" con opciones: Desactivado / 6h / 12h / 24h / 48h. Se guarda y carga con el resto de `GLOBAL_SETTINGS`.
+- El mensaje incluye fecha, hora y tamaño en MB de la DB enviada.
+
 ## [v16.49.0] - 2026-05-08
 ### Panel TDLib en el Dashboard (tab Diagnóstico)
 - **Panel visual TDLib** en `diagnostics.html`: muestra modo (user/bot), estado de auth, si está listo y si el userbot está activo.
