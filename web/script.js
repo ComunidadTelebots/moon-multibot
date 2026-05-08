@@ -96,7 +96,8 @@ function switchTab(tabId, btn) {
         'business': 'business.html',
         'proxies': 'proxies.html',
         'security': 'security.html',
-        'queue': 'queue.html'
+        'queue': 'queue.html',
+        'games': 'games.html'
     };
 
     const fileName = fileMap[tabId] || 'dashboard.html';

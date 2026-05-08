@@ -1,5 +1,9 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.77.0] - 2026-05-08
+### Fix — Mensaje de LEVEL UP con texto raro al lado
+- **moon_multibot.py**: saneado de uname en el mensaje de subida de nivel para escapar caracteres conflictivos de Markdown.
+- **Mensaje de level up** ajustado para formato estable y limpio: evita artefactos visuales cuando el nombre contiene símbolos especiales.
 ## [v16.76.0] - 2026-05-08
 ### Modularización core — más rutas fuera de moon_multibot.py
 - **core/routes_ia.py**: extraído el bloque /api/ia/* completo (traducción, stats, feeders, auditorías, config, backup/restore, test), además de /api/global/history y /api/admin/settings.
@@ -944,4 +948,5 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 
 ---
 *Â¡450 Mejoras completadas! El bot mÃ¡s potente de su clase.*
+
 

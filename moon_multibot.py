@@ -2778,6 +2778,89 @@ class MoonBot:
         uname = user.get("first_name", "Usuario")
         msg = cbq.get("message", {})
         cid = str(msg.get("chat", {}).get("id", "")) if msg else ""
+        mid = str(msg.get("message_id", "")) if msg else ""
+
+        # Juegos inline nativos en Telegram
+        if data.startswith("moon_game:"):
+            parts = data.split(":")
+            action = parts[1] if len(parts) > 1 else ""
+
+            if action == "menu":
+                self._send_games_menu(cid, "🎮 **Panel de Juegos Moon**\nElige un minijuego:")
+                self.answer_callback_query(cbq_id, "Panel abierto")
+                return True
+
+            if action == "coin":
+                result = "Cara" if random.randint(0, 1) == 0 else "Cruz"
+                self.send_msg(cid, f"🪙 Moneda: **{result}**")
+                self.answer_callback_query(cbq_id, result)
+                return True
+
+            if action == "dice":
+                val = random.randint(1, 6)
+                self.send_msg(cid, f"🎲 Dado: **{val}**")
+                self.answer_callback_query(cbq_id, f"Dado: {val}")
+                return True
+
+            if action == "guess_start":
+                secret = random.randint(1, 10)
+                db.set(f"GAME_GUESS_{cid}_{uid}", {"secret": secret, "tries": 0})
+                kb = {
+                    "inline_keyboard": [
+                        [{"text": "1-3", "callback_data": "moon_game:guess:1:3"}, {"text": "4-7", "callback_data": "moon_game:guess:4:7"}, {"text": "8-10", "callback_data": "moon_game:guess:8:10"}],
+                    ]
+                }
+                self.api_call("sendMessage", {"chat_id": cid, "text": "🔢 Adivina un número del 1 al 10.", "reply_markup": json.dumps(kb)})
+                self.answer_callback_query(cbq_id, "Partida iniciada")
+                return True
+
+            if action == "guess" and len(parts) >= 4:
+                g = db.get(f"GAME_GUESS_{cid}_{uid}", {})
+                if not g:
+                    self.answer_callback_query(cbq_id, "Primero inicia con Adivina 1-10", show_alert=True)
+                    return True
+                lo = int(parts[2]); hi = int(parts[3])
+                guess = random.randint(lo, hi)
+                g["tries"] = int(g.get("tries", 0)) + 1
+                if guess == int(g.get("secret", -1)):
+                    self.send_msg(cid, f"✅ {uname} acertó el número `{g['secret']}` en {g['tries']} intento(s).")
+                    db.set(f"GAME_GUESS_{cid}_{uid}", {})
+                else:
+                    hint = "mayor" if guess < int(g.get("secret", 0)) else "menor"
+                    db.set(f"GAME_GUESS_{cid}_{uid}", g)
+                    self.send_msg(cid, f"❌ {uname} probó `{guess}`. Pista: es **{hint}**.")
+                self.answer_callback_query(cbq_id, "Jugado")
+                return True
+
+            if action == "ttt_start":
+                board = [" "] * 9
+                state = {"owner": uid, "owner_name": uname, "board": board, "msg_id": mid, "chat_id": cid}
+                db.set(f"GAME_TTT_{cid}_{uid}", state)
+                self._ttt_render(cid, uid, uname)
+                self.answer_callback_query(cbq_id, "Tres en raya iniciado")
+                return True
+
+            if action == "ttt" and len(parts) >= 3:
+                idx = int(parts[2])
+                state = db.get(f"GAME_TTT_{cid}_{uid}", {})
+                if not state:
+                    self.answer_callback_query(cbq_id, "Inicia una partida primero", show_alert=True)
+                    return True
+                board = state.get("board", [" "] * 9)
+                if idx < 0 or idx > 8 or board[idx] != " ":
+                    self.answer_callback_query(cbq_id, "Casilla inválida")
+                    return True
+                board[idx] = "X"
+                winner = self._ttt_winner(board)
+                if not winner and " " in board:
+                    free = [i for i, v in enumerate(board) if v == " "]
+                    board[random.choice(free)] = "O"
+                    winner = self._ttt_winner(board)
+                state["board"] = board
+                db.set(f"GAME_TTT_{cid}_{uid}", state)
+                self._ttt_render(cid, uid, uname)
+                self.answer_callback_query(cbq_id, "Movimiento aplicado")
+                return True
 
         handled = False
         for plugin in self.plugins:
@@ -2794,6 +2877,54 @@ class MoonBot:
 
         self.answer_callback_query(cbq_id)
         return True
+
+    def _send_games_menu(self, cid, text):
+        kb = {
+            "inline_keyboard": [
+                [{"text": "🪙 Moneda", "callback_data": "moon_game:coin"}, {"text": "🎲 Dado", "callback_data": "moon_game:dice"}],
+                [{"text": "🔢 Adivina 1-10", "callback_data": "moon_game:guess_start"}],
+                [{"text": "❌ Tres en raya", "callback_data": "moon_game:ttt_start"}],
+            ]
+        }
+        self.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown", "reply_markup": json.dumps(kb)})
+
+    def _ttt_winner(self, b):
+        wins = [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]
+        for a, c, d in wins:
+            if b[a] != " " and b[a] == b[c] and b[a] == b[d]:
+                return b[a]
+        return None
+
+    def _ttt_render(self, cid, uid, uname):
+        state = db.get(f"GAME_TTT_{cid}_{uid}", {})
+        b = state.get("board", [" "] * 9)
+        winner = self._ttt_winner(b)
+        ended = winner is not None or " " not in b
+        symbols = [x if x != " " else "·" for x in b]
+        rows = [" | ".join(symbols[i:i+3]) for i in range(0, 9, 3)]
+        text = "❌ **Tres en raya**\n\n" + "\n".join(rows)
+        if ended:
+            if winner == "X":
+                text += f"\n\n✅ {uname} gana."
+            elif winner == "O":
+                text += "\n\n🤖 Moon gana."
+            else:
+                text += "\n\n🤝 Empate."
+            db.set(f"GAME_TTT_{cid}_{uid}", {})
+            self.send_msg(cid, text)
+            return
+        kb = {"inline_keyboard": []}
+        for r in range(3):
+            row = []
+            for c in range(3):
+                i = r * 3 + c
+                cell = b[i]
+                if cell == " ":
+                    row.append({"text": "⬜", "callback_data": f"moon_game:ttt:{i}"})
+                else:
+                    row.append({"text": "❌" if cell == "X" else "⭕", "callback_data": "moon_game:menu"})
+            kb["inline_keyboard"].append(row)
+        self.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown", "reply_markup": json.dumps(kb)})
 
     def handle_message_reaction(self, update):
         reaction = update.get("message_reaction")
@@ -3051,6 +3182,10 @@ class MoonBot:
 
         if raw_cmd == "/ping":
             self.send_msg(cid, "ðŸ“ **PONG!** NÃºcleo Moon sincronizado.")
+            return True
+
+        if raw_cmd in ["/games", "/juegos"]:
+            self._send_games_menu(cid, "🎮 **Panel de Juegos Moon**\nElige un minijuego:")
             return True
 
         if raw_cmd == "/perfil":
@@ -3415,7 +3550,8 @@ class MoonBot:
                     if user_data["exp"] >= user_data["level"] * 100:
                         user_data["level"] += 1
                         user_data["exp"] = 0
-                        self.send_msg(cid, f"ðŸ†™ **LEVEL UP!** {uname} ha subido al nivel {user_data['level']}! ðŸŽ‰")
+                        uname_safe = re.sub(r"([_*`\\[\\]()~>#+\\-=|{}.!])", r"\\\\\\1", str(uname or "Usuario"))
+                        self.send_msg(cid, f"🆙 **LEVEL UP!** {uname_safe} ha subido al nivel `{user_data['level']}`.")
                     db.set(f"USER_{user_id}", user_data)
                     
                     # Advanced Link Filter (Low Karma Check)
