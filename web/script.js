@@ -1739,6 +1739,7 @@ async function loadIAConfig() {
         if (data.ok) {
             document.getElementById("useExternalLLM").checked = data.use_external;
             document.getElementById("deepDreamMode").checked = data.deep_dream;
+            _applyDeepDreamUI(data.deep_dream);
             document.getElementById("hybridRatio").value = data.hybrid_ratio;
             document.getElementById("ollamaModel").value = data.ollama_model || "qwen2:0.5b";
             
@@ -1794,6 +1795,31 @@ async function saveIAConfig() {
             }
         }
     } catch (e) { showToast("❌ Error", "Fallo al guardar"); }
+}
+
+function _applyDeepDreamUI(active) {
+    const dot = document.getElementById("deepDreamDot");
+    const label = document.getElementById("deepDreamLabel");
+    const panel = document.getElementById("deepDreamPanel");
+    if (!dot || !label) return;
+    if (active) {
+        dot.style.background = "#a78bfa";
+        dot.style.boxShadow = "0 0 6px #a78bfa";
+        label.textContent = "Activo — Cintia aprende en segundo plano con Wikipedia y Ollama.";
+        if (panel) panel.style.background = "rgba(167,139,250,0.13)";
+    } else {
+        dot.style.background = "#475569";
+        dot.style.boxShadow = "none";
+        label.textContent = "Inactivo — activa el interruptor para que Cintia aprenda en segundo plano.";
+        if (panel) panel.style.background = "rgba(167,139,250,0.06)";
+    }
+}
+
+async function toggleDeepDream(active) {
+    _applyDeepDreamUI(active);
+    await saveIAConfig();
+    showToast(active ? "🌙 Sueño Profundo activado" : "⏹ Sueño Profundo desactivado",
+              active ? "Cintia estudiará en segundo plano." : "Auto-estudio pausado.");
 }
 
 // Lote inicial al cargar IA

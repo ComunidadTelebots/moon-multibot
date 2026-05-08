@@ -1887,7 +1887,7 @@ class MoonCoreIA:
         self._sources_cache = db.get("IA_SOURCES", {})
         self._activity_cache = db.get("IA_ACTIVITY", [])
         self._context_cache = {}
-        if len(self.brain["keywords"]) < 1000:
+        if len(self.brain["keywords"]) < 5000:
             threading.Thread(target=self.seed_knowledge).start()
 
     def _ensure_counters(self):
@@ -2208,37 +2208,94 @@ class MoonCoreIA:
         """Hilo de auto-estudio autónomo cuando el bot está ocioso"""
         add_web_log("IA", "Iniciando motor de Sueño Profundo (Auto-Estudio)...")
         while True:
-            if DEEP_DREAM_MODE and LLM_PROVIDER == "ollama":
-                _dd_backoff = 60
+            _dd_backoff = random.randint(60, 120)
+            keywords = self.brain.get("keywords", {})
+            word = None
+            if keywords:
+                word = random.choice([w for w in keywords if len(w) > 3] or list(keywords.keys()))
+
+            if DEEP_DREAM_MODE and LLM_PROVIDER == "ollama" and word:
                 try:
-                    keywords = self.brain.get("keywords", {})
-                    if keywords:
-                        word = random.choice([w for w in keywords if len(w) > 3] or list(keywords.keys()))
-                        prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
-                        payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
-                        r = requests.post(OLLAMA_URL, json=payload, timeout=45)
-                        if r.status_code == 200:
-                            knowledge = r.json().get("response", "")
-                            if knowledge:
-                                self.learn(knowledge, source="Deep Dream (Ollama)")
-                                add_web_log("IA", f"🌙 Sueño Profundo: Aprendido sobre '{word}'")
-                            _dd_backoff = random.randint(60, 120)
-                        else:
-                            add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}")
-                            _dd_backoff = 120
-                except requests.exceptions.ConnectionError:
-                    add_web_log("WARNING", f"Deep Dream: Ollama no disponible, reintentando en {_dd_backoff}s")
-                    _dd_backoff = min(600, _dd_backoff * 2)
-                except requests.exceptions.Timeout:
-                    add_web_log("WARNING", "Deep Dream: Timeout Ollama (>45s)")
+                    prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
+                    payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
+                    r = requests.post(OLLAMA_URL, json=payload, timeout=45)
+                    if r.status_code == 200:
+                        knowledge = r.json().get("response", "")
+                        if knowledge:
+                            self.learn(knowledge, source="Deep Dream (Ollama)")
+                            add_web_log("IA", f"🌙 Sueño Profundo Ollama: Aprendido sobre '{word}'")
+                        _dd_backoff = random.randint(60, 120)
+                    else:
+                        add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}, usando Wikipedia como fallback")
+                        self._deep_dream_wikipedia(word)
+                        _dd_backoff = 120
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                    add_web_log("WARNING", "Deep Dream: Ollama no disponible, usando Wikipedia como fallback")
+                    self._deep_dream_wikipedia(word)
                     _dd_backoff = 180
                 except Exception as e:
                     add_web_log("ERROR", f"Deep Dream: Error inesperado: {e}")
                     _dd_backoff = 120
-            else:
-                _dd_backoff = random.randint(60, 120)
+            elif word:
+                # Sin Ollama: siempre aprender de Wikipedia
+                self._deep_dream_wikipedia(word)
 
             time.sleep(_dd_backoff)
+
+    def _deep_dream_wikipedia(self, word):
+        """Aprende sobre una palabra buscándola en Wikipedia."""
+        try:
+            r = requests.get(
+                f"https://es.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(word)}",
+                timeout=8
+            )
+            if r.status_code == 200:
+                extract = r.json().get("extract", "")
+                if len(extract) > 50:
+                    self.learn(extract, source="Deep Dream (Wikipedia)")
+                    add_web_log("IA", f"🌙 Sueño Profundo Wikipedia: Aprendido sobre '{word}'")
+                    return
+            # Fallback inglés
+            r2 = requests.get(
+                f"https://en.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(word)}",
+                timeout=8
+            )
+            if r2.status_code == 200:
+                extract = r2.json().get("extract", "")
+                if len(extract) > 50:
+                    self.learn(extract, source="Deep Dream (Wikipedia EN)")
+                    add_web_log("IA", f"🌙 Sueño Profundo Wikipedia EN: Aprendido sobre '{word}'")
+        except Exception:
+            pass
+
+    def _seed_from_wikipedia(self, topics, lang="es", max_topics=30):
+        """Busca resúmenes de Wikipedia para los topics dados y aprende oraciones completas."""
+        seeded = 0
+        for topic in topics[:max_topics]:
+            try:
+                r = requests.get(
+                    f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(str(topic))}",
+                    timeout=6
+                )
+                if r.status_code == 200:
+                    extract = r.json().get("extract", "")
+                    if len(extract) > 50:
+                        self.learn(extract, source=f"Wikipedia_{lang}")
+                        seeded += 1
+                        continue
+                if lang != "en":
+                    r2 = requests.get(
+                        f"https://en.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(str(topic))}",
+                        timeout=6
+                    )
+                    if r2.status_code == 200:
+                        extract = r2.json().get("extract", "")
+                        if len(extract) > 50:
+                            self.learn(extract, source="Wikipedia_en")
+                            seeded += 1
+            except Exception:
+                pass
+        return seeded
 
     def seed_knowledge(self):
         global multilingual_seeds
@@ -2252,15 +2309,15 @@ class MoonCoreIA:
                     for phrase in phrases:
                         self.learn(phrase, source=f"Seed_{lang}")
                 add_web_log("SUCCESS", f"🧠 Conocimiento multilingüe sembrado ({len(multilingual_seeds)} idiomas).")
-            
-            # 2. Conocimiento Inicial
+
+            # 2. Conocimiento Inicial — enriquecido con Wikipedia (los topics son palabras sueltas)
             if os.path.exists("data/initial_knowledge.json"):
                 with open("data/initial_knowledge.json", "r", encoding="utf-8") as f:
                     initial = json.load(f)
-                for s in initial:
-                    self.learn(s, source="Semilla Moon")
-                add_web_log("SUCCESS", f"📚 Conocimiento inicial inyectado ({len(initial)} items).")
-                
+                add_web_log("INFO", f"📚 Enriqueciendo {len(initial)} topics con Wikipedia...")
+                seeded = self._seed_from_wikipedia(initial, lang="es", max_topics=40)
+                add_web_log("SUCCESS", f"📚 Wikipedia sembrada: {seeded}/{min(40, len(initial))} topics con oraciones reales.")
+
         except Exception as e:
             add_web_log("ERROR", f"❌ Error en seed_knowledge: {e}")
 
@@ -2733,7 +2790,7 @@ class MoonCoreIA:
             self._activity_cache = self._activity_cache[-50:]
 
         # Escritura en BD más frecuente (cada 5 aprendizajes) para feedback visual
-        if self._learn_count % 5 == 0:
+        if self._learn_count % 2 == 0:
             db.set("IA_BRAIN", self.brain)
             db.set("IA_SOURCES", self._sources_cache)
             db.set("IA_ACTIVITY", self._activity_cache[-50:])
