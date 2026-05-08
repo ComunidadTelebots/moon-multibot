@@ -1,5 +1,5 @@
 import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
-from flask import Flask, request, jsonify, send_from_directory, Response
+from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from dotenv import load_dotenv
 from collections import Counter
 from core.config import (
@@ -1382,6 +1382,33 @@ def api_ia_backup():
     
     threading.Thread(target=_manual_backup).start()
     return jsonify({"ok": True, "msg": "Backup enviado a tu Telegram"})
+
+@app.route("/api/ia/download", methods=['GET'])
+def api_ia_download():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    db_path = DB_PATH
+    if not os.path.exists(db_path):
+        return jsonify({"ok": False, "msg": "Base de datos no encontrada"}), 404
+    fname = f"moon_brain_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    return send_file(os.path.abspath(db_path), as_attachment=True, download_name=fname, mimetype="application/octet-stream")
+
+@app.route("/api/ia/restore", methods=['POST'])
+def api_ia_restore():
+    if not check_jwt(request): return jsonify({"ok": False}), 401
+    f = request.files.get("file")
+    if not f or not f.filename.endswith(".db"):
+        return jsonify({"ok": False, "msg": "Archivo .db requerido"})
+    try:
+        db_path = DB_PATH
+        backup_path = db_path + ".pre_restore"
+        if os.path.exists(db_path):
+            import shutil
+            shutil.copy2(db_path, backup_path)
+        f.save(db_path)
+        add_web_log("SUCCESS", f"🔄 Base de datos restaurada desde archivo subido. Backup previo: {backup_path}")
+        return jsonify({"ok": True, "msg": "Base de datos restaurada. Reinicia el servidor para aplicar los cambios."})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)})
 
 @app.route("/api/ia/force_feed", methods=['POST'])
 def web_ia_force_feed():

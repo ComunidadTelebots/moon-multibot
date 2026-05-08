@@ -1270,8 +1270,30 @@ function setIAPower() {
     showToast("🧠 IA Power", `Cambiando a modo ${mode.toUpperCase()}`);
 }
 
-function toggleJoinDelete() {
-    showToast("🛡️ Seguridad", "Limpieza de uniones: ACTIVA");
+async function backupIA() {
+    const token = getStoredAuthToken().replace("Bearer ", "");
+    const a = document.createElement("a");
+    a.href = `/api/ia/download?token=${encodeURIComponent(token)}`;
+    a.click();
+}
+
+async function restoreIA(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (!file.name.endsWith(".db")) { showToast("❌ Error", "Solo se aceptan archivos .db"); return; }
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+        const res = await fetch("/api/ia/restore", {
+            method: "POST",
+            headers: { "Authorization": getStoredAuthToken() },
+            body: fd
+        });
+        const data = await res.json();
+        if (data.ok) showToast("✅ Restauración completada", data.msg);
+        else showToast("❌ Error", data.msg || "Fallo al restaurar");
+    } catch (e) { showToast("❌ Error", "Fallo en la restauración"); }
+    input.value = "";
 }
 
 function changeLanguage() {
