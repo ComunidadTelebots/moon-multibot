@@ -32,22 +32,25 @@ class InvokedAIService:
             "ollama_count": 0,
             "gemini_count": 0,
             "hybrid_count": 0,
+            "markov_count": 0,
             "success_count": 0,
             "failed_count": 0,
             "total_time": 0,
             "recent_events": []
         })
-        
+
         # Actualizar contadores
         if mode == "inline":
             stats["inline_total"] += 1
         elif mode == "guest":
             stats["guest_total"] += 1
-        
+
         if ai_used == "ollama":
             stats["ollama_count"] += 1
         elif ai_used == "gemini":
             stats["gemini_count"] += 1
+        elif ai_used == "markov":
+            stats["markov_count"] = stats.get("markov_count", 0) + 1
         else:
             stats["hybrid_count"] += 1
         
@@ -93,9 +96,10 @@ class InvokedAIService:
                 "avg_response_time_ms": round(avg_time * 1000, 2)
             },
             "ai_distribution": {
+                "markov": stats.get("markov_count", 0),
                 "ollama": stats.get("ollama_count", 0),
                 "gemini": stats.get("gemini_count", 0),
-                "hybrid": stats.get("hybrid_count", 0)
+                "hybrid": stats.get("hybrid_count", 0),
             },
             "results": {
                 "success": stats.get("success_count", 0),
@@ -167,7 +171,7 @@ class InvokedAIService:
         
         try:
             answer = (self.ia.generate(prompt[:1000], chat_id=chat_key, ai_preference=ai_preference) or "").strip()
-            ai_used = ai_preference if ai_preference in ("ollama", "gemini") else "hybrid"
+            ai_used = ai_preference if ai_preference in ("ollama", "gemini", "markov") else "hybrid"
         except TypeError:
             # Fallback si generate() no soporta ai_preference (versión antigua)
             answer = (self.ia.generate(prompt[:1000], chat_id=chat_key) or "").strip()

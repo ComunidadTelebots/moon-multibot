@@ -1321,6 +1321,7 @@ function fetchInlineStats() {
         if (el("inlineFailed")) el("inlineFailed").innerText = res.failed || 0;
 
         const dist = data.ai_distribution || {};
+        if (el("inlineDistMarkov")) el("inlineDistMarkov").innerText = dist.markov || 0;
         if (el("inlineDistOllama")) el("inlineDistOllama").innerText = dist.ollama || 0;
         if (el("inlineDistGemini")) el("inlineDistGemini").innerText = dist.gemini || 0;
         if (el("inlineDistHybrid")) el("inlineDistHybrid").innerText = dist.hybrid || 0;
