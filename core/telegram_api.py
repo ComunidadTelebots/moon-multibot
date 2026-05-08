@@ -1,7 +1,7 @@
 import requests
 
 
-TELEGRAM_BOT_API_VERSION = "9.6"
+TELEGRAM_BOT_API_VERSION = "10.0"
 
 DEPRECATED_METHOD_ALIASES = {
     "kickChatMember": "banChatMember",
@@ -30,6 +30,8 @@ DEFAULT_ALLOWED_UPDATES = [
     "managed_bot",
     "guest_message",
     "guest_interaction",
+    "message_reaction",
+    "message_reaction_count",
 ]
 
 GUEST_UPDATE_FIELDS = (

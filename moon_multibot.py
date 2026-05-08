@@ -3820,6 +3820,99 @@ class MoonBot:
         
         return "User"
 
+    # --- Métodos Bot API 9.5–10.0 ---
+
+    def unpin_msg(self, cid, mid=None):
+        p = {"chat_id": cid}
+        if mid is not None:
+            p["message_id"] = mid
+        return self.api_call("unpinChatMessage", p)
+
+    def unpin_all_messages(self, cid):
+        return self.api_call("unpinAllChatMessages", {"chat_id": cid})
+
+    def unban_chat_member(self, cid, uid):
+        return self.api_call("unbanChatMember", {"chat_id": cid, "user_id": uid, "only_if_banned": True})
+
+    def send_chat_action(self, cid, action):
+        return self.api_call("sendChatAction", {"chat_id": cid, "action": action}, silent=True)
+
+    def send_voice(self, cid, voice, caption=""):
+        return self.api_call("sendVoice", {"chat_id": cid, "voice": voice, "caption": caption})
+
+    def send_sticker(self, cid, sticker):
+        return self.api_call("sendSticker", {"chat_id": cid, "sticker": sticker})
+
+    def forward_message(self, to_cid, from_cid, mid):
+        return self.api_call("forwardMessage", {"chat_id": to_cid, "from_chat_id": from_cid, "message_id": mid})
+
+    def copy_message(self, to_cid, from_cid, mid, caption=None):
+        p = {"chat_id": to_cid, "from_chat_id": from_cid, "message_id": mid}
+        if caption is not None:
+            p["caption"] = caption
+        return self.api_call("copyMessage", p)
+
+    def get_chat(self, cid):
+        return self.api_call("getChat", {"chat_id": cid})
+
+    def get_chat_member_count(self, cid):
+        return self.api_call("getChatMemberCount", {"chat_id": cid})
+
+    def answer_callback_query(self, cbq_id, text=None, show_alert=False, url=None, cache_time=0):
+        p = {"callback_query_id": cbq_id, "show_alert": show_alert, "cache_time": cache_time}
+        if text:
+            p["text"] = text
+        if url:
+            p["url"] = url
+        return self.api_call("answerCallbackQuery", p)
+
+    def set_message_reaction(self, cid, mid, reaction, is_big=False):
+        if isinstance(reaction, str):
+            reaction = [{"type": "emoji", "emoji": reaction}]
+        return self.api_call("setMessageReaction", {
+            "chat_id": cid, "message_id": mid, "reaction": reaction, "is_big": is_big,
+        })
+
+    # API 9.5: etiquetas de miembro
+    def set_chat_member_tag(self, cid, uid, tag):
+        return self.api_call("setChatMemberTag", {"chat_id": cid, "user_id": uid, "tag": tag})
+
+    # API 9.6: botón de teclado preparado para bots administrados
+    def save_prepared_keyboard_button(self, button, query_id):
+        return self.api_call("savePreparedKeyboardButton", {"button": button, "query_id": query_id})
+
+    # API 10.0: respuesta a guest queries
+    def answer_guest_query(self, guest_query_id, text, show_alert=False):
+        return self.api_call("answerGuestQuery", {
+            "guest_query_id": guest_query_id, "text": text, "show_alert": show_alert,
+        })
+
+    # API 10.0: gestión de reacciones
+    def delete_message_reaction(self, cid, mid, reaction_type):
+        if isinstance(reaction_type, str):
+            reaction_type = {"type": "emoji", "emoji": reaction_type}
+        return self.api_call("deleteMessageReaction", {
+            "chat_id": cid, "message_id": mid, "reaction_type": reaction_type,
+        })
+
+    def delete_all_message_reactions(self, cid, mid):
+        return self.api_call("deleteAllMessageReactions", {"chat_id": cid, "message_id": mid})
+
+    # API 10.0: live photo
+    def send_live_photo(self, cid, live_photo, caption=""):
+        return self.api_call("sendLivePhoto", {"chat_id": cid, "live_photo": live_photo, "caption": caption})
+
+    # API 10.0: configuración de acceso de bots administrados
+    def get_managed_bot_access_settings(self, bot_id):
+        return self.api_call("getManagedBotAccessSettings", {"bot_id": bot_id})
+
+    def set_managed_bot_access_settings(self, bot_id, **kwargs):
+        return self.api_call("setManagedBotAccessSettings", {"bot_id": bot_id, **kwargs})
+
+    # API 10.0: mensajes del chat personal de usuario
+    def get_user_personal_chat_messages(self, user_id, limit=100):
+        return self.api_call("getUserPersonalChatMessages", {"user_id": user_id, "limit": limit})
+
     def process_command(self, cid, uid, uname, text, rk, msg_id, msg):
         clean_text = text.strip()
         if not clean_text.startswith("/"): return False
@@ -4633,21 +4726,21 @@ if __name__ == "__main__":
             
             def daily_report_worker():
                 """Envía un resumen diario del crecimiento y salud del bot."""
-                # Esperar a que el sistema se estabilice
                 time.sleep(60)
                 while True:
                     try:
+                        now = datetime.datetime.now()
+                        today = now.strftime("%Y-%m-%d")
                         last_report = db.get("LAST_DAILY_REPORT", "")
-                        today = datetime.datetime.now().strftime("%Y-%m-%d")
-                        # Si es un nuevo día, enviar reporte
-                        if last_report != today:
+                        report_hour = int(db.get("GLOBAL_SETTINGS", {}).get("daily_report_hour", 8))
+                        if last_report != today and now.hour >= report_hour:
                             if MASTER_ID:
                                 ia_nativa.send_master_report("📅 RESUMEN DIARIO DE INTELIGENCIA")
                                 db.set("LAST_DAILY_REPORT", today)
-                                add_web_log("INFO", "Reporte diario enviado al Administrador Maestro.")
+                                add_web_log("INFO", f"Reporte diario enviado al Administrador Maestro ({now.strftime('%H:%M')}).")
                     except Exception as e:
                         add_web_log("DEBUG", f"Error en daily_report_worker: {e}")
-                    time.sleep(3600) # Comprobar cada hora
+                    time.sleep(3600)
 
             threading.Thread(target=daily_report_worker, daemon=True).start()
             threading.Thread(target=health_monitor, daemon=True).start()

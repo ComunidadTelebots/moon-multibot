@@ -270,7 +270,10 @@ has_cipher = False
 if has_env:
     with open(".env", "r") as f:
         content = f.read()
-        has_cipher = "CIPHER_KEY=" in content and "CIPHER_KEY=" not in content.split("CIPHER_KEY=")[1].startswith("#")
+        has_cipher = any(
+            l.strip().startswith("CIPHER_KEY=") and len(l.strip()) > len("CIPHER_KEY=")
+            for l in content.splitlines()
+        )
 
 print(f"Archivo .env: {'✅ EXISTE' if has_env else '❌ NO EXISTE'}")
 print(f"CIPHER_KEY configurada: {'✅ SÍ' if has_cipher else '⚠️  NO'}")
@@ -703,11 +706,12 @@ PYTHON_EOF
 
     # 6. Comprobar librerías críticas
     echo "⏳ Verificando librerías requeridas..."
-    $PY_CMD -c "import requests, psutil, sqlite3, flask, jwt, dotenv, cryptography, paramiko" &>/dev/null
+    $PY_CMD -c "import requests, psutil, sqlite3, flask, jwt, dotenv, cryptography, paramiko, waitress" &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "✅ Todas las librerías críticas están instaladas (incluyendo Cryptography)."
+        echo "✅ Todas las librerías críticas están instaladas (incluyendo Cryptography y Waitress)."
     else
         echo "❌ ERROR: Faltan librerías. Por favor ejecuta: bash start.sh setup"
+        echo "   Verifica: requests, psutil, flask, PyJWT, python-dotenv, cryptography, paramiko, waitress"
         exit 1
     fi
 

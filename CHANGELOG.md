@@ -1,5 +1,30 @@
 # Changelog - Moon Multibot
 
+## [v16.44.0] - 2026-05-08
+### Bot API 10.0 — nuevos métodos y actualización de versión
+- **Versión API**: `TELEGRAM_BOT_API_VERSION` actualizada de `9.6` a `10.0`.
+- **Nuevos update types**: `message_reaction` y `message_reaction_count` añadidos a `DEFAULT_ALLOWED_UPDATES`.
+- **`unpin_msg(cid, mid=None)`** (fix crítico): método faltante que era llamado en `plugins/telegram_tools.py` — ahora definido; sin `mid` desancla el último mensaje.
+- **`unpin_all_messages(cid)`**: llama a `unpinAllChatMessages`.
+- **`unban_chat_member(cid, uid)`**: llama a `unbanChatMember` con `only_if_banned=True`.
+- **`send_chat_action(cid, action)`**: indicador de escritura/carga (`typing`, `upload_photo`, etc.).
+- **`send_voice(cid, voice, caption="")`**: envío de notas de voz.
+- **`send_sticker(cid, sticker)`**: envío de stickers.
+- **`forward_message(to_cid, from_cid, mid)`**: reenvía un mensaje.
+- **`copy_message(to_cid, from_cid, mid, caption)`**: copia un mensaje (sin el "Forwarded from").
+- **`get_chat(cid)`**: info del chat/grupo.
+- **`get_chat_member_count(cid)`**: número de miembros.
+- **`answer_callback_query(cbq_id, text, show_alert, url, cache_time)`**: respuesta a botones inline.
+- **`set_message_reaction(cid, mid, reaction, is_big)`**: pone reacción emoji en un mensaje.
+- **API 9.5 — `set_chat_member_tag(cid, uid, tag)`**: etiqueta personalizada para miembro.
+- **API 9.6 — `save_prepared_keyboard_button(button, query_id)`**: botón de teclado preparado para bots administrados.
+- **API 10.0 — `answer_guest_query(guest_query_id, text, show_alert)`**: respuesta a guest queries.
+- **API 10.0 — `delete_message_reaction(cid, mid, reaction_type)`**: elimina reacción específica.
+- **API 10.0 — `delete_all_message_reactions(cid, mid)`**: elimina todas las reacciones de un mensaje.
+- **API 10.0 — `send_live_photo(cid, live_photo, caption)`**: envía una live photo.
+- **API 10.0 — `get_managed_bot_access_settings(bot_id)`** / **`set_managed_bot_access_settings(bot_id, **kwargs)`**: configuración de acceso de bots administrados.
+- **API 10.0 — `get_user_personal_chat_messages(user_id, limit)`**: mensajes del chat personal de un usuario.
+
 ## [v16.43.0] - 2026-05-08
 ### MoonBot envía mensajes via TDLib (bot token auth)
 - **TDLib bot auth**: `TDLibClient` acepta `bot_token` opcional. Cuando está presente, al recibir `authorizationStateWaitPhoneNumber` envía `checkAuthenticationBotToken` en vez de esperar teléfono. Cada bot tiene su propia sesión en `tdlib_data/bot_{hash}/`.
