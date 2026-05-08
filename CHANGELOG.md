@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## [v16.63.0] - 2026-05-08
+### IA — cascada Markov → Ollama → Gemini
+- **Prioridad definida**: 1) Markov (siempre se genera, local, instantáneo) → 2) Ollama (si está activo y responde) → 3) Gemini (si Ollama falla y hay API key).
+- **Métodos extraídos**: `_call_ollama()` y `_call_gemini()` separados del `generate()` principal, con logging explícito de cuál IA respondió.
+- **Fix bug Markov**: la selección ponderada acumulaba `upto` después de la comparación, haciendo que siempre eligiera `choices[0]`. Corregido: `upto += w` antes del `if upto >= r_val`.
+- **`/markov` prefix**: en inline/guest, `/markov` fuerza la IA local sin llamar a ningún LLM externo.
+- **`LLM_PROVIDER` default**: cambiado de `"gemini"` a `"ollama"` en `core/config.py` para que activar `USE_EXTERNAL_LLM` use Ollama por defecto.
+- **Fallback visible**: cada capa loguea en el dashboard qué IA respondió o por qué se saltó a la siguiente.
+
 ## [v16.61.0] - 2026-05-08
 ### Fix IA local — brain_lock y deep_dream
 - **`brain_lock` activado en `learn()`**: el bloqueo existía pero nunca se adquiría. Ahora protege las actualizaciones concurrentes del cerebro Markov.

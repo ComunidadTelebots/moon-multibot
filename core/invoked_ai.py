@@ -201,19 +201,17 @@ class InvokedAIService:
         Soporta: /ollama, /gemini, /hybrid o por defecto devuelve la preferencia global.
         """
         text_lower = (text or "").lower()
-        
-        # Detección de comandos
-        if text_lower.startswith("/ollama"):
+
+        if text_lower.startswith("/markov"):
+            return "markov"
+        elif text_lower.startswith("/ollama"):
             return "ollama"
         elif text_lower.startswith("/gemini"):
             return "gemini"
-        elif text_lower.startswith("/hybrid"):
-            return "hybrid"
-        
-        # Preferencia global del sistema
+
         settings = self.db.get("GLOBAL_SETTINGS", {})
-        default_ai = settings.get("default_ai_mode", "hybrid")
-        return default_ai if default_ai in ["ollama", "gemini", "hybrid"] else "hybrid"
+        default_ai = settings.get("default_ai_mode", "markov")
+        return default_ai if default_ai in ["markov", "ollama", "gemini"] else "markov"
 
     def build_inline_results(self, query, answer, wiki_text=""):
         digest = hashlib.sha1(f"{query}|{answer}|{time.time()}".encode("utf-8")).hexdigest()[:16]

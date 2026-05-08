@@ -2764,10 +2764,47 @@ class MoonCoreIA:
                     words.add(w)
         return words
 
+    def _call_ollama(self, prompt, system_instruction):
+        """Llama a Ollama y devuelve la respuesta o cadena vacía si falla."""
+        try:
+            payload = {
+                "model": OLLAMA_MODEL,
+                "prompt": f"{system_instruction}\n\nUsuario: {prompt}\nMoonBot:",
+                "stream": False
+            }
+            r = requests.post(OLLAMA_URL, json=payload, timeout=30)
+            if r.status_code == 200:
+                return r.json().get("response", "").strip()
+            add_web_log("WARNING", f"Ollama HTTP {r.status_code}: {r.text[:120]}")
+        except requests.exceptions.ConnectionError:
+            add_web_log("WARNING", f"Ollama no disponible ({OLLAMA_URL}) — saltando a Gemini.")
+        except requests.exceptions.Timeout:
+            add_web_log("WARNING", "Ollama timeout (>30s) — saltando a Gemini.")
+        except Exception as e:
+            add_web_log("ERROR", f"Ollama error: {e}")
+        return ""
+
+    def _call_gemini(self, prompt, system_instruction):
+        """Llama a Gemini y devuelve la respuesta o cadena vacía si falla."""
+        if not GEMINI_API_KEY:
+            return ""
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+            payload = {"contents": [{"parts": [{"text": f"{system_instruction}\n\nUsuario: {prompt}"}]}]}
+            r = requests.post(url, json=payload, timeout=15)
+            if r.status_code == 200:
+                return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+            add_web_log("WARNING", f"Gemini HTTP {r.status_code}: {r.text[:120]}")
+        except requests.exceptions.Timeout:
+            add_web_log("WARNING", "Gemini timeout (>15s) — usando Markov.")
+        except Exception as e:
+            add_web_log("ERROR", f"Gemini error: {e}")
+        return ""
+
     def generate(self, prompt, chat_id=None, mood_override=None, ai_preference=None):
         current_mood = mood_override or self.mood
 
-        # --- Lógica RAG (Búsqueda de Memoria Local) ---
+        # RAG: contexto de memoria local
         memory_context = ""
         if chat_id:
             prompt_words = [w for w in prompt.lower().split() if len(w) > 3]
@@ -2777,80 +2814,18 @@ class MoonCoreIA:
                 for m in history:
                     if any(pw in m.get("text", "").lower() for pw in prompt_words):
                         relevant_msgs.append(f"{m.get('user')}: {m.get('text')}")
-                    if len(relevant_msgs) > 5: break
+                    if len(relevant_msgs) >= 5:
+                        break
                 if relevant_msgs:
                     memory_context = "\n[Memoria Reciente]:\n" + "\n".join(relevant_msgs)
 
-        # --- Modo Híbrido / Externo (LLM) ---
-        # ai_preference ("ollama"/"gemini") fuerza el motor ignorando el ratio híbrido global.
-        # "hybrid" o None respetan la configuración global USE_EXTERNAL_LLM / HYBRID_PERCENTAGE.
-        forced_provider = ai_preference if ai_preference in ("ollama", "gemini") else None
-        if forced_provider:
-            use_llm_this_time = True
-            effective_provider = forced_provider
-        else:
-            use_llm_this_time = USE_EXTERNAL_LLM
-            if USE_EXTERNAL_LLM and HYBRID_PERCENTAGE < 100:
-                use_llm_this_time = random.randint(1, 100) <= HYBRID_PERCENTAGE
-            effective_provider = LLM_PROVIDER
-
-        if use_llm_this_time:
-            try:
-                cloud_response = ""
-                if effective_provider == "gemini" and GEMINI_API_KEY:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
-                    system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
-                    payload = {
-                        "contents": [{
-                            "parts": [{
-                                "text": f"{system_instruction}\n\nUsuario: {prompt}"
-                            }]
-                        }]
-                    }
-                    r = requests.post(url, json=payload, timeout=10)
-                    if r.status_code == 200:
-                        try:
-                            res_json = r.json()
-                            cloud_response = res_json['candidates'][0]['content']['parts'][0]['text']
-                        except (ValueError, KeyError, IndexError) as e:
-                            add_web_log("WARNING", f"Gemini: respuesta inesperada — {e}")
-                    else:
-                        add_web_log("WARNING", f"Gemini respondió con código {r.status_code}: {r.text[:200]}")
-
-                elif effective_provider == "ollama":
-                    system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
-                    payload = {
-                        "model": OLLAMA_MODEL,
-                        "prompt": f"{system_instruction}\n\nUsuario: {prompt}\nMoonBot:",
-                        "stream": False
-                    }
-                    r = requests.post(OLLAMA_URL, json=payload, timeout=30)
-                    if r.status_code == 200:
-                        try:
-                            cloud_response = r.json().get("response", "")
-                        except ValueError as e:
-                            add_web_log("WARNING", f"Ollama: JSON inválido en respuesta — {e}")
-                    else:
-                        add_web_log("WARNING", f"Ollama respondió con código {r.status_code}: {r.text[:200]}")
-
-                if cloud_response:
-                    self.learn(cloud_response, source=f"{effective_provider.capitalize()} Cloud Feedback")
-                    return cloud_response
-            except requests.exceptions.ConnectionError:
-                add_web_log("ERROR", f"❌ No se puede conectar con {effective_provider.upper()} ({'Gemini API' if effective_provider == 'gemini' else OLLAMA_URL}). Usando IA Nativa.")
-            except requests.exceptions.Timeout:
-                add_web_log("WARNING", f"⏱️ Timeout al contactar {effective_provider.upper()}. Usando IA Nativa.")
-            except Exception as e:
-                add_web_log("ERROR", f"Fallo LLM Externo ({effective_provider}): {e}")
-
-        # --- Fallback: IA Nativa (Markov) ---
-        # Ajustar el "peso" de las respuestas según el mood
+        # ── CAPA 1: Markov (siempre se genera, respuesta local instantánea) ──────
         mood_prefix = ""
         if current_mood == "sarcastic": mood_prefix = "[Sarcasmo] "
         elif current_mood == "serious": mood_prefix = "[Oficial] "
         elif current_mood == "aggressive": mood_prefix = "[Protección] "
         elif current_mood == "cyberpunk": mood_prefix = "[Neo-Link] "
-        
+
         prompt_words = [w for w in prompt.lower().split() if len(w) > 2]
         context_words = self.get_context_words(chat_id)
         all_relevant = prompt_words + list(context_words)
@@ -2907,12 +2882,12 @@ class MoonCoreIA:
             total_weight = sum(weights)
             r_val = random.uniform(0, total_weight)
             upto = 0
-            selected = choices[0]
+            selected = choices[-1]
             for i, w in enumerate(weights):
-                if upto + w >= r_val:
+                upto += w
+                if upto >= r_val:
                     selected = choices[i]
                     break
-                upto += w
 
             curr = selected
             res.append(curr)
@@ -3080,7 +3055,33 @@ class MoonCoreIA:
         elif self.mood == "cyberpunk":
             final_text = f"[CORE]: {final_text.upper()} // LINK_ACTIVE"
 
-        return final_text
+        markov_result = final_text
+
+        # ── CAPA 2: Ollama ───────────────────────────────────────────────────────
+        if ai_preference != "markov":
+            use_ollama = (ai_preference == "ollama") or (USE_EXTERNAL_LLM and LLM_PROVIDER == "ollama")
+            if use_ollama:
+                system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
+                ollama_resp = self._call_ollama(prompt, system_instruction)
+                if ollama_resp:
+                    self.learn(ollama_resp, source="Ollama")
+                    add_web_log("IA", f"[Ollama] respondió para '{prompt[:30]}'")
+                    return ollama_resp
+                add_web_log("IA", "[Ollama] sin respuesta — usando Markov.")
+
+            # ── CAPA 3: Gemini ───────────────────────────────────────────────────
+            use_gemini = (ai_preference == "gemini") or (USE_EXTERNAL_LLM and LLM_PROVIDER == "gemini")
+            if use_gemini:
+                system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
+                gemini_resp = self._call_gemini(prompt, system_instruction)
+                if gemini_resp:
+                    self.learn(gemini_resp, source="Gemini")
+                    add_web_log("IA", f"[Gemini] respondió para '{prompt[:30]}'")
+                    return gemini_resp
+                add_web_log("IA", "[Gemini] sin respuesta — usando Markov.")
+
+        add_web_log("IA", f"[Markov] respondió para '{prompt[:30]}'")
+        return markov_result
 
     def force_feed(self, chats_history):
         add_web_log("INFO", "Iniciando alimentación forzada desde el historial histórico...")
