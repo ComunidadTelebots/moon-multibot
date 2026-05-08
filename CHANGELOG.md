@@ -1,5 +1,10 @@
 # Changelog - Moon Multibot
 
+## [v16.75.0] - 2026-05-08
+### Fix — Error 400 "can't parse entities" en sendMessage
+- **`_safe_md(text)`**: nuevo helper en `invoked_ai.py` que elimina marcadores Markdown impares (`*`, `_`, `` ` ``) del texto de la IA antes de enviarlo, previniendo el error en origen.
+- **`send_msg()`**: si Telegram devuelve `"can't parse entities"`, reintenta automáticamente sin `parse_mode` en lugar de perder el mensaje.
+
 ## [v16.74.0] - 2026-05-08
 ### Fix — Modo Markov (Personal) no aparecía en estadísticas
 - **`invoked_ai.py`**: `"markov"` no estaba en la lista de valores válidos de `ai_used` en `generate_reply()` — se contabilizaba erróneamente como `"hybrid"`.
