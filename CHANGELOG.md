@@ -1,5 +1,40 @@
 # Changelog - Moon Multibot
 
+## [v16.70.0] - 2026-05-08
+### Modularización — 6 Blueprints Flask extraídos
+- **`core/routes_business.py`**: `/api/business/*` (3 rutas — status, config, quick_replies).
+- **`core/routes_proxies.py`**: `/api/proxies/*` (7 rutas — stats, vps config, vps stats, add, toggle, remove, scan).
+- **`core/routes_tdlib.py`**: `/api/tdlib/*` (4 rutas — status, auth, userbot, sync).
+- **`core/routes_security.py`**: `/api/security/*`, `/api/vision/stats`, `/api/health/telegram` (8 rutas).
+- **`core/routes_queue.py`**: `/api/queue/*` (3 rutas — list, cancel, prioritize).
+- **`core/routes_moderation.py`**: `/api/moderation/*`, `/api/users/leaderboard` (10 rutas).
+- **Patrón `setup(deps) → Blueprint`**: sin imports circulares; dependencias inyectadas al registrar. `proxy_bot` usa getter lambda por ser asignación tardía.
+- **`moon_multibot.py`**: reducido de 4945 a 4645 líneas (−300).
+
+## [v16.69.0] - 2026-05-08
+### Fix web — backupIA, restoreIA y toggleJoinDelete duplicado
+- **`backupIA()`**: nuevo endpoint `GET /api/ia/download` que sirve la DB como descarga directa con token en query param. La función JS usa `<a href>` con el token para disparar la descarga.
+- **`restoreIA()`**: nuevo endpoint `POST /api/ia/restore` que acepta un `.db`, hace backup previo automático (`moon_database.db.pre_restore`) y reemplaza la DB activa.
+- **`send_file`** añadido a los imports de Flask en `moon_multibot.py`.
+- **`toggleJoinDelete()` duplicado eliminado**: la segunda definición (stub que solo mostraba un toast) sobreescribía la implementación real. Eliminada la duplicada; la real (toggle ON/OFF con feedback visual) queda intacta.
+
+## [v16.68.0] - 2026-05-08
+### Panel dedicado — Modo Sueño Profundo
+- **Panel propio en pestaña IA**: el toggle de Sueño Profundo sale del panel "Ajustes del Cerebro Híbrido" y tiene su propia tarjeta con borde morado, título `h3` visible e interruptor escalado al 120%.
+- **Indicador de estado en tiempo real**: punto que pulsa en morado con glow cuando está activo; gris cuando está inactivo. Texto descriptivo que cambia al activar/desactivar.
+- **`toggleDeepDream(active)`**: nueva función JS que actualiza la UI inmediatamente, guarda la config y muestra un toast de confirmación.
+- **`_applyDeepDreamUI(active)`**: función auxiliar que sincroniza el punto, el texto y el fondo del panel. Se llama también al cargar la config inicial (`loadIAConfig`).
+
+## [v16.67.0] - 2026-05-08
+### Markov — autoentrenamiento con Wikipedia
+- **Root cause corregido**: `initial_knowledge.json` contiene palabras sueltas que nunca crean bigramas en `learn()`. El cerebro tenía vocabulario pero cero conexiones reales.
+- **`_seed_from_wikipedia(topics)`**: nuevo método que busca el resumen de Wikipedia (ES → EN fallback) para cada topic y llama a `learn()` con oraciones completas, creando bigramas reales.
+- **`seed_knowledge()`**: ya no llama a `learn()` con palabras sueltas; llama a `_seed_from_wikipedia()` sobre los topics de `initial_knowledge.json` (máx 40 topics por arranque).
+- **`_deep_dream_wikipedia(word)`**: nuevo helper que busca una palabra en Wikipedia y aprende el extracto. Usado como fallback cuando Ollama no está disponible.
+- **`deep_dream_worker` refactorizado**: si Ollama falla o no está configurado, usa `_deep_dream_wikipedia()` en cada ciclo. El auto-estudio ya no depende de Ollama.
+- **Persistencia más frecuente**: `_learn_count % 5` → `% 2`; el cerebro se guarda en DB tras cada 2 aprendizajes.
+- **Umbral de re-sembrado**: `< 1000` → `< 5000` keywords para activar `seed_knowledge()` al arrancar.
+
 ## [v16.63.0] - 2026-05-08
 ### IA — cascada Markov → Ollama → Gemini
 - **Prioridad definida**: 1) Markov (siempre se genera, local, instantáneo) → 2) Ollama (si está activo y responde) → 3) Gemini (si Ollama falla y hay API key).
