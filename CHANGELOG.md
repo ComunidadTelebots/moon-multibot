@@ -1,5 +1,19 @@
 # Changelog - Moon Multibot
 
+## [v16.51.0] - 2026-05-08
+### TDLib pre-compilado — descarga directa desde GitHub Release
+- **`Dockerfile` sin compilación**: etapa única `python:3.12-slim`. Descarga `libtdjson.so` del Release de GitHub con `curl` en ~2 segundos. Build total pasa de ~15 min a ~1 min.
+- **`.github/workflows/build-tdlib-binary.yml`**: workflow que compila TDLib en `ubuntu-22.04`, sube `libtdjson.so` al release `tdlib-prebuilt` del repo. Se lanza manualmente (`workflow_dispatch`) o al editar el propio workflow. Registra el commit hash de TDLib en la descripción del release.
+- **Para actualizar TDLib**: ir a Actions → "Compile & publish libtdjson.so" → Run workflow. El siguiente `docker compose up --build` descarga el binario nuevo automáticamente.
+
+## [v16.50.0] - 2026-05-08
+### TDLib pre-compilado en GHCR — builds en segundos
+- **`Dockerfile.tdlib`**: imagen base standalone que compila TDLib desde fuente y guarda `libtdjson.so`. Se construye una sola vez y se publica en `ghcr.io/comunidadtelebots/moon-multibot-tdlib:latest`.
+- **`.github/workflows/build-tdlib-base.yml`**: GitHub Actions que construye y publica la imagen base automáticamente cuando cambia `Dockerfile.tdlib`, o bajo demanda con `workflow_dispatch`. Usa caché de GHA para acelerar incluso la compilación inicial.
+- **`Dockerfile` refactorizado**: la etapa 1 pasa de compilar (~15 min) a `FROM ghcr.io/…/moon-multibot-tdlib:latest AS tdlib-builder` (descarga en segundos). El `ARG TDLIB_IMAGE` permite sobrescribir la imagen base si es necesario.
+- **`docker-compose.yml`**: pasa `TDLIB_IMAGE` como build arg y añade `cache_from` apuntando a la imagen GHCR para que Docker reutilice capas cacheadas.
+- **Flujo para actualizar TDLib**: lanzar manualmente el workflow → GHCR actualiza la base → el siguiente `docker compose up --build` en el servidor la descarga automáticamente.
+
 ## [v16.50.0] - 2026-05-08
 ### Backup automático programado
 - **`auto_backup_worker()`**: hilo daemon que envía la DB al Master cada N horas. Lee `GLOBAL_SETTINGS.auto_backup_hours`; si es 0 está desactivado. Persiste `LAST_AUTO_BACKUP` en SQLite para no enviar duplicados al reiniciar.
