@@ -1614,6 +1614,12 @@ class MoonCoreIA:
         self._sources_cache = db.get("IA_SOURCES", {})
         self._activity_cache = db.get("IA_ACTIVITY", [])
         self._context_cache = {}
+        # Sesión HTTP reutilizable para Ollama (keep-alive, connection pooling)
+        self._ollama_session = requests.Session()
+        self._ollama_session.headers.update({"Connection": "keep-alive"})
+        # Circuit breaker: evita reintentar Ollama si acaba de fallar
+        self._ollama_last_fail = 0.0
+        self._ollama_fail_cooldown = 60  # segundos sin reintentar tras un fallo
         if len(self.brain["keywords"]) < 5000:
             threading.Thread(target=self.seed_knowledge).start()
 
@@ -1942,11 +1948,11 @@ class MoonCoreIA:
                 word = random.choice([w for w in keywords if len(w) > 3] or list(keywords.keys()))
 
             if DEEP_DREAM_MODE and word:
-                if LLM_PROVIDER == "ollama":
+                if LLM_PROVIDER == "ollama" and (time.time() - self._ollama_last_fail >= self._ollama_fail_cooldown):
                     try:
                         prompt = f"Dime algo breve pero muy interesante y educativo sobre: {word}. Responde en español."
                         payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
-                        r = requests.post(OLLAMA_URL, json=payload, timeout=45)
+                        r = self._ollama_session.post(OLLAMA_URL, json=payload, timeout=(3, 45))
                         if r.status_code == 200:
                             knowledge = r.json().get("response", "")
                             if knowledge:
@@ -1954,18 +1960,20 @@ class MoonCoreIA:
                                 add_web_log("IA", f"🌙 Sueño Profundo Ollama: Aprendido sobre '{word}'")
                             _dd_backoff = random.randint(60, 120)
                         else:
-                            add_web_log("WARNING", f"Deep Dream: Ollama respondió {r.status_code}, usando Wikipedia")
+                            self._ollama_last_fail = time.time()
                             self._deep_dream_wikipedia(word)
                             _dd_backoff = 120
                     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-                        add_web_log("WARNING", "Deep Dream: Ollama no disponible, usando Wikipedia")
+                        self._ollama_last_fail = time.time()
+                        add_web_log("WARNING", f"Deep Dream: Ollama no disponible — usando Wikipedia, cooldown {self._ollama_fail_cooldown}s")
                         self._deep_dream_wikipedia(word)
                         _dd_backoff = 180
                     except Exception as e:
+                        self._ollama_last_fail = time.time()
                         add_web_log("ERROR", f"Deep Dream: Error inesperado: {e}")
                         _dd_backoff = 120
                 else:
-                    # Modo Wikipedia (sin Ollama configurado)
+                    # Ollama en cooldown o no configurado — usar Wikipedia
                     self._deep_dream_wikipedia(word)
 
             time.sleep(_dd_backoff)
@@ -2550,22 +2558,32 @@ class MoonCoreIA:
         return words
 
     def _call_ollama(self, prompt, system_instruction):
-        """Llama a Ollama y devuelve la respuesta o cadena vacía si falla."""
+        """Llama a Ollama con circuit breaker y timeout separado connect/read."""
+        now = time.time()
+        if now - self._ollama_last_fail < self._ollama_fail_cooldown:
+            remaining = int(self._ollama_fail_cooldown - (now - self._ollama_last_fail))
+            add_web_log("DEBUG", f"Ollama en cooldown ({remaining}s restantes) — saltando.")
+            return ""
         try:
             payload = {
                 "model": OLLAMA_MODEL,
                 "prompt": f"{system_instruction}\n\nUsuario: {prompt}\nMoonBot:",
                 "stream": False
             }
-            r = requests.post(OLLAMA_URL, json=payload, timeout=30)
+            # connect_timeout=3s (falla rápido si no hay servidor), read_timeout=30s (inferencia lenta OK)
+            r = self._ollama_session.post(OLLAMA_URL, json=payload, timeout=(3, 30))
             if r.status_code == 200:
                 return r.json().get("response", "").strip()
             add_web_log("WARNING", f"Ollama HTTP {r.status_code}: {r.text[:120]}")
+            self._ollama_last_fail = time.time()
         except requests.exceptions.ConnectionError:
-            add_web_log("WARNING", f"Ollama no disponible ({OLLAMA_URL}) — saltando a Gemini.")
+            self._ollama_last_fail = time.time()
+            add_web_log("WARNING", f"Ollama no disponible ({OLLAMA_URL}) — cooldown {self._ollama_fail_cooldown}s.")
         except requests.exceptions.Timeout:
-            add_web_log("WARNING", "Ollama timeout (>30s) — saltando a Gemini.")
+            self._ollama_last_fail = time.time()
+            add_web_log("WARNING", "Ollama connect timeout (>3s) — cooldown activado.")
         except Exception as e:
+            self._ollama_last_fail = time.time()
             add_web_log("ERROR", f"Ollama error: {e}")
         return ""
 
