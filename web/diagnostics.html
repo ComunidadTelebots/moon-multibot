@@ -10,6 +10,40 @@
     <button onclick="runDiagnostics()" class="btn-primary" style="margin-top: 10px;">Ejecutar Test Completo</button>
 </div>
 
+<div class="glass-panel" style="margin-top: 25px; border-left: 3px solid #06b6d4;">
+    <h3 style="color:#06b6d4;">⚡ TDLib MTProto</h3>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px;">
+        <div class="diag-card">Modo: <span id="tdlib-mode" style="color:#06b6d4;">---</span></div>
+        <div class="diag-card">Auth: <span id="tdlib-auth">---</span></div>
+        <div class="diag-card">Listo: <span id="tdlib-ready">---</span></div>
+        <div class="diag-card">Userbot: <span id="tdlib-userbot">---</span></div>
+    </div>
+    <div id="tdlib-me" style="font-size:11px;color:#64748b;margin-bottom:14px;"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div>
+            <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Autenticación cuenta de usuario:</p>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+                <input id="tdlib-phone" type="text" class="input-style" placeholder="Teléfono (+34...)">
+                <input id="tdlib-code"  type="text" class="input-style" placeholder="Código recibido">
+                <input id="tdlib-pass"  type="password" class="input-style" placeholder="Contraseña 2FA (si aplica)">
+                <button onclick="tdlibAuth('phone')" class="btn-mini-wide">ENVIAR TELÉFONO</button>
+                <button onclick="tdlibAuth('code')"  class="btn-mini-wide">ENVIAR CÓDIGO</button>
+                <button onclick="tdlibAuth('password')" class="btn-mini-wide">ENVIAR 2FA</button>
+            </div>
+        </div>
+        <div>
+            <p style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Controles:</p>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+                <button onclick="tdlibToggleUserbot()" id="tdlib-userbot-btn" class="btn-mini-wide">USERBOT: ---</button>
+                <button onclick="tdlibSyncHistory()" class="btn-mini-wide">SINCRONIZAR HISTORIAL</button>
+                <input id="tdlib-sync-cid" type="text" class="input-style" placeholder="Chat ID para sync">
+                <button onclick="refreshTDLib()" class="btn-mini-wide" style="border-color:#06b6d4;color:#06b6d4;">↻ REFRESCAR ESTADO</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid var(--danger);">
     <h3>🕵️ Gestor de Procesos (Zombies)</h3>
     <p style="font-size: 11px; color: #94a3b8; margin-bottom: 15px;">Detección de instancias duplicadas del bot. Solo se permite una instancia "Master" activa.</p>

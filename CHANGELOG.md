@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## [v16.49.0] - 2026-05-08
+### Panel TDLib en el Dashboard (tab Diagnóstico)
+- **Panel visual TDLib** en `diagnostics.html`: muestra modo (user/bot), estado de auth, si está listo y si el userbot está activo.
+- **Autenticación headless desde la UI**: campos para teléfono, código y contraseña 2FA con botones individuales que llaman a `POST /api/tdlib/auth`.
+- **Toggle userbot**: botón que invierte el estado actual con `GET + POST /api/tdlib/userbot`.
+- **Sincronización de historial**: input de chat_id + botón que llama a `POST /api/tdlib/sync`.
+- **`refreshTDLib()`**: función JS que actualiza el panel; se llama automáticamente al abrir la tab de Diagnóstico (`runDiagnostics`).
+
 ## [v16.48.0] - 2026-05-08
 ### Docker HEALTHCHECK y endpoint /health
 - **`HEALTHCHECK`** en Dockerfile: `--interval=30s --timeout=10s --start-period=90s --retries=3`. Docker marca el contenedor como `unhealthy` si `/health` no responde 3 veces, habilitando reinicio automático con `restart: unless-stopped`.

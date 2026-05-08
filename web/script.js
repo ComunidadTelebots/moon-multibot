@@ -1102,6 +1102,7 @@ function exportLogs() {
 function runDiagnostics() {
     const diag = document.getElementById("diagConsole");
     if(diag) diag.innerHTML = "> Ejecutando escaneo neuronal...<br>> Todo el sistema OK.";
+    refreshTDLib();
 }
 
 function loadChangelog() {
@@ -2733,6 +2734,50 @@ window.loadSettings = function() {
     originalLoadSettings();
     setTimeout(checkSystemUpdate, 500);
 };
+
+// --- TDLib Panel ---
+function refreshTDLib() {
+    if(!authToken) return;
+    fetch('/api/tdlib/status', { headers: { 'Authorization': authToken } })
+    .then(r => r.json()).then(d => {
+        const s = d.status || {};
+        const el = id => document.getElementById(id);
+        if(el('tdlib-mode'))    el('tdlib-mode').textContent    = s.mode || '---';
+        if(el('tdlib-auth'))    el('tdlib-auth').textContent    = (s.auth_state || '---').replace('authorizationState','');
+        if(el('tdlib-ready'))   el('tdlib-ready').textContent   = s.ready ? '✅ SÍ' : '❌ NO';
+        if(el('tdlib-userbot')) el('tdlib-userbot').textContent = s.userbot_enabled ? 'ON' : 'OFF';
+        const me = s.me || {};
+        if(el('tdlib-me') && me.id) el('tdlib-me').textContent = `👤 @${me.username || '?'} (id: ${me.id})`;
+        const btn = el('tdlib-userbot-btn');
+        if(btn) btn.textContent = `USERBOT: ${s.userbot_enabled ? 'ON' : 'OFF'}`;
+    }).catch(() => {});
+}
+
+function tdlibAuth(action) {
+    if(!authToken) return;
+    const vals = { phone: document.getElementById('tdlib-phone')?.value, code: document.getElementById('tdlib-code')?.value, password: document.getElementById('tdlib-pass')?.value };
+    const value = vals[action];
+    if(!value) { showToast('⚠️ Campo vacío', `Introduce el valor para ${action}`); return; }
+    fetch('/api/tdlib/auth', { method:'POST', headers:{'Authorization':authToken,'Content-Type':'application/json'}, body: JSON.stringify({action, value}) })
+    .then(r => r.json()).then(d => { showToast(d.ok ? '✅ Enviado' : '❌ Error', d.msg || action); refreshTDLib(); });
+}
+
+function tdlibToggleUserbot() {
+    if(!authToken) return;
+    fetch('/api/tdlib/userbot', { headers: { 'Authorization': authToken } })
+    .then(r => r.json()).then(d => {
+        const current = d.enabled || false;
+        return fetch('/api/tdlib/userbot', { method:'POST', headers:{'Authorization':authToken,'Content-Type':'application/json'}, body: JSON.stringify({enabled: !current}) });
+    }).then(r => r.json()).then(d => { showToast('✅ Userbot', d.enabled ? 'Activado' : 'Desactivado'); refreshTDLib(); });
+}
+
+function tdlibSyncHistory() {
+    if(!authToken) return;
+    const cid = document.getElementById('tdlib-sync-cid')?.value;
+    if(!cid) { showToast('⚠️ Falta Chat ID', 'Introduce un chat_id para sincronizar'); return; }
+    fetch('/api/tdlib/sync', { method:'POST', headers:{'Authorization':authToken,'Content-Type':'application/json'}, body: JSON.stringify({chat_id: parseInt(cid)}) })
+    .then(r => r.json()).then(d => showToast(d.ok ? '✅ Sincronizado' : '❌ Error', `${d.new_messages ?? 0} mensajes nuevos`));
+}
 
 // --- Process Management ---
 function fetchMoonProcesses() {
