@@ -1,5 +1,25 @@
 # Changelog - Moon Multibot
 
+## [v16.74.0] - 2026-05-08
+### Fix — Modo Markov (Personal) no aparecía en estadísticas
+- **`invoked_ai.py`**: `"markov"` no estaba en la lista de valores válidos de `ai_used` en `generate_reply()` — se contabilizaba erróneamente como `"hybrid"`.
+- **`_record_ai_usage()`**: añadido contador `markov_count` con su propia rama `elif`. Antes caía al `else` de hybrid.
+- **`get_ai_statistics()`**: `markov` incluido en `ai_distribution` devuelto por la API.
+- **`ia.html`**: nueva fila "🧠 Markov (Personal)" (en morado) en el panel Distribución IA.
+- **`script.js`**: `inlineDistMarkov` actualizado al cargar las estadísticas.
+
+## [v16.73.0] - 2026-05-08
+### Perf — Circuit breaker + timeout split para Ollama
+- **Timeout separado** `(connect=3s, read=30s)`: si Ollama no responde en 3s falla inmediatamente en lugar de esperar 30s, sin penalizar inferencias legítimamente lentas.
+- **Circuit breaker** (`_ollama_last_fail` + `_ollama_fail_cooldown=60s`): tras un fallo no reintenta durante 60 segundos, eliminando la acumulación de timeouts en el tiempo promedio.
+- **`requests.Session` reutilizable** (`_ollama_session`): keep-alive y connection pooling eliminan el overhead de abrir nueva conexión TCP en cada llamada.
+- `deep_dream_worker` también usa la sesión y respeta el circuit breaker.
+
+## [v16.72.0] - 2026-05-08
+### Fix — Modo Sueño Profundo se activaba al iniciar y panel no visible
+- **Bug de auto-activación**: el bloque `elif word:` llamaba a Wikipedia en cada ciclo aunque `DEEP_DREAM_MODE = False`. Todo el aprendizaje ahora está dentro de `if DEEP_DREAM_MODE and word:`.
+- **Visibilidad**: panel movido justo debajo de la sección Ollama (era el panel nº8, muy abajo). Descripción actualizada: "Debe activarse manualmente."
+
 ## [v16.70.0] - 2026-05-08
 ### Modularización — 6 Blueprints Flask extraídos
 - **`core/routes_business.py`**: `/api/business/*` (3 rutas — status, config, quick_replies).
