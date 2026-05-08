@@ -4260,12 +4260,16 @@ class MoonBot:
     def run(self):
         global listen_mode
         offset = 0
+        _poll_failures = 0
         while True:
             try:
                 res = self.api_call("getUpdates", build_get_updates_payload(offset, allowed_updates=DEFAULT_ALLOWED_UPDATES))
                 if not res.get("ok"):
-                    add_web_log("ERROR", f"Error getUpdates: {res.get('description')}")
-                    time.sleep(5); continue
+                    _poll_failures += 1
+                    backoff = min(300, 5 * (2 ** min(_poll_failures - 1, 5)))
+                    add_web_log("ERROR", f"Error getUpdates: {res.get('description')} — reintentando en {backoff}s (intento {_poll_failures})")
+                    time.sleep(backoff); continue
+                _poll_failures = 0
                 
                 if not res.get("result"): 
                     # Solo logueamos cada 10 intentos vacíos para no saturar
@@ -4679,9 +4683,13 @@ class MoonBot:
                         # Intentar procesar plugins
                         handled_plugin = False
                         for p in self.plugins:
-                            if hasattr(p, "handle_command") and p.handle_command(self, cid, uid, text, rk): 
-                                handled_plugin = True
-                                break
+                            if hasattr(p, "handle_command"):
+                                try:
+                                    if p.handle_command(self, cid, uid, text, rk):
+                                        handled_plugin = True
+                                        break
+                                except Exception as _pe:
+                                    add_web_log("ERROR", f"Plugin {getattr(p, '__name__', p)} error en handle_command: {_pe}")
                         if handled_plugin: continue
 
                     # 1. Modo Escucha (Bloquea IA y Aprendizaje, pero NO comandos arriba)
