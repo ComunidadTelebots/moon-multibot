@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [v16.45.0] - 2026-05-08
+### Callback queries, reacciones e invalidación de caché de admins
+- **`handle_callback_query(update)`**: nuevo handler en el dispatch loop. Extrae `callback_query`, delega a plugins que implementen `handle_callback(bot, cid, uid, uname, data, cbq_id)`, y siempre llama `answerCallbackQuery` para detener el spinner de Telegram. Updates no manejados se loguean como DEBUG.
+- **`handle_message_reaction(update)`**: procesa `message_reaction` y `message_reaction_count` (antes descartados sin routing). Registra qué emoji pusó cada usuario en cada mensaje.
+- **Routing en `run()`**: `callback_query` → `handle_callback_query`, `message_reaction` → `handle_message_reaction`, `message_reaction_count` → skip limpio.
+- **`_invalidate_admin_cache(cid)`**: helper que borra `ADMINS_{cid}` y resetea `LAST_ADMIN_CHECK_{cid}`. Se llama automáticamente en `kick_user()` y `promote_user()` para que el nuevo rango sea efectivo inmediatamente sin esperar los 5 minutos de caché.
+
 ## [v16.44.0] - 2026-05-08
 ### Bot API 10.0 — nuevos métodos y actualización de versión
 - **Versión API**: `TELEGRAM_BOT_API_VERSION` actualizada de `9.6` a `10.0`.

@@ -3700,7 +3700,12 @@ class MoonBot:
     def pin_msg(self, cid, mid):
         return self.api_call("pinChatMessage", {"chat_id": cid, "message_id": mid})
 
+    def _invalidate_admin_cache(self, cid):
+        db.set(f"ADMINS_{cid}", [])
+        db.set(f"LAST_ADMIN_CHECK_{cid}", 0)
+
     def kick_user(self, cid, uid):
+        self._invalidate_admin_cache(str(cid))
         return self.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
 
     def get_managed_bot_token(self, bot_id):
@@ -3720,6 +3725,48 @@ class MoonBot:
 
     def handle_chosen_inline_result(self, update):
         return self.invoked_ai.record_chosen_inline_result(update)
+
+    def handle_callback_query(self, update):
+        cbq = update.get("callback_query")
+        if not cbq:
+            return False
+        cbq_id = cbq["id"]
+        data = cbq.get("data", "")
+        user = cbq.get("from", {})
+        uid = str(user.get("id", ""))
+        uname = user.get("first_name", "Usuario")
+        msg = cbq.get("message", {})
+        cid = str(msg.get("chat", {}).get("id", "")) if msg else ""
+
+        handled = False
+        for plugin in self.plugins:
+            if hasattr(plugin, "handle_callback"):
+                try:
+                    if plugin.handle_callback(self, cid, uid, uname, data, cbq_id):
+                        handled = True
+                        break
+                except Exception as e:
+                    add_web_log("ERROR", f"Plugin callback error: {e}")
+
+        if not handled:
+            add_web_log("DEBUG", f"Callback no manejado: '{data}' de {uname} ({uid})")
+
+        self.answer_callback_query(cbq_id)
+        return True
+
+    def handle_message_reaction(self, update):
+        reaction = update.get("message_reaction")
+        if not reaction:
+            return False
+        chat_id = str(reaction.get("chat", {}).get("id", ""))
+        msg_id = reaction.get("message_id")
+        user = reaction.get("user") or reaction.get("actor_chat") or {}
+        uid = str(user.get("id", ""))
+        new_reactions = [r.get("emoji", "") for r in reaction.get("new_reaction", []) if r.get("type") == "emoji"]
+        old_reactions = [r.get("emoji", "") for r in reaction.get("old_reaction", []) if r.get("type") == "emoji"]
+        if new_reactions:
+            add_web_log("DEBUG", f"Reacción {new_reactions} en msg {msg_id} de {uid} en {chat_id}")
+        return True
 
     def handle_guest_update(self, update):
         return self.invoked_ai.answer_guest_update(
@@ -3786,6 +3833,7 @@ class MoonBot:
         return self.api_call("restrictChatMember", {"chat_id": cid, "user_id": uid, "permissions": permissions, "until_date": until})
 
     def promote_user(self, cid, uid, is_admin=True):
+        self._invalidate_admin_cache(str(cid))
         p = {
             "chat_id": cid, "user_id": uid, "can_change_info": is_admin, "can_delete_messages": is_admin,
             "can_invite_users": is_admin, "can_restrict_members": is_admin, "can_pin_messages": is_admin
@@ -4226,6 +4274,12 @@ class MoonBot:
                     if self.handle_inline_query(u):
                         continue
                     if self.handle_chosen_inline_result(u):
+                        continue
+                    if self.handle_callback_query(u):
+                        continue
+                    if self.handle_message_reaction(u):
+                        continue
+                    if u.get("message_reaction_count"):
                         continue
                     if self.record_managed_bot_update(u):
                         continue
