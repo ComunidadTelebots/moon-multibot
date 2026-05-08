@@ -3,6 +3,8 @@ import hashlib
 import re
 import time
 
+import requests
+
 from core.telegram_api import extract_guest_update
 
 
@@ -102,7 +104,34 @@ class InvokedAIService:
             "recent_events": stats.get("recent_events", [])[-20:]  # Últimos 20 eventos
         }
 
-    def build_prompt(self, mode, text, uname="Usuario", context_text=""):
+    def _search_wikipedia(self, query, lang="es"):
+        """Busca en Wikipedia y devuelve un resumen breve. Fallback a inglés si no hay resultados."""
+        try:
+            r = requests.get(
+                f"https://{lang}.wikipedia.org/w/api.php",
+                params={"action": "query", "list": "search", "srsearch": query[:100],
+                        "format": "json", "srlimit": 1, "utf8": 1},
+                timeout=4
+            )
+            results = r.json().get("query", {}).get("search", [])
+            if not results and lang != "en":
+                return self._search_wikipedia(query, lang="en")
+            if not results:
+                return ""
+            title = results[0]["title"]
+            r2 = requests.get(
+                f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(title)}",
+                timeout=4
+            )
+            if r2.status_code == 200:
+                extract = r2.json().get("extract", "")
+                if extract:
+                    return f"📖 *{title}*: {extract[:500]}"
+        except Exception:
+            pass
+        return ""
+
+    def build_prompt(self, mode, text, uname="Usuario", context_text="", wiki_context=""):
         mode_label = "Guest Mode" if mode == "guest" else "Inline Mode"
         parts = [
             f"Modo Telegram: {mode_label}.",
@@ -113,6 +142,8 @@ class InvokedAIService:
             parts.append("Has sido invocado temporalmente en un chat donde no debes asumir permisos ni historial completo.")
         else:
             parts.append("El usuario esta preparando una respuesta inline; genera texto reutilizable y claro.")
+        if wiki_context:
+            parts.append(f"Referencia Wikipedia (usa si es relevante): {wiki_context[:400]}")
         if context_text:
             parts.append(f"Contexto citado: {context_text[:500]}")
         parts.append(f"{uname}: {text[:700]}")
@@ -121,13 +152,14 @@ class InvokedAIService:
     def generate_reply(self, mode, text, uid, uname="Usuario", cid=None, context_text="", ai_preference="hybrid"):
         """
         Genera respuesta de IA con opción de seleccionar qué modelo usar.
-        
+
         Args:
             ai_preference: "ollama", "gemini", o "hybrid" (default)
         """
         text = (text or "").strip() or "Crea una respuesta breve y util."
         chat_key = f"{mode}:{cid or uid}"
-        prompt = self.build_prompt(mode, text, uname, context_text)
+        wiki_context = self._search_wikipedia(text) if mode in ("inline", "guest") else ""
+        prompt = self.build_prompt(mode, text, uname, context_text, wiki_context)
         
         start_time = time.time()
         answer = ""
@@ -183,7 +215,7 @@ class InvokedAIService:
         default_ai = settings.get("default_ai_mode", "hybrid")
         return default_ai if default_ai in ["ollama", "gemini", "hybrid"] else "hybrid"
 
-    def build_inline_results(self, query, answer):
+    def build_inline_results(self, query, answer, wiki_text=""):
         digest = hashlib.sha1(f"{query}|{answer}|{time.time()}".encode("utf-8")).hexdigest()[:16]
         short_answer = answer[:180]
         concise = answer[:900]
@@ -192,11 +224,11 @@ class InvokedAIService:
             f"{(query or 'esta idea')[:700]}. "
             "Incluye puntos concretos, evita relleno y termina con una accion util."
         )
-        return [
+        results = [
             {
                 "type": "article",
                 "id": f"moon_ai_{digest}",
-                "title": "Respuesta IA",
+                "title": "🤖 Respuesta IA",
                 "description": short_answer,
                 "input_message_content": {
                     "message_text": answer[:4096],
@@ -206,24 +238,36 @@ class InvokedAIService:
             {
                 "type": "article",
                 "id": f"moon_ai_short_{digest}",
-                "title": "Respuesta breve",
+                "title": "✂️ Respuesta breve",
                 "description": concise[:120],
                 "input_message_content": {
                     "message_text": concise,
                     "parse_mode": "Markdown",
                 },
             },
-            {
+        ]
+        if wiki_text:
+            results.append({
                 "type": "article",
-                "id": f"moon_ai_prompt_{digest}",
-                "title": "Mejorar prompt",
-                "description": "Convierte la idea en una peticion mas clara para el chat.",
+                "id": f"moon_wiki_{digest}",
+                "title": "📖 Wikipedia",
+                "description": wiki_text[:120],
                 "input_message_content": {
-                    "message_text": refined_prompt,
+                    "message_text": wiki_text[:4096],
                     "parse_mode": "Markdown",
                 },
+            })
+        results.append({
+            "type": "article",
+            "id": f"moon_ai_prompt_{digest}",
+            "title": "✏️ Mejorar prompt",
+            "description": "Convierte la idea en una peticion mas clara para el chat.",
+            "input_message_content": {
+                "message_text": refined_prompt,
+                "parse_mode": "Markdown",
             },
-        ]
+        })
+        return results
 
     def get_cached_inline_answer(self, query, uid, uname, ai_preference="hybrid"):
         cache_key = f"{uid}:{query.lower().strip()}:{ai_preference}"
@@ -270,9 +314,10 @@ class InvokedAIService:
             # Detectar preferencia de IA del query (ej: "/ollama", "/gemini")
             ai_preference = self._extract_ai_preference(query)
             answer, ai_used = self.get_cached_inline_answer(query, uid or "inline", uname, ai_preference=ai_preference)
-            results = self.build_inline_results(query or "Moon IA", answer)
+            wiki_text = self._search_wikipedia(query) if query else ""
+            results = self.build_inline_results(query or "Moon IA", answer, wiki_text=wiki_text)
             answer_inline_query(query_id, results, cache_time=2, is_personal=True)
-            self.log("IA", f"Inline IA respondida para {uname} ({uid}) usando {ai_used}.")
+            self.log("IA", f"Inline IA respondida para {uname} ({uid}) usando {ai_used}{'+ Wikipedia' if wiki_text else ''}.")
         except Exception as e:
             self.log("ERROR", f"Fallo procesando inline IA: {e}")
             answer_inline_query(query_id, [], cache_time=1)

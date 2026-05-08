@@ -1,5 +1,18 @@
 # Changelog - Moon Multibot
 
+## [v16.61.0] - 2026-05-08
+### Fix IA local — brain_lock y deep_dream
+- **`brain_lock` activado en `learn()`**: el bloqueo existía pero nunca se adquiría. Ahora protege las actualizaciones concurrentes del cerebro Markov.
+- **Fix crítico en `deep_dream_worker`**: `brain.keys()` devolvía `["keywords","patterns"]` en lugar de las palabras reales. Corregido a `brain["keywords"].keys()`.
+- **Backoff en deep_dream**: si Ollama no está disponible, el worker retrocede exponencialmente (60s → 120s → 240s → máx 600s) en lugar de reintentar inmediatamente.
+
+## [v16.60.0] - 2026-05-08
+### Wikipedia en modo Inline y Guest
+- **`_search_wikipedia(query)`**: busca en Wikipedia en español (fallback a inglés). Usa la API REST de Wikipedia con timeout de 4s para no bloquear la respuesta.
+- **Prompt enriquecido**: el contexto de Wikipedia se inyecta en el prompt de la IA para que la respuesta sea más precisa y factual.
+- **Resultado extra en Inline**: si hay resultado de Wikipedia, aparece como opción "📖 Wikipedia" adicional junto a "🤖 Respuesta IA" y "✂️ Respuesta breve".
+- **Guest mode**: Wikipedia también enriquece las respuestas en chats donde el bot es invitado.
+
 ## [v16.58.0] - 2026-05-08
 ### Resiliencia — backoff en getUpdates + aislamiento de plugins
 - **Exponential backoff en `run()`**: fallos consecutivos en getUpdates esperan 5s, 10s, 20s, 40s… hasta 300s. El contador se resetea en cada respuesta exitosa.
