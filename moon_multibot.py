@@ -278,6 +278,50 @@ def is_cas_banned(uid):
     """Verifica si un usuario esta en la lista negra global de Combot Anti-Spam (CAS)."""
     return check_cas_status(uid).get("banned", False)
 
+# --- Blueprints modulares ---
+from core.routes_business import setup as _setup_business
+from core.routes_proxies import setup as _setup_proxies
+from core.routes_tdlib import setup as _setup_tdlib
+from core.routes_security import setup as _setup_security
+from core.routes_queue import setup as _setup_queue
+from core.routes_moderation import setup as _setup_moderation
+
+app.register_blueprint(_setup_business(
+    check_jwt=check_jwt,
+    db=db,
+    get_proxy_bot=lambda: proxy_bot,
+))
+app.register_blueprint(_setup_proxies(
+    check_jwt=check_jwt,
+    db=db,
+    proxy_mgr=proxy_mgr,
+    add_web_log=add_web_log,
+))
+app.register_blueprint(_setup_tdlib(
+    check_jwt=check_jwt,
+    tdlib_client=tdlib_client,
+))
+app.register_blueprint(_setup_security(
+    check_jwt=check_jwt,
+    db=db,
+    vt_mgr=vt_mgr,
+    add_web_log=add_web_log,
+    check_cas_status=check_cas_status,
+))
+app.register_blueprint(_setup_queue(
+    check_jwt=check_jwt,
+    task_queue=task_queue,
+))
+app.register_blueprint(_setup_moderation(
+    check_jwt=check_jwt,
+    db=db,
+    ban_manager=ban_manager,
+    add_web_log=add_web_log,
+    add_audit_log=add_audit_log,
+    global_user_stats=global_user_stats,
+    get_bot_for_chat=get_bot_for_chat,
+))
+
 @app.route("/")
 def index(): return send_from_directory("web", "index.html")
 @app.route("/<path:path>")
@@ -1482,185 +1526,7 @@ def web_admin_backup():
     with open(fname, "w") as f: json.dump(data, f)
     return jsonify({"ok": True, "file": fname})
 
-# --- Business API ---
-@app.route('/api/business/status')
-def business_status():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    conns = []
-    for cid, conn in proxy_bot.telegram_events.list_business_connections().items():
-        conns.append({
-            "id": cid,
-            "user": conn.get("user", {}).get("first_name", "Business"),
-            "enabled": conn.get("is_enabled", False)
-        })
-    return jsonify({"ok": True, "connections": conns})
-
-@app.route('/api/business/config', methods=['GET', 'POST'])
-def business_config():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if request.method == 'POST':
-        data = request.json
-        db.set("BUSINESS_CONFIG", data)
-        return jsonify({"ok": True})
-    return jsonify({"ok": True, "config": db.get("BUSINESS_CONFIG", {"greeting": "", "away": "", "away_mode": False, "ia_auto": False})})
-
-@app.route('/api/business/quick_replies', methods=['GET', 'POST'])
-def business_quick_replies():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if request.method == 'POST':
-        data = request.json
-        db.set("BUSINESS_QUICK_REPLIES", data)
-        return jsonify({"ok": True})
-    return jsonify({"ok": True, "replies": db.get("BUSINESS_QUICK_REPLIES", [])})
-
-# --- Proxy API ---
-@app.route('/api/proxies/stats')
-def api_proxies_stats():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    return jsonify({"ok": True, "proxies": proxy_mgr.get_stats()})
-
-@app.route('/api/proxies/vps/config', methods=['GET', 'POST'])
-def api_proxies_vps_config():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if request.method == 'POST':
-        cfg = proxy_mgr.save_vps_config(request.json or {})
-        return jsonify({"ok": True, "config": cfg})
-    return jsonify({"ok": True, "config": proxy_mgr.get_vps_config(include_secret=False)})
-
-@app.route('/api/proxies/vps/stats')
-def api_proxies_vps_stats():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    try:
-        return jsonify({"ok": True, "stats": proxy_mgr.get_vps_real_stats()})
-    except Exception as e:
-        add_web_log("ERROR", f"Fallo obteniendo stats VPS MTProto: {e}")
-        return jsonify({"ok": False, "error": str(e)})
-
-@app.route('/api/proxies/add', methods=['POST'])
-def api_proxies_add():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    data = request.json
-    proxy_mgr.proxies.append(data)
-    db.set("PROXY_CONFIGS", proxy_mgr.proxies)
-    return jsonify({"ok": True})
-
-@app.route('/api/proxies/toggle', methods=['POST'])
-def api_proxies_toggle():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    index = request.json.get("index")
-    action = request.json.get("action")
-    if action == "start":
-        res = proxy_mgr.start_proxy(index)
-    else:
-        res = proxy_mgr.stop_proxy(index)
-    return jsonify({"ok": res})
-
-@app.route('/api/proxies/remove', methods=['POST'])
-def api_proxies_remove():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    index = request.json.get("index")
-    proxy_mgr.stop_proxy(index)
-    proxy_mgr.proxies.pop(index)
-    db.set("PROXY_CONFIGS", proxy_mgr.proxies)
-    return jsonify({"ok": True})
-
-@app.route('/api/proxies/scan')
-def api_proxies_scan():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    detected = proxy_mgr.scan_docker()
-    return jsonify({"ok": True, "detected": detected})
-
-@app.route('/api/tdlib/status')
-def api_tdlib_status():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if not tdlib_client:
-        return jsonify({"ok": True, "enabled": False, "reason": "TDLIB_API_ID/TDLIB_API_HASH no configurados"})
-    return jsonify({"ok": True, "enabled": True, **tdlib_client.get_status()})
-
-@app.route('/api/tdlib/auth', methods=['POST'])
-def api_tdlib_auth():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if not tdlib_client: return jsonify({"ok": False, "error": "TDLib no habilitado"}), 400
-    d = request.json or {}
-    action = d.get("action")
-    value = d.get("value", "")
-    if action == "phone":
-        tdlib_client.auth_set_phone(value)
-    elif action == "code":
-        tdlib_client.auth_set_code(value)
-    elif action == "password":
-        tdlib_client.auth_set_password(value)
-    else:
-        return jsonify({"ok": False, "error": "action debe ser phone, code o password"}), 400
-    return jsonify({"ok": True, "auth_state": tdlib_client._auth_state})
-
-@app.route('/api/tdlib/userbot', methods=['GET', 'POST'])
-def api_tdlib_userbot():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if not tdlib_client: return jsonify({"ok": False, "error": "TDLib no habilitado"}), 400
-    if request.method == 'GET':
-        return jsonify({"ok": True, "userbot_enabled": tdlib_client.userbot_enabled, "me": tdlib_client._me})
-    enabled = (request.json or {}).get("enabled")
-    if enabled is None: return jsonify({"ok": False, "error": "Campo 'enabled' requerido"}), 400
-    tdlib_client.set_userbot(bool(enabled))
-    return jsonify({"ok": True, "userbot_enabled": tdlib_client.userbot_enabled})
-
-@app.route('/api/tdlib/sync', methods=['POST'])
-def api_tdlib_sync():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    if not tdlib_client: return jsonify({"ok": False, "error": "TDLib no habilitado"}), 400
-    d = request.json or {}
-    chat_id = d.get("chat_id")
-    if not chat_id: return jsonify({"ok": False, "error": "chat_id requerido"}), 400
-    limit = int(d.get("limit", 200))
-    imported = tdlib_client.sync_to_db(int(chat_id), limit)
-    return jsonify({"ok": True, "imported": imported, "chat_id": chat_id})
-
-@app.route('/api/security/vt/scan', methods=['POST'])
-def api_security_vt_scan():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    file_hash = request.json.get("hash")
-    if not file_hash: return jsonify({"ok": False, "error": "Hash faltante"}), 400
-    res = vt_mgr.scan_hash(file_hash)
-    return jsonify(res)
-
-@app.route('/api/security/cas/check/<uid>')
-def api_security_cas_check(uid):
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    status = check_cas_status(uid, use_cache=False)
-    return jsonify({"ok": True, "cas_banned": status.get("banned", False), "cas": status})
-
-@app.route('/api/security/audit')
-def api_security_audit():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    return jsonify({"ok": True, "logs": db.get("SECURITY_AUDIT_LOGS", [])})
-
-@app.route('/api/queue/list')
-def api_queue_list():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    return jsonify({"ok": True, "queue": task_queue.get_all()})
-
-@app.route('/api/queue/cancel', methods=['POST'])
-def api_queue_cancel():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    t_id = request.json.get("id")
-    task_queue.cancel(t_id)
-    return jsonify({"ok": True})
-
-@app.route('/api/queue/prioritize', methods=['POST'])
-def api_queue_prioritize():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    t_id = request.json.get("id")
-    task_queue.prioritize(t_id)
-    return jsonify({"ok": True})
-
-@app.route('/api/health/telegram')
-def api_health_telegram():
-    try:
-        r = requests.get("https://api.telegram.org", timeout=5)
-        return jsonify({"ok": True, "status": "ONLINE" if r.status_code == 200 else "DEGRADED", "ping": f"{int(r.elapsed.total_seconds()*1000)}ms"})
-    except:
-        return jsonify({"ok": True, "status": "OFFLINE", "ping": "N/A"})
+# (rutas de business, proxies, tdlib, security, queue — movidas a core/routes_*.py)
 
 @app.route("/api/telegram/call", methods=['POST'])
 def web_telegram_call():
@@ -1693,173 +1559,7 @@ def web_reboot():
     threading.Thread(target=lambda: (time.sleep(1), os.execv(sys.executable, ['python'] + sys.argv))).start()
     return jsonify({"ok": True})
 
-@app.route('/api/vision/stats')
-def get_vision_stats():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    banned = db.get("BANNED_HASHES", [])
-    return jsonify({
-        "ok": True,
-        "photos": db.get("STATS_PHOTOS", 0),
-        "videos": db.get("STATS_VIDEOS", 0),
-        "threats": len(banned),
-        "shield_enabled": db.get("NEURAL_SHIELD", True)
-    })
-
-@app.route('/api/security/blacklist')
-def get_security_blacklist():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    return jsonify({
-        "ok": True, 
-        "blacklist": db.get("BANNED_HASHES", []),
-        "sync_urls": db.get("SECURITY_SYNC_URLS", [])
-    })
-
-@app.route('/api/security/add_sync_url', methods=['POST'])
-def add_security_sync_url():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    url = request.json.get("url")
-    if url:
-        urls = db.get("SECURITY_SYNC_URLS", [])
-        if url not in urls:
-            urls.append(url)
-            db.set("SECURITY_SYNC_URLS", urls)
-            # Sincronización inmediata
-            return jsonify({"ok": True})
-    return jsonify({"ok": False})
-
-@app.route('/api/security/ban_hash', methods=['POST'])
-def add_security_hash():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    h = request.json.get("hash")
-    if h:
-        banned = db.get("BANNED_HASHES", [])
-        if h not in banned:
-            banned.append(h)
-            db.set("BANNED_HASHES", banned)
-            add_web_log("SECURITY", f"Manual Ban (Web): Hash {h} añadido.")
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "error": "No hash provided"})
-
-@app.route("/api/users/leaderboard")
-def web_leaderboard():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    sorted_u = sorted(global_user_stats.items(), key=lambda x: x[1].get("count", 0), reverse=True)[:20]
-    result = []
-    for k, v in sorted_u:
-        k_score = v.get("karma", 0)
-        badge = "🏆 Leyenda" if k_score > 50 else "⭐ Colaborador" if k_score > 20 else "👤 Miembro"
-        result.append({"id": k, "name": v.get("name", k), "count": v.get("count", 0), "karma": k_score, "badge": badge})
-    return jsonify({"ok": True, "leaderboard": result})
-
-@app.route("/api/moderation/<cid>")
-def web_mod_get(cid):
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    warns = db.get(f"WARNS_{cid}", {})
-    notes = db.get(f"NOTES_{cid}", "")
-    
-    # Configuración local del grupo
-    config = db.get(f"CONFIG_{cid}", {
-        "ia_learning": False,
-        "auto_mod": True,
-        "welcome": False,
-        "security_shield": True
-    })
-    
-    # Compatibilidad con los sistemas antiguos
-    feeders = db.get("IA_FEEDERS", [])
-    if str(cid) in [str(x) for x in feeders]: config["ia_learning"] = True
-    
-    return jsonify({"ok": True, "warns": warns, "notes": notes, "config": config, "local_bans": ban_manager.get_local_bans(cid).get("users", [])})
-
-@app.route("/api/moderation/settings", methods=['POST'])
-def web_mod_settings():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    cid = d.get("cid")
-    config = d.get("config")
-    if not cid or not config: return jsonify({"ok": False})
-    
-    db.set(f"CONFIG_{cid}", config)
-    
-    # Sincronizar con sistemas antiguos
-    feeders = db.get("IA_FEEDERS", [])
-    cid_str = str(cid)
-    if config.get("ia_learning"):
-        if cid_str not in [str(x) for x in feeders]: feeders.append(cid_str)
-    else:
-        if cid_str in [str(x) for x in feeders]: feeders.remove(cid_str)
-    db.set("IA_FEEDERS", feeders)
-    
-    add_web_log("ADMIN", f"Configuración actualizada para grupo {cid}")
-    return jsonify({"ok": True})
-
-@app.route("/api/moderation/notes", methods=['POST'])
-def web_mod_notes():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    cid, note = str(d.get("cid", "")), d.get("note", "")
-    if not cid: return jsonify({"ok": False})
-    db.set(f"NOTES_{cid}", note)
-    add_audit_log(f"Nota guardada para grupo {cid}")
-    return jsonify({"ok": True})
-
-@app.route("/api/moderation/unwarn", methods=['POST'])
-def web_mod_unwarn():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    cid, target = str(d.get("cid", "")), d.get("target", "")
-    warns = db.get(f"WARNS_{cid}", {})
-    if target in warns: del warns[target]; db.set(f"WARNS_{cid}", warns)
-    return jsonify({"ok": True})
-
-@app.route("/api/moderation/warn", methods=['POST'])
-def web_warn():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    cid, uid = d["cid"], d["uid"]
-    warns = db.get(f"WARNS_{cid}", {})
-    warns[uid] = warns.get(uid, 0) + 1
-    db.set(f"WARNS_{cid}", warns)
-    bot = get_bot_for_chat(cid)
-    if not bot:
-        return jsonify({"ok": False, "msg": "Bot no encontrado para este grupo"}), 404
-    bot.send_msg(cid, f"⚠️ Usuario `{uid}` advertido ({warns[uid]}/3)")
-    if warns[uid] >= 3:
-        ban_manager.ban_local_user(cid, uid, reason="3 warns", source="warns")
-        bot.kick_user(cid, uid)
-        add_web_log("SECURITY", f"Usuario {uid} auto-baneado por acumulación de warns.")
-    return jsonify({"ok": True, "count": warns[uid]})
-
-@app.route("/api/moderation/mute", methods=['POST'])
-def web_mute():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    cid, uid = d["cid"], d["uid"]
-    until = int(time.time()) + 1800 
-    bot = get_bot_for_chat(cid)
-    if not bot:
-        return jsonify({"ok": False, "msg": "Bot no encontrado para este grupo"}), 404
-    bot.restrict_user(cid, uid, until=until, can_send=False)
-    return jsonify({"ok": True})
-
-@app.route("/api/moderation/karma", methods=['POST'])
-def web_karma():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    uid, val = d["uid"], d.get("val", 5)
-    if uid in global_user_stats:
-        global_user_stats[uid]["karma"] += val
-        return jsonify({"ok": True, "karma": global_user_stats[uid]["karma"]})
-    return jsonify({"ok": False})
-
-@app.route("/api/moderation/unmute", methods=['POST'])
-def web_mod_unmute():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    cid, target = str(d.get("cid", "")), d.get("target", "")
-    muted = db.get(f"MUTED_{cid}", [])
-    if target in muted: muted.remove(target); db.set(f"MUTED_{cid}", muted)
-    return jsonify({"ok": True})
+# (rutas de vision/security/moderation/leaderboard — movidas a core/routes_*.py)
 
 def analyze_sentiment(text):
     if not text: return "neutral"
