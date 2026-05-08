@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## [v16.43.0] - 2026-05-08
+### MoonBot envía mensajes via TDLib (bot token auth)
+- **TDLib bot auth**: `TDLibClient` acepta `bot_token` opcional. Cuando está presente, al recibir `authorizationStateWaitPhoneNumber` envía `checkAuthenticationBotToken` en vez de esperar teléfono. Cada bot tiene su propia sesión en `tdlib_data/bot_{hash}/`.
+- **Cliente TDLib por instancia de bot**: `MoonBot.__init__` crea un `TDLibClient` autenticado con su token si `TDLIB_API_ID`/`TDLIB_API_HASH` están configurados. Se inicia en background automáticamente.
+- **`MoonBot.send_msg()` con TDLib + fallback**: Si `self._tdlib.is_ready`, el mensaje se envía via TDLib (`sendMessage` + `inputMessageText` con parse_mode via `parseTextEntities`). Si TDLib no está listo o falla, cae automáticamente al Bot API HTTP. Los mensajes de business connection siempre usan Bot API (TDLib no los soporta).
+- **`TDLibClient._format_text()`**: convierte texto Markdown/HTML al `formattedText` de TDLib usando `parseTextEntities` (llamada síncrona `execute`).
+- **`TDLibClient.is_ready`**: propiedad que expone `auth_state == authorizationStateReady`.
+- **Dockerfile**: añadido `DEBIAN_FRONTEND=noninteractive` para evitar prompts interactivos durante la compilación de TDLib en Docker.
+
 ## [v16.42.0] - 2026-05-07
 ### TDLib Userbot — responder mensajes via cuenta de usuario
 - **Modo userbot activable desde dashboard**: `POST /api/tdlib/userbot {"enabled": true/false}`. El estado se persiste en SQLite (`TDLIB_USERBOT_ENABLED`).

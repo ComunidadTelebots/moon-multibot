@@ -3373,10 +3373,26 @@ class MoonBot:
         return data
 
     def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None):
-        payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
-        if business_connection_id:
-            payload["business_connection_id"] = business_connection_id
-        result = self.call_api("sendMessage", payload)
+        result = None
+
+        # Intentar envío via TDLib si está listo y no es mensaje de business
+        if self._tdlib and self._tdlib.is_ready and not business_connection_id:
+            try:
+                tdlib_result = self._tdlib.send_message(
+                    int(chat_id), text, parse_mode=parse_mode
+                )
+                if tdlib_result.get("@type") == "message":
+                    result = {"ok": True, "result": tdlib_result}
+            except Exception as e:
+                add_web_log("ERROR", f"TDLib send_msg falló, usando Bot API: {e}")
+
+        # Fallback a Bot API HTTP
+        if result is None:
+            payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+            if business_connection_id:
+                payload["business_connection_id"] = business_connection_id
+            result = self.call_api("sendMessage", payload)
+
         cid_str = str(chat_id)
         if cid_str in global_chat_history:
             _append_chat_hist(cid_str, {
