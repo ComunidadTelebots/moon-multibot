@@ -1195,6 +1195,7 @@ function loadSettings() {
             if(document.getElementById("mediaPurgeDays")) document.getElementById("mediaPurgeDays").value = s.media_purge_days || "7";
             if(document.getElementById("dailyReportHour")) document.getElementById("dailyReportHour").value = s.daily_report_hour ?? "8";
             if(document.getElementById("autoBackupHours")) document.getElementById("autoBackupHours").value = s.auto_backup_hours ?? "0";
+            if(document.getElementById("autoCleanupDays")) document.getElementById("autoCleanupDays").value = s.auto_cleanup_days ?? "0";
 
             const maintBtn = document.getElementById("maintBtn");
             if(maintBtn) maintBtn.innerText = `MANTENIMIENTO: ${s.maintenance ? 'ON' : 'OFF'}`;
@@ -1218,7 +1219,8 @@ function saveGlobalSettings() {
         vision_depth: document.getElementById("visionDepth")?.value,
         media_purge_days: document.getElementById("mediaPurgeDays")?.value,
         daily_report_hour: document.getElementById("dailyReportHour")?.value ?? "8",
-        auto_backup_hours: document.getElementById("autoBackupHours")?.value ?? "0"
+        auto_backup_hours: document.getElementById("autoBackupHours")?.value ?? "0",
+        auto_cleanup_days: document.getElementById("autoCleanupDays")?.value ?? "0"
     };
     fetch('/api/admin/settings', {
         method: 'POST',

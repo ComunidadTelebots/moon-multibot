@@ -4822,8 +4822,22 @@ if __name__ == "__main__":
                         add_web_log("DEBUG", f"Error en auto_backup_worker: {e}")
                     time.sleep(3600)
 
+            def cleanup_worker():
+                """Elimina archivos de downloads/ más antiguos que N días según GLOBAL_SETTINGS."""
+                time.sleep(300)
+                while True:
+                    try:
+                        days = int(db.get("GLOBAL_SETTINGS", {}).get("auto_cleanup_days", 0))
+                        if days > 0:
+                            for bot in active_bots.values():
+                                bot.purge_old_media(days)
+                    except Exception as e:
+                        add_web_log("DEBUG", f"Error en cleanup_worker: {e}")
+                    time.sleep(86400)
+
             threading.Thread(target=daily_report_worker, daemon=True).start()
             threading.Thread(target=auto_backup_worker, daemon=True).start()
+            threading.Thread(target=cleanup_worker, daemon=True).start()
             threading.Thread(target=health_monitor, daemon=True).start()
         else:
             add_web_log("ERROR", "No se pudo iniciar ningún bot. Verifica data/bots.json")

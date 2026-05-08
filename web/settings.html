@@ -71,6 +71,17 @@
                 <div class="help-hint" title="Envía automáticamente una copia de la base de datos al Master.">?</div>
             </div>
             <div class="setting-item">
+                <label>🧹 Limpieza Automática de Descargas</label>
+                <select id="autoCleanupDays" class="input-style">
+                    <option value="0" selected>Desactivado</option>
+                    <option value="1">Cada 1 día</option>
+                    <option value="3">Cada 3 días</option>
+                    <option value="7">Cada 7 días</option>
+                    <option value="30">Cada 30 días</option>
+                </select>
+                <div class="help-hint" title="Elimina archivos de la carpeta downloads/ más antiguos que el período seleccionado.">?</div>
+            </div>
+            <div class="setting-item">
                 <label>🕐 Hora del Reporte Diario</label>
                 <select id="dailyReportHour" class="input-style">
                     <option value="0">00:00 (Medianoche)</option>
