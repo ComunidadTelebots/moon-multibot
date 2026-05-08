@@ -288,6 +288,7 @@ from core.routes_moderation import setup as _setup_moderation
 from core.routes_ia import setup as _setup_ia
 from core.routes_admin import setup as _setup_admin
 from core.routes_system import setup as _setup_system
+from core.routes_users import setup as _setup_users
 
 app.register_blueprint(_setup_business(
     check_jwt=check_jwt,
@@ -371,6 +372,17 @@ app.register_blueprint(_setup_admin(
 app.register_blueprint(_setup_system(
     check_jwt=check_jwt,
     get_active_bots=lambda: active_bots,
+))
+app.register_blueprint(_setup_users(
+    check_jwt=check_jwt,
+    db=db,
+    ban_manager=ban_manager,
+    add_audit_log=add_audit_log,
+    add_web_log=add_web_log,
+    get_bot_for_chat=get_bot_for_chat,
+    iter_known_group_targets=iter_known_group_targets,
+    get_global_media_list=lambda: global_media_list,
+    get_global_user_stats=lambda: global_user_stats,
 ))
 
 @app.route("/")
@@ -670,143 +682,7 @@ def web_download_logs():
         return send_from_directory("data", "bot.log", as_attachment=True)
     return jsonify({"ok": False, "msg": "No log file found."})
 
-@app.route("/api/media")
-def web_media():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    return jsonify({"ok": True, "media": global_media_list[-50:]})
-
-@app.route("/api/stats/users")
-def web_user_stats():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    sorted_u = sorted(global_user_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:10]
-    return jsonify({"ok": True, "users": [{"id": k, "name": v["name"], "count": v["count"]} for k, v in sorted_u]})
-
-@app.route("/api/users/ban", methods=['POST'])
-def web_user_ban():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    data = request.json or {}
-    u = str(data.get("uid", "")).strip()
-    cid = data.get("cid")
-    reason = data.get("reason", "Manual ban from web")
-    scope = data.get("scope") or ("local" if cid else "global")
-    if not u:
-        return jsonify({"ok": False, "msg": "UID requerido"}), 400
-
-    if scope == "local":
-        if not cid:
-            return jsonify({"ok": False, "msg": "CID requerido para ban local"}), 400
-        ban_manager.ban_local_user(cid, u, reason=reason, source="web_manual")
-        audit_msg = f"Usuario {u} baneado localmente en {cid}. RazÃ³n: {reason}"
-    else:
-        ban_manager.ban_user(u, reason=reason, source="web_manual")
-        audit_msg = f"Usuario {u} baneado globalmente. RazÃ³n: {reason}"
-
-    add_audit_log(audit_msg)
-    bot = get_bot_for_chat(cid) if cid else None
-    telegram_result = None
-    telegram_results = []
-    if cid and bot:
-        telegram_result = bot.kick_user(cid, u)
-        telegram_results.append({"cid": str(cid), "ok": telegram_result.get("ok"), "description": telegram_result.get("description")})
-        if telegram_result.get("ok"):
-            add_web_log("SECURITY", f"Usuario {u} expulsado de {cid} ({scope}).")
-        else:
-            add_web_log("ERROR", f"No se pudo expulsar a {u} de {cid}: {telegram_result.get('description')}")
-    elif scope == "global":
-        for target_bot, target_cid in iter_known_group_targets():
-            res = target_bot.kick_user(target_cid, u)
-            telegram_results.append({"cid": target_cid, "ok": res.get("ok"), "description": res.get("description")})
-        if telegram_results:
-            ok_count = len([r for r in telegram_results if r.get("ok")])
-            add_web_log("SECURITY", f"Ban global de {u} propagado a {ok_count}/{len(telegram_results)} grupos conocidos.")
-
-    return jsonify({"ok": True, "scope": scope, "telegram": telegram_result, "telegram_results": telegram_results, "message": audit_msg})
-
-@app.route("/api/ping")
-def web_ping():
-    return jsonify({"ok": True, "status": "online", "time": time.time()})
-
-@app.route("/api/users/bans", methods=['GET'])
-def web_get_bans():
-    """Obtiene lista de todos los usuarios baneados"""
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    cid = request.args.get("cid")
-    bans_data = ban_manager.get_local_bans(cid) if cid else ban_manager.get_all_bans()
-    return jsonify({
-        "ok": True,
-        "scope": "local" if cid else "global",
-        "cid": cid,
-        "total": len(bans_data.get("users", [])),
-        "bans": bans_data.get("users", [])
-    })
-
-@app.route("/api/users/bans/stats", methods=['GET'])
-def web_get_ban_stats():
-    """Obtiene estadÃ­sticas de baneos"""
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    stats = ban_manager.get_ban_stats()
-    return jsonify({"ok": True, **stats})
-
-@app.route("/api/users/bans/history", methods=['GET'])
-def web_get_ban_history():
-    """Obtiene historial de baneos recientes"""
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    limit = request.args.get("limit", 50, type=int)
-    history = ban_manager.get_ban_history(limit)
-    return jsonify({"ok": True, "history": history})
-
-@app.route("/api/users/unban", methods=['POST'])
-def web_user_unban():
-    """Desbanea un usuario global o localmente."""
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    data = request.json or {}
-    u = str(data.get("uid", "")).strip()
-    cid = data.get("cid")
-    scope = data.get("scope") or ("local" if cid else "global")
-    if not u:
-        return jsonify({"ok": False, "message": "UID requerido"}), 400
-
-    result = ban_manager.unban_local_user(cid, u) if scope == "local" and cid else ban_manager.unban_user(u)
-    telegram_result = None
-    telegram_results = []
-    if cid:
-        bot = get_bot_for_chat(cid)
-        if bot:
-            telegram_result = bot.api_call("unbanChatMember", {"chat_id": cid, "user_id": u})
-            telegram_results.append({"cid": str(cid), "ok": telegram_result.get("ok"), "description": telegram_result.get("description")})
-    elif scope == "global":
-        for target_bot, target_cid in iter_known_group_targets():
-            res = target_bot.api_call("unbanChatMember", {"chat_id": target_cid, "user_id": u})
-            telegram_results.append({"cid": target_cid, "ok": res.get("ok"), "description": res.get("description")})
-
-    if result:
-        add_audit_log(f"Usuario {u} desbaneado desde web ({scope})")
-        add_web_log("SECURITY", f"Usuario {u} desbaneado ({scope})")
-        return jsonify({"ok": True, "scope": scope, "telegram": telegram_result, "telegram_results": telegram_results, "message": "Usuario desbaneado"})
-    else:
-        return jsonify({"ok": False, "message": "Usuario no estaba baneado"})
-
-@app.route("/api/users/notes", methods=['POST'])
-def web_user_notes():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    d = request.json
-    uid, note = str(d.get("uid")), d.get("note", "")
-    if uid in global_user_stats:
-        global_user_stats[uid]["notes"] = note
-    return jsonify({"ok": True})
-
-@app.route("/api/stats/heatmap")
-def web_heatmap():
-    if not check_jwt(request): return jsonify({"ok": False}), 401
-    history = db.get("GLOBAL_HISTORY", [])
-    counts = [0] * 24
-    for m in history:
-        try:
-            hour = int(m.get("time", "00:00").split(":")[0])
-            if 0 <= hour < 24: counts[hour] += 1
-        except: pass
-    return jsonify({"ok": True, "heatmap": counts})
-
+# rutas de usuarios/media/bans/stats movidas a core/routes_users.py
 global_bot_names_cache = {}
 
 @app.route("/api/bots", methods=['GET', 'POST', 'DELETE'])
