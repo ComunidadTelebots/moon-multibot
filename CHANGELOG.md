@@ -1,5 +1,10 @@
 # Changelog - Moon Multibot
 
+## [v16.48.0] - 2026-05-08
+### Docker HEALTHCHECK y endpoint /health
+- **`HEALTHCHECK`** en Dockerfile: `--interval=30s --timeout=10s --start-period=90s --retries=3`. Docker marca el contenedor como `unhealthy` si `/health` no responde 3 veces, habilitando reinicio automático con `restart: unless-stopped`.
+- **`GET /health`** (sin auth): endpoint público que devuelve `{"ok": true, "uptime": N, "bots": N}`. No expone datos sensibles pero permite que Docker y load balancers verifiquen el estado del proceso.
+
 ## [v16.47.0] - 2026-05-08
 ### SQLite WAL mode y conexión por hilo
 - **WAL (Write-Ahead Logging)**: `PRAGMA journal_mode=WAL` elimina el lock exclusivo de escritura. Múltiples hilos pueden leer simultáneamente mientras se escribe, reduciendo contención entre el bot, TDLib, telemetry y daily report.

@@ -294,6 +294,10 @@ def web_login():
         return jsonify({"ok": True, "token": tk})
     return jsonify({"ok": False}), 401
 
+@app.route("/health")
+def health_check():
+    return jsonify({"ok": True, "uptime": int(time.time() - start_time), "bots": len(active_bots)})
+
 @app.route("/api/status")
 def web_status():
     if not check_jwt(request): return jsonify({"ok": False}), 401
