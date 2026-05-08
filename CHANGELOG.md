@@ -1,5 +1,16 @@
 # Changelog - Moon Multibot
 
+## [v16.58.0] - 2026-05-08
+### Resiliencia — backoff en getUpdates + aislamiento de plugins
+- **Exponential backoff en `run()`**: fallos consecutivos en getUpdates esperan 5s, 10s, 20s, 40s… hasta 300s. El contador se resetea en cada respuesta exitosa.
+- **Aislamiento de errores en plugins**: `handle_command()` ahora está envuelto en try-except igual que `handle_callback()`. Un plugin con bug ya no crashea el loop de mensajes; el error se loguea en el dashboard.
+
+## [v16.57.0] - 2026-05-08
+### Retry + rate limit 429 en telegram_api_call
+- **Retry automático**: hasta 3 intentos con backoff exponencial (1s, 2s) en errores de red (`ConnectionError`, `Timeout`).
+- **Manejo de 429**: cuando Telegram devuelve `error_code: 429`, espera `retry_after` segundos (del parámetro de respuesta) y reintenta automáticamente.
+- Sin cambios en la firma pública; el comportamiento es transparente para el resto del código.
+
 ## [v16.55.0] - 2026-05-08
 ### CI — Lint automático en cada push
 - **`.github/workflows/ci.yml`**: workflow que ejecuta `ruff` sobre todo el código Python en cada push a master o PR. Detecta errores de sintaxis, variables no definidas e imports rotos. Ignora líneas largas (E501) e imports al estilo del proyecto.
