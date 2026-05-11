@@ -191,13 +191,14 @@ def _repair_mojibake(text):
     noisy_markers = ("ðŸ", "Ã", "â", "Â")
     if not any(m in text for m in noisy_markers):
         return text
-    try:
-        fixed = text.encode("latin-1", errors="strict").decode("utf-8", errors="strict")
-        # Evitar reemplazos que empeoren el texto
-        if fixed and fixed.count("�") <= text.count("�"):
-            return fixed
-    except Exception:
-        pass
+    for encoding in ("cp1252", "latin-1"):
+        try:
+            fixed = text.encode(encoding, errors="strict").decode("utf-8", errors="strict")
+            # Evitar reemplazos que empeoren el texto
+            if fixed and fixed.count("�") <= text.count("�"):
+                return fixed
+        except Exception:
+            continue
     return text
 
 def check_jwt(req):

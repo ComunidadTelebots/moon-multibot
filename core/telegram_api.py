@@ -28,9 +28,6 @@ DEFAULT_ALLOWED_UPDATES = [
     "purchased_paid_media",
     "poll",
     "poll_answer",
-    "managed_bot",
-    "guest_message",
-    "guest_interaction",
     "message_reaction",
     "message_reaction_count",
 ]
