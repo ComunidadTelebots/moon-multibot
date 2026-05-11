@@ -7,6 +7,7 @@
 - **Emojis mojibake**: `_repair_mojibake()` ahora prueba `cp1252` y `latin-1`, corrigiendo mensajes como `/ayuda` que salían con `ðŸ`, `âœ` y `Ã³`.
 - **Comando `/settings`**: ahora muestra la versión real del bot usando `APP_VERSION`, manteniendo Telegram y la web sincronizados.
 - **Reparación mixta de mojibake**: el saneador reconstruye bytes carácter por carácter para corregir mensajes que mezclan símbolos `cp1252` y controles Latin-1, como el panel completo de `/settings`.
+- **QA de comandos**: verificados 21 comandos core y 43 salidas de plugins con mocks locales; sin excepciones, sin comandos cayendo a IA por error y sin marcadores mojibake tras saneado.
 
 ## [v16.80.0] - 2026-05-11
 ### Fix — Comandos core y plugins más fiables
