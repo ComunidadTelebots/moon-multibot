@@ -1,4 +1,4 @@
-def handle_command(bot, cid, uid, text, rank):
+﻿def handle_command(bot, cid, uid, text, rank):
     t = text.strip()
     low = t.lower()
     if not (low.startswith("/setwelcome ") or low == "/welcome"):
@@ -12,7 +12,7 @@ def handle_command(bot, cid, uid, text, rank):
         bot.send_msg(cid, f"Mensaje actual:\n{msg}")
         return True
 
-    if rank not in ["Admin", "Master"]:
+    if str(rank).lower() not in ["admin", "master"]:
         bot.send_msg(cid, "Solo admins pueden cambiar el mensaje.")
         return True
 
@@ -23,3 +23,4 @@ def handle_command(bot, cid, uid, text, rank):
     db.set(key, new_msg)
     bot.send_msg(cid, "Mensaje de bienvenida actualizado.")
     return True
+

@@ -1,20 +1,20 @@
-"""
-Plugin para gestionar configuración de IA en modo Inline y Guest
+﻿"""
+Plugin para gestionar configuraciÃ³n de IA en modo Inline y Guest
 Comandos:
-- /ia_stats: Ver estadísticas de uso de IA
+- /ia_stats: Ver estadÃ­sticas de uso de IA
 - /ia_set_default <ollama|gemini|hybrid>: Establecer IA por defecto
-- /ia_info: Información del sistema IA actual
+- /ia_info: InformaciÃ³n del sistema IA actual
 """
 
 def handle_command(bot, cid, uid, text, rank):
-    """Maneja comandos de configuración de IA para inline y guest."""
+    """Maneja comandos de configuraciÃ³n de IA para inline y guest."""
     
     t_lower = text.lower()
     
-    # Comando: /ia_stats - Ver estadísticas de IA
+    # Comando: /ia_stats - Ver estadÃ­sticas de IA
     if t_lower.startswith("/ia_stats"):
-        if rank != "master":
-            bot.send_msg(cid, "❌ Solo master puede ver estadísticas")
+        if str(rank).lower() != "master":
+            bot.send_msg(cid, "âŒ Solo master puede ver estadÃ­sticas")
             return True
         
         try:
@@ -25,49 +25,49 @@ def handle_command(bot, cid, uid, text, rank):
             results = stats["results"]
             
             message = (
-                f"📊 *Estadísticas de IA (Inline + Guest)*\n\n"
+                f"ðŸ“Š *EstadÃ­sticas de IA (Inline + Guest)*\n\n"
                 f"*Resumen General:*\n"
-                f"• Total de solicitudes: {summary['total_requests']}\n"
-                f"• Inline: {summary['inline_requests']}\n"
-                f"• Guest: {summary['guest_requests']}\n"
-                f"• Tasa éxito: {summary['success_rate_percent']}%\n"
-                f"• Tiempo promedio: {summary['avg_response_time_ms']}ms\n\n"
-                f"*Distribución de IA:*\n"
-                f"• Ollama: {distribution['ollama']}\n"
-                f"• Gemini: {distribution['gemini']}\n"
-                f"• Híbrida: {distribution['hybrid']}\n\n"
+                f"â€¢ Total de solicitudes: {summary['total_requests']}\n"
+                f"â€¢ Inline: {summary['inline_requests']}\n"
+                f"â€¢ Guest: {summary['guest_requests']}\n"
+                f"â€¢ Tasa Ã©xito: {summary['success_rate_percent']}%\n"
+                f"â€¢ Tiempo promedio: {summary['avg_response_time_ms']}ms\n\n"
+                f"*DistribuciÃ³n de IA:*\n"
+                f"â€¢ Ollama: {distribution['ollama']}\n"
+                f"â€¢ Gemini: {distribution['gemini']}\n"
+                f"â€¢ HÃ­brida: {distribution['hybrid']}\n\n"
                 f"*Resultados:*\n"
-                f"• ✅ Exitosas: {results['success']}\n"
-                f"• ❌ Fallidas: {results['failed']}\n"
+                f"â€¢ âœ… Exitosas: {results['success']}\n"
+                f"â€¢ âŒ Fallidas: {results['failed']}\n"
             )
             
-            # Mostrar últimos eventos
+            # Mostrar Ãºltimos eventos
             recent = stats.get("recent_events", [])
             if recent:
-                message += f"\n*Últimos 5 eventos:*\n"
+                message += f"\n*Ãšltimos 5 eventos:*\n"
                 for event in recent[-5:]:
                     time_str = event["time"]
-                    mode = "📱" if event["mode"] == "inline" else "👤"
+                    mode = "ðŸ“±" if event["mode"] == "inline" else "ðŸ‘¤"
                     ai = event["ai_used"]
-                    status = "✅" if event["success"] else "❌"
+                    status = "âœ…" if event["success"] else "âŒ"
                     message += f"{status} {mode} [{ai}] {time_str}\n"
             
             bot.send_msg(cid, message, parse_mode="Markdown")
         except Exception as e:
-            bot.send_msg(cid, f"❌ Error: {str(e)}")
+            bot.send_msg(cid, f"âŒ Error: {str(e)}")
         
         return True
     
     # Comando: /ia_set_default - Cambiar IA por defecto
     elif t_lower.startswith("/ia_set_default"):
-        if rank != "master":
-            bot.send_msg(cid, "❌ Solo master puede cambiar configuración")
+        if str(rank).lower() != "master":
+            bot.send_msg(cid, "âŒ Solo master puede cambiar configuraciÃ³n")
             return True
         
         parts = text.split()
         if len(parts) < 2:
             bot.send_msg(cid, 
-                "❌ Uso: /ia_set_default <ollama|gemini|hybrid>\n"
+                "âŒ Uso: /ia_set_default <ollama|gemini|hybrid>\n"
                 "Ejemplo: /ia_set_default hybrid"
             )
             return True
@@ -75,7 +75,7 @@ def handle_command(bot, cid, uid, text, rank):
         ai_mode = parts[1].lower()
         if ai_mode not in ["ollama", "gemini", "hybrid"]:
             bot.send_msg(cid, 
-                "❌ IA válidas: ollama, gemini, hybrid\n"
+                "âŒ IA vÃ¡lidas: ollama, gemini, hybrid\n"
                 "Ejemplo: /ia_set_default hybrid"
             )
             return True
@@ -90,53 +90,54 @@ def handle_command(bot, cid, uid, text, rank):
             add_web_log("INFO", f"IA por defecto cambiada de {old_mode} a {ai_mode}")
             
             message = (
-                f"✅ *IA por defecto actualizada*\n\n"
-                f"• Anterior: {old_mode}\n"
-                f"• Nueva: {ai_mode}\n\n"
-                f"Los nuevos queries inline y guest usarán *{ai_mode}*"
+                f"âœ… *IA por defecto actualizada*\n\n"
+                f"â€¢ Anterior: {old_mode}\n"
+                f"â€¢ Nueva: {ai_mode}\n\n"
+                f"Los nuevos queries inline y guest usarÃ¡n *{ai_mode}*"
             )
             bot.send_msg(cid, message, parse_mode="Markdown")
         except Exception as e:
-            bot.send_msg(cid, f"❌ Error: {str(e)}")
+            bot.send_msg(cid, f"âŒ Error: {str(e)}")
         
         return True
     
-    # Comando: /ia_info - Información del sistema IA
+    # Comando: /ia_info - InformaciÃ³n del sistema IA
     elif t_lower.startswith("/ia_info"):
-        if rank not in ["admin", "master"]:
-            bot.send_msg(cid, "❌ Solo admin/master pueden ver esta información")
+        if str(rank).lower() not in ["admin", "master"]:
+            bot.send_msg(cid, "âŒ Solo admin/master pueden ver esta informaciÃ³n")
             return True
         
         try:
             settings = bot.db.get("GLOBAL_SETTINGS", {})
             default_ai = settings.get("default_ai_mode", "hybrid")
             
-            # Información del sistema
+            # InformaciÃ³n del sistema
             import os
             from core.config import GEMINI_API_KEY, OLLAMA_MODEL, USE_EXTERNAL_LLM
             
-            gemini_status = "✅ Configurado" if GEMINI_API_KEY else "❌ No configurado"
-            ollama_status = f"✅ {OLLAMA_MODEL}"
-            external_llm_status = "✅ Habilitado" if USE_EXTERNAL_LLM else "❌ Deshabilitado"
+            gemini_status = "âœ… Configurado" if GEMINI_API_KEY else "âŒ No configurado"
+            ollama_status = f"âœ… {OLLAMA_MODEL}"
+            external_llm_status = "âœ… Habilitado" if USE_EXTERNAL_LLM else "âŒ Deshabilitado"
             
             message = (
-                f"🧠 *Configuración de IA del Sistema*\n\n"
+                f"ðŸ§  *ConfiguraciÃ³n de IA del Sistema*\n\n"
                 f"*IA por Defecto:*\n"
-                f"• {default_ai.upper()}\n\n"
+                f"â€¢ {default_ai.upper()}\n\n"
                 f"*Modelos Disponibles:*\n"
-                f"• Ollama: {ollama_status}\n"
-                f"• Gemini: {gemini_status}\n"
-                f"• LLM Externo: {external_llm_status}\n\n"
-                f"*Modo de Operación:*\n"
-                f"• El sistema usa la IA seleccionada por defecto\n"
-                f"• Los usuarios pueden usar /ollama, /gemini o /hybrid en sus queries\n"
-                f"• Las respuestas son registradas para estadísticas\n"
+                f"â€¢ Ollama: {ollama_status}\n"
+                f"â€¢ Gemini: {gemini_status}\n"
+                f"â€¢ LLM Externo: {external_llm_status}\n\n"
+                f"*Modo de OperaciÃ³n:*\n"
+                f"â€¢ El sistema usa la IA seleccionada por defecto\n"
+                f"â€¢ Los usuarios pueden usar /ollama, /gemini o /hybrid en sus queries\n"
+                f"â€¢ Las respuestas son registradas para estadÃ­sticas\n"
             )
             
             bot.send_msg(cid, message, parse_mode="Markdown")
         except Exception as e:
-            bot.send_msg(cid, f"❌ Error: {str(e)}")
+            bot.send_msg(cid, f"âŒ Error: {str(e)}")
         
         return True
     
     return False
+

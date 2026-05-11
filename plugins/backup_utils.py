@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from datetime import datetime
 
@@ -6,8 +6,8 @@ def handle_command(bot, cid, uid, text, rank):
     t_lower = text.lower()
     
     if t_lower == "/backup_db":
-        if rank not in ["admin", "master"]:
-            bot.send_msg(cid, "❌ Solo administradores pueden hacer backup.")
+        if str(rank).lower() not in ["admin", "master"]:
+            bot.send_msg(cid, "âŒ Solo administradores pueden hacer backup.")
             return True
         
         try:
@@ -21,15 +21,15 @@ def handle_command(bot, cid, uid, text, rank):
             with open(f"data/{filename}", "w", encoding="utf-8") as f:
                 json.dump(db_data, f, ensure_ascii=False, indent=2)
             
-            bot.send_msg(cid, f"💾 **Backup Creado**: {filename}")
+            bot.send_msg(cid, f"ðŸ’¾ **Backup Creado**: {filename}")
         except Exception as e:
-            bot.send_msg(cid, f"❌ Error en backup: {str(e)}")
+            bot.send_msg(cid, f"âŒ Error en backup: {str(e)}")
         
         return True
     
     elif t_lower.startswith("/restore_db"):
-        if rank != "master":
-            bot.send_msg(cid, "❌ Solo el master puede restaurar.")
+        if str(rank).lower() != "master":
+            bot.send_msg(cid, "âŒ Solo el master puede restaurar.")
             return True
         
         filename = text[12:].strip()
@@ -44,9 +44,9 @@ def handle_command(bot, cid, uid, text, rank):
             for key, value in db_data.items():
                 bot.db.set(key, value)
             
-            bot.send_msg(cid, f"🔄 **Restauración Completada**: {filename}")
+            bot.send_msg(cid, f"ðŸ”„ **RestauraciÃ³n Completada**: {filename}")
         except Exception as e:
-            bot.send_msg(cid, f"❌ Error en restauración: {str(e)}")
+            bot.send_msg(cid, f"âŒ Error en restauraciÃ³n: {str(e)}")
         
         return True
     

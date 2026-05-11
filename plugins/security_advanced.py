@@ -1,4 +1,4 @@
-from cryptography.fernet import Fernet
+﻿from cryptography.fernet import Fernet
 import os
 
 # Generar clave si no existe
@@ -17,8 +17,8 @@ def handle_command(bot, cid, uid, text, rank):
     t_lower = text.lower()
     
     if t_lower.startswith("/encrypt"):
-        if rank not in ["admin", "master"]:
-            bot.send_msg(cid, "❌ Solo administradores pueden encriptar.")
+        if str(rank).lower() not in ["admin", "master"]:
+            bot.send_msg(cid, "âŒ Solo administradores pueden encriptar.")
             return True
         
         data = text[9:].strip()
@@ -27,12 +27,12 @@ def handle_command(bot, cid, uid, text, rank):
             return True
         
         encrypted = cipher.encrypt(data.encode()).decode()
-        bot.send_msg(cid, f"🔐 **Encriptado**: `{encrypted}`")
+        bot.send_msg(cid, f"ðŸ” **Encriptado**: `{encrypted}`")
         return True
     
     elif t_lower.startswith("/decrypt"):
-        if rank not in ["admin", "master"]:
-            bot.send_msg(cid, "❌ Solo administradores pueden desencriptar.")
+        if str(rank).lower() not in ["admin", "master"]:
+            bot.send_msg(cid, "âŒ Solo administradores pueden desencriptar.")
             return True
         
         data = text[9:].strip()
@@ -42,9 +42,9 @@ def handle_command(bot, cid, uid, text, rank):
         
         try:
             decrypted = cipher.decrypt(data.encode()).decode()
-            bot.send_msg(cid, f"🔓 **Desencriptado**: `{decrypted}`")
+            bot.send_msg(cid, f"ðŸ”“ **Desencriptado**: `{decrypted}`")
         except:
-            bot.send_msg(cid, "❌ Error: Texto no válido o clave incorrecta.")
+            bot.send_msg(cid, "âŒ Error: Texto no vÃ¡lido o clave incorrecta.")
         
         return True
     

@@ -2394,7 +2394,9 @@ if tdlib_client:
 class MoonBot:
     def __init__(self, token):
         self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", requests.Session(), []
+        self.db = db
         self.ia = ia_nativa
+        self.ia_nativa = ia_nativa
         threading.Thread(target=self.ia.deep_dream_worker, daemon=True).start()
 
         self.ia.load_brain()
@@ -3152,8 +3154,27 @@ class MoonBot:
     def get_user_personal_chat_messages(self, user_id, limit=100):
         return self.api_call("getUserPersonalChatMessages", {"user_id": user_id, "limit": limit})
 
+    def _normalize_command_text(self, text):
+        clean_text = (text or "").strip()
+        if not clean_text.startswith("/"):
+            return clean_text
+        parts = clean_text.split(maxsplit=1)
+        cmd = parts[0].split("@", 1)[0]
+        return cmd if len(parts) == 1 else f"{cmd} {parts[1]}"
+
+    def _run_plugin_command(self, cid, uid, text, rk):
+        plugin_text = self._normalize_command_text(text)
+        for plugin in self.plugins:
+            if hasattr(plugin, "handle_command"):
+                try:
+                    if plugin.handle_command(self, cid, uid, plugin_text, rk):
+                        return True
+                except Exception as _pe:
+                    add_web_log("ERROR", f"Plugin {getattr(plugin, '__name__', plugin)} error en handle_command: {_pe}")
+        return False
+
     def process_command(self, cid, uid, uname, text, rk, msg_id, msg):
-        clean_text = text.strip()
+        clean_text = self._normalize_command_text(text)
         if not clean_text.startswith("/"): return False
         
         # 1. Limpieza de comando (soporte para /cmd@botname)
@@ -3803,16 +3824,7 @@ class MoonBot:
                         rk = self.get_user_rank(cid, uid)
                         if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
                             continue
-                        handled_plugin = False
-                        for p in self.plugins:
-                            if hasattr(p, "handle_command"):
-                                try:
-                                    if p.handle_command(self, cid, uid, text, rk):
-                                        handled_plugin = True
-                                        break
-                                except Exception as _pe:
-                                    add_web_log("ERROR", f"Plugin {getattr(p, '__name__', p)} error en handle_command: {_pe}")
-                        if not handled_plugin:
+                        if not self._run_plugin_command(cid, uid, text, rk):
                             self.send_msg(cid, "Comando no reconocido. Usa /ayuda o /helpplus.")
                         continue # NUNCA pasar un comando a la IA
 
