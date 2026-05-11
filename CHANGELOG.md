@@ -5,6 +5,7 @@
 - **core/telegram_api.py**: retirados `managed_bot`, `guest_message` y `guest_interaction` de `allowed_updates` para evitar que Telegram rechace `getUpdates`.
 - **Respuesta del bot**: el polling vuelve a usar solo tipos oficiales de Bot API, evitando bucles de error/backoff donde el bot queda vivo en la web pero no contesta mensajes.
 - **Emojis mojibake**: `_repair_mojibake()` ahora prueba `cp1252` y `latin-1`, corrigiendo mensajes como `/ayuda` que salían con `ðŸ`, `âœ` y `Ã³`.
+- **Comando `/settings`**: ahora muestra la versión real del bot usando `APP_VERSION`, manteniendo Telegram y la web sincronizados.
 
 ## [v16.80.0] - 2026-05-11
 ### Fix — Comandos core y plugins más fiables
