@@ -6,6 +6,7 @@
 - **Respuesta del bot**: el polling vuelve a usar solo tipos oficiales de Bot API, evitando bucles de error/backoff donde el bot queda vivo en la web pero no contesta mensajes.
 - **Emojis mojibake**: `_repair_mojibake()` ahora prueba `cp1252` y `latin-1`, corrigiendo mensajes como `/ayuda` que salían con `ðŸ`, `âœ` y `Ã³`.
 - **Comando `/settings`**: ahora muestra la versión real del bot usando `APP_VERSION`, manteniendo Telegram y la web sincronizados.
+- **Reparación mixta de mojibake**: el saneador reconstruye bytes carácter por carácter para corregir mensajes que mezclan símbolos `cp1252` y controles Latin-1, como el panel completo de `/settings`.
 
 ## [v16.80.0] - 2026-05-11
 ### Fix — Comandos core y plugins más fiables

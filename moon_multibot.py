@@ -191,6 +191,19 @@ def _repair_mojibake(text):
     noisy_markers = ("ðŸ", "Ã", "â", "Â")
     if not any(m in text for m in noisy_markers):
         return text
+    try:
+        raw = bytearray()
+        for char in text:
+            code = ord(char)
+            if code <= 0xFF:
+                raw.append(code)
+            else:
+                raw.extend(char.encode("cp1252"))
+        fixed = raw.decode("utf-8", errors="strict")
+        if fixed and fixed.count("�") <= text.count("�"):
+            return fixed
+    except Exception:
+        pass
     for encoding in ("cp1252", "latin-1"):
         try:
             fixed = text.encode(encoding, errors="strict").decode("utf-8", errors="strict")
