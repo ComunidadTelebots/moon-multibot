@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.78.0] - 2026-05-11
+### Fix — Pipeline de comandos y estabilidad de plugins
+- **moon_multibot.py**: corregido el flujo de comandos para ejecutar en orden core -> plugins, evitando que comandos de plugins queden saltados por un continue prematuro.
+- **Comandos no reconocidos**: ahora devuelven respuesta explícita (Usa /ayuda o /helpplus) y nunca caen al motor IA.
+- **Bloque duplicado de comandos**: eliminado un tramo redundante en el loop principal de mensajes.
+- **plugins/__init__.py**: normalizado a UTF-8 para eliminar bytes nulos que rompían compilación global.
 ## [v16.77.0] - 2026-05-08
 ### Fix — Mensaje de LEVEL UP con texto raro al lado
 - **moon_multibot.py**: saneado de uname en el mensaje de subida de nivel para escapar caracteres conflictivos de Markdown.
@@ -948,5 +954,6 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 
 ---
 *Â¡450 Mejoras completadas! El bot mÃ¡s potente de su clase.*
+
 
 

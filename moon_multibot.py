@@ -3782,7 +3782,19 @@ class MoonBot:
                     # PROCESAMIENTO DE COMANDOS (Si empieza por /)
                     if text.startswith("/"):
                         rk = self.get_user_rank(cid, uid)
-                        self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg)
+                        if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
+                            continue
+                        handled_plugin = False
+                        for p in self.plugins:
+                            if hasattr(p, "handle_command"):
+                                try:
+                                    if p.handle_command(self, cid, uid, text, rk):
+                                        handled_plugin = True
+                                        break
+                                except Exception as _pe:
+                                    add_web_log("ERROR", f"Plugin {getattr(p, '__name__', p)} error en handle_command: {_pe}")
+                        if not handled_plugin:
+                            self.send_msg(cid, "Comando no reconocido. Usa /ayuda o /helpplus.")
                         continue # NUNCA pasar un comando a la IA
 
                     # Anti-Link per Group
@@ -3847,23 +3859,6 @@ class MoonBot:
                     db.set("IA_LANG_COUNTS", lang_counts)
                     
                     rk = self.get_user_rank(cid, uid)
-
-                    # --- PROCESAMIENTO DE COMANDOS (PRIORIDAD ALTA) ---
-                    if text.startswith("/"):
-                        if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
-                            continue
-                        
-                        # Intentar procesar plugins
-                        handled_plugin = False
-                        for p in self.plugins:
-                            if hasattr(p, "handle_command"):
-                                try:
-                                    if p.handle_command(self, cid, uid, text, rk):
-                                        handled_plugin = True
-                                        break
-                                except Exception as _pe:
-                                    add_web_log("ERROR", f"Plugin {getattr(p, '__name__', p)} error en handle_command: {_pe}")
-                        if handled_plugin: continue
 
                     # 1. Modo Escucha (Bloquea IA y Aprendizaje, pero NO comandos arriba)
                     if listen_mode and uid != str(MASTER_ID):
