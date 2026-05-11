@@ -3310,6 +3310,7 @@ class MoonBot:
             if raw_cmd == "/settings":
                 c = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "ia_mood": "friendly"})
                 txt = f"âš™ï¸ **CONFIGURACIÃ“N DEL NODO {cid}**\n\n"
+                txt += f"ðŸŒ™ VersiÃ³n del bot: `{APP_VERSION}`\n"
                 txt += f"ðŸ§  IA Learning: `{'âœ… ON' if c.get('ia_learning') else 'âŒ OFF'}`\n"
                 txt += f"ðŸ›¡ï¸ Neural Shield: `{'âœ… ON' if c.get('auto_mod') else 'âŒ OFF'}`\n"
                 txt += f"ðŸŽ­ Mood: `{c.get('ia_mood', 'friendly')}`\n\n"
