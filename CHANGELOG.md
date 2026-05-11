@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.79.0] - 2026-05-11
+### Fix — Emojis y texto corrupto (mojibake) en mensajes del bot
+- **moon_multibot.py**: nuevo helper _repair_mojibake(text) para reparar cadenas UTF-8 mal decodificadas (patrones como ðŸ, Ã, â, Â).
+- **Hotfix global en send_msg()**: todo texto saliente se sanea antes de enviar por Bot API/TDLib.
+- **Historial interno**: ahora persiste el texto saneado para evitar arrastrar corrupción visual en dashboard.
 ## [v16.78.0] - 2026-05-11
 ### Fix — Pipeline de comandos y estabilidad de plugins
 - **moon_multibot.py**: corregido el flujo de comandos para ejecutar en orden core -> plugins, evitando que comandos de plugins queden saltados por un continue prematuro.
@@ -954,6 +959,7 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 
 ---
 *Â¡450 Mejoras completadas! El bot mÃ¡s potente de su clase.*
+
 
 
 

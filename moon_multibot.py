@@ -182,6 +182,24 @@ def add_audit_log(act):
     # TambiÃ©n en el log general
     add_web_log("SECURITY", f"AcciÃ³n Auditada: {act} (IP: {ip})")
 
+
+def _repair_mojibake(text):
+    """Intenta reparar texto UTF-8 mal decodificado (mojibake) de forma segura."""
+    if not isinstance(text, str) or not text:
+        return text
+    # Heurística: patrones muy comunes de mojibake en este proyecto
+    noisy_markers = ("ðŸ", "Ã", "â", "Â")
+    if not any(m in text for m in noisy_markers):
+        return text
+    try:
+        fixed = text.encode("latin-1", errors="strict").decode("utf-8", errors="strict")
+        # Evitar reemplazos que empeoren el texto
+        if fixed and fixed.count("�") <= text.count("�"):
+            return fixed
+    except Exception:
+        pass
+    return text
+
 def check_jwt(req):
     # Seguridad adicional: Whitelist de IPs si estÃ¡ configurado
     ip_whitelist = db.get("IP_WHITELIST", [])
@@ -2411,12 +2429,13 @@ class MoonBot:
 
     def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None):
         result = None
+        safe_text = _repair_mojibake(text)
 
         # Intentar envÃ­o via TDLib si estÃ¡ listo y no es mensaje de business
         if self._tdlib and self._tdlib.is_ready and not business_connection_id:
             try:
                 tdlib_result = self._tdlib.send_message(
-                    int(chat_id), text, parse_mode=parse_mode
+                    int(chat_id), safe_text, parse_mode=parse_mode
                 )
                 if tdlib_result.get("@type") == "message":
                     result = {"ok": True, "result": tdlib_result}
@@ -2425,7 +2444,7 @@ class MoonBot:
 
         # Fallback a Bot API HTTP
         if result is None:
-            payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+            payload = {"chat_id": chat_id, "text": safe_text, "parse_mode": parse_mode}
             if business_connection_id:
                 payload["business_connection_id"] = business_connection_id
             result = self.call_api("sendMessage", payload)
@@ -2440,7 +2459,7 @@ class MoonBot:
                 "time": datetime.datetime.now().strftime("%H:%M"),
                 "sender": "Bot",
                 "uid": self.bot_username,
-                "text": (text or "")[:1000],
+                "text": (safe_text or "")[:1000],
                 "media": None
             })
         return result
