@@ -138,6 +138,33 @@
         </div>
     </div>
 
+    <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid #10b981; background: rgba(16, 185, 129, 0.04);">
+        <h4 style="color: #10b981; font-size: 11px; margin-bottom: 15px; letter-spacing: 2px;">ANALYTICS & COOKIES</h4>
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; align-items: end;">
+            <div class="setting-item">
+                <label>Google Analytics 4 Measurement ID</label>
+                <input type="text" id="googleAnalyticsId" class="input-style" placeholder="G-XXXXXXXXXX">
+                <div class="help-hint" title="Tambien puede definirse con GOOGLE_ANALYTICS_ID en .env.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>Banner de cookies</label>
+                <select id="cookieBannerEnabled" class="input-style">
+                    <option value="on">Activado</option>
+                    <option value="off">Desactivado</option>
+                </select>
+                <div class="help-hint" title="Muestra el aviso de consentimiento antes de activar Analytics.">?</div>
+            </div>
+            <div class="setting-item">
+                <label>Analytics</label>
+                <select id="analyticsEnabled" class="input-style">
+                    <option value="on">Activado</option>
+                    <option value="off">Desactivado</option>
+                </select>
+                <div class="help-hint" title="Si esta desactivado, no se carga Google Analytics aunque haya consentimiento.">?</div>
+            </div>
+        </div>
+    </div>
+
     <div class="glass-panel" style="margin-top: 25px; border-left: 3px solid #fde047; background: rgba(253, 224, 71, 0.02);">
         <h4 style="color: #fde047; font-size: 11px; margin-bottom: 15px; letter-spacing: 2px;">⚡ SEGURIDAD AVANZADA & VISIÓN</h4>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">

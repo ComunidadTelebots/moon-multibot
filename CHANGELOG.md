@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.82.0] - 2026-05-16
+### Feature - Google Analytics y consentimiento de cookies
+- **Google Analytics 4 global**: el dashboard carga GA4 desde `GOOGLE_ANALYTICS_ID` o desde Ajustes, y registra vistas para login y cada pestaña dinámica (`/dashboard`, `/bots`, `/chat`, `/ia`, `/settings`, etc.).
+- **Consentimiento de cookies**: nuevo banner responsive con aceptar/rechazar; Analytics no se carga hasta que el usuario acepta.
+- **Ajustes web**: añadido panel **Analytics & Cookies** para configurar Measurement ID, activar/desactivar banner y activar/desactivar Analytics sin tocar código.
+- **API pública mínima**: nuevo endpoint `/api/public/analytics` para inicializar banner y configuración antes del login sin exponer datos privados.
+- **Eventos básicos**: registro opcional de consentimiento aceptado, login y logout cuando Analytics está habilitado.
+
 ## [v16.81.0] - 2026-05-11
 ### Fix - Polling de Telegram
 - **core/telegram_api.py**: retirados `managed_bot`, `guest_message` y `guest_interaction` de `allowed_updates` para evitar que Telegram rechace `getUpdates`.

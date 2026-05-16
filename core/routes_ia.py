@@ -450,7 +450,14 @@ def web_settings():
     if not _check_jwt(request):
         return jsonify({"ok": False}), 401
     if request.method == "GET":
-        return jsonify({"ok": True, "settings": _db.get("GLOBAL_SETTINGS", {"welcome_msg": "Bienvenido al bot!"})})
+        settings = _db.get("GLOBAL_SETTINGS", {"welcome_msg": "Bienvenido al bot!"})
+        if not isinstance(settings, dict):
+            settings = {"welcome_msg": "Bienvenido al bot!"}
+        if not settings.get("google_analytics_id"):
+            settings["google_analytics_id"] = os.getenv("GOOGLE_ANALYTICS_ID", "")
+        settings.setdefault("cookie_banner_enabled", "on")
+        settings.setdefault("analytics_enabled", "on")
+        return jsonify({"ok": True, "settings": settings})
     _db.set("GLOBAL_SETTINGS", request.json)
     return jsonify({"ok": True})
 

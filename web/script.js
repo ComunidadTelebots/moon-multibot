@@ -12,6 +12,15 @@ let perfChart = null;
 let cpuData = [];
 let ramData = [];
 let matrixInterval = null;
+let moonAnalyticsConfig = {
+    measurementId: "",
+    cookieBannerEnabled: "on",
+    analyticsEnabled: "on"
+};
+let moonAnalyticsLoaded = false;
+let moonAnalyticsActiveId = "";
+let moonLastTrackedPage = "";
+const MOON_COOKIE_CONSENT_KEY = "moon_cookie_consent";
 
 function getStoredAuthToken() {
     return authToken || localStorage.getItem('moon_token') || "";
@@ -38,6 +47,130 @@ async function downloadWithAuth(url, filename) {
     URL.revokeObjectURL(objectUrl);
 }
 
+function normalizeAnalyticsId(value) {
+    return String(value || "").trim().toUpperCase();
+}
+
+function isAnalyticsConsentGranted() {
+    return localStorage.getItem(MOON_COOKIE_CONSENT_KEY) === "accepted";
+}
+
+function setAnalyticsConsent(consent) {
+    localStorage.setItem(MOON_COOKIE_CONSENT_KEY, consent);
+    const banner = document.getElementById("cookieConsentBanner");
+    if(banner) banner.remove();
+
+    if(consent === "accepted") {
+        loadGoogleAnalytics();
+        if(typeof gtag === "function") {
+            gtag("event", "cookie_consent", { consent_state: "accepted" });
+        }
+        showToast("Cookies", "Preferencias guardadas.");
+    } else {
+        disableGoogleAnalytics();
+        showToast("Cookies", "Analytics desactivado.");
+    }
+}
+
+function disableGoogleAnalytics() {
+    if(typeof gtag === "function") {
+        gtag("consent", "update", {
+            analytics_storage: "denied",
+            ad_storage: "denied"
+        });
+    }
+}
+
+function loadGoogleAnalytics() {
+    const measurementId = normalizeAnalyticsId(moonAnalyticsConfig.measurementId);
+    if(!measurementId || moonAnalyticsConfig.analyticsEnabled !== "on" || !isAnalyticsConsentGranted()) {
+        disableGoogleAnalytics();
+        return;
+    }
+
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function(){ dataLayer.push(arguments); };
+    gtag("consent", "default", {
+        analytics_storage: "granted",
+        ad_storage: "denied"
+    });
+
+    if(!moonAnalyticsLoaded) {
+        const script = document.createElement("script");
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+        document.head.appendChild(script);
+        moonAnalyticsLoaded = true;
+        gtag("js", new Date());
+    }
+
+    if(moonAnalyticsActiveId !== measurementId) {
+        gtag("config", measurementId, { send_page_view: false });
+        moonAnalyticsActiveId = measurementId;
+    }
+
+    trackPageView(window.MOON_CONFIG?.currentTab || "dashboard");
+}
+
+function trackPageView(tabId) {
+    const measurementId = normalizeAnalyticsId(moonAnalyticsConfig.measurementId);
+    if(!measurementId || !moonAnalyticsLoaded || !isAnalyticsConsentGranted() || typeof gtag !== "function") return;
+    const pagePath = tabId === "login" ? "/" : `/${tabId}`;
+    if(moonLastTrackedPage === pagePath) return;
+    moonLastTrackedPage = pagePath;
+    gtag("event", "page_view", {
+        page_title: `Moon Multibot - ${tabId}`,
+        page_path: pagePath
+    });
+}
+
+function showCookieConsentBanner() {
+    if(!normalizeAnalyticsId(moonAnalyticsConfig.measurementId)) return;
+    if(moonAnalyticsConfig.cookieBannerEnabled !== "on" || localStorage.getItem(MOON_COOKIE_CONSENT_KEY)) return;
+    if(document.getElementById("cookieConsentBanner")) return;
+
+    const banner = document.createElement("div");
+    banner.id = "cookieConsentBanner";
+    banner.className = "cookie-consent-banner";
+    banner.innerHTML = `
+        <div class="cookie-consent-copy">
+            <strong>Cookies de analitica</strong>
+            <span>Usamos Google Analytics solo si das permiso para medir uso del dashboard y mejorar el sistema.</span>
+        </div>
+        <div class="cookie-consent-actions">
+            <button type="button" onclick="setAnalyticsConsent('rejected')" class="cookie-btn secondary">Rechazar</button>
+            <button type="button" onclick="setAnalyticsConsent('accepted')" class="cookie-btn primary">Aceptar</button>
+        </div>
+    `;
+    document.body.appendChild(banner);
+}
+
+function initCookieConsent(settings) {
+    moonAnalyticsConfig = {
+        measurementId: normalizeAnalyticsId(settings?.google_analytics_id),
+        cookieBannerEnabled: settings?.cookie_banner_enabled || "on",
+        analyticsEnabled: settings?.analytics_enabled || "on"
+    };
+
+    if(!moonAnalyticsConfig.measurementId || moonAnalyticsConfig.analyticsEnabled !== "on") {
+        const banner = document.getElementById("cookieConsentBanner");
+        if(banner) banner.remove();
+        disableGoogleAnalytics();
+        return;
+    }
+    showCookieConsentBanner();
+    loadGoogleAnalytics();
+}
+
+function refreshAnalyticsSettings() {
+    const url = authToken ? '/api/admin/settings' : '/api/public/analytics';
+    const options = authToken ? { headers: { 'Authorization': authToken } } : {};
+    fetch(url, options)
+    .then(r => r.json()).then(data => {
+        if(data.ok) initCookieConsent(data.settings || data || {});
+    }).catch(() => {});
+}
+
 // --- Session Management ---
 function login() {
     const key = document.getElementById("authKey").value;
@@ -54,7 +187,11 @@ function login() {
             localStorage.setItem('moon_token', authToken);
             document.getElementById("loginScreen").style.display = "none";
             document.getElementById("dashboard").style.display = "block";
+            if(typeof gtag === "function" && isAnalyticsConsentGranted()) {
+                gtag("event", "login", { method: "dashboard" });
+            }
             switchTab('dashboard');
+            refreshAnalyticsSettings();
             showToast("🌙 Bienvenido", "Conexión neuronal establecida.");
         } else {
             document.getElementById("loginError").innerText = "❌ Clave Incorrecta";
@@ -63,6 +200,9 @@ function login() {
 }
 
 function logout() {
+    if(typeof gtag === "function" && isAnalyticsConsentGranted()) {
+        gtag("event", "logout");
+    }
     localStorage.removeItem("moon_token");
     location.reload();
 }
@@ -126,6 +266,7 @@ function switchTab(tabId, btn) {
         if(tabId === 'proxies') loadProxiesTab();
         if(tabId === 'security') loadSecurityTab();
         if(tabId === 'queue') loadQueueTab();
+        trackPageView(tabId);
     });
 }
 
@@ -1174,6 +1315,7 @@ async function injectMultilingual() {
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
     setTheme(localStorage.getItem('moon_theme') || 'moon');
+    refreshAnalyticsSettings();
     if(authToken) {
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboard").style.display = "block";
@@ -1199,10 +1341,32 @@ function loadSettings() {
             if(document.getElementById("dailyReportHour")) document.getElementById("dailyReportHour").value = s.daily_report_hour ?? "8";
             if(document.getElementById("autoBackupHours")) document.getElementById("autoBackupHours").value = s.auto_backup_hours ?? "0";
             if(document.getElementById("autoCleanupDays")) document.getElementById("autoCleanupDays").value = s.auto_cleanup_days ?? "0";
+            if(document.getElementById("googleAnalyticsId")) document.getElementById("googleAnalyticsId").value = s.google_analytics_id || "";
+            if(document.getElementById("cookieBannerEnabled")) document.getElementById("cookieBannerEnabled").value = s.cookie_banner_enabled || "on";
+            if(document.getElementById("analyticsEnabled")) document.getElementById("analyticsEnabled").value = s.analytics_enabled || "on";
+
+            if(document.getElementById("casProtection")) document.getElementById("casProtection").value = s.cas_protection || "on";
+            if(document.getElementById("auditThreshold")) document.getElementById("auditThreshold").value = s.audit_threshold || "60";
+            if(document.getElementById("floodLimit")) document.getElementById("floodLimit").value = s.flood_limit || "6";
+            spamFilterEnabled = (s.spam_filter || "on") === "on";
+            maintenanceMode = (s.maintenance_mode || "off") === "on";
+            joinDeleteEnabled = (s.join_delete || "on") === "on";
+            const spamBtn = document.getElementById("spamFilterBtn");
+            if(spamBtn) {
+                spamBtn.innerText = `SPAM FILTER: ${spamFilterEnabled ? 'ON' : 'OFF'}`;
+                spamBtn.style.color = spamFilterEnabled ? '#10b981' : '#ef4444';
+            }
+            const joinBtn = document.getElementById("joinBtn");
+            if(joinBtn) {
+                joinBtn.innerText = `UNIONES: ${joinDeleteEnabled ? 'ON' : 'OFF'}`;
+                joinBtn.style.color = joinDeleteEnabled ? '#10b981' : '#94a3b8';
+            }
 
             const maintBtn = document.getElementById("maintBtn");
-            if(maintBtn) maintBtn.innerText = `MANTENIMIENTO: ${s.maintenance ? 'ON' : 'OFF'}`;
-            if(maintBtn) maintBtn.style.color = s.maintenance ? 'var(--danger)' : 'var(--text-muted)';
+            if(maintBtn) maintBtn.innerText = `MANTENIMIENTO: ${maintenanceMode ? 'ON' : 'OFF'}`;
+            if(maintBtn) maintBtn.style.color = maintenanceMode ? 'var(--danger)' : 'var(--text-muted)';
+
+            initCookieConsent(s);
         }
     });
 }
@@ -1223,7 +1387,10 @@ function saveGlobalSettings() {
         media_purge_days: document.getElementById("mediaPurgeDays")?.value,
         daily_report_hour: document.getElementById("dailyReportHour")?.value ?? "8",
         auto_backup_hours: document.getElementById("autoBackupHours")?.value ?? "0",
-        auto_cleanup_days: document.getElementById("autoCleanupDays")?.value ?? "0"
+        auto_cleanup_days: document.getElementById("autoCleanupDays")?.value ?? "0",
+        google_analytics_id: normalizeAnalyticsId(document.getElementById("googleAnalyticsId")?.value),
+        cookie_banner_enabled: document.getElementById("cookieBannerEnabled")?.value ?? "on",
+        analytics_enabled: document.getElementById("analyticsEnabled")?.value ?? "on"
     };
     fetch('/api/admin/settings', {
         method: 'POST',
@@ -1234,6 +1401,11 @@ function saveGlobalSettings() {
             showToast("✅ Éxito", "Ajustes globales aplicados.");
             const stat = document.getElementById("settingsStatus");
             if(stat) { stat.innerText = "SINCRO OK"; stat.style.color = "#10b981"; }
+            initCookieConsent({
+                google_analytics_id: normalizeAnalyticsId(document.getElementById("googleAnalyticsId")?.value),
+                cookie_banner_enabled: document.getElementById("cookieBannerEnabled")?.value ?? "on",
+                analytics_enabled: document.getElementById("analyticsEnabled")?.value ?? "on"
+            });
         }
     });
 }

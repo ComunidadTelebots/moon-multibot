@@ -443,6 +443,18 @@ def web_login():
 def health_check():
     return jsonify({"ok": True, "uptime": int(time.time() - start_time), "bots": len(active_bots)})
 
+@app.route("/api/public/analytics")
+def public_analytics_settings():
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if not isinstance(settings, dict):
+        settings = {}
+    return jsonify({
+        "ok": True,
+        "google_analytics_id": settings.get("google_analytics_id") or os.getenv("GOOGLE_ANALYTICS_ID", ""),
+        "cookie_banner_enabled": settings.get("cookie_banner_enabled", "on"),
+        "analytics_enabled": settings.get("analytics_enabled", "on"),
+    })
+
 @app.route("/api/status")
 def web_status():
     if not check_jwt(request): return jsonify({"ok": False}), 401
