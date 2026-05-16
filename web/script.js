@@ -83,15 +83,20 @@ function disableGoogleAnalytics() {
 
 function loadGoogleAnalytics() {
     const measurementId = normalizeAnalyticsId(moonAnalyticsConfig.measurementId);
-    if(!measurementId || moonAnalyticsConfig.analyticsEnabled !== "on" || !isAnalyticsConsentGranted()) {
+    if(!measurementId || moonAnalyticsConfig.analyticsEnabled !== "on") {
         disableGoogleAnalytics();
         return;
     }
 
+    const consentGranted = isAnalyticsConsentGranted();
     window.dataLayer = window.dataLayer || [];
     window.gtag = window.gtag || function(){ dataLayer.push(arguments); };
     gtag("consent", "default", {
-        analytics_storage: "granted",
+        analytics_storage: consentGranted ? "granted" : "denied",
+        ad_storage: "denied"
+    });
+    gtag("consent", "update", {
+        analytics_storage: consentGranted ? "granted" : "denied",
         ad_storage: "denied"
     });
 
@@ -109,7 +114,7 @@ function loadGoogleAnalytics() {
         moonAnalyticsActiveId = measurementId;
     }
 
-    trackPageView(window.MOON_CONFIG?.currentTab || "dashboard");
+    if(consentGranted) trackPageView(window.MOON_CONFIG?.currentTab || "dashboard");
 }
 
 function trackPageView(tabId) {
