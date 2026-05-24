@@ -1,4 +1,39 @@
 <div class="ia-container">
+    <div class="admin-summary-grid">
+        <div class="stat-card">
+            <i class="stat-icon">👥</i>
+            <div class="stat-info">
+                <span id="summaryUsers">0</span>
+                <label>Usuarios</label>
+            </div>
+            <div class="help-hint" title="Total de usuarios registrados en la base de datos (claves USER_).">?</div>
+        </div>
+        <div class="stat-card">
+            <i class="stat-icon">💬</i>
+            <div class="stat-info">
+                <span id="summaryGroups">0</span>
+                <label>Grupos</label>
+            </div>
+            <div class="help-hint" title="Total de grupos administrados (claves ADMINS_).">?</div>
+        </div>
+        <div class="stat-card">
+            <i class="stat-icon">🚫</i>
+            <div class="stat-info">
+                <span id="summaryBanned">0</span>
+                <label>Baneados</label>
+            </div>
+            <div class="help-hint" title="Usuarios en la lista de baneos globales.">?</div>
+        </div>
+        <div class="stat-card">
+            <i class="stat-icon">🖼️</i>
+            <div class="stat-info">
+                <span id="summaryMedia">0 / 0</span>
+                <label>Fotos / Vídeos</label>
+            </div>
+            <div class="help-hint" title="Total de fotos y vídeos procesados.">?</div>
+        </div>
+    </div>
+
     <div class="glass-panel main-brain">
         <div class="brain-header">
             <h3>🧠 Cerebro de la IA (Moon Core)</h3>
@@ -506,6 +541,7 @@
 </div>
 
 <style>
+.admin-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
 .ia-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
 .stat-card { 
     background: rgba(255,255,255,0.03); 

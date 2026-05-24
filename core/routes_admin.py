@@ -79,6 +79,24 @@ def web_admin_shield():
     return jsonify({"ok": True, "enabled": status})
 
 
+@bp.route("/api/admin/summary")
+def web_admin_summary():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    global_bans = _db.get("GLOBAL_BANS", {})
+    if not isinstance(global_bans, dict):
+        global_bans = {}
+    return jsonify({
+        "ok": True,
+        "total_users": len(_db.keys("USER_")),
+        "total_groups": len(_db.keys("ADMINS_")),
+        "total_banned": len(global_bans.get("users", [])),
+        "photos": _db.get("STATS_PHOTOS", 0),
+        "videos": _db.get("STATS_VIDEOS", 0),
+        "stats_24h": _db.get("IA_STATS_24H", {}),
+    })
+
+
 @bp.route("/api/admin/backup", methods=["POST"])
 def web_admin_backup():
     if not _check_jwt(request):

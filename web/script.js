@@ -260,7 +260,7 @@ function switchTab(tabId, btn) {
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
         if(tabId === 'bots') fetchBots();
-        if(tabId === 'ia') { fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); }
+        if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
         if(tabId === 'moderation') { loadModerationTab(); fetchSecurityBlacklist(); }
@@ -1482,6 +1482,19 @@ function changeLanguage() {
 }
 
 // --- Inline / Guest AI Stats ---
+function fetchAdminSummary() {
+    if (!authToken) return;
+    fetch('/api/admin/summary', { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        if (!data.ok) return;
+        const el = id => document.getElementById(id);
+        if (el("summaryUsers")) el("summaryUsers").innerText = data.total_users || 0;
+        if (el("summaryGroups")) el("summaryGroups").innerText = data.total_groups || 0;
+        if (el("summaryBanned")) el("summaryBanned").innerText = data.total_banned || 0;
+        if (el("summaryMedia")) el("summaryMedia").innerText = `${data.photos || 0} / ${data.videos || 0}`;
+    }).catch(() => {});
+}
+
 function fetchInlineStats() {
     if (!authToken) return;
     fetch("/api/ia/inline_stats", { headers: { "Authorization": authToken } })
