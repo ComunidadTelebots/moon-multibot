@@ -401,6 +401,7 @@ app.register_blueprint(_setup_admin(
     get_ia_nativa=lambda: ia_nativa,
     get_maintenance_mode=lambda: maintenance_mode,
     set_maintenance_mode=lambda value: globals().__setitem__("maintenance_mode", value),
+    ban_manager=ban_manager,
 ))
 app.register_blueprint(_setup_system(
     check_jwt=check_jwt,

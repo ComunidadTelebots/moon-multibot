@@ -43,6 +43,25 @@
                 <!-- Dynamically loaded -->
             </div>
         </div>
+
+        <div class="glass-panel mt-20" style="border: 1px solid rgba(239,68,68,0.3);">
+            <h3 data-i18n="sec_globalbans_title">🚫 Baneados Globales de Telegram</h3>
+            <p class="subtitle" data-i18n="sec_globalbans_subtitle">Usuarios vetados en toda la red Moon. Revierte un veto si fue un error.</p>
+            <div class="audit-table-container" style="margin-top: 15px; overflow-y: auto; max-height: 320px;">
+                <table class="audit-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="text-align: left; color: var(--text-muted); border-bottom: 1px solid var(--glass-border);">
+                            <th style="padding: 10px;" data-i18n="sec_bans_col_id">ID USUARIO</th>
+                            <th data-i18n="sec_bans_col_reason">RAZÓN</th>
+                            <th style="text-align: right;" data-i18n="sec_bans_col_action">ACCIÓN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="globalBansBody">
+                        <!-- Dinámico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div class="right-col">
@@ -76,6 +95,18 @@
 .vt-badge { padding: 2px 6px; border-radius: 4px; font-weight: 700; }
 .vt-badge.danger { background: rgba(239,68,68,0.1); color: var(--danger); }
 .vt-badge.success { background: rgba(16,185,129,0.1); color: var(--success); }
+.btn-unban {
+    background: rgba(239,68,68,0.12);
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.4);
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-unban:hover { background: var(--danger); color: #fff; }
 </style>
 
 <style>

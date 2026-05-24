@@ -15,6 +15,7 @@ _get_global_msg_log = None
 _get_ia_nativa = None
 _get_maintenance_mode = None
 _set_maintenance_mode = None
+_ban_manager = None
 
 
 def setup(
@@ -28,10 +29,11 @@ def setup(
     get_ia_nativa,
     get_maintenance_mode,
     set_maintenance_mode,
+    ban_manager=None,
 ):
     global _check_jwt, _db, _add_audit_log, _get_global_chat_names, _get_proxy_bot
     global _get_global_user_stats, _get_global_msg_log, _get_ia_nativa
-    global _get_maintenance_mode, _set_maintenance_mode
+    global _get_maintenance_mode, _set_maintenance_mode, _ban_manager
     _check_jwt = check_jwt
     _db = db
     _add_audit_log = add_audit_log
@@ -42,6 +44,7 @@ def setup(
     _get_ia_nativa = get_ia_nativa
     _get_maintenance_mode = get_maintenance_mode
     _set_maintenance_mode = set_maintenance_mode
+    _ban_manager = ban_manager
     return bp
 
 
@@ -95,6 +98,58 @@ def web_admin_summary():
         "videos": _db.get("STATS_VIDEOS", 0),
         "stats_24h": _db.get("IA_STATS_24H", {}),
     })
+
+
+@bp.route("/api/admin/bans")
+def web_admin_bans():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    global_bans = _db.get("GLOBAL_BANS", {})
+    if not isinstance(global_bans, dict):
+        global_bans = {}
+    user_ids = [str(uid) for uid in global_bans.get("users", [])]
+
+    # Recuperar la razon mas reciente de cada baneo global desde el historial.
+    reasons = {}
+    history = _db.get("BAN_HISTORY", [])
+    if isinstance(history, list):
+        for record in history:
+            if not isinstance(record, dict):
+                continue
+            if record.get("scope") == "global" and record.get("action", "ban") == "ban":
+                reason = record.get("reason")
+                if reason:
+                    reasons[str(record.get("uid", ""))] = reason
+
+    bans = [{"user_id": uid, "reason": reasons.get(uid, "")} for uid in user_ids]
+    return jsonify({"ok": True, "bans": bans})
+
+
+@bp.route("/api/admin/unban", methods=["POST"])
+def web_admin_unban():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    user_id = str((request.json or {}).get("user_id", "")).strip()
+    if not user_id:
+        return jsonify({"ok": False, "msg": "Falta user_id"}), 400
+
+    global_bans = _db.get("GLOBAL_BANS", {})
+    if not isinstance(global_bans, dict):
+        global_bans = {"users": [], "hashes": []}
+    global_bans.setdefault("users", [])
+
+    if user_id not in [str(uid) for uid in global_bans["users"]]:
+        return jsonify({"ok": False, "msg": "El usuario no esta baneado globalmente"}), 404
+
+    # Usar el BanManager para que el set en memoria quede sincronizado y el
+    # enforcer global no vuelva a banear al usuario en el siguiente mensaje.
+    if _ban_manager is not None:
+        _ban_manager.unban_user(user_id)
+    else:
+        global_bans["users"] = [uid for uid in global_bans["users"] if str(uid) != user_id]
+        _db.set("GLOBAL_BANS", global_bans)
+    _add_audit_log(f"Usuario {user_id} desbaneado globalmente desde el panel")
+    return jsonify({"ok": True, "user_id": user_id})
 
 
 @bp.route("/api/admin/backup", methods=["POST"])

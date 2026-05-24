@@ -2745,6 +2745,51 @@ function loadSecurityTab() {
     if(!authToken || window.MOON_CONFIG.currentTab !== 'security') return;
     fetchSecurityBlacklist();
     fetchSecurityAudit();
+    fetchGlobalBans();
+}
+
+function fetchGlobalBans() {
+    if(!authToken || window.MOON_CONFIG.currentTab !== 'security') return;
+    fetch("/api/admin/bans", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        const body = document.getElementById("globalBansBody");
+        if(!body) return;
+        body.innerHTML = "";
+
+        const bans = data.bans || [];
+        if(bans.length === 0) {
+            body.innerHTML = `<tr><td colspan="3" style="padding: 15px; color: var(--text-muted); text-align: center;">No hay usuarios baneados globalmente.</td></tr>`;
+            return;
+        }
+
+        bans.forEach(ban => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td style="padding: 10px;"><code>${ban.user_id}</code></td>
+                <td style="color: var(--text-muted);">${ban.reason || '—'}</td>
+                <td style="text-align: right;">
+                    <button class="btn-unban" onclick="unbanGlobalUser('${ban.user_id}')">Desbanear</button>
+                </td>
+            `;
+            body.appendChild(row);
+        });
+    });
+}
+
+function unbanGlobalUser(userId) {
+    if(!confirm(`¿Desbanear globalmente al usuario ${userId}?`)) return;
+    fetch("/api/admin/unban", {
+        method: "POST",
+        headers: { "Authorization": authToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId })
+    }).then(r => r.json()).then(data => {
+        if(data.ok) {
+            showToast("🚫 Baneos", `Usuario ${userId} desbaneado globalmente.`);
+            fetchGlobalBans();
+        } else {
+            showToast("Error", data.msg || "No se pudo desbanear al usuario.");
+        }
+    });
 }
 
 function fetchSecurityAudit() {
