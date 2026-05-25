@@ -425,7 +425,9 @@ app.register_blueprint(_setup_ops(
 ))
 
 @app.route("/")
-def index(): return send_from_directory("web", "index.html")
+def index(): return send_from_directory("web", "landing.html")
+@app.route("/panel")
+def panel(): return send_from_directory("web", "index.html")
 @app.route("/<path:path>")
 def static_proxy(path): return send_from_directory("web", path)
 

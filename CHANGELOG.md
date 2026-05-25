@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.83.0] - 2026-05-24
+### Feature - Landing page pública y panel en `/panel`
+- **Landing pública en `/`**: la raíz ahora sirve una página pública de presentación de cintiabot (`web/landing.html`), sin requerir login.
+- **Panel movido a `/panel`**: el dashboard (`web/index.html`) se sirve ahora en `/panel`, conservando su pantalla de login en cliente.
+- **Login existente intacto**: todas las rutas `/api/*` siguen protegidas por `check_jwt` (JWT); el resto de rutas no cambia su comportamiento de acceso.
+- **moon_multibot.py**: `/` apunta a `landing.html`, nueva ruta `/panel` para el panel y el catch-all `/<path:path>` se mantiene, de modo que los assets relativos del panel (`style.css`, `script.js`, fragmentos `*.html`) siguen resolviéndose desde la raíz.
+
 ## [v16.82.0] - 2026-05-16
 ### Feature - Google Analytics y consentimiento de cookies
 - **Google Analytics 4 global**: el dashboard carga GA4 desde `GOOGLE_ANALYTICS_ID` o desde Ajustes, y registra vistas para login y cada pestaña dinámica (`/dashboard`, `/bots`, `/chat`, `/ia`, `/settings`, etc.).

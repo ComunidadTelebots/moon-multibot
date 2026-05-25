@@ -232,6 +232,7 @@ function switchTab(tabId, btn) {
         'ia': 'ia.html',
         'brain-map': 'brain_map.html',
         'history-global': 'history.html',
+        'history': 'history.html',
         'moderation': 'moderation.html',
         'plugins': 'plugins.html',
         'diagnostics': 'diagnostics.html',
