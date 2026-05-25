@@ -13,3 +13,5 @@ pytesseract
 Pillow
 waitress
 gunicorn
+langdetect
+ftfy

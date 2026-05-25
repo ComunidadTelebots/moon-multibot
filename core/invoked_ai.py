@@ -16,6 +16,15 @@ def _safe_md(text):
     return text
 
 
+def _force_utf8(text):
+    """Asegura que el texto pasa por .encode('utf-8').decode('utf-8') antes de enviarse."""
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+    return text.encode("utf-8", "ignore").decode("utf-8", "ignore")
+
+
 class InvokedAIService:
     def __init__(self, ia, db, ban_manager, cas_checker, log_func, bot_username="MoonBot"):
         self.ia = ia
@@ -193,7 +202,7 @@ class InvokedAIService:
         if not answer:
             answer = "Estoy listo. Dame un poco mas de contexto y te respondo mejor."
 
-        answer = _safe_md(answer)
+        answer = _force_utf8(_safe_md(answer))
         # Registrar estadísticas
         self._record_ai_usage(mode, uid, uname, cid, ai_used, elapsed_time, len(answer) > 0)
 

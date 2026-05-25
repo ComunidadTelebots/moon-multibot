@@ -862,6 +862,39 @@ def detect_intent(text):
     if t.endswith("?"):                 return "question"
     return "neutral"
 
+
+# ── Detección de idioma basada en langdetect ───────────────────────────────────
+try:
+    from langdetect import detect as _ld_detect, DetectorFactory as _LangDetectorFactory
+    _LangDetectorFactory.seed = 0  # hace deterministas los resultados de langdetect
+    _LANGDETECT_AVAILABLE = True
+except Exception:
+    _ld_detect = None
+    _LANGDETECT_AVAILABLE = False
+
+
+def _force_utf8(text):
+    """Garantiza unicode válido pasando el texto por .encode('utf-8').decode('utf-8')."""
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+    return text.encode("utf-8", "ignore").decode("utf-8", "ignore")
+
+
+def detect_language_code(text):
+    """Devuelve el código ISO del idioma detectado por langdetect, o '' si no se puede."""
+    if not _LANGDETECT_AVAILABLE or not text:
+        return ""
+    cleaned = text.strip()
+    if len(cleaned) < 3:
+        return ""
+    try:
+        return _ld_detect(cleaned)
+    except Exception:
+        return ""
+
+
 class MoonCoreIA:
     def __init__(self):
         self.brain = db.get("IA_BRAIN", {"keywords": {}, "patterns": {}})
@@ -1491,8 +1524,8 @@ class MoonCoreIA:
         }
         return aliases.get(value, value[:8])
 
-    def build_multilingual_instruction(self, prompt, current_mood, memory_context):
-        lang = self.detect_lang(prompt)
+    def build_multilingual_instruction(self, prompt, current_mood, memory_context, lang=None):
+        lang = lang or self.detect_lang(prompt)
         lang_name = self.get_language_name(lang)
         return (
             "Eres MoonBot, una IA de gestiÃ³n de Telegram. "
@@ -1764,7 +1797,8 @@ class MoonCoreIA:
     
     def learn(self, text, source="Cerebro Local"):
         if not text or len(text) < 2: return
-        
+        text = _force_utf8(text)
+
         # Logs de depuraciÃ³n para confirmar recepciÃ³n
         add_web_log("IA", f"ðŸ§  Aprendiendo de '{source}': {text[:30]}...")
 
@@ -1880,7 +1914,19 @@ class MoonCoreIA:
         return ""
 
     def generate(self, prompt, chat_id=None, mood_override=None, ai_preference=None):
+        """Genera una respuesta normalizada a UTF-8.
+
+        Detecta el idioma del mensaje entrante con langdetect y se lo pasa a
+        _generate_raw() para que el bot intente responder en el mismo idioma.
+        """
+        lang = (detect_language_code(prompt) or "").split("-")[0]  # 'zh-cn' -> 'zh'
+        answer = self._generate_raw(prompt, chat_id, mood_override, ai_preference, lang=lang)
+        return _force_utf8(answer or "")
+
+    def _generate_raw(self, prompt, chat_id=None, mood_override=None, ai_preference=None, lang=None):
         current_mood = mood_override or self.mood
+        # Idioma del usuario: usa el detectado por langdetect; si no, el detector interno.
+        lang = lang or self.detect_lang(prompt)
 
         # RAG: contexto de memoria local
         memory_context = ""
@@ -1973,7 +2019,6 @@ class MoonCoreIA:
 
             if len(res) % 7 == 0 and len(res) < max_words - 2:
                 res[-1] += ","
-                lang = self.detect_lang(prompt)
                 connectors = {
                     "es": ["y", "pero", "ademÃ¡s", "aunque", "porque", "sin embargo"],
                     "en": ["and", "but", "also", "although", "because", "however"],
@@ -2075,7 +2120,6 @@ class MoonCoreIA:
 
         # Prefijo por intenciÃ³n detectada
         intent = detect_intent(prompt)
-        lang = self.detect_lang(prompt)
         intent_prefixes = {
             "greeting":  ["Â¡Hola! ", "Â¡Buenas! ", "Â¡Hey! ", "Â¡QuÃ© tal! "],
             "farewell":  ["Â¡Hasta luego! ", "Â¡CuÃ­date! ", "Â¡Nos vemos! "],
@@ -2139,7 +2183,7 @@ class MoonCoreIA:
         if ai_preference != "markov":
             use_ollama = (ai_preference == "ollama") or (USE_EXTERNAL_LLM and LLM_PROVIDER == "ollama")
             if use_ollama:
-                system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
+                system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context, lang=lang)
                 ollama_resp = self._call_ollama(prompt, system_instruction)
                 if ollama_resp:
                     self.learn(ollama_resp, source="Ollama")
@@ -2150,7 +2194,7 @@ class MoonCoreIA:
             # â”€â”€ CAPA 3: Gemini â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             use_gemini = (ai_preference == "gemini") or (USE_EXTERNAL_LLM and LLM_PROVIDER == "gemini")
             if use_gemini:
-                system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context)
+                system_instruction = self.build_multilingual_instruction(prompt, current_mood, memory_context, lang=lang)
                 gemini_resp = self._call_gemini(prompt, system_instruction)
                 if gemini_resp:
                     self.learn(gemini_resp, source="Gemini")
