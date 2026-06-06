@@ -82,7 +82,85 @@
   .soon .badge{display:inline-block;background:rgba(251,191,36,.12);color:var(--warn);padding:3px 8px;border-radius:999px;font-size:12px;margin-bottom:8px}
   footer{padding:40px 0 60px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:32px}
   .footer-row{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center}
+  /* ── Historial de versiones cintiabot (.cbh-*) ── */
+  .cbh-section{--cbh-blue:#7aa2ff;--cbh-violet:#c084fc;--cbh-green:#34d399;--cbh-amber:#fbbf24;--cbh-ink:#e6e8ef;--cbh-muted:#9aa3b2;--cbh-card:rgba(255,255,255,.04);--cbh-line:rgba(255,255,255,.09);--cbh-bg:#0b0d12;
+    padding:54px 22px;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;}
+  .cbh-eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--cbh-violet);font-weight:600;text-align:center;}
+  .cbh-h2{font-size:clamp(24px,3.5vw,30px);font-weight:800;margin:6px 0 4px;letter-spacing:-.02em;text-align:center;color:var(--cbh-ink);}
+  .cbh-sub{color:var(--cbh-muted);font-size:14px;margin:0 auto 30px;text-align:center;max-width:50ch;}
+  .cbh-line{max-width:640px;margin:0 auto;position:relative;padding-left:28px;}
+  .cbh-line::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--cbh-blue),var(--cbh-violet));}
+  .cbh-v{position:relative;margin-bottom:14px;}
+  .cbh-v::before{content:"";position:absolute;left:-28px;top:18px;width:14px;height:14px;border-radius:50%;background:var(--cbh-bg);border:2px solid var(--cbh-blue);box-shadow:0 0 0 4px rgba(122,162,255,.1);}
+  .cbh-v.cbh-now::before{background:var(--cbh-violet);border-color:var(--cbh-violet);box-shadow:0 0 0 5px rgba(192,132,252,.18);}
+  .cbh-card{background:var(--cbh-card);border:1px solid var(--cbh-line);border-radius:13px;padding:12px 14px;display:flex;gap:12px;align-items:center;transition:border-color .25s;}
+  .cbh-card:hover{border-color:var(--cbh-blue);}
+  .cbh-txt{flex:1;min-width:0;}
+  .cbh-vh{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;}
+  .cbh-vn{font-family:'JetBrains Mono','Courier New',monospace;font-size:13px;font-weight:700;color:var(--cbh-ink);}
+  .cbh-vd{font-family:'JetBrains Mono','Courier New',monospace;font-size:10px;color:var(--cbh-muted);}
+  .cbh-nowtag{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#0b0d12;background:var(--cbh-violet);border-radius:20px;padding:2px 7px;font-weight:700;}
+  .cbh-t{font-weight:600;font-size:13px;margin:0 0 2px;color:var(--cbh-ink);}
+  .cbh-ds{font-size:11px;color:var(--cbh-muted);margin:0;line-height:1.4;}
+  .cbh-mk{width:108px;height:64px;flex:none;border-radius:9px;border:1px solid var(--cbh-line);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+  .cbh-more{text-align:center;margin-top:10px;}
+  .cbh-more a{font-size:12px;color:var(--cbh-blue);text-decoration:none;border:1px solid var(--cbh-line);border-radius:8px;padding:8px 16px;display:inline-block;transition:border-color .2s;}
+  .cbh-more a:hover{border-color:var(--cbh-blue);}
+  @media(max-width:540px){.cbh-card{flex-direction:column-reverse;align-items:stretch;}.cbh-mk{width:100%;height:70px;}}
+
+  /* maquetas */
+  .cbhx-land{width:80px;}
+  .cbhx-land .bar{height:12px;background:#1c2330;border-radius:5px 5px 0 0;display:flex;align-items:center;padding:0 5px;gap:3px;}
+  .cbhx-land .bar i{width:4px;height:4px;border-radius:50%;background:#3a4456;}
+  .cbhx-land .body{height:34px;background:#fff;border-radius:0 0 5px 5px;position:relative;overflow:hidden;}
+  .cbhx-land .hero{position:absolute;inset:5px;background:linear-gradient(135deg,var(--cbh-blue),var(--cbh-violet));border-radius:3px;animation:cbhx-land 3s ease-in-out infinite;}
+  @keyframes cbhx-land{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}
+  .cbhx-an{display:flex;align-items:flex-end;gap:5px;height:40px;}
+  .cbhx-an i{width:9px;background:linear-gradient(180deg,var(--cbh-violet),var(--cbh-blue));border-radius:3px 3px 0 0;animation:cbhx-an 2.2s ease-in-out infinite;}
+  .cbhx-an i:nth-child(2){animation-delay:.2s}.cbhx-an i:nth-child(3){animation-delay:.4s}.cbhx-an i:nth-child(4){animation-delay:.6s}
+  @keyframes cbhx-an{0%,100%{height:10px}50%{height:38px}}
+  .cbhx-poll{position:relative;width:34px;height:34px;display:grid;place-items:center;}
+  .cbhx-poll .core{width:12px;height:12px;border-radius:50%;background:var(--cbh-green);z-index:2;}
+  .cbhx-poll .w{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid var(--cbh-green);animation:cbhx-poll 2s ease-out infinite;}
+  .cbhx-poll .w2{animation-delay:1s;}
+  @keyframes cbhx-poll{0%{transform:scale(1);opacity:.8}100%{transform:scale(3);opacity:0}}
+  .cbhx-cmd{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cbh-green);text-align:left;width:84px;}
+  .cbhx-cmd .c{white-space:nowrap;overflow:hidden;border-right:2px solid var(--cbh-green);width:0;animation:cbhx-cmd 4s steps(12) infinite;}
+  @keyframes cbhx-cmd{0%{width:0}40%,90%{width:72px}100%{width:0}}
+  .cbhx-moji{font-size:13px;text-align:center;line-height:1.5;}
+  .cbhx-moji .bad{color:#f87171;animation:cbhx-mojiout 3s ease-in-out infinite;display:block;}
+  .cbhx-moji .good{color:var(--cbh-green);animation:cbhx-mojiin 3s ease-in-out infinite;display:block;}
+  @keyframes cbhx-mojiout{0%,40%{opacity:1}55%,100%{opacity:0}}
+  @keyframes cbhx-mojiin{0%,40%{opacity:0}55%,100%{opacity:1}}
+  .cbhx-mod{display:grid;grid-template-columns:repeat(2,16px);gap:4px;}
+  .cbhx-mod i{width:16px;height:16px;border-radius:4px;background:rgba(122,162,255,.5);border:1px solid var(--cbh-blue);animation:cbhx-mod 3s ease-in-out infinite;}
+  .cbhx-mod i:nth-child(2){animation-delay:.2s}.cbhx-mod i:nth-child(3){animation-delay:.4s}.cbhx-mod i:nth-child(4){animation-delay:.6s}
+  @keyframes cbhx-mod{0%,100%{transform:scale(.85);opacity:.6}50%{transform:scale(1);opacity:1}}
+  .cbhx-pie{width:38px;height:38px;border-radius:50%;background:conic-gradient(var(--cbh-violet) 0 35%,var(--cbh-blue) 35% 65%,var(--cbh-green) 65% 100%);animation:cbhx-pie 6s linear infinite;}
+  @keyframes cbhx-pie{to{transform:rotate(360deg)}}
+  .cbhx-bolt{font-size:24px;animation:cbhx-bolt 1.5s ease-in-out infinite;}
+  @keyframes cbhx-bolt{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(251,191,36,0))}50%{transform:scale(1.2);filter:drop-shadow(0 0 6px rgba(251,191,36,.8))}}
+  .cbhx-bp{display:grid;grid-template-columns:repeat(3,12px);grid-auto-rows:12px;gap:3px;}
+  .cbhx-bp i{width:12px;height:12px;border-radius:3px;display:block;animation:cbhx-bp 4s ease-in-out infinite;}
+  .cbhx-bp i:nth-child(1){background:#7aa2ff}.cbhx-bp i:nth-child(2){background:#c084fc;animation-delay:.4s}.cbhx-bp i:nth-child(3){background:#34d399;animation-delay:.8s}
+  .cbhx-bp i:nth-child(4){background:#fbbf24;animation-delay:1.2s}.cbhx-bp i:nth-child(5){background:#f87171;animation-delay:1.6s}.cbhx-bp i:nth-child(6){background:#38bdf8;animation-delay:2s}
+  @keyframes cbhx-bp{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.15);filter:brightness(1.4)}}
+
+  /* accesibilidad: sin movimiento */
+  @media (prefers-reduced-motion: reduce){
+    .cbhx-land .hero,.cbhx-an i,.cbhx-poll .w,.cbhx-cmd .c,.cbhx-moji .bad,.cbhx-moji .good,
+    .cbhx-mod i,.cbhx-pie,.cbhx-bolt,.cbhx-bp i{animation:none;}
+    .cbhx-moji .bad{display:none;}
+    .cbhx-cmd .c{width:72px;border-right:none;}
+  }
 </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-F5P08EW3SV"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-F5P08EW3SV');
+</script>
 </head>
 <body>
 <header>
@@ -226,6 +304,35 @@
       </div>
     </div>
   </section>
+
+<section id="historial" class="cbh-section">
+  <div class="cbh-eyebrow">Historial</div>
+  <h2 class="cbh-h2">Novedades de cintiabot</h2>
+  <p class="cbh-sub">Cada versión, con una muestra de lo añadido. El registro completo está en GitHub.</p>
+
+  <div class="cbh-line">
+
+    <div class="cbh-v cbh-now"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.83</span><span class="cbh-vd">24 May 2026</span><span class="cbh-nowtag">actual</span></div><p class="cbh-t">Landing pública y panel en /panel</p><p class="cbh-ds">Nueva página de presentación en la raíz; el panel se mueve a /panel con su login.</p></div><div class="cbh-mk"><div class="cbhx-land"><div class="bar"><i></i><i></i><i></i></div><div class="body"><div class="hero"></div></div></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.82</span><span class="cbh-vd">16 May 2026</span></div><p class="cbh-t">Analytics y consentimiento de cookies</p><p class="cbh-ds">Google Analytics 4 con banner de cookies; no carga hasta aceptar.</p></div><div class="cbh-mk"><div class="cbhx-an"><i></i><i></i><i></i><i></i></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.81</span><span class="cbh-vd">11 May 2026</span></div><p class="cbh-t">Polling de Telegram más estable</p><p class="cbh-ds">El bot responde con fiabilidad; emojis corruptos arreglados.</p></div><div class="cbh-mk"><div class="cbhx-poll"><span class="w"></span><span class="w w2"></span><span class="core"></span></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.80</span><span class="cbh-vd">11 May 2026</span></div><p class="cbh-t">Comandos y plugins más fiables</p><p class="cbh-ds">Soporte de /comando@BotName en plugins y permisos normalizados.</p></div><div class="cbh-mk"><div class="cbhx-cmd"><div class="c">/ayuda @cintia</div></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.79</span><span class="cbh-vd">11 May 2026</span></div><p class="cbh-t">Texto corrupto (mojibake) saneado</p><p class="cbh-ds">Todo mensaje saliente se repara antes de enviarse.</p></div><div class="cbh-mk"><div class="cbhx-moji"><span class="bad">&#240;&#159;&#152;&#128; &#195;&#179;</span><span class="good">😀 ó</span></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.76</span><span class="cbh-vd">8 May 2026</span></div><p class="cbh-t">Modularización del core</p><p class="cbh-ds">Rutas de IA, admin, usuarios y operación en módulos limpios.</p></div><div class="cbh-mk"><div class="cbhx-mod"><i></i><i></i><i></i><i></i></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.74</span><span class="cbh-vd">8 May 2026</span></div><p class="cbh-t">Estadísticas de IA Markov</p><p class="cbh-ds">El modo Markov personal se contabiliza en la distribución de IA.</p></div><div class="cbh-mk"><div class="cbhx-pie"></div></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.73</span><span class="cbh-vd">8 May 2026</span></div><p class="cbh-t">IA Ollama más rápida</p><p class="cbh-ds">Circuit breaker y timeouts separados: falla rápido sin colgar al bot.</p></div><div class="cbh-mk"><span class="cbhx-bolt">⚡</span></div></div></div>
+
+    <div class="cbh-v"><div class="cbh-card"><div class="cbh-txt"><div class="cbh-vh"><span class="cbh-vn">v16.70</span><span class="cbh-vd">8 May 2026</span></div><p class="cbh-t">6 módulos Flask extraídos</p><p class="cbh-ds">Negocio, proxies, seguridad, cola y moderación reorganizados.</p></div><div class="cbh-mk"><div class="cbhx-bp"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div></div>
+
+  </div>
+  <div class="cbh-more"><a href="https://github.com/ComunidadTelebots/moon-multibot/blob/master/CHANGELOG.md" target="_blank" rel="noreferrer">Ver historial completo en GitHub →</a></div>
+</section>
 
   <section>
     <div class="wrap" style="text-align:center">
