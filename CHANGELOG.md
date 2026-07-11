@@ -1,5 +1,18 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.84.0] - 2026-07-11
+### Feature - Proxies MTProto en CintiaBot (pedir, recomendar, administrar)
+- **`/proxy`**: envía al usuario los proxies MTProto propios + los del canal más cercanos a su zona, deducida por el `language_code` de Telegram (un bot no ve la IP). Botón "Pedir proxy" en `/start` (callback `req_proxy`).
+- **`/recomendar <enlace>`**: cualquier usuario recomienda un proxy MTProto; el bot lo valida (TCP-check), lo deja pendiente (`db["PENDING_PROXIES"]`) y avisa al **master** con botones ✅/❌. Al aprobar, se publica automáticamente en la web vía `POST /mtproto-proxies/community` de la API (autenticado por token compartido).
+- **`/pendientes`**: cola de proxies recomendados por revisar, con botones de aprobar/rechazar en cada uno.
+- **`/estado`** y **`/historico`**: usuarios activos por país y conexiones por hora/día de los proxies, consultados a la API.
+- Los datos de proxies vienen de la API `mtproto-proxies` (geoip-lite, `country`/`ll`, `connStats`).
+
+### Fix - Separación de permisos (admin de grupo ≠ dueño del bot)
+- El rango `Admin` de `get_user_rank` proviene de `getChatAdministrators` (admin del **grupo** de Telegram), no del dueño del bot. Se han pasado a **solo Master** las acciones globales/sensibles que estaban expuestas a cualquier admin de grupo: `/gban` y `/ungban` (ban/indulto global), `/ia_programar` e `/ia_feed` (entrenan/alimentan la IA compartida) y los comandos de datos de proxies (`/estado`, `/historico`, `/pendientes`) más la aprobación de proxies.
+- La moderación **del propio grupo** (`/ban`, `/unban`, `/mute`, `/unmute`, `/warn`, `/resumen`) se mantiene para admins de grupo.
+- Verificado: `/listen`, `/backup_db` y `/resync` ya eran solo Master.
+
 ## [v16.83.0] - 2026-05-24
 ### Feature - Landing page pública y panel en `/panel`
 - **Landing pública en `/`**: la raíz ahora sirve una página pública de presentación de cintiabot (`web/landing.html`), sin requerir login.

@@ -2464,6 +2464,133 @@ if tdlib_client:
     tdlib_client.on_message = _tdlib_on_message
 
 
+# ============ Proxies MTProto por cercanía (comando /proxy de CintiaBot) ============
+import math as _pmath
+
+PROXY_API_URL = os.environ.get(
+    "MTPROTO_PROXY_API", "http://localhost:3001/mtproto-proxies"
+)
+
+# Idioma de Telegram (language_code) -> (país, lat, lon) aproximado del usuario.
+LANG_LOC = {
+    "es": ("ES", 40.4, -3.7), "en": ("US", 39.8, -98.6), "fa": ("IR", 32.4, 53.7),
+    "ru": ("RU", 55.75, 37.6), "ar": ("SA", 24.7, 46.7), "zh": ("CN", 39.9, 116.4),
+    "tr": ("TR", 39.0, 35.2), "uk": ("UA", 50.45, 30.5), "pt": ("BR", -14.2, -51.9),
+    "de": ("DE", 51.1, 10.4), "fr": ("FR", 46.2, 2.2), "it": ("IT", 41.9, 12.5),
+    "hi": ("IN", 22.0, 79.0), "ur": ("PK", 30.4, 69.3), "id": ("ID", -2.5, 118.0),
+    "vi": ("VN", 14.1, 108.3), "th": ("TH", 15.0, 101.0), "my": ("MM", 21.9, 95.9),
+    "bn": ("BD", 23.7, 90.4), "az": ("AZ", 40.1, 47.6), "uz": ("UZ", 41.4, 63.6),
+    "be": ("BY", 53.7, 27.9), "ka": ("GE", 42.3, 43.4), "hy": ("AM", 40.1, 45.0),
+    "kk": ("KZ", 48.0, 66.9), "pl": ("PL", 51.9, 19.1), "nl": ("NL", 52.1, 5.3),
+    "sv": ("SE", 60.1, 18.6), "fi": ("FI", 64.0, 26.0), "ja": ("JP", 36.2, 138.3),
+    "ko": ("KR", 35.9, 127.8), "ro": ("RO", 45.9, 24.9), "el": ("GR", 39.1, 21.8),
+    "he": ("IL", 31.5, 34.8), "cs": ("CZ", 49.8, 15.5), "hu": ("HU", 47.2, 19.5),
+    "ku": ("IQ", 33.2, 43.7), "ps": ("AF", 33.9, 67.7), "tk": ("TM", 38.9, 59.6),
+    "tg": ("TJ", 38.9, 71.3), "ky": ("KG", 41.2, 74.8),
+}
+# País -> centroide (para language_code con región: en-US, pt-BR, es-MX...).
+COUNTRY_LOC = {
+    "ES": (40.4, -3.7), "US": (39.8, -98.6), "IR": (32.4, 53.7), "RU": (55.75, 37.6),
+    "MX": (23.6, -102.5), "AR": (-38.4, -63.6), "CO": (4.6, -74.1), "BR": (-14.2, -51.9),
+    "GB": (54.0, -2.0), "DE": (51.1, 10.4), "FR": (46.2, 2.2), "CN": (39.9, 116.4),
+    "IN": (22.0, 79.0), "PK": (30.4, 69.3), "TR": (39.0, 35.2), "UA": (50.45, 30.5),
+    "SA": (24.7, 46.7), "AE": (24.0, 54.0), "EG": (26.8, 30.8), "VE": (6.4, -66.6),
+}
+
+
+def _haversine(a, b):
+    (la1, lo1), (la2, lo2) = a, b
+    p1, p2 = _pmath.radians(la1), _pmath.radians(la2)
+    dphi = _pmath.radians(la2 - la1)
+    dl = _pmath.radians(lo2 - lo1)
+    h = _pmath.sin(dphi / 2) ** 2 + _pmath.cos(p1) * _pmath.cos(p2) * _pmath.sin(dl / 2) ** 2
+    return 2 * 6371.0 * _pmath.asin(min(1.0, _pmath.sqrt(h)))
+
+
+def _flag(cc):
+    if not cc or len(cc) != 2:
+        return "🌐"
+    try:
+        return chr(0x1F1E6 + ord(cc[0].upper()) - 65) + chr(0x1F1E6 + ord(cc[1].upper()) - 65)
+    except Exception:
+        return "🌐"
+
+
+def user_location_from_lang(language_code):
+    """(cc, (lat,lon)) a partir del idioma de Telegram, o (None, None)."""
+    if not language_code:
+        return None, None
+    code = language_code.strip().lower()
+    base = code.split("-")[0]
+    region = code.split("-")[1].upper() if "-" in code else None
+    if region and region in COUNTRY_LOC:
+        return region, COUNTRY_LOC[region]
+    if base in LANG_LOC:
+        cc, lat, lon = LANG_LOC[base]
+        return cc, (lat, lon)
+    return None, None
+
+
+_proxy_cache = {"data": None, "ts": 0.0}
+
+
+def fetch_proxies():
+    """Lista de proxies desde la API (cacheada 60 s en el bot)."""
+    if _proxy_cache["data"] and time.time() - _proxy_cache["ts"] < 60:
+        return _proxy_cache["data"]
+    try:
+        r = requests.get(PROXY_API_URL, timeout=15)
+        r.raise_for_status()
+        _proxy_cache["data"] = r.json()
+        _proxy_cache["ts"] = time.time()
+    except Exception as e:
+        add_web_log("ERROR", f"[PROXY] No se pudo obtener la lista: {e}")
+    return _proxy_cache["data"]
+
+
+# ---- Recomendación de proxies (usuarios) + aprobación (master) ----
+import socket as _socket
+
+COMMUNITY_TOKEN = os.environ.get("MTPROTO_COMMUNITY_TOKEN", "set-me-in-env")
+COMMUNITY_POST_URL = os.environ.get(
+    "MTPROTO_COMMUNITY_POST", "http://localhost:3001/mtproto-proxies/community"
+)
+PROXY_LINK_RE = re.compile(
+    r"(?:tg://proxy|t\.me/proxy|https?://t\.me/proxy)\?server=([^&\s]+)&(?:amp;)?port=(\d+)&(?:amp;)?secret=([0-9a-fA-F]+)",
+    re.I,
+)
+
+
+def parse_proxy_link(text):
+    """(server, port, secret) de un enlace MTProto, o None."""
+    if not text:
+        return None
+    m = PROXY_LINK_RE.search(text)
+    if not m:
+        return None
+    return m.group(1).rstrip(".,;").strip(), int(m.group(2)), m.group(3)
+
+
+def tcp_alive(host, port, timeout=4):
+    try:
+        with _socket.create_connection((host, int(port)), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def submit_community_proxy(server, port, secret, by=""):
+    """Publica un proxy aprobado en la API. Devuelve (ok, info)."""
+    try:
+        r = requests.post(COMMUNITY_POST_URL,
+                          json={"server": server, "port": port, "secret": secret, "by": by},
+                          headers={"X-Token": COMMUNITY_TOKEN}, timeout=12)
+        j = r.json()
+        return bool(j.get("ok")), j
+    except Exception as e:
+        return False, {"error": str(e)}
+
+
 class MoonBot:
     def __init__(self, token):
         self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", requests.Session(), []
@@ -2874,6 +3001,18 @@ class MoonBot:
         cid = str(msg.get("chat", {}).get("id", "")) if msg else ""
         mid = str(msg.get("message_id", "")) if msg else ""
 
+        # --- Pedir proxy (CintiaBot) ---
+        if data == "req_proxy":
+            self.answer_callback_query(cbq_id, "Buscando proxies…")
+            if (self.bot_username or "").lower() == "cintiabot":
+                self.handle_proxy_request(cid, uid, cbq.get("from", {}))
+            return True
+
+        # --- Aprobar/rechazar proxy recomendado (solo master) ---
+        if data.startswith("appr_px:") or data.startswith("rej_px:"):
+            self.handle_proxy_approval(cbq_id, cid, uid, data)
+            return True
+
         # Juegos inline nativos en Telegram
         if data.startswith("moon_game:"):
             parts = data.split(":")
@@ -3246,6 +3385,194 @@ class MoonBot:
                     add_web_log("ERROR", f"Plugin {getattr(plugin, '__name__', plugin)} error en handle_command: {_pe}")
         return False
 
+    def handle_proxy_request(self, cid, uid, from_user):
+        """Envía proxies MTProto: los propios + los del canal más cercanos al usuario
+        (ubicación deducida por el idioma de Telegram)."""
+        lang = (from_user or {}).get("language_code", "")
+        cc, uloc = user_location_from_lang(lang)
+
+        data = fetch_proxies()
+        if not data or not data.get("proxies"):
+            self.send_msg(cid, "⚠️ No pude obtener la lista de proxies ahora mismo. Prueba de nuevo en un minuto.")
+            return
+
+        proxies = data["proxies"]
+        own = [p for p in proxies if p.get("source") == "own" and p.get("status") == "online"]
+        channel = [p for p in proxies if p.get("source") == "channel" and p.get("status") == "online" and p.get("ll")]
+
+        if uloc:
+            for p in channel:
+                try:
+                    p["_dist"] = _haversine(uloc, (p["ll"][0], p["ll"][1]))
+                except Exception:
+                    p["_dist"] = 9e9
+            channel.sort(key=lambda p: p.get("_dist", 9e9))
+            zona = f"📍 Deduje tu zona por tu idioma ({lang} → {_flag(cc)} {cc}). Estos son los más cercanos:"
+        else:
+            channel.sort(key=lambda p: (p.get("pingMs") is None, p.get("pingMs") or 99999))
+            zona = "No pude deducir tu país por el idioma, así que te paso los más rápidos disponibles:"
+
+        nearest = channel[:6]
+        lines = ["🌐 *Proxies MTProto para ti*", "", zona, ""]
+
+        if own:
+            lines.append("*🛡 Nuestros proxies (recomendados):*")
+            for p in own:
+                name = p.get("name") or p.get("server")
+                lines.append(f"{_flag(p.get('country'))} `{name}` · {p.get('pingMs','?')} ms — [▶️ Conectar]({p['link']})")
+            lines.append("")
+
+        if nearest:
+            lines.append("*🌍 Más cercanos a ti:*")
+            for p in nearest:
+                dist = f" · ~{int(p['_dist'])} km" if p.get("_dist") is not None else ""
+                lines.append(f"{_flag(p.get('country'))} {p.get('country','??')} · {p.get('pingMs','?')} ms{dist} — [▶️ Conectar]({p['link']})")
+            lines.append("")
+
+        lines.append("_Pulsa «Conectar» y Telegram activará el proxy. Si uno falla, prueba otro._")
+        self.send_msg(cid, "\n".join(lines))
+
+    def _own_proxies_sorted(self, data):
+        order = {"cintiabot": 0, "andreabot": 1, "todosobreall": 2}
+        own = [p for p in data.get("proxies", []) if p.get("source") == "own"]
+        return sorted(own, key=lambda p: order.get(p.get("name"), 9))
+
+    def handle_proxy_status(self, cid):
+        """Estado ACTUAL de los 3 proxies: usuarios ahora, hoy y países."""
+        data = fetch_proxies()
+        if not data or not data.get("proxies"):
+            self.send_msg(cid, "⚠️ No pude obtener el estado de los proxies ahora mismo.")
+            return
+        today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        lines = ["📡 *Estado proxies MTProto*",
+                 "_Ahora = conectados en este momento · Hoy = usuarios distintos del día (UTC)_", ""]
+        tn = tt = 0
+        for p in self._own_proxies_sorted(data):
+            cs = p.get("connStats") or {}
+            now = cs.get("activeNow", p.get("activeUsers") or 0) or 0
+            td = (cs.get("daily") or {}).get(today, 0)
+            tn += now; tt += td
+            cnow = cs.get("countriesNow") or {}
+            top = " ".join(f"{_flag(c)}{c}:{n}" for c, n in sorted(cnow.items(), key=lambda x: -x[1])[:4])
+            st = "🟢" if p.get("status") == "online" else "🔴"
+            ping = p.get("pingMs")
+            head = f"{st} *{p.get('name')}* ({p.get('port')})"
+            if ping is not None:
+                head += f" · {ping} ms"
+            lines.append(head)
+            lines.append(f"   👥 Ahora: *{now}* · Hoy: *{td}*")
+            lines.append(f"   🌍 {top or '—'}")
+            lines.append("")
+        lines.append(f"*Total:* 👥 {tn} ahora · {tt} hoy")
+        self.send_msg(cid, "\n".join(lines))
+
+    def handle_proxy_history(self, cid):
+        """Histórico de conexiones (usuarios nuevos) por hora y por día."""
+        data = fetch_proxies()
+        if not data or not data.get("proxies"):
+            self.send_msg(cid, "⚠️ No pude obtener el histórico ahora mismo.")
+            return
+        lines = ["📊 *Histórico de conexiones*",
+                 "_usuarios distintos nuevos, por hora (24h) y por día (UTC)_", ""]
+        for p in self._own_proxies_sorted(data):
+            cs = p.get("connStats") or {}
+            hourly = sorted((cs.get("hourly") or {}).items())[-12:]
+            daily = sorted((cs.get("daily") or {}).items())[-7:]
+            lines.append(f"▸ *{p.get('name')}* ({p.get('port')})")
+            if hourly:
+                lines.append("  🕐 " + " · ".join(f"{k[11:13]}h:{n}" for k, n in hourly[-8:]))
+            else:
+                lines.append("  🕐 sin datos aún")
+            if daily:
+                lines.append("  📅 " + " · ".join(f"{k[8:10]}/{k[5:7]}:{n}" for k, n in daily))
+            lines.append("")
+        self.send_msg(cid, "\n".join(lines))
+
+    def handle_proxy_recommend(self, cid, uid, uname, arg_str):
+        """Un usuario recomienda un proxy MTProto → se guarda pendiente y se avisa al master."""
+        parsed = parse_proxy_link(arg_str)
+        if not parsed:
+            self.send_msg(cid, "🌐 Para recomendar un proxy, envía su enlace:\n`/recomendar https://t.me/proxy?server=...&port=...&secret=...`")
+            return
+        server, port, secret = parsed
+        alive = tcp_alive(server, port)
+
+        pend = db.get("PENDING_PROXIES", {})
+        pid = str(db.get("PROXY_SUB_COUNTER", 0) + 1)
+        db.set("PROXY_SUB_COUNTER", int(pid))
+        pend[pid] = {"server": server, "port": port, "secret": secret, "by_uid": uid, "by_name": uname}
+        db.set("PENDING_PROXIES", pend)
+
+        self.send_msg(cid, f"✅ ¡Gracias {uname}! Tu proxy se envió para revisión. Si se aprueba, aparecerá en la web.")
+        kb = {"inline_keyboard": [[
+            {"text": "✅ Aprobar", "callback_data": f"appr_px:{pid}"},
+            {"text": "❌ Rechazar", "callback_data": f"rej_px:{pid}"},
+        ]]}
+        self.api_call("sendMessage", {
+            "chat_id": MASTER_ID,
+            "text": (f"🌐 *Proxy recomendado* (#{pid})\n"
+                     f"Por: {uname} (`{uid}`)\n"
+                     f"`{server}:{port}`\nsecret: `{secret[:14]}…`\n"
+                     f"Estado ahora: {'🟢 online' if alive else '🔴 no responde'}\n\n¿Publicar en la web?"),
+            "parse_mode": "Markdown",
+            "reply_markup": json.dumps(kb),
+        })
+
+    def handle_proxy_approval(self, cbq_id, cid, uid, data):
+        """Callback de aprobar/rechazar (solo master)."""
+        if str(uid) != str(MASTER_ID):
+            self.answer_callback_query(cbq_id, "Solo el master puede aprobar.")
+            return
+        pid = data.split(":", 1)[1]
+        pend = db.get("PENDING_PROXIES", {})
+        item = pend.get(pid)
+        if not item:
+            self.answer_callback_query(cbq_id, "Ya no está pendiente.")
+            return
+        if data.startswith("appr_px:"):
+            ok, info = submit_community_proxy(item["server"], item["port"], item["secret"], by=str(item.get("by_uid", "")))
+            if ok:
+                self.answer_callback_query(cbq_id, "✅ Publicado")
+                self.send_msg(cid, f"✅ Proxy #{pid} (`{item['server']}:{item['port']}`) publicado en la web.")
+                try:
+                    self.send_msg(item["by_uid"], "✅ ¡Tu proxy recomendado ha sido aprobado y ya está en la web! Gracias 🙌")
+                except Exception:
+                    pass
+            else:
+                self.answer_callback_query(cbq_id, "Error al publicar")
+                self.send_msg(cid, f"⚠️ No se pudo publicar #{pid}: {info.get('error')}")
+                return
+        else:
+            self.answer_callback_query(cbq_id, "❌ Rechazado")
+            self.send_msg(cid, f"❌ Proxy #{pid} rechazado.")
+        del pend[pid]
+        db.set("PENDING_PROXIES", pend)
+
+    def handle_pending_proxies(self, cid):
+        """Muestra la cola de proxies pendientes de aprobación, con botones."""
+        pend = db.get("PENDING_PROXIES", {})
+        if not pend:
+            self.send_msg(cid, "✅ No hay proxies pendientes de aprobación.")
+            return
+        items = list(pend.items())
+        self.send_msg(cid, f"🌐 *{len(items)} proxy(s) pendiente(s) de aprobación:*")
+        for pid, item in items[:15]:
+            alive = tcp_alive(item["server"], item["port"])
+            kb = {"inline_keyboard": [[
+                {"text": "✅ Aprobar", "callback_data": f"appr_px:{pid}"},
+                {"text": "❌ Rechazar", "callback_data": f"rej_px:{pid}"},
+            ]]}
+            self.api_call("sendMessage", {
+                "chat_id": cid,
+                "text": (f"#{pid} · por {item.get('by_name', '?')}\n"
+                         f"`{item['server']}:{item['port']}`\nsecret: `{item['secret'][:14]}…`\n"
+                         f"Estado: {'🟢 online' if alive else '🔴 no responde'}"),
+                "parse_mode": "Markdown",
+                "reply_markup": json.dumps(kb),
+            })
+        if len(items) > 15:
+            self.send_msg(cid, f"… y {len(items) - 15} más.")
+
     def process_command(self, cid, uid, uname, text, rk, msg_id, msg):
         clean_text = self._normalize_command_text(text)
         if not clean_text.startswith("/"): return False
@@ -3259,6 +3586,57 @@ class MoonBot:
         add_web_log("DEBUG", f"[CMD] Procesando '{raw_cmd}' de {uname} (Rango: {rk})")
 
         # 2. Comandos PÃºblicos / Globales
+        # --- Proxies MTProto (solo CintiaBot) ---
+        if raw_cmd in ["/proxy", "/proxies", "/proxi"]:
+            if (self.bot_username or "").lower() == "cintiabot":
+                self.handle_proxy_request(cid, uid, msg.get("from", {}))
+            else:
+                self.send_msg(cid, "Este comando solo está disponible en @CintiaBot.")
+            return True
+
+        # Recomendar un proxy (cualquier usuario) → lo aprueba el master
+        if raw_cmd in ["/recomendar", "/recommend", "/addproxy"]:
+            if (self.bot_username or "").lower() == "cintiabot":
+                self.handle_proxy_recommend(cid, uid, uname, arg_str)
+            else:
+                self.send_msg(cid, "Este comando solo está disponible en @CintiaBot.")
+            return True
+
+        # Cola de proxies recomendados pendientes (solo CintiaBot, Admin/Master)
+        if raw_cmd in ["/pendientes", "/pending", "/cola"]:
+            if (self.bot_username or "").lower() == "cintiabot" and str(uid) == str(MASTER_ID):
+                self.handle_pending_proxies(cid)
+            elif (self.bot_username or "").lower() == "cintiabot":
+                self.send_msg(cid, "🔒 Solo el dueño del bot.")
+            return True
+
+        # Estado e histórico de los proxies (solo CintiaBot, Admin/Master)
+        if raw_cmd in ["/estado", "/estadoproxy", "/proxystatus"]:
+            if (self.bot_username or "").lower() == "cintiabot" and str(uid) == str(MASTER_ID):
+                self.handle_proxy_status(cid)
+            elif (self.bot_username or "").lower() == "cintiabot":
+                self.send_msg(cid, "🔒 Solo el dueño del bot.")
+            return True
+
+        if raw_cmd in ["/historico", "/historial", "/conexiones"]:
+            if (self.bot_username or "").lower() == "cintiabot" and str(uid) == str(MASTER_ID):
+                self.handle_proxy_history(cid)
+            elif (self.bot_username or "").lower() == "cintiabot":
+                self.send_msg(cid, "🔒 Solo el dueño del bot.")
+            return True
+
+        if raw_cmd in ["/start", "/inicio"] and (self.bot_username or "").lower() == "cintiabot":
+            kb = {"inline_keyboard": [[{"text": "🌐 Pedir proxy MTProto", "callback_data": "req_proxy"}]]}
+            self.api_call("sendMessage", {
+                "chat_id": cid,
+                "text": (f"🌙 *Hola {uname}*\n\nSoy *CintiaBot*. Puedo darte *proxies MTProto* para "
+                         "saltarte bloqueos de Telegram.\n\nPulsa el botón o escribe /proxy y te enviaré "
+                         "los más cercanos a tu ubicación."),
+                "parse_mode": "Markdown",
+                "reply_markup": json.dumps(kb),
+            })
+            return True
+
         if raw_cmd in ["/start", "/inicio"]:
             self.send_msg(cid, f"ðŸŒ™ **Moon Multibot Activo**\n\nHola {uname}, el nÃºcleo estÃ¡ operando con normalidad. Usa `/ayuda` para ver mis capacidades.")
             return True
@@ -3374,6 +3752,9 @@ class MoonBot:
             target_name = msg.get("reply_to_message", {}).get("from", {}).get("first_name", target_uid) if msg.get("reply_to_message") else target_uid
 
             if raw_cmd in ["/ia_programar", "/ia_code", "/programar_ia"]:
+                if rk != "Master":
+                    self.send_msg(cid, "🔒 Solo el dueño del bot (entrena la IA global).")
+                    return True
                 langs = [x.strip() for x in (arg_str or "python,javascript,typescript,sql,html,css,bash,go,rust,java").split(",")]
                 threading.Thread(target=ia_nativa.seed_programming_knowledge, args=(langs,), daemon=True).start()
                 self.send_msg(cid, f"ðŸ’» **IA Programadora:** aprendizaje iniciado para `{', '.join([l for l in langs if l])}`.")
@@ -3395,6 +3776,9 @@ class MoonBot:
                     self.send_msg(cid, "âš ï¸ **ERROR:** Debes responder a un mensaje o indicar el ID del usuario para banear.")
                     return True
                 scope = "global" if raw_cmd == "/gban" else "local"
+                if scope == "global" and rk != "Master":
+                    self.send_msg(cid, "🔒 El ban global (/gban) es solo del dueño. Usa /ban para este grupo.")
+                    return True
                 reply_mid = msg.get("reply_to_message", {}).get("message_id") if msg.get("reply_to_message") else None
                 reason = "Comando /gban" if scope == "global" else f"Comando /ban en {cid}"
                 self.apply_user_ban(cid, target_uid, target_name, reason=reason, source="command", scope=scope, message_id=reply_mid)
@@ -3420,6 +3804,9 @@ class MoonBot:
                 return True
 
             if raw_cmd in ["/unban", "/ungban"] and target_uid:
+                if raw_cmd == "/ungban" and rk != "Master":
+                    self.send_msg(cid, "🔒 El indulto global (/ungban) es solo del dueño. Usa /unban para este grupo.")
+                    return True
                 self.api_call("unbanChatMember", {"chat_id": cid, "user_id": target_uid})
                 if raw_cmd == "/ungban":
                     ban_manager.unban_user(target_uid)
@@ -3444,6 +3831,9 @@ class MoonBot:
                 return True
 
             if raw_cmd == "/ia_feed":
+                if rk != "Master":
+                    self.send_msg(cid, "🔒 Solo el dueño del bot (alimenta la IA global).")
+                    return True
                 feeder_groups = db.get("IA_FEEDERS", [])
                 if arg_str == "on":
                     if cid not in feeder_groups: feeder_groups.append(cid); db.set("IA_FEEDERS", feeder_groups)

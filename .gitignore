@@ -48,3 +48,7 @@ Thumbs.db
 # TDLib binario local (copiado por setup_tdlib.sh, no commitear)
 libtdjson.so
 ollama_data/
+
+# Backups temporales
+*.bak
+*.bak*
