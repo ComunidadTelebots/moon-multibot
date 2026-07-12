@@ -48,3 +48,8 @@ PROXY_VPS_PORTS = os.getenv("PROXY_VPS_PORTS", "8443,8444,8445,8446")
 
 # --- DB ---
 DB_PATH = "data/moon_dev.db" if MOON_ENV == "dev" else "data/moon_database.db"
+
+# --- PocketBase (directorio de canales) ---
+POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://todosobrealltech-pocketbase-1:8090")
+PB_SUPERUSER_EMAIL = os.getenv("PB_SUPERUSER_EMAIL", "")
+PB_SUPERUSER_PASSWORD = os.getenv("PB_SUPERUSER_PASSWORD", "")
