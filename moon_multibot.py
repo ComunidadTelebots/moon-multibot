@@ -322,6 +322,18 @@ from core.routes_admin import setup as _setup_admin
 from core.routes_system import setup as _setup_system
 from core.routes_users import setup as _setup_users
 from core.routes_ops import setup as _setup_ops
+from core.routes_public import setup as _setup_public
+from core import channel_stats
+from core import image_gen
+from core.pb_client import PBClient
+from core.config import POCKETBASE_URL, PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD
+
+# Directorio de canales (hub público): almacenado en PocketBase (fuente única).
+pb_channels = PBClient(POCKETBASE_URL, PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD, log=add_web_log)
+try:
+    channel_stats.init(pb_channels)
+except Exception as _e:
+    add_web_log("ERROR", f"channel_stats/PB init: {_e}")
 
 app.register_blueprint(_setup_business(
     check_jwt=check_jwt,
@@ -337,6 +349,17 @@ app.register_blueprint(_setup_proxies(
 app.register_blueprint(_setup_tdlib(
     check_jwt=check_jwt,
     tdlib_client=tdlib_client,
+))
+app.register_blueprint(_setup_public(
+    channel_stats=channel_stats,
+    proxy_mgr=proxy_mgr,
+    master_id=MASTER_ID,
+    jwt_secret=JWT_SECRET,
+    get_active_bots=lambda: active_bots,
+    db=db,
+    ban_manager=ban_manager,
+    get_bot_for_chat=get_bot_for_chat,
+    check_cas=check_cas_status,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,
@@ -445,6 +468,48 @@ def web_login():
 @app.route("/health")
 def health_check():
     return jsonify({"ok": True, "uptime": int(time.time() - start_time), "bots": len(active_bots)})
+
+@app.route("/api/admin/channels/backfill", methods=["POST"])
+def api_channels_backfill():
+    """BACKFILL: recorre los chats conocidos por cada bot; donde el bot ya es
+    admin de un canal/grupo, lo registra y cachea su propiedad (creator/admins).
+    Cubre canales donde el bot era admin desde antes (sin update capturado)."""
+    if not check_jwt(request):
+        return jsonify({"ok": False}), 401
+
+    def _run():
+        seen = added = 0
+        for bot in list(active_bots):
+            for cid in db.get(f"CHATS_{bot.token}", []) or []:
+                seen += 1
+                try:
+                    info = bot.api_call("getChat", {"chat_id": cid})
+                    r = info.get("result", {}) if info.get("ok") else {}
+                    if r.get("type") not in ("channel", "supergroup"):
+                        continue
+                    # getChatAdministrators solo devuelve ok si el bot puede verlos (es admin)
+                    adm = bot.api_call("getChatAdministrators", {"chat_id": cid})
+                    if not adm.get("ok"):
+                        continue
+                    cnt = bot.api_call("getChatMemberCount", {"chat_id": cid})
+                    members = cnt.get("result", 0) if cnt.get("ok") else 0
+                    channel_stats.register_channel(
+                        cid, username=r.get("username"), title=r.get("title"),
+                        description=r.get("description"), ctype=r.get("type"), bot_token=bot.token,
+                    )
+                    if members:
+                        channel_stats.record_snapshot(cid, members)
+                    admins = [{"user_id": (m.get("user") or {}).get("id"), "status": m.get("status")}
+                              for m in adm.get("result", [])
+                              if not (m.get("user") or {}).get("is_bot") and m.get("status") in ("creator", "administrator")]
+                    channel_stats.set_channel_admins(cid, admins)
+                    added += 1
+                except Exception as e:
+                    add_web_log("ERROR", f"backfill {cid}: {e}")
+        add_web_log("SUCCESS", f"Backfill canales: {added} registrados de {seen} chats vistos.")
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True, "message": "Backfill lanzado en segundo plano."})
 
 @app.route("/api/public/analytics")
 def public_analytics_settings():
@@ -3228,6 +3293,35 @@ class MoonBot:
         add_audit_log(f"Auto-ban CAS aplicado a {uname} ({uid}) en {cid}")
         return True
 
+    def enforce_banned_words(self, cid, text, uid, uname, message_id=None):
+        """Filtro de palabras prohibidas por grupo. Borra el mensaje y aplica la
+        acción configurada (delete | warn | ban). Configurable desde la Mini App."""
+        if not text or str(uid) == str(MASTER_ID):
+            return False
+        cfg = db.get(f"BADWORDS_{cid}", {})
+        words = cfg.get("words", []) if isinstance(cfg, dict) else []
+        if not words:
+            return False
+        low = text.lower()
+        hit = next((w for w in words if w and w.lower() in low), None)
+        if not hit:
+            return False
+        self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+        action = cfg.get("action", "delete")
+        if action == "warn":
+            warns = db.get(f"WARNS_{cid}", {})
+            warns[str(uid)] = int(warns.get(str(uid), 0)) + 1
+            db.set(f"WARNS_{cid}", warns)
+            self.send_msg(cid, f"⚠️ {uname}: palabra no permitida. Aviso {warns[str(uid)]}.")
+        elif action == "ban":
+            try:
+                self.apply_user_ban(cid, uid, uname, reason=f"palabra prohibida: {hit}",
+                                    source="badwords", scope="local", message_id=message_id, notify=True)
+            except Exception:
+                self.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
+        add_audit_log(f"Palabra prohibida '{hit}' de {uname} ({uid}) en {cid} -> {action}")
+        return True
+
     def restrict_user(self, cid, uid, until=0, can_send=False):
         permissions = {
             "can_send_messages": can_send, "can_send_media_messages": can_send,
@@ -3625,13 +3719,16 @@ class MoonBot:
                 self.send_msg(cid, "🔒 Solo el dueño del bot.")
             return True
 
-        if raw_cmd in ["/start", "/inicio"] and (self.bot_username or "").lower() == "cintiabot":
-            kb = {"inline_keyboard": [[{"text": "🌐 Pedir proxy MTProto", "callback_data": "req_proxy"}]]}
+        if raw_cmd in ["/start", "/inicio", "/panel", "/menu"] and (self.bot_username or "").lower() == "cintiabot":
+            kb = {"inline_keyboard": [
+                [{"text": "🚀 Abrir panel", "web_app": {"url": "https://cintiabot.todosobreall.tech/hub.html"}}],
+                [{"text": "🌐 Pedir proxy MTProto", "callback_data": "req_proxy"}],
+            ]}
             self.api_call("sendMessage", {
                 "chat_id": cid,
-                "text": (f"🌙 *Hola {uname}*\n\nSoy *CintiaBot*. Puedo darte *proxies MTProto* para "
-                         "saltarte bloqueos de Telegram.\n\nPulsa el botón o escribe /proxy y te enviaré "
-                         "los más cercanos a tu ubicación."),
+                "text": (f"🌙 *Hola {uname}*\n\nSoy *CintiaBot*. Abre el *panel* para acceder a todas "
+                         "las funciones: proxies MTProto, directorio de canales y servicios de la red.\n\n"
+                         "También puedes escribir /proxy para pedir un proxy directamente."),
                 "parse_mode": "Markdown",
                 "reply_markup": json.dumps(kb),
             })
@@ -3881,8 +3978,130 @@ class MoonBot:
 
         return False
 
+    def sync_channel_admins(self, chat_id):
+        """Cruza getChatAdministrators y cachea creator/administrators en PocketBase."""
+        try:
+            res = self.api_call("getChatAdministrators", {"chat_id": chat_id})
+            if not res.get("ok"):
+                return 0
+            admins = []
+            for m in res.get("result", []):
+                usr = m.get("user") or {}
+                if usr.get("is_bot"):
+                    continue
+                status = m.get("status")
+                if status in ("creator", "administrator"):
+                    admins.append({"user_id": usr.get("id"), "status": status})
+            channel_stats.set_channel_admins(chat_id, admins)
+            return len(admins)
+        except Exception as e:
+            add_web_log("ERROR", f"sync_channel_admins {chat_id}: {e}")
+            return 0
+
+    def handle_channel_membership(self, u):
+        """Directorio de canales: alta/baja cuando se añade/quita el bot como admin."""
+        mcm = u.get("my_chat_member")
+        if not mcm:
+            return False
+        try:
+            chat = mcm.get("chat", {})
+            chat_id = chat.get("id")
+            ctype = chat.get("type")
+            new_status = (mcm.get("new_chat_member") or {}).get("status")
+            if not chat_id or ctype not in ("channel", "supergroup"):
+                return True  # ignoramos privados/grupos normales para el directorio
+            if new_status == "administrator":
+                info = self.api_call("getChat", {"chat_id": chat_id})
+                r = info.get("result", {}) if info.get("ok") else {}
+                cnt = self.api_call("getChatMemberCount", {"chat_id": chat_id})
+                members = cnt.get("result", 0) if cnt.get("ok") else 0
+                channel_stats.register_channel(
+                    chat_id,
+                    username=r.get("username"),
+                    title=r.get("title") or chat.get("title"),
+                    description=r.get("description"),
+                    ctype=ctype,
+                    bot_token=self.token,
+                    added_by=(mcm.get("from") or {}).get("id"),
+                )
+                if members:
+                    channel_stats.record_snapshot(chat_id, members)
+                # Verificación de propiedad: cruce con getChatAdministrators (cacheado)
+                self.sync_channel_admins(chat_id)
+                add_web_log("SUCCESS", f"Canal anadido al directorio: {r.get('title') or chat_id} ({members} subs)")
+                self.api_call("sendMessage", {
+                    "chat_id": chat_id,
+                    "text": "✅ Este canal se ha anadido al directorio de estadisticas de ComunidadTelebots.\n\nSus metricas (suscriptores y crecimiento) se recopilaran a partir de ahora en canales.todosobreall.tech",
+                    "disable_notification": True,
+                })
+            elif new_status in ("left", "kicked", "member", "restricted"):
+                channel_stats.deactivate_channel(chat_id)
+                add_web_log("INFO", f"Canal retirado del directorio: {chat_id} (estado {new_status})")
+        except Exception as e:
+            add_web_log("ERROR", f"handle_channel_membership: {e}")
+        return True
+
     def run_periodic_maintenance(self):
         now_s = int(time.time())
+
+        # Snapshot diario de suscriptores + refresco de la caché de propiedad (Bot API).
+        if now_s - db.get("LAST_CHANNEL_SNAPSHOT", 0) > 86400:
+            db.set("LAST_CHANNEL_SNAPSHOT", now_s)
+            def _channel_snapshot():
+                try:
+                    chans = channel_stats.active_channels(self.token)
+                except Exception:
+                    return
+                for ch in chans:
+                    cid = ch.get("chat_id")
+                    try:
+                        cnt = self.api_call("getChatMemberCount", {"chat_id": cid})
+                        if not cnt.get("ok"):
+                            continue
+                        channel_stats.record_snapshot(cid, cnt.get("result", 0))
+                        info = self.api_call("getChat", {"chat_id": cid})
+                        if info.get("ok"):
+                            r = info["result"]
+                            channel_stats.update_meta(cid, r.get("username"), r.get("title"), r.get("description"))
+                    except Exception:
+                        pass
+            threading.Thread(target=_channel_snapshot, daemon=True).start()
+
+        # Despacho de mensajes programados (cada ciclo de polling ~cada 20s).
+        try:
+            due = channel_stats.due_scheduled()
+        except Exception:
+            due = []
+        for m in due:
+            try:
+                cid = m.get("chat_id")
+                bot = get_bot_for_chat(cid) or self
+                photo = m.get("photo")
+                data = image_gen.fetch_bytes(photo) if photo else None
+                if data:
+                    requests.post(
+                        f"https://api.telegram.org/bot{bot.token}/sendPhoto",
+                        data={"chat_id": str(cid), "caption": (m.get("text") or "")[:1024]},
+                        files={"photo": ("imagen.jpg", data)}, timeout=45,
+                    )
+                else:
+                    bot.send_msg(cid, m.get("text", ""))
+                channel_stats.mark_sent(m["id"])
+                add_web_log("SUCCESS", f"Programado enviado a {cid}" + (" (imagen)" if data else ""))
+            except Exception as e:
+                add_web_log("ERROR", f"envío programado {m.get('id')}: {e}")
+
+        # Refresco de la caché de propiedad (getChatAdministrators) cada 6h.
+        if now_s - db.get("LAST_CHANNEL_ADMINS_SYNC", 0) > 21600:
+            db.set("LAST_CHANNEL_ADMINS_SYNC", now_s)
+            def _admins_sync():
+                try:
+                    stale = channel_stats.channels_needing_admin_refresh(21600, self.token)
+                except Exception:
+                    return
+                for ch in stale:
+                    self.sync_channel_admins(ch.get("chat_id"))
+            threading.Thread(target=_admins_sync, daemon=True).start()
 
         # 1. SincronizaciÃ³n de Seguridad (Hashes Externos)
         sync_freq = int(db.get("GLOBAL_SETTINGS", {}).get("sync_frequency", 21600))
@@ -3971,9 +4190,17 @@ class MoonBot:
                         continue
                     if self.handle_guest_update(u):
                         continue
+                    if self.handle_channel_membership(u):
+                        continue
                     # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
+                    # Directorio de canales: cuenta posts publicados (frecuencia).
+                    if u.get("channel_post"):
+                        try:
+                            channel_stats.record_post(msg["chat"]["id"], msg["message_id"])
+                        except Exception:
+                            pass
                     
                     b_conn_id = u.get("business_message", {}).get("business_connection_id")
                     self.last_msg_id = msg.get("message_id")
@@ -3996,7 +4223,9 @@ class MoonBot:
                         continue
                     if self.enforce_cas_ban(cid, uid, uname, msg.get("message_id")):
                         continue
-                     
+                    if self.enforce_banned_words(cid, text, uid, uname, msg.get("message_id")):
+                        continue
+
                     # Sistema de AuditorÃ­a IA (EvaluaciÃ³n de Calidad)
                     if cid in active_audits:
                         audit = active_audits[cid]
