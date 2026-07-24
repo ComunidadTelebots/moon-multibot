@@ -630,7 +630,7 @@ def _bump_join_stat(chat_id, key):
     _db.set(f"JOINSTATS_{chat_id}", stats)
 
 
-def _notify_cas_join_review(bot, chat_id, pending, cas):
+def _notify_join_review(bot, chat_id, pending, source, details=None):
     """Avisa por privado al master y a los administradores que puedan recibir al bot."""
     recipients = {str(_master_id)} if _master_id else set()
     admins = bot.api_call("getChatAdministrators", {"chat_id": chat_id}, silent=True)
@@ -642,13 +642,19 @@ def _notify_cas_join_review(bot, chat_id, pending, cas):
     user_id = pending.get("user_id")
     full_name = " ".join(filter(None, [pending.get("first_name"), pending.get("last_name")])).strip()
     username = f"@{pending.get('username')}" if pending.get("username") else "sin username"
-    result = cas.get("result") if isinstance(cas.get("result"), dict) else {}
+    result = details if isinstance(details, dict) else {}
+    source_label = "registro global de ComunidadTelebots" if source == "community" else "CAS"
+    detail_line = (
+        f"Motivo registrado: {result.get('reason') or 'sin motivo'}"
+        if source == "community"
+        else f"Ofensas CAS: {result.get('offenses', 'desconocidas')}"
+    )
     text = (
-        "⚠️ Solicitud retenida por CAS\n\n"
+        f"⚠️ Solicitud retenida por {source_label}\n\n"
         f"Usuario: {full_name or 'Sin nombre'} ({username})\n"
         f"ID: {user_id}\n"
         f"Grupo: {pending.get('chat_title') or chat_id}\n"
-        f"Ofensas CAS: {result.get('offenses', 'desconocidas')}\n\n"
+        f"{detail_line}\n\n"
         "El usuario completó correctamente el captcha. Revisa el caso antes de permitir su entrada."
     )
     keyboard = {"inline_keyboard": [[
@@ -694,6 +700,8 @@ def group_join_get():
             "captcha_passed": bool(item.get("captcha_passed")),
             "cas_flagged": bool(item.get("cas_flagged")),
             "cas_offenses": item.get("cas_offenses"),
+            "community_flagged": bool(item.get("community_flagged")),
+            "community_reason": item.get("community_reason"),
         })
     pending.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
     return jsonify({"ok": True, "config": _join_config(chat_id),
@@ -754,6 +762,8 @@ def group_join_decide():
         stat = "declined"
     if isinstance(result, dict) and not result.get("ok", False):
         return jsonify({"ok": False, "error": result.get("description", "Telegram rechazó la acción")}), 502
+    if action == "approve" and pending.get("community_flagged") and _ban_manager:
+        _ban_manager.unban_user(user_id)
     _db.delete(key)
     _db.delete(f"JOINC_{chat_id}_{user_id}")
     _bump_join_stat(chat_id, stat)
@@ -784,7 +794,7 @@ def join_challenge():
     pend = _db.get(f"JOINQ_{cid}_{uid}") if _db else None
     if not pend or pend.get("exp", 0) < time.time():
         return jsonify({"ok": False, "error": "sin solicitud pendiente"}), 410
-    if pend.get("captcha_passed") and pend.get("cas_flagged"):
+    if pend.get("captcha_passed") and (pend.get("cas_flagged") or pend.get("community_flagged")):
         return jsonify({"ok": False, "under_review": True,
                         "error": "solicitud en revisión administrativa"}), 423
     config = _join_config(cid)
@@ -818,6 +828,18 @@ def join_verify():
     config = _join_config(cid)
     # ── ÉXITO ──
     if sel and sel == sorted(chal.get("correct", [])):
+        community = _ban_manager.get_ban_record(uid) if _ban_manager else None
+        if community and community.get("status", "active") == "active":
+            pend["captcha_passed"] = True
+            pend["community_flagged"] = True
+            pend["community_reason"] = community.get("reason", "")
+            pend["community_checked_at"] = int(time.time())
+            _db.set(f"JOINQ_{cid}_{uid}", pend)
+            _db.delete(f"JOINC_{cid}_{uid}")
+            notified = _notify_join_review(
+                bot, cid, pend, "community", community
+            ) if bot else 0
+            return jsonify({"ok": True, "under_review": True, "notified": notified})
         cas = _check_cas(uid) if _check_cas else {"ok": False, "banned": False}
         if cas.get("ok") and cas.get("banned"):
             result = cas.get("result") if isinstance(cas.get("result"), dict) else {}
@@ -827,7 +849,7 @@ def join_verify():
             pend["cas_checked_at"] = int(time.time())
             _db.set(f"JOINQ_{cid}_{uid}", pend)
             _db.delete(f"JOINC_{cid}_{uid}")
-            notified = _notify_cas_join_review(bot, cid, pend, cas) if bot else 0
+            notified = _notify_join_review(bot, cid, pend, "cas", result) if bot else 0
             return jsonify({"ok": True, "under_review": True, "notified": notified})
         if bot:
             bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")})

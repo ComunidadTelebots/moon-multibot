@@ -10,6 +10,7 @@ class BanManager:
 
     GLOBAL_KEY = "GLOBAL_BANS"
     HISTORY_KEY = "BAN_HISTORY"
+    RECORDS_KEY = "COMMUNITY_BAN_RECORDS"
     LEGACY_KEY = "ST_FILE"
     LOCAL_PREFIX = "BANS_"
 
@@ -53,6 +54,26 @@ class BanManager:
         data.setdefault("users", [])
         data.setdefault("hashes", [])
         return data
+
+    def _registry(self) -> dict:
+        records = self.db.get(self.RECORDS_KEY, {})
+        return records if isinstance(records, dict) else {}
+
+    def _save_registry(self, records) -> None:
+        self.db.set(self.RECORDS_KEY, records)
+
+    @staticmethod
+    def _clean_list(values, limit=20):
+        if isinstance(values, str):
+            values = [values]
+        if not isinstance(values, list):
+            return []
+        result = []
+        for value in values:
+            text = str(value).strip()[:500]
+            if text and text not in result:
+                result.append(text)
+        return result[:limit]
 
     def _legacy_users(self) -> list:
         legacy = self.db.get(self.LEGACY_KEY, {})
@@ -103,21 +124,39 @@ class BanManager:
             return True
         return cid is not None and self.is_local_banned(cid, uid)
 
-    def ban_user(self, uid, reason="", source="manual") -> bool:
+    def ban_user(self, uid, reason="", source="manual", reported_by=None,
+                 evidence=None, groups=None, reviewed=True) -> bool:
         """Banea un usuario globalmente en todos los grupos."""
         uid_str = self._normalize_uid(uid)
         if not uid_str:
             return False
-        if uid_str in self.global_bans:
-            return False
+        created = uid_str not in self.global_bans
 
         self.global_bans.add(uid_str)
         data = self._global_data()
         if uid_str not in data["users"]:
             data["users"].append(uid_str)
         self.db.set(self.GLOBAL_KEY, data)
-        self._record(uid_str, reason, source, scope="global")
-        return True
+        now = datetime.datetime.now().isoformat()
+        records = self._registry()
+        previous = records.get(uid_str, {}) if isinstance(records.get(uid_str), dict) else {}
+        records[uid_str] = {
+            "user_id": uid_str,
+            "status": "active",
+            "reason": str(reason or previous.get("reason") or "").strip()[:1000],
+            "source": str(source or previous.get("source") or "manual").strip()[:100],
+            "evidence": self._clean_list(evidence or previous.get("evidence", [])),
+            "groups": self._clean_list(groups or previous.get("groups", []), limit=50),
+            "reported_by": str(reported_by) if reported_by is not None else previous.get("reported_by"),
+            "reviewed": bool(reviewed),
+            "reviewed_by": str(reported_by) if reviewed and reported_by is not None else previous.get("reviewed_by"),
+            "created_at": previous.get("created_at") or now,
+            "updated_at": now,
+        }
+        self._save_registry(records)
+        if created:
+            self._record(uid_str, reason, source, scope="global")
+        return created
 
     def ban_local_user(self, cid, uid, reason="", source="manual") -> bool:
         """Banea un usuario solo para un grupo concreto."""
@@ -146,6 +185,16 @@ class BanManager:
             data["users"].remove(uid_str)
         self.db.set(self.GLOBAL_KEY, data)
         self._remove_legacy_user(uid_str)
+        records = self._registry()
+        record = records.get(uid_str) if isinstance(records.get(uid_str), dict) else {
+            "user_id": uid_str, "reason": "", "source": "legacy",
+            "evidence": [], "groups": [], "reviewed": True,
+            "created_at": None,
+        }
+        record["status"] = "revoked"
+        record["updated_at"] = datetime.datetime.now().isoformat()
+        records[uid_str] = record
+        self._save_registry(records)
         self._record(uid_str, "Manual global unban", "manual", scope="global", action="unban")
         return True
 
@@ -163,6 +212,56 @@ class BanManager:
 
     def get_all_bans(self) -> dict:
         return self._global_data()
+
+    def get_ban_record(self, uid):
+        uid_str = self._normalize_uid(uid)
+        record = self._registry().get(uid_str)
+        if isinstance(record, dict):
+            return dict(record)
+        if self.is_global_banned(uid_str):
+            return {
+                "user_id": uid_str, "status": "active", "reason": "",
+                "source": "legacy", "evidence": [], "groups": [],
+                "reviewed": True, "created_at": None, "updated_at": None,
+            }
+        return None
+
+    def list_ban_records(self, query="", status="active", limit=500):
+        query = str(query or "").strip().lower()
+        records = self._registry()
+        # Los baneos anteriores a este registro siguen siendo visibles y editables.
+        for uid in self.global_bans:
+            records.setdefault(uid, self.get_ban_record(uid))
+        rows = []
+        for record in records.values():
+            if not isinstance(record, dict):
+                continue
+            current = record.get("status", "active")
+            haystack = f"{record.get('user_id', '')} {record.get('reason', '')} {record.get('source', '')}".lower()
+            if status != "all" and current != status:
+                continue
+            if query and query not in haystack:
+                continue
+            rows.append(dict(record))
+        rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
+        return rows[:max(1, min(int(limit), 2000))]
+
+    def review_ban_record(self, uid, reviewed_by=None, reason=None, evidence=None):
+        uid_str = self._normalize_uid(uid)
+        records = self._registry()
+        record = records.get(uid_str)
+        if not isinstance(record, dict):
+            return None
+        if reason is not None:
+            record["reason"] = str(reason).strip()[:1000]
+        if evidence is not None:
+            record["evidence"] = self._clean_list(evidence)
+        record["reviewed"] = True
+        record["reviewed_by"] = str(reviewed_by) if reviewed_by is not None else None
+        record["updated_at"] = datetime.datetime.now().isoformat()
+        records[uid_str] = record
+        self._save_registry(records)
+        return dict(record)
 
     def get_all_local_bans(self) -> dict:
         keys = self.db.keys(self.LOCAL_PREFIX) if hasattr(self.db, "keys") else []

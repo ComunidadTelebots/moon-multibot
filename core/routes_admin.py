@@ -1,7 +1,9 @@
 import json
+import csv
+import io
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 bp = Blueprint("admin", __name__)
 
@@ -123,6 +125,99 @@ def web_admin_bans():
 
     bans = [{"user_id": uid, "reason": reasons.get(uid, "")} for uid in user_ids]
     return jsonify({"ok": True, "bans": bans})
+
+
+def _registry_stats(records):
+    return {
+        "active": sum(row.get("status", "active") == "active" for row in records),
+        "revoked": sum(row.get("status") == "revoked" for row in records),
+        "pending_review": sum(
+            row.get("status", "active") == "active" and not row.get("reviewed", False)
+            for row in records
+        ),
+    }
+
+
+@bp.route("/api/admin/ban-registry", methods=["GET", "POST"])
+def web_admin_ban_registry():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    if _ban_manager is None:
+        return jsonify({"ok": False, "msg": "Registro no disponible"}), 503
+    if request.method == "GET":
+        status = request.args.get("status", "active")
+        if status not in ("active", "revoked", "all"):
+            status = "active"
+        try:
+            limit = int(request.args.get("limit", 500))
+        except (TypeError, ValueError):
+            limit = 500
+        records = _ban_manager.list_ban_records(
+            query=request.args.get("q", ""), status=status, limit=limit
+        )
+        all_records = _ban_manager.list_ban_records(status="all", limit=2000)
+        return jsonify({"ok": True, "records": records, "stats": _registry_stats(all_records)})
+
+    body = request.json or {}
+    user_id = str(body.get("user_id", "")).strip()
+    reason = str(body.get("reason", "")).strip()
+    if not user_id or not reason:
+        return jsonify({"ok": False, "msg": "Faltan user_id y motivo"}), 400
+    created = _ban_manager.ban_user(
+        user_id,
+        reason=reason,
+        source=body.get("source") or "master_panel",
+        reported_by="master",
+        evidence=body.get("evidence"),
+        groups=body.get("groups"),
+        reviewed=bool(body.get("reviewed", True)),
+    )
+    record = _ban_manager.get_ban_record(user_id)
+    _add_audit_log(f"Registro global {'creado' if created else 'actualizado'} para {user_id}")
+    return jsonify({"ok": True, "created": created, "record": record})
+
+
+@bp.route("/api/admin/ban-registry/review", methods=["POST"])
+def web_admin_ban_registry_review():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    user_id = str(body.get("user_id", "")).strip()
+    record = _ban_manager.review_ban_record(
+        user_id, reviewed_by="master", reason=body.get("reason"),
+        evidence=body.get("evidence") if "evidence" in body else None,
+    ) if _ban_manager else None
+    if not record:
+        return jsonify({"ok": False, "msg": "Registro no encontrado"}), 404
+    _add_audit_log(f"Registro global revisado para {user_id}")
+    return jsonify({"ok": True, "record": record})
+
+
+@bp.route("/api/admin/ban-registry/export")
+def web_admin_ban_registry_export():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    records = _ban_manager.list_ban_records(status="all", limit=2000) if _ban_manager else []
+    if request.args.get("format", "json").lower() == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(("user_id", "status", "reason", "source", "reviewed",
+                         "reported_by", "groups", "evidence", "created_at", "updated_at"))
+        for row in records:
+            writer.writerow((
+                row.get("user_id"), row.get("status"), row.get("reason"), row.get("source"),
+                row.get("reviewed"), row.get("reported_by"), " | ".join(row.get("groups") or []),
+                " | ".join(row.get("evidence") or []), row.get("created_at"), row.get("updated_at"),
+            ))
+        return Response(
+            output.getvalue(), mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=community-ban-registry.csv"},
+        )
+    return Response(
+        json.dumps({"exported_at": int(time.time()), "records": records}, ensure_ascii=False, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=community-ban-registry.json"},
+    )
 
 
 @bp.route("/api/admin/unban", methods=["POST"])

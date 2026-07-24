@@ -3402,7 +3402,7 @@ class MoonBot:
             return
         key = f"JOINQ_{chat_id}_{user_id}"
         pending = db.get(key)
-        if not pending or not pending.get("cas_flagged"):
+        if not pending or not (pending.get("cas_flagged") or pending.get("community_flagged")):
             self.answer_callback_query(callback_id, "La solicitud ya no está pendiente.", show_alert=True)
             return
         if action == "a":
@@ -3415,6 +3415,19 @@ class MoonBot:
         if isinstance(result, dict) and not result.get("ok", False):
             self.answer_callback_query(callback_id, result.get("description", "Telegram rechazó la acción"), show_alert=True)
             return
+        if action == "a" and pending.get("community_flagged"):
+            # Aprobar explícitamente una coincidencia propia debe evitar que el
+            # enforcer global expulse al usuario en su primer mensaje.
+            ban_manager.unban_user(user_id)
+        if action == "b":
+            reason = pending.get("community_reason") or (
+                f"CAS confirmado por un administrador ({pending.get('cas_offenses', 'sin datos')} ofensas)"
+            )
+            ban_manager.ban_user(
+                user_id, reason=reason, source="join_review",
+                reported_by=admin_id, groups=[chat_id],
+                evidence=[f"solicitud de acceso:{chat_id}"], reviewed=True,
+            )
         db.delete(key)
         db.delete(f"JOINC_{chat_id}_{user_id}")
         stats = db.get(f"JOINSTATS_{chat_id}", {})

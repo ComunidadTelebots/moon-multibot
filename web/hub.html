@@ -1005,26 +1005,28 @@
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [summary,users,bans,banStats,banHistory]=await Promise.all([
-      masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/bans"),
+    const [summary,users,registry,banStats,banHistory]=await Promise.all([
+      masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/ban-registry?status=all&limit=500"),
       masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30")
     ]);
-    const top=(users&&users.users)||[], banned=(bans&&bans.bans)||[], history=(banHistory&&banHistory.history)||[];
+    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], registryStats=(registry&&registry.stats)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
         <div class="master-grid" style="margin-top:8px">
-          <div class="master-metric warn"><div class="mv">${fmt(banStats&&banStats.total_banned_users)}</div><div class="ml">Baneos globales</div></div>
+          <div class="master-metric warn"><div class="mv">${fmt(registryStats.active)}</div><div class="ml">Activos</div></div>
+          <div class="master-metric"><div class="mv">${fmt(registryStats.pending_review)}</div><div class="ml">Sin revisar</div></div>
           <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.total_local_banned_users)}</div><div class="ml">Baneos locales</div></div>
-          <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.groups_with_local_bans)}</div><div class="ml">Grupos afectados</div></div>
-          <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.recent_bans)}</div><div class="ml">Últimas 24 h</div></div>
+          <div class="master-metric"><div class="mv">${fmt(registryStats.revoked)}</div><div class="ml">Revocados</div></div>
         </div>
         <div class="gsec" style="margin-top:8px">Ban global</div>
         <div class="btnrow"><input id="masterBanUid" inputmode="numeric" placeholder="ID de usuario"><button class="btn ghost" id="masterBanBtn" style="width:auto">Banear</button></div>
-        <input id="masterBanReason" placeholder="Motivo (opcional)" style="margin-top:8px">
+        <input id="masterBanReason" placeholder="Motivo obligatorio" style="margin-top:8px">
+        <textarea id="masterBanEvidence" placeholder="Evidencias o referencias, una por línea" rows="3" style="margin-top:8px"></textarea>
         <div class="gsec">Más activos</div>
         ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
         <div class="gsec">Baneos globales</div>
         <input id="masterBanSearch" type="search" placeholder="Buscar por ID o motivo…" autocomplete="off">
+        <div class="btnrow" style="margin-top:8px"><button class="minibtn" id="masterBanCsv">Exportar CSV</button><button class="minibtn" id="masterBanJson">Exportar JSON</button></div>
         <div id="masterBanList" style="margin-top:8px"></div>
         <div class="gsec">Historial de moderación</div>
         <div id="masterBanHistory"></div>
@@ -1033,29 +1035,47 @@
       const q=document.getElementById("masterBanSearch").value.trim().toLowerCase();
       const visible=banned.filter(b=>!q||`${b.user_id||""} ${b.reason||""}`.toLowerCase().includes(q));
       const list=document.getElementById("masterBanList");
-      list.innerHTML=visible.length?visible.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)}<small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")}</small></span><button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button></div>`).join(""):`<p class="muted">No hay baneos que coincidan.</p>`;
+      list.innerHTML=visible.length?visible.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)} <span class="rbadge">${b.status==="revoked"?"revocado":"activo"}</span><small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")} · ${escHtml(b.source||"legacy")}${b.reviewed?"":" · sin revisar"}</small></span>${b.status==="active"?`<button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button>`:""}${!b.reviewed?`<button class="minibtn" data-review="${escAttr(b.user_id)}">Revisado</button>`:""}</div>`).join(""):`<p class="muted">No hay registros que coincidan.</p>`;
       list.querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanMasterUser(b.dataset.unban));
+      list.querySelectorAll("[data-review]").forEach(b=>b.onclick=()=>reviewMasterBan(b.dataset.review));
     };
     document.getElementById("masterBanHistory").innerHTML=history.length?history.slice().reverse().slice(0,10).map(h=>{
       const date=h.timestamp?new Date(h.timestamp).toLocaleString():"";
       return `<div class="casbox"><span class="${h.action==="unban"?"clean":"banned"}">${h.action==="unban"?"Restaurado":"Baneado"}</span> · ${escHtml(h.uid)}<br><span class="k">${escHtml(h.scope||"global")} · ${escHtml(h.source||"manual")} ${date?"· "+escHtml(date):""}</span>${h.reason?`<br>${escHtml(h.reason)}`:""}</div>`;
     }).join(""):`<p class="muted">No hay acciones registradas.</p>`;
     document.getElementById("masterBanBtn").onclick=banMasterUser;
+    document.getElementById("masterBanCsv").onclick=()=>exportMasterBans(banned,"csv");
+    document.getElementById("masterBanJson").onclick=()=>exportMasterBans(banned,"json");
     document.getElementById("masterBanSearch").oninput=renderModeration;
     renderModeration();
   }
   async function banMasterUser(){
     const uid=document.getElementById("masterBanUid").value.trim();
-    const reason=document.getElementById("masterBanReason").value.trim()||"Ban desde la Mini App master";
+    const reason=document.getElementById("masterBanReason").value.trim();
+    const evidence=document.getElementById("masterBanEvidence").value.split("\n").map(v=>v.trim()).filter(Boolean);
     if(!uid){showToast("Introduce un ID de usuario");return;}
+    if(!reason){showToast("Introduce el motivo del registro");return;}
     if(!await masterConfirm(`¿Banear globalmente al usuario ${uid}?`))return;
-    const r=await masterApi("/api/users/ban",{method:"POST",body:JSON.stringify({uid,reason,scope:"global"})});
+    const r=await masterApi("/api/admin/ban-registry",{method:"POST",body:JSON.stringify({user_id:uid,reason,evidence,source:"master_panel",reviewed:true})});
     if(r&&r.ok){showToast("Usuario baneado");loadMasterUsers();loadMasterOverview();}else showToast((r&&(r.msg||r.message))||"No se pudo banear");
   }
   async function unbanMasterUser(uid){
     if(!await masterConfirm(`¿Restaurar al usuario ${uid}?`))return;
     const r=await masterApi("/api/admin/unban",{method:"POST",body:JSON.stringify({user_id:uid})});
     if(r&&r.ok){showToast("Usuario restaurado");loadMasterUsers();loadMasterOverview();}else showToast((r&&(r.msg||r.message))||"No se pudo restaurar");
+  }
+  async function reviewMasterBan(uid){
+    const r=await masterApi("/api/admin/ban-registry/review",{method:"POST",body:JSON.stringify({user_id:uid})});
+    if(r&&r.ok){showToast("Registro revisado");loadMasterUsers();}else showToast("No se pudo revisar");
+  }
+  function exportMasterBans(records,format){
+    if(format==="json"){
+      downloadText("community-ban-registry.json",JSON.stringify({exported_at:new Date().toISOString(),records},null,2),"application/json");
+      return;
+    }
+    const fields=["user_id","status","reason","source","reviewed","reported_by","groups","evidence","created_at","updated_at"];
+    const rows=[fields.map(csvCell).join(","),...records.map(r=>fields.map(k=>csvCell(Array.isArray(r[k])?r[k].join(" | "):r[k])).join(","))];
+    downloadText("community-ban-registry.csv",rows.join("\n"),"text/csv");
   }
   async function loadMasterProxies(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
