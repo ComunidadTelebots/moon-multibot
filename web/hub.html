@@ -1034,12 +1034,13 @@
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [summary,users,registry,banStats,banHistory,banReports,banAppeals]=await Promise.all([
+    const [summary,users,registry,banStats,banHistory,banReports,banAppeals,apiKeys]=await Promise.all([
       masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/ban-registry?status=all&limit=500"),
       masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30"),
-      masterApi("/api/admin/ban-reports?status=pending"),masterApi("/api/admin/ban-appeals?status=pending")
+      masterApi("/api/admin/ban-reports?status=pending"),masterApi("/api/admin/ban-appeals?status=pending"),
+      masterApi("/api/admin/ban-api-keys")
     ]);
-    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], appeals=(banAppeals&&banAppeals.appeals)||[], registryStats=(registry&&registry.stats)||{};
+    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], appeals=(banAppeals&&banAppeals.appeals)||[], keys=(apiKeys&&apiKeys.keys)||[], registryStats=(registry&&registry.stats)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
         <div class="master-grid" style="margin-top:8px">
@@ -1063,6 +1064,11 @@
           <b>${escHtml(a.user_id)}</b><br>${escHtml(a.message)}
           <div class="btnrow" style="margin-top:8px"><button class="minibtn" data-appeal-approve="${escAttr(a.id)}">Aceptar y restaurar</button><button class="minibtn red" data-appeal-reject="${escAttr(a.id)}">Rechazar</button></div>
         </div>`).join(""):`<p class="muted">No hay apelaciones pendientes.</p>`}</div>
+        <div class="gsec">Acceso para otros bots</div>
+        <div class="btnrow"><input id="masterApiKeyLabel" placeholder="Nombre del bot o integración"><button class="minibtn" id="masterApiKeyCreate">Crear clave</button></div>
+        <div id="masterApiKeyOnce"></div>
+        <div id="masterApiKeys">${keys.length?keys.map(k=>`<div class="userchip"><span class="uid">${escHtml(k.label)}<small style="display:block;color:var(--muted)">ID ${escHtml(k.id)} · ${k.active?"activa":"revocada"}${k.last_used_at?" · usada "+escHtml(new Date(k.last_used_at).toLocaleString()):""}</small></span>${k.active?`<button class="minibtn red" data-key-revoke="${escAttr(k.id)}">Revocar</button>`:""}</div>`).join(""):`<p class="muted">No hay claves creadas.</p>`}</div>
+        <div class="casbox"><span class="k">Endpoint:</span> POST /api/community/v1/check<br><span class="k">Cabecera:</span> X-Community-Key · máximo 100 IDs por consulta.</div>
         <div class="gsec">Más activos</div>
         ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
         <div class="gsec">Baneos globales</div>
@@ -1089,6 +1095,8 @@
     box.querySelectorAll("[data-report-reject]").forEach(b=>b.onclick=()=>resolveMasterBanReport(b.dataset.reportReject,"rejected"));
     box.querySelectorAll("[data-appeal-approve]").forEach(b=>b.onclick=()=>resolveMasterBanAppeal(b.dataset.appealApprove,"approved"));
     box.querySelectorAll("[data-appeal-reject]").forEach(b=>b.onclick=()=>resolveMasterBanAppeal(b.dataset.appealReject,"rejected"));
+    document.getElementById("masterApiKeyCreate").onclick=createMasterApiKey;
+    box.querySelectorAll("[data-key-revoke]").forEach(b=>b.onclick=()=>revokeMasterApiKey(b.dataset.keyRevoke));
     document.getElementById("masterBanCsv").onclick=()=>exportMasterBans(banned,"csv");
     document.getElementById("masterBanJson").onclick=()=>exportMasterBans(banned,"json");
     document.getElementById("masterBanSearch").oninput=renderModeration;
@@ -1126,6 +1134,24 @@
     const r=await masterApi("/api/admin/ban-appeals/resolve",{method:"POST",body:JSON.stringify({appeal_id,decision})});
     if(r&&r.ok){showToast(decision==="approved"?"Usuario restaurado":"Apelación rechazada");loadMasterUsers();loadMasterOverview();}
     else showToast((r&&(r.msg||r.message))||"No se pudo resolver");
+  }
+  async function createMasterApiKey(){
+    const label=document.getElementById("masterApiKeyLabel").value.trim();
+    if(!label){showToast("Indica el nombre de la integración");return;}
+    const r=await masterApi("/api/admin/ban-api-keys",{method:"POST",body:JSON.stringify({label})});
+    if(!r||!r.ok){showToast("No se pudo crear la clave");return;}
+    const raw=r.api_key&&r.api_key.key;
+    const out=document.getElementById("masterApiKeyOnce");
+    out.innerHTML=`<div class="casbox"><b>Guarda esta clave ahora; no volverá a mostrarse.</b><textarea id="masterApiKeyRaw" rows="2" readonly>${escHtml(raw||"")}</textarea><button class="minibtn" id="masterApiKeyCopy">Copiar</button></div>`;
+    document.getElementById("masterApiKeyCopy").onclick=async()=>{
+      try{await navigator.clipboard.writeText(raw);showToast("Clave copiada");}
+      catch(e){document.getElementById("masterApiKeyRaw").select();showToast("Selecciona y copia la clave");}
+    };
+  }
+  async function revokeMasterApiKey(key_id){
+    if(!await masterConfirm("¿Revocar esta clave inmediatamente?"))return;
+    const r=await masterApi("/api/admin/ban-api-keys/revoke",{method:"POST",body:JSON.stringify({key_id})});
+    if(r&&r.ok){showToast("Clave revocada");loadMasterUsers();}else showToast("No se pudo revocar");
   }
   function exportMasterBans(records,format){
     if(format==="json"){

@@ -34,6 +34,7 @@ _ban_manager = None
 _get_bot_for_chat = None
 _check_cas = None
 _hub_bot_username = "cintiabot"
+_community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
@@ -113,8 +114,59 @@ def _verify_init_data(init_data, max_age=86400):
 def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Community-Key"
     return resp
+
+
+def _community_api_auth():
+    raw_key = request.headers.get("X-Community-Key", "")
+    token = _ban_manager.authenticate_api_key(raw_key) if _ban_manager else None
+    if not token:
+        return None, (jsonify({"ok": False, "error": "clave inválida"}), 401)
+    now_minute = int(time.time() // 60)
+    bucket = f"{token.get('id')}:{now_minute}"
+    # Mantener únicamente los contadores del minuto actual.
+    if len(_community_api_usage) > 500:
+        _community_api_usage.clear()
+    used = int(_community_api_usage.get(bucket, 0)) + 1
+    _community_api_usage[bucket] = used
+    if used > 120:
+        response = jsonify({"ok": False, "error": "límite de peticiones alcanzado"})
+        response.headers["Retry-After"] = str(60 - int(time.time()) % 60)
+        return None, (response, 429)
+    return token, None
+
+
+@bp.route("/api/community/v1/check", methods=["POST", "OPTIONS"])
+def community_registry_check():
+    """Consulta servidor-a-servidor; nunca expone evidencias, autores ni notas."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    _, err = _community_api_auth()
+    if err:
+        return err
+    body = request.json or {}
+    raw_ids = body.get("user_ids")
+    if not isinstance(raw_ids, list) or not raw_ids or len(raw_ids) > 100:
+        return jsonify({"ok": False, "error": "user_ids debe contener entre 1 y 100 IDs"}), 400
+    user_ids = []
+    for value in raw_ids:
+        uid = str(value).strip()
+        if not uid.isdigit():
+            return jsonify({"ok": False, "error": "todos los IDs deben ser numéricos"}), 400
+        if uid not in user_ids:
+            user_ids.append(uid)
+    results = []
+    for uid in user_ids:
+        record = _ban_manager.get_ban_record(uid)
+        active = bool(record and record.get("status", "active") == "active")
+        results.append({
+            "user_id": uid,
+            "listed": active,
+            "source": record.get("source") if active else None,
+            "updated_at": record.get("updated_at") if active else None,
+        })
+    return jsonify({"ok": True, "count": len(results), "results": results})
 
 
 # ─────────────────────────── Auth Mini App (Telegram) ──────────────────────────

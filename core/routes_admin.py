@@ -274,6 +274,33 @@ def web_admin_ban_appeals_resolve():
     return jsonify({"ok": True, "appeal": appeal})
 
 
+@bp.route("/api/admin/ban-api-keys", methods=["GET", "POST"])
+def web_admin_ban_api_keys():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    if not _ban_manager:
+        return jsonify({"ok": False, "msg": "Registro no disponible"}), 503
+    if request.method == "GET":
+        return jsonify({"ok": True, "keys": _ban_manager.list_api_keys()})
+    label = str((request.json or {}).get("label", "")).strip()
+    key = _ban_manager.create_api_key(label, "master")
+    if not key:
+        return jsonify({"ok": False, "msg": "Falta la etiqueta"}), 400
+    _add_audit_log(f"Clave de consulta comunitaria creada: {label}")
+    return jsonify({"ok": True, "api_key": key}), 201
+
+
+@bp.route("/api/admin/ban-api-keys/revoke", methods=["POST"])
+def web_admin_ban_api_keys_revoke():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    key_id = str((request.json or {}).get("key_id", "")).strip()
+    if not _ban_manager or not _ban_manager.revoke_api_key(key_id):
+        return jsonify({"ok": False, "msg": "Clave no encontrada o ya revocada"}), 404
+    _add_audit_log(f"Clave de consulta comunitaria revocada: {key_id}")
+    return jsonify({"ok": True, "key_id": key_id})
+
+
 @bp.route("/api/admin/ban-registry/export")
 def web_admin_ban_registry_export():
     if not _check_jwt(request):

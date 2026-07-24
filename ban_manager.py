@@ -3,6 +3,8 @@ Ban Manager - gestion centralizada de baneos globales y locales.
 """
 
 import datetime
+import hashlib
+import secrets
 
 
 class BanManager:
@@ -13,6 +15,7 @@ class BanManager:
     RECORDS_KEY = "COMMUNITY_BAN_RECORDS"
     REPORTS_KEY = "COMMUNITY_BAN_REPORTS"
     APPEALS_KEY = "COMMUNITY_BAN_APPEALS"
+    API_KEYS_KEY = "COMMUNITY_BAN_API_KEYS"
     LEGACY_KEY = "ST_FILE"
     LOCAL_PREFIX = "BANS_"
 
@@ -384,6 +387,70 @@ class BanManager:
         if result:
             self.db.set(self.APPEALS_KEY, appeals[-2000:])
         return result
+
+    def create_api_key(self, label, created_by):
+        label = str(label or "").strip()[:80]
+        if not label:
+            return None
+        raw_key = f"ctb_{secrets.token_urlsafe(32)}"
+        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        keys = self.db.get(self.API_KEYS_KEY, {})
+        if not isinstance(keys, dict):
+            keys = {}
+        now = datetime.datetime.now().isoformat()
+        keys[key_hash] = {
+            "id": key_hash[:12],
+            "label": label,
+            "active": True,
+            "scope": "registry:check",
+            "created_by": str(created_by),
+            "created_at": now,
+            "last_used_at": None,
+        }
+        self.db.set(self.API_KEYS_KEY, keys)
+        return {"key": raw_key, **dict(keys[key_hash])}
+
+    def list_api_keys(self):
+        keys = self.db.get(self.API_KEYS_KEY, {})
+        if not isinstance(keys, dict):
+            return []
+        rows = [dict(item) for item in keys.values() if isinstance(item, dict)]
+        rows.sort(key=lambda item: item.get("created_at") or "", reverse=True)
+        return rows
+
+    def revoke_api_key(self, key_id):
+        keys = self.db.get(self.API_KEYS_KEY, {})
+        if not isinstance(keys, dict):
+            return False
+        for key_hash, item in keys.items():
+            if isinstance(item, dict) and item.get("id") == str(key_id) and item.get("active"):
+                item["active"] = False
+                item["revoked_at"] = datetime.datetime.now().isoformat()
+                keys[key_hash] = item
+                self.db.set(self.API_KEYS_KEY, keys)
+                return True
+        return False
+
+    def authenticate_api_key(self, raw_key):
+        raw_key = str(raw_key or "")
+        if not raw_key.startswith("ctb_"):
+            return None
+        key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+        keys = self.db.get(self.API_KEYS_KEY, {})
+        item = keys.get(key_hash) if isinstance(keys, dict) else None
+        if not isinstance(item, dict) or not item.get("active"):
+            return None
+        now = datetime.datetime.now()
+        try:
+            last_used = datetime.datetime.fromisoformat(item.get("last_used_at") or "")
+        except (TypeError, ValueError):
+            last_used = None
+        # Evita una escritura en la base por cada consulta de bots externos.
+        if last_used is None or last_used < now - datetime.timedelta(minutes=5):
+            item["last_used_at"] = now.isoformat()
+            keys[key_hash] = item
+            self.db.set(self.API_KEYS_KEY, keys)
+        return dict(item)
 
     def get_all_local_bans(self) -> dict:
         keys = self.db.keys(self.LOCAL_PREFIX) if hasattr(self.db, "keys") else []
