@@ -175,6 +175,14 @@
   .master-status{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--teal);}
   .master-status::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor;}
   .master-error{padding:11px 13px;border:1px solid rgba(248,113,113,.25);border-radius:12px;color:var(--red);font-size:12.5px;}
+  .master-subpage{position:fixed;inset:0;z-index:80;overflow-y:auto;background:var(--bg);padding:0 16px 30px;}
+  .master-subhead{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;margin:0 -16px 20px;
+    padding:14px 16px;background:rgba(7,11,20,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(16px);}
+  .master-back{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--teal);border-radius:12px;
+    background:transparent;color:var(--teal);cursor:pointer;font-size:24px;}
+  .master-back svg{width:20px;height:20px}.master-subcopy{min-width:0;flex:1}
+  .master-subcopy b{display:block;font-size:17px}.master-subcopy span{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .master-subpage .master-list{max-width:760px;margin:0 auto;}
   .assoc-tools{display:flex;gap:8px;margin:0 0 10px}.assoc-tools input{min-width:0;flex:1;}
   .assoc-tools .btn{width:auto;margin:0;padding:10px 12px;}
   .filterbar{display:flex;gap:7px;overflow-x:auto;padding:0 0 11px;scrollbar-width:none;}
@@ -266,6 +274,13 @@
     <section class="view" data-view="red" id="v-red" hidden></section>
     <section class="view" data-view="ajustes" id="v-ajustes" hidden></section>
     <section class="view" data-view="grupo" id="v-grupo" hidden></section>
+    <section class="master-subpage" id="v-master-detail" hidden>
+      <div class="master-subhead">
+        <button class="master-back" id="masterDetailBack" aria-label="Volver">←</button>
+        <div class="master-subcopy"><b id="masterDetailTitle">Administración</b><span id="masterDetailSubtitle"></span></div>
+      </div>
+      <div id="masterDetail" class="master-list"></div>
+    </section>
   </main>
 
   <nav class="tabbar">
@@ -1051,6 +1066,26 @@
     </div>`;
   }
 
+  let masterListScroll=0;
+  async function openMasterPage(title,subtitle,loader){
+    const page=document.getElementById("v-master-detail");
+    masterListScroll=window.scrollY||document.documentElement.scrollTop||0;
+    document.getElementById("masterDetailTitle").textContent=title;
+    document.getElementById("masterDetailSubtitle").textContent=subtitle;
+    document.getElementById("masterDetail").innerHTML=skel();
+    page.hidden=false;page.scrollTop=0;document.body.style.overflow="hidden";
+    document.getElementById("masterDetailBack").onclick=closeMasterPage;
+    if(window.gtag)gtag("event","page_view",{page_path:"/hub/master/"+title.toLowerCase().replaceAll(" ","-")});
+    try{await loader();}catch(error){
+      document.getElementById("masterDetail").innerHTML='<div class="master-error">No se pudo cargar esta sección.</div>';
+    }
+  }
+  function closeMasterPage(){
+    document.getElementById("v-master-detail").hidden=true;
+    document.body.style.overflow="";
+    requestAnimationFrame(()=>window.scrollTo(0,masterListScroll));
+  }
+
   async function loadMaster(){
     const el=document.getElementById("v-master");
     if(!master){
@@ -1091,25 +1126,24 @@
         <button class="btn ghost" id="masterRefresh">${svg('refresh')} Actualizar</button>
         <button class="btn teal" id="goPanel">${svg('ext')} Panel avanzado</button>
       </div>
-      <div id="masterDetail" class="master-list"></div>
       <div class="sec">Canales del bot <span id="masterChannelCount"></span></div>
       <p class="muted" style="margin:-4px 2px 12px;">Interruptor = publicar en el directorio público.</p>
       <div id="masterChannelList">${skel()}</div>`;
     document.getElementById("goPanel").onclick=()=>openLink("https://cintiabot.todosobreall.tech/panel");
     document.getElementById("masterRefresh").onclick=loadMasterOverview;
-    document.getElementById("masterUsers").onclick=loadMasterUsers;
-    document.getElementById("masterProxies").onclick=loadMasterProxies;
-    document.getElementById("masterBots").onclick=loadMasterBots;
-    document.getElementById("masterIA").onclick=loadMasterIA;
-    document.getElementById("masterQueue").onclick=loadMasterQueue;
-    document.getElementById("masterSecurity").onclick=loadMasterSecurity;
-    document.getElementById("masterSystem").onclick=loadMasterSystem;
-    document.getElementById("masterReports").onclick=loadMasterReports;
-    document.getElementById("masterActivity").onclick=loadMasterActivity;
-    document.getElementById("masterFaq").onclick=loadMasterFaq;
-    document.getElementById("masterBroadcast").onclick=loadMasterBroadcast;
-    document.getElementById("masterBackup").onclick=createMasterBackup;
-    document.getElementById("masterMaintenance").onclick=toggleMasterMaintenance;
+    document.getElementById("masterUsers").onclick=()=>openMasterPage("Usuarios y baneos","Consultar, banear o restaurar",loadMasterUsers);
+    document.getElementById("masterProxies").onclick=()=>openMasterPage("Proxies","Estado y controles MTProto",loadMasterProxies);
+    document.getElementById("masterBots").onclick=()=>openMasterPage("Bots conectados","Nodos, chats y nuevas instancias",loadMasterBots);
+    document.getElementById("masterIA").onclick=()=>openMasterPage("Moon IA","Aprendizaje, modo y fuentes",loadMasterIA);
+    document.getElementById("masterQueue").onclick=()=>openMasterPage("Cola de tareas","Priorizar o cancelar procesos",loadMasterQueue);
+    document.getElementById("masterSecurity").onclick=()=>openMasterPage("Seguridad","Escudo neural y consulta CAS",loadMasterSecurity);
+    document.getElementById("masterSystem").onclick=()=>openMasterPage("Sistema","Rendimiento, versión y registros",loadMasterSystem);
+    document.getElementById("masterReports").onclick=()=>openMasterPage("Informes","Exportar métricas de la red",loadMasterReports);
+    document.getElementById("masterActivity").onclick=()=>openMasterPage("Actividad","Auditoría administrativa",loadMasterActivity);
+    document.getElementById("masterFaq").onclick=()=>openMasterPage("Respuestas automáticas","Preguntas frecuentes del bot",loadMasterFaq);
+    document.getElementById("masterBroadcast").onclick=()=>openMasterPage("Comunicado","Mensaje global a todos los chats",loadMasterBroadcast);
+    document.getElementById("masterBackup").onclick=()=>openMasterPage("Crear backup","Copia inmediata del sistema",loadMasterBackup);
+    document.getElementById("masterMaintenance").onclick=()=>openMasterPage("Mantenimiento","Activar o desactivar el modo",loadMasterMaintenance);
     await loadMasterOverview();
     const d=await apiPost("/admin/channels",{initData:tg.initData});
     const chs=(d&&d.ok&&d.channels)||[];
@@ -1531,6 +1565,15 @@
     </div></div>`;
     document.getElementById("masterBroadcastSend").onclick=sendMasterBroadcast;
   }
+  function loadMasterBackup(){
+    const box=document.getElementById("masterDetail");
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Copia de seguridad <span class="rbadge">manual</span></div><div class="dbody">
+      <p class="muted">Crea una copia inmediata de estadísticas, historial y memoria de Moonbot.</p>
+      <button class="btn teal" id="masterBackupCreate">${svg('download')} Crear backup ahora</button>
+      <div id="masterBackupResult"></div>
+    </div></div>`;
+    document.getElementById("masterBackupCreate").onclick=createMasterBackup;
+  }
   async function sendMasterBroadcast(){
     const input=document.getElementById("masterBroadcastText"),message=input.value.trim();
     if(!message){showToast("Escribe el comunicado");return;}
@@ -1542,11 +1585,24 @@
     if(!await masterConfirm("¿Crear una copia de seguridad ahora?"))return;
     const r=await masterApi("/api/admin/backup",{method:"POST"});
     showToast(r&&r.ok?"Backup creado":"No se pudo crear el backup");
+    const out=document.getElementById("masterBackupResult");
+    if(out)out.innerHTML=r&&r.ok?`<div class="casbox" style="margin-top:10px"><span class="clean">Backup creado correctamente</span><br><span class="k">${escHtml(r.file||"Guardado en el servidor")}</span></div>`:`<div class="master-error" style="margin-top:10px">No se pudo crear el backup.</div>`;
+  }
+  async function loadMasterMaintenance(){
+    const box=document.getElementById("masterDetail"),r=await masterApi("/api/admin/maintenance");
+    const enabled=Boolean(r&&r.enabled);
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Modo mantenimiento <span class="rbadge">${enabled?"activo":"inactivo"}</span></div><div class="dbody">
+      <div class="casbox"><span class="${enabled?"banned":"clean"}">${enabled?"El sistema está en mantenimiento":"El sistema funciona con normalidad"}</span></div>
+      <p class="muted">Al cambiar este estado se restringen temporalmente las funciones públicas mientras realizas tareas administrativas.</p>
+      <button class="btn ${enabled?"ghost":"cta"}" id="masterMaintenanceToggle">${enabled?"Desactivar mantenimiento":"Activar mantenimiento"}</button>
+    </div></div>`;
+    document.getElementById("masterMaintenanceToggle").onclick=toggleMasterMaintenance;
   }
   async function toggleMasterMaintenance(){
     if(!await masterConfirm("¿Cambiar el estado del modo mantenimiento?"))return;
     const r=await masterApi("/api/admin/maintenance",{method:"POST"});
     showToast(r&&r.ok?`Mantenimiento ${r.enabled?"activado":"desactivado"}`:"No se pudo cambiar");
+    if(r&&r.ok)loadMasterMaintenance();
   }
 
   // ── Directorio ──

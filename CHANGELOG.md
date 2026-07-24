@@ -17,6 +17,7 @@
 - Flujo captcha para solicitudes de acceso, aprobación automática tras superarlo y comprobaciones de reputación intermedias.
 - Separación entre la lista personal de grupos del usuario y el centro master de canales propios.
 - Nuevas acciones de administración para usuarios, administradores de grupo y master, con permisos comprobados en servidor.
+- Las trece acciones del panel master abren ahora una subpágina completa con flecha atrás; la lista y su posición se conservan al regresar.
 
 ## [v16.84.0] - 2026-07-11
 ### Feature - Proxies MTProto en CintiaBot (pedir, recomendar, administrar)

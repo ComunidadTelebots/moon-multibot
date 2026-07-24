@@ -70,10 +70,12 @@ def web_admin_broadcast():
     return jsonify({"ok": True, "count": count})
 
 
-@bp.route("/api/admin/maintenance", methods=["POST"])
+@bp.route("/api/admin/maintenance", methods=["GET", "POST"])
 def web_admin_maintenance():
     if not _check_jwt(request):
         return jsonify({"ok": False}), 401
+    if request.method == "GET":
+        return jsonify({"ok": True, "enabled": bool(_get_maintenance_mode())})
     new_status = not bool(_get_maintenance_mode())
     _set_maintenance_mode(new_status)
     return jsonify({"ok": True, "enabled": new_status})
