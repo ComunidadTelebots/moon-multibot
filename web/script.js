@@ -261,7 +261,7 @@ function switchTab(tabId, btn) {
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
         if(tabId === 'bots') fetchBots();
-        if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); }
+        if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); loadFaqManager(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
         if(tabId === 'moderation') { loadModerationTab(); fetchSecurityBlacklist(); }
@@ -2594,6 +2594,106 @@ function loadProxiesTab() {
             }
         }
     });
+}
+
+async function loadFaqManager() {
+    const list = document.getElementById("faqManagerList");
+    if(!list || !authToken) return;
+    list.innerHTML = `<p class="section-desc">Cargando respuestas...</p>`;
+    try {
+        const response = await fetch("/api/automation/faq", {
+            headers: { "Authorization": authToken }
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || "No se pudieron cargar");
+        const faq = Array.isArray(data.faq) ? data.faq : [];
+        if(!faq.length) {
+            list.innerHTML = `<p class="section-desc">Todavía no hay preguntas frecuentes. Puedes crear la primera arriba.</p>`;
+            return;
+        }
+        list.innerHTML = faq.map((item, index) => `
+            <div class="user-row" data-web-faq-row="${index}" style="align-items:stretch; flex-direction:column; gap:10px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; gap:12px;">
+                    <strong>${escapeHtml(item.question)}</strong>
+                    <span class="status-tag admin">${Number(item.count || 0)} consultas</span>
+                </div>
+                <textarea rows="2" maxlength="1500" data-web-faq-answer="${index}" placeholder="Escribe la respuesta automática...">${escapeHtml(item.answer || "")}</textarea>
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <button class="btn-link-mini" data-web-faq-save="${index}">GUARDAR</button>
+                    <button class="btn-link-mini" data-web-faq-delete="${index}" style="background:rgba(239,68,68,.15); color:#f87171;">ELIMINAR</button>
+                </div>
+            </div>
+        `).join("");
+        list.querySelectorAll("[data-web-faq-save]").forEach(button => {
+            button.addEventListener("click", () => saveFaqAnswer(faq[Number(button.dataset.webFaqSave)]));
+        });
+        list.querySelectorAll("[data-web-faq-delete]").forEach(button => {
+            button.addEventListener("click", () => deleteFaqAnswer(faq[Number(button.dataset.webFaqDelete)]));
+        });
+    } catch(error) {
+        list.innerHTML = `<p class="section-desc" style="color:#f87171;">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+async function createFaqAnswer() {
+    const questionInput = document.getElementById("faqNewQuestion");
+    const answerInput = document.getElementById("faqNewAnswer");
+    const question = questionInput?.value.trim();
+    const answer = answerInput?.value.trim();
+    if(!question || !answer) {
+        showToast("FAQ", "Completa la pregunta y la respuesta.");
+        return;
+    }
+    if(await setFaqAnswer(question, answer)) {
+        questionInput.value = "";
+        answerInput.value = "";
+        loadFaqManager();
+    }
+}
+
+async function saveFaqAnswer(item) {
+    const rows = Array.from(document.querySelectorAll("[data-web-faq-row]"));
+    const row = rows.find(candidate => candidate.querySelector("strong")?.textContent === item.question);
+    const answer = row?.querySelector("textarea")?.value.trim();
+    if(!answer) {
+        showToast("FAQ", "La respuesta no puede estar vacía.");
+        return;
+    }
+    if(await setFaqAnswer(item.question, answer)) loadFaqManager();
+}
+
+async function setFaqAnswer(question, answer) {
+    try {
+        const response = await fetch("/api/automation/faq/set", {
+            method: "POST",
+            headers: { "Authorization": authToken, "Content-Type": "application/json" },
+            body: JSON.stringify({ question, answer })
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || "No se pudo guardar");
+        showToast("FAQ", "Respuesta guardada.");
+        return true;
+    } catch(error) {
+        showToast("FAQ", error.message);
+        return false;
+    }
+}
+
+async function deleteFaqAnswer(item) {
+    if(!confirm(`¿Eliminar la pregunta "${item.question}"?`)) return;
+    try {
+        const response = await fetch("/api/automation/faq/delete", {
+            method: "POST",
+            headers: { "Authorization": authToken, "Content-Type": "application/json" },
+            body: JSON.stringify({ question: item.question })
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || "No se pudo eliminar");
+        showToast("FAQ", "Pregunta eliminada.");
+        loadFaqManager();
+    } catch(error) {
+        showToast("FAQ", error.message);
+    }
 }
 
 function escapeHtml(value) {

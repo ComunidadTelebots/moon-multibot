@@ -1183,12 +1183,25 @@
     const r=await masterApi("/api/automation/faq"),faq=(r&&r.faq)||[];
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Respuestas automáticas <span class="rbadge">${faq.length} preguntas</span></div><div class="dbody">
       <p class="muted" style="margin:6px 0 10px">Moonbot detecta preguntas frecuentes. Asigna una respuesta para contestarlas automáticamente.</p>
+      <div class="casbox">
+        <b>Nueva respuesta</b>
+        <input id="masterFaqQuestion" maxlength="240" placeholder="Pregunta frecuente…" style="margin-top:8px">
+        <textarea id="masterFaqAnswer" rows="2" maxlength="1500" placeholder="Respuesta automática…" style="margin-top:8px"></textarea>
+        <div class="btnrow"><button class="minibtn" id="masterFaqCreate">Añadir</button></div>
+      </div>
       ${faq.length?faq.slice(0,25).map((item,i)=>`<div class="casbox" data-faq-row="${i}">
         <div style="display:flex;justify-content:space-between;gap:8px"><b>${escHtml(item.question)}</b><span class="w">${fmt(item.count)} veces</span></div>
         <textarea rows="2" data-faq-answer="${i}" placeholder="Escribe la respuesta automática…" style="margin-top:8px">${escHtml(item.answer||"")}</textarea>
         <div class="btnrow"><button class="minibtn" data-faq-save="${i}">Guardar</button><button class="minibtn red" data-faq-delete="${i}">Eliminar</button></div>
       </div>`).join(""):`<p class="muted">Todavía no se han detectado preguntas frecuentes.</p>`}
     </div></div>`;
+    document.getElementById("masterFaqCreate").onclick=async()=>{
+      const question=document.getElementById("masterFaqQuestion").value.trim();
+      const answer=document.getElementById("masterFaqAnswer").value.trim();
+      if(!question||!answer){showToast("Completa la pregunta y la respuesta");return;}
+      const res=await masterApi("/api/automation/faq/set",{method:"POST",body:JSON.stringify({question,answer})});
+      if(res&&res.ok){showToast("Respuesta añadida");loadMasterFaq();}else showToast((res&&res.msg)||"No se pudo guardar");
+    };
     box.querySelectorAll("[data-faq-save]").forEach(b=>b.onclick=async()=>{
       const i=Number(b.dataset.faqSave),answer=box.querySelector(`[data-faq-answer="${i}"]`).value.trim();
       if(!answer){showToast("Escribe una respuesta");return;}
