@@ -369,7 +369,7 @@
   async function masterApi(p,opts={}){
     if(!masterToken)return null;
     const headers={...(opts.headers||{}),Authorization:`Bearer ${masterToken}`};
-    if(opts.body&&!headers["Content-Type"])headers["Content-Type"]="application/json";
+    if(opts.body&&!(opts.body instanceof FormData)&&!headers["Content-Type"])headers["Content-Type"]="application/json";
     try{const r=await fetch(p,{...opts,headers});const data=await r.json();return {...data,_status:r.status};}
     catch(e){return null;}
   }
@@ -1415,22 +1415,68 @@
   }
   async function loadMasterSecurity(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [vision,audit]=await Promise.all([masterApi("/api/vision/stats"),masterApi("/api/security/audit")]);
-    const logs=(audit&&audit.logs)||[];
+    const [vision,audit,threats]=await Promise.all([masterApi("/api/vision/stats"),masterApi("/api/security/audit"),masterApi("/api/security/threat-history")]);
+    const logs=(audit&&audit.logs)||[],history=(threats&&threats.history)||[];
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Seguridad <span class="rbadge">${vision&&vision.shield_enabled?"escudo activo":"escudo inactivo"}</span></div><div class="dbody">
       <div class="master-grid" style="margin-top:8px">
         <div class="master-metric"><div class="mv">${fmt(vision&&vision.photos)}</div><div class="ml">Fotos analizadas</div></div>
         <div class="master-metric warn"><div class="mv">${fmt(vision&&vision.threats)}</div><div class="ml">Amenazas</div></div>
       </div>
       <button class="btn ${vision&&vision.shield_enabled?'ghost':'teal'}" id="masterShield">${svg('shield')} ${vision&&vision.shield_enabled?'Desactivar':'Activar'} escudo neural</button>
+      <div class="gsec">Analizar fotografía</div>
+      <p class="muted">OCR, spam visual, suplantación y contenido sensible. Las señales requieren revisión humana.</p>
+      <input id="masterImageFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+      <div class="btnrow"><label class="filterpill"><input id="masterImageOcr" type="checkbox" checked> Leer texto</label><label class="filterpill"><input id="masterImageImpersonation" type="checkbox" checked> Suplantación</label><label class="filterpill"><input id="masterImageSensitive" type="checkbox" checked> Sensible</label></div>
+      <button class="btn teal" id="masterImageAnalyze">Analizar foto</button><div id="masterImageResult"></div>
+      <div class="gsec">VirusTotal</div>
+      <p class="muted">Archivos, hashes, URLs y dominios, con caché para ahorrar cuota.</p>
+      <select id="masterVtKind"><option value="hash">Hash</option><option value="url">URL</option><option value="domain">Dominio</option><option value="file">Archivo</option></select>
+      <input id="masterVtValue" placeholder="Pega un hash, URL o dominio…" style="margin-top:8px">
+      <input id="masterVtFile" type="file" style="margin-top:8px" hidden>
+      <button class="btn teal" id="masterVtAnalyze" style="margin-top:8px">Analizar con VirusTotal</button><div id="masterVtResult"></div>
       <div class="gsec">Consultar CAS</div>
       <div class="btnrow"><input id="masterCasUid" inputmode="numeric" placeholder="ID de Telegram"><button class="btn ghost" id="masterCasCheck" style="width:auto">Consultar</button></div>
       <div id="masterCasResult"></div>
+      <div class="gsec">Historial de análisis</div>
+      ${history.length?history.slice(0,10).map(x=>`<div class="casbox"><b>${escHtml(x.filename||x.value||x.kind)}</b> <span class="rbadge">${escHtml(x.source)}</span><br><span class="k">${escHtml(x.risk||"pendiente")} · ${x.malicious!=null?fmt(x.malicious)+" detecciones":fmt(x.score||0)+"/100"}</span></div>`).join(""):`<p class="muted">Aún no hay análisis manuales.</p>`}
       <div class="gsec">Auditoría reciente</div>
       ${logs.length?logs.slice(-5).reverse().map(x=>`<div class="casbox">${escHtml(typeof x==="string"?x:(x.message||x.action||JSON.stringify(x)))}</div>`).join(""):`<p class="muted">Sin incidencias recientes.</p>`}
     </div></div>`;
     document.getElementById("masterShield").onclick=toggleMasterShield;
+    document.getElementById("masterImageAnalyze").onclick=analyzeMasterImage;
+    document.getElementById("masterVtKind").onchange=()=>{
+      const file=document.getElementById("masterVtKind").value==="file";
+      document.getElementById("masterVtFile").hidden=!file;document.getElementById("masterVtValue").hidden=file;
+    };
+    document.getElementById("masterVtAnalyze").onclick=analyzeMasterVirusTotal;
     document.getElementById("masterCasCheck").onclick=checkMasterCas;
+  }
+  function renderMasterThreatResult(result){
+    if(!result||!result.ok)return `<div class="master-error" style="margin-top:9px">${escHtml(result&&result.error||"No se pudo completar el análisis")}</div>`;
+    if(result.queued)return `<div class="casbox" style="margin-top:9px"><span class="clean">Análisis enviado</span><br>${escHtml(result.message||"Resultado pendiente")}</div>`;
+    if(result.not_found)return `<div class="casbox" style="margin-top:9px"><span class="clean">Sin informe previo</span><br>No figura todavía en VirusTotal.</div>`;
+    const risk=result.risk||"clean",signals=result.signals||[],engines=result.engines||[];
+    return `<div class="casbox" style="margin-top:9px"><span class="${risk==="high"?"banned":risk==="clean"?"clean":"w"}">${risk==="high"?"Riesgo alto":risk==="medium"?"Revisión recomendada":"Sin señales críticas"}</span>
+      ${result.score!=null?`<br><b>${fmt(result.score)}/100</b> · ${escHtml(result.filename||"imagen")}`:""}
+      ${result.malicious!=null?`<br><b>${fmt(result.malicious)} / ${fmt(result.total_engines)}</b> motores maliciosos · ${fmt(result.suspicious)} sospechosos`:""}
+      ${result.cached?`<br><span class="k">Resultado recuperado de caché</span>`:""}
+      ${signals.length?`<div style="margin-top:7px">${signals.map(s=>`• ${escHtml(s.label)}`).join("<br>")}</div>`:""}
+      ${engines.length?`<div style="margin-top:7px">${engines.slice(0,8).map(e=>`• ${escHtml(e.engine)}: ${escHtml(e.result)}`).join("<br>")}</div>`:""}
+      ${result.ocr_text?`<details style="margin-top:8px"><summary>Texto detectado</summary><pre class="muted" style="white-space:pre-wrap">${escHtml(result.ocr_text)}</pre></details>`:""}
+      ${result.link?`<button class="minibtn" id="masterVtOpen" style="margin-top:9px">Ver informe completo</button>`:""}</div>`;
+  }
+  async function analyzeMasterImage(){
+    const input=document.getElementById("masterImageFile"),out=document.getElementById("masterImageResult");
+    if(!input.files[0]){showToast("Selecciona una fotografía");return;}
+    const form=new FormData();form.append("image",input.files[0]);form.append("ocr",String(document.getElementById("masterImageOcr").checked));form.append("impersonation",String(document.getElementById("masterImageImpersonation").checked));form.append("sensitive",String(document.getElementById("masterImageSensitive").checked));
+    out.innerHTML='<p class="muted">Analizando fotografía…</p>';
+    const result=await masterApi("/api/security/media/analyze",{method:"POST",body:form});out.innerHTML=renderMasterThreatResult(result);
+  }
+  async function analyzeMasterVirusTotal(){
+    const kind=document.getElementById("masterVtKind").value,out=document.getElementById("masterVtResult");out.innerHTML='<p class="muted">Consultando VirusTotal…</p>';let result;
+    if(kind==="file"){const input=document.getElementById("masterVtFile");if(!input.files[0]){showToast("Selecciona un archivo");out.innerHTML="";return;}const form=new FormData();form.append("file",input.files[0]);result=await masterApi("/api/security/vt/file",{method:"POST",body:form});}
+    else{const value=document.getElementById("masterVtValue").value.trim();if(!value){showToast("Introduce el valor que quieres analizar");out.innerHTML="";return;}result=await masterApi("/api/security/vt/analyze",{method:"POST",body:JSON.stringify({kind,value})});}
+    out.innerHTML=renderMasterThreatResult(result);if(result&&result.link){const b=document.getElementById("masterVtOpen");if(b)b.onclick=()=>openLink(result.link);}
   }
   async function toggleMasterShield(){
     if(!await masterConfirm("¿Cambiar el estado del escudo neural?"))return;

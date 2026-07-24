@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Dependencias del sistema
 RUN apt-get update && apt-get install -y \
-    gcc git curl libssl3 zlib1g \
+    gcc git curl libssl3 zlib1g tesseract-ocr tesseract-ocr-spa \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

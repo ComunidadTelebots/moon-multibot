@@ -3037,6 +3037,69 @@ function scanHashVT() {
     });
 }
 
+function renderSecurityAnalysis(data) {
+    if (!data || !data.ok) {
+        return `<div class="vt-card" style="border-color:var(--danger)"><b>❌ ${escapeHtml(data?.error || "No se pudo completar el análisis")}</b></div>`;
+    }
+    if (data.queued) return `<div class="vt-card"><b>⏳ Análisis enviado</b><p>${escapeHtml(data.message || "Resultado pendiente")}</p></div>`;
+    if (data.not_found) return `<div class="vt-card"><b>⚪ Sin informe previo</b><p>No figura todavía en VirusTotal.</p></div>`;
+    const danger = data.risk === "high" || Number(data.malicious) > 0;
+    const signals = (data.signals || []).map(item => `<li>${escapeHtml(item.label)}</li>`).join("");
+    const engines = (data.engines || []).slice(0, 10).map(item => `<li><b>${escapeHtml(item.engine)}</b>: ${escapeHtml(item.result)}</li>`).join("");
+    return `<div class="vt-card" style="border-color:${danger ? "var(--danger)" : "var(--success)"}">
+        <h4 style="color:${danger ? "var(--danger)" : "var(--success)"}">${danger ? "🚨 REVISIÓN NECESARIA" : "✅ SIN SEÑALES CRÍTICAS"}</h4>
+        ${data.score != null ? `<p><b>${Number(data.score)}/100</b> · ${escapeHtml(data.filename || "imagen")}</p>` : ""}
+        ${data.malicious != null ? `<p><b>${Number(data.malicious)} / ${Number(data.total_engines || 0)}</b> motores maliciosos · ${Number(data.suspicious || 0)} sospechosos</p>` : ""}
+        ${data.cached ? `<p class="subtitle">Resultado recuperado de caché.</p>` : ""}
+        ${signals ? `<ul>${signals}</ul>` : ""}${engines ? `<ul>${engines}</ul>` : ""}
+        ${data.ocr_text ? `<details><summary>Texto detectado</summary><pre style="white-space:pre-wrap">${escapeHtml(data.ocr_text)}</pre></details>` : ""}
+        ${data.link ? `<a href="${escapeHtml(data.link)}" target="_blank" rel="noopener">Ver informe completo ↗</a>` : ""}
+    </div>`;
+}
+
+function scanSecurityImage() {
+    const input = document.getElementById("visionImageInput");
+    const result = document.getElementById("visionAnalysisResult");
+    if (!input?.files?.[0]) { showToast("Seguridad", "Selecciona una fotografía."); return; }
+    const form = new FormData();
+    form.append("image", input.files[0]);
+    form.append("ocr", String(document.getElementById("visionOcr").checked));
+    form.append("impersonation", String(document.getElementById("visionImpersonation").checked));
+    form.append("sensitive", String(document.getElementById("visionSensitive").checked));
+    result.innerHTML = `<div class="loading-spinner">Analizando fotografía...</div>`;
+    fetch("/api/security/media/analyze", { method: "POST", headers: { "Authorization": authToken }, body: form })
+      .then(r => r.json()).then(data => { result.innerHTML = renderSecurityAnalysis(data); loadSecurityAudit(); })
+      .catch(() => { result.innerHTML = renderSecurityAnalysis({ ok:false, error:"Error de conexión" }); });
+}
+
+function toggleVtAdvancedInput() {
+    const fileMode = document.getElementById("vtAdvancedKind").value === "file";
+    document.getElementById("vtAdvancedFile").style.display = fileMode ? "block" : "none";
+    document.getElementById("vtAdvancedValue").style.display = fileMode ? "none" : "block";
+}
+
+function scanVirusTotalAdvanced() {
+    const kind = document.getElementById("vtAdvancedKind").value;
+    const result = document.getElementById("vtAdvancedResult");
+    result.innerHTML = `<div class="loading-spinner">Consultando VirusTotal...</div>`;
+    let request;
+    if (kind === "file") {
+        const file = document.getElementById("vtAdvancedFile")?.files?.[0];
+        if (!file) { showToast("VirusTotal", "Selecciona un archivo."); result.innerHTML = ""; return; }
+        const form = new FormData(); form.append("file", file);
+        request = fetch("/api/security/vt/file", { method:"POST", headers:{ "Authorization":authToken }, body:form });
+    } else {
+        const value = document.getElementById("vtAdvancedValue").value.trim();
+        if (!value) { showToast("VirusTotal", "Introduce el valor que quieres analizar."); result.innerHTML = ""; return; }
+        request = fetch("/api/security/vt/analyze", {
+            method:"POST", headers:{ "Authorization":authToken, "Content-Type":"application/json" },
+            body:JSON.stringify({ kind, value })
+        });
+    }
+    request.then(r => r.json()).then(data => { result.innerHTML = renderSecurityAnalysis(data); loadSecurityAudit(); })
+      .catch(() => { result.innerHTML = renderSecurityAnalysis({ ok:false, error:"Error de conexión" }); });
+}
+
 // --- Queue Tab ---
 function loadQueueTab() {
     if(!authToken || window.MOON_CONFIG.currentTab !== 'queue') return;

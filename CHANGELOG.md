@@ -124,8 +124,29 @@
 100. Recorrido guiado para cada función nueva.
 
 ### Análisis multimedia y amenazas (101–102)
-101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa.
-102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda.
+101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Fase 1 implementada en v16.86.0; pendiente automatización por grupo.**
+102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Fase 1 implementada en v16.86.0; pendientes políticas automáticas por grupo.**
+
+## [v16.86.0] - 2026-07-25
+### Análisis avanzado de fotografías
+- Nuevo analizador local para JPEG, PNG, WebP y GIF con límite de 10 MB y 40 megapíxeles.
+- Extracción OCR opcional, detección de enlaces incrustados, frases de estafa y posibles suplantaciones de marca.
+- Señal sensible débil y explicable que siempre requiere revisión humana y nunca genera por sí sola un ban automático.
+- Resultado con SHA-256, dimensiones, formato, entropía, color medio, puntuación, nivel de riesgo y señales ponderadas.
+- Historial persistente de análisis y métricas de amenazas/tasa de resultados limpios.
+
+### VirusTotal ampliado
+- Consulta de hashes MD5, SHA-1 y SHA-256, URLs y dominios mediante API v3.
+- Carga manual de archivos de hasta 10 MB; primero reutiliza el informe del hash y solo sube archivos desconocidos.
+- Envío de URLs desconocidas a la cola de VirusTotal.
+- Resultados normalizados con detecciones totales, motores maliciosos o sospechosos, etiquetas, reputación y enlace al informe.
+- Caché en memoria con caducidad para ahorrar cuota y tratamiento específico de límites HTTP 429 y fallos temporales.
+
+### Web y Mini App
+- Centro de Seguridad ampliado en la subpágina master de la Mini App con análisis de fotos, selector VirusTotal e historial.
+- Los mismos análisis están disponibles en el panel web clásico.
+- Los archivos temporales se eliminan después de cada análisis, también cuando se produce un error.
+- Versión visible sincronizada a `v16.86.0`.
 
 ## [v16.85.0] - 2026-07-25
 ### Suite avanzada de grupos — web y Mini App
