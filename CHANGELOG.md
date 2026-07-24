@@ -1,5 +1,128 @@
 ﻿# Changelog - Moon Multibot
 
+## [Unreleased] — Roadmap de 100 funciones propuestas
+> Estas funciones son propuestas priorizables y todavía no se consideran implementadas.
+
+### Moderación y seguridad (1–10)
+1. Modo lento adaptativo según el volumen y riesgo del chat.
+2. Detección coordinada de raids entre varios grupos.
+3. Cuarentena reforzada por nivel de reputación.
+4. Bloqueo de suplantaciones de administradores.
+5. Detección de enlaces acortados y redirecciones encadenadas.
+6. Análisis de archivos peligrosos por hash y tipo MIME.
+7. Límites personalizados de menciones, emojis y mayúsculas.
+8. Reincidencia compartida entre grupos autorizados.
+9. Simulación previa de reglas antes de activarlas.
+10. Caducidad y revisión automática de sanciones.
+
+### Miembros y comunidad (11–20)
+11. Perfil comunitario con actividad, karma y roles.
+12. Solicitudes para obtener roles personalizados.
+13. Programa de mentores para nuevos miembros.
+14. Reconocimientos semanales a colaboradores.
+15. Sistema configurable de niveles y experiencia.
+16. Directorio interno de miembros verificados.
+17. Encuestas de satisfacción y clima del grupo.
+18. Buzón anónimo con protección antiabuso.
+19. Recordatorios personales gestionados por el bot.
+20. Panel de preferencias de notificaciones por usuario.
+
+### Administración de grupos (21–30)
+21. Asistente inicial de configuración por tipo de comunidad.
+22. Comparador de configuración entre grupos.
+23. Sincronización selectiva de reglas y roles.
+24. Historial de cambios con restauración por versión.
+25. Aprobación dual para cambios críticos.
+26. Delegación temporal de permisos administrativos.
+27. Calendario común de acciones y eventos.
+28. Horarios de apertura y cierre del chat.
+29. Archivado automático de grupos inactivos.
+30. Comprobación periódica de permisos del bot.
+
+### Automatización y contenido (31–40)
+31. Publicaciones recurrentes con calendario visual.
+32. Flujo de aprobación editorial antes de publicar.
+33. Biblioteca compartida de mensajes y recursos.
+34. Variables dinámicas en plantillas.
+35. Traducción automática opcional de publicaciones.
+36. Reutilización de contenido entre canales autorizados.
+37. Caducidad automática de mensajes promocionales.
+38. Respuestas por palabra clave con condiciones.
+39. Formularios conversacionales configurables.
+40. Webhooks por eventos de grupo.
+
+### Inteligencia artificial (41–50)
+41. Resúmenes diarios, semanales y por tema.
+42. Respuestas basadas exclusivamente en fuentes aprobadas.
+43. Detección de preguntas sin respuesta.
+44. Clasificación automática de conversaciones por tema.
+45. Explicación legible de cada decisión de moderación.
+46. Comparador de precisión entre modelos.
+47. Pruebas A/B de respuestas automáticas.
+48. Memoria separada y exportable por grupo.
+49. Detección de cambios de tono y conflictos emergentes.
+50. Asistente para redactar reglas comunitarias.
+
+### Eventos y participación (51–60)
+51. Creación guiada de eventos en Telegram.
+52. Inscripciones con cupos y lista de espera.
+53. Confirmación de asistencia y recordatorios.
+54. Sorteos auditables con reglas configurables.
+55. Concursos con jurado y votación comunitaria.
+56. Retos periódicos con progreso y clasificación.
+57. Sesiones de preguntas y respuestas moderadas.
+58. Agenda comunitaria exportable a calendario.
+59. Certificados o insignias de participación.
+60. Estadísticas posteriores a cada evento.
+
+### Analítica e informes (61–70)
+61. Retención de miembros por cohortes.
+62. Embudo de entrada desde solicitud hasta participación.
+63. Horas y días con mayor actividad.
+64. Crecimiento orgánico frente a campañas.
+65. Panel de salud comunitaria.
+66. Alertas por anomalías en métricas.
+67. Informes programados por Telegram o correo.
+68. Comparación anónima entre grupos propios.
+69. Exportación compatible con herramientas BI.
+70. Objetivos mensuales con seguimiento visual.
+
+### Bots, integraciones y API (71–80)
+71. Marketplace interno de módulos verificados.
+72. Tokens de API con permisos granulares.
+73. Rotación automática de credenciales.
+74. Entorno de pruebas aislado por bot.
+75. Monitor de cuotas y límites de Telegram.
+76. Integración con calendarios externos.
+77. Integración con gestores de incidencias.
+78. Importación y exportación de configuración firmada.
+79. Registro de webhooks con reintentos y cola muerta.
+80. SDK documentado para extensiones de Moonbot.
+
+### Operaciones y fiabilidad (81–90)
+81. Despliegues graduales entre instancias.
+82. Reversión automática ante fallos de salud.
+83. Copias cifradas con política de retención.
+84. Restauración selectiva por grupo o módulo.
+85. Panel de dependencias y servicios externos.
+86. Alertas de disco, memoria, CPU y latencia.
+87. Modo degradado cuando falla la IA o CAS.
+88. Diagnóstico automático con recomendaciones.
+89. Registro de errores agrupado por causa.
+90. Ventanas de mantenimiento programadas.
+
+### Experiencia web y Mini App (91–100)
+91. Buscador global de acciones y ajustes.
+92. Acciones favoritas en la portada.
+93. Navegación con historial y enlaces internos.
+94. Centro unificado de notificaciones.
+95. Modo compacto para administradores avanzados.
+96. Accesibilidad mejorada y control de tamaño de texto.
+97. Temas visuales por grupo.
+98. Panel personalizable mediante widgets.
+99. Trabajo offline con sincronización posterior.
+100. Recorrido guiado para cada función nueva.
+
 ## [v16.85.0] - 2026-07-25
 ### Suite avanzada de grupos — web y Mini App
 - Diez herramientas compartidas y persistentes: cuarentena para miembros nuevos, escudo anti-raid, reglas horarias, reportes mediante `/report`, decisiones por consenso, historial contextual, roles personalizados, bienvenidas, resúmenes inteligentes y plantillas con copia JSON.
