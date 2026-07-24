@@ -151,6 +151,31 @@
   .casbox .k{color:var(--muted);}
   .casbox .banned{color:var(--red);font-weight:600;} .casbox .clean{color:var(--teal);font-weight:600;}
 
+  /* ── Centro de control master ── */
+  .master-hero{position:relative;overflow:hidden;border-color:rgba(93,202,165,.28);
+    background:linear-gradient(145deg,rgba(93,202,165,.11),rgba(34,211,238,.035) 62%,var(--card));}
+  .master-hero::after{content:'';position:absolute;width:120px;height:120px;right:-45px;top:-50px;border-radius:50%;
+    background:var(--teal);filter:blur(45px);opacity:.14;pointer-events:none;}
+  .master-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);}
+  .master-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0 18px;}
+  .master-metric{min-width:0;border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--card);}
+  .master-metric .mv{font-family:var(--mono);font-size:21px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .master-metric .ml{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px;}
+  .master-metric.good .mv{color:var(--teal)} .master-metric.warn .mv{color:var(--amber)}
+  .master-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px;}
+  .master-action{min-height:88px;text-align:left;border:1px solid var(--line);border-radius:14px;padding:13px;
+    background:var(--card);color:var(--ink);font-family:var(--body);cursor:pointer;transition:.15s;}
+  .master-action:active{transform:translateY(1px);background:rgba(255,255,255,.06);}
+  .master-action .mai{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--teal);
+    background:rgba(93,202,165,.09);margin-bottom:8px;font-size:16px;}
+  .master-action b{display:block;font-size:13.5px;font-weight:600}.master-action small{display:block;color:var(--muted);font-size:11px;margin-top:2px;}
+  .master-action.danger .mai{color:var(--red);background:rgba(248,113,113,.08);}
+  .master-toolbar{display:flex;gap:8px;margin:0 0 12px}.master-toolbar .btn{margin:0;padding:10px 12px;font-size:13px;}
+  .master-list{margin-bottom:12px}.master-list .userchip{margin-bottom:7px}.master-list .uid{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+  .master-status{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--teal);}
+  .master-status::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor;}
+  .master-error{padding:11px 13px;border:1px solid rgba(248,113,113,.25);border-radius:12px;color:var(--red);font-size:12.5px;}
+
   /* ── Grid de servicios (Red) ── */
   .services{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
   .svc{border:1px solid var(--line);border-radius:13px;padding:13px;font-size:13.5px;font-weight:600;cursor:pointer;
@@ -198,6 +223,7 @@
     justify-content:center;gap:3px;color:var(--muted);font-family:var(--body);font-size:10.5px;font-weight:500;transition:.15s;}
   .tab svg{font-size:21px;}
   .tab.active{color:var(--teal);}
+  .tab[hidden]{display:none;}
 
   /* ── Tema clásico ── */
   #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;}
@@ -223,6 +249,7 @@
   <main>
     <section class="view" data-view="canales" id="v-canales"></section>
     <section class="view" data-view="admin" id="v-admin" hidden></section>
+    <section class="view" data-view="master" id="v-master" hidden></section>
     <section class="view" data-view="directorio" id="v-directorio" hidden></section>
     <section class="view" data-view="red" id="v-red" hidden></section>
     <section class="view" data-view="ajustes" id="v-ajustes" hidden></section>
@@ -232,6 +259,7 @@
   <nav class="tabbar">
     <button class="tab active" data-tab="canales" data-ic="megaphone"><span>Mis canales</span></button>
     <button class="tab" data-tab="admin" data-ic="shield"><span>Administrar</span></button>
+    <button class="tab" data-tab="master" data-ic="bot" id="masterTab" hidden><span>Master</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
   </nav>
@@ -270,6 +298,7 @@
   if(tg){try{tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor("#070b14");tg.setBackgroundColor&&tg.setBackgroundColor("#070b14");}catch(e){}}
   const user=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||null;
   let master=false;
+  let masterToken="";
   const BOT="CintiaBot";
   const ADD_LINK=`https://t.me/${BOT}?startchannel&admin=post_messages+edit_messages+invite_users`;
 
@@ -277,11 +306,15 @@
   const IC={
     settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     megaphone:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+    bot:'<rect width="18" height="13" x="3" y="8" rx="2"/><path d="M12 3v5"/><path d="M8 12h.01"/><path d="M16 12h.01"/><path d="M9 17h6"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
     compass:'<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
     share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
     plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
     ext:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    refresh:'<path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/>',
     chevron:'<path d="m9 18 6-6-6-6"/>',
     trendup:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
     trenddown:'<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
@@ -304,6 +337,17 @@
   function initials(s){return(s||"C").replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||"CH";}
   async function apiGet(p){try{const r=await fetch(API+p);return await r.json();}catch(e){return null;}}
   async function apiPost(p,b){try{const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return await r.json();}catch(e){return null;}}
+  async function masterApi(p,opts={}){
+    if(!masterToken)return null;
+    const headers={...(opts.headers||{}),Authorization:`Bearer ${masterToken}`};
+    if(opts.body&&!headers["Content-Type"])headers["Content-Type"]="application/json";
+    try{const r=await fetch(p,{...opts,headers});const data=await r.json();return {...data,_status:r.status};}
+    catch(e){return null;}
+  }
+  async function masterConfirm(message){
+    if(tg&&tg.showConfirm)return new Promise(resolve=>tg.showConfirm(message,resolve));
+    return window.confirm(message);
+  }
   // Evento GA4 seguro (no rompe la app si gtag no está / está bloqueado). Sin PII.
   function ev(name,params){try{if(window.gtag)gtag("event",name,params||{});}catch(e){}}
 
@@ -634,29 +678,261 @@
   }
   async function loadAdmin(){
     const el=document.getElementById("v-admin");
+    el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Tus grupos y canales asociados. Toca uno para gestionarlo.</div><div id="adminList">${skel()}</div>`;
+    let chs=[];
+    if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
+    const list=document.getElementById("adminList");
+    if(!chs.length){ list.innerHTML=`<p class="muted">No administras ningún grupo o canal todavía. Añade @${BOT} como admin.</p>`; return; }
+    list.innerHTML=chs.map(adminRow).join(""); bindSwitches(list);
+  }
+
+  async function loadMaster(){
+    const el=document.getElementById("v-master");
     if(!master){
-      el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Tus canales. Actívalos para publicarlos en el directorio.</div><div id="adminList">${skel()}</div>`;
-      let chs=[];
-      if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
-      const list=document.getElementById("adminList");
-      if(!chs.length){ list.innerHTML=`<p class="muted">No administras ningún canal todavía. Añade @${BOT} como admin.</p>`; return; }
-      list.innerHTML=chs.map(adminRow).join(""); bindSwitches(list);
+      el.innerHTML=`<div class="master-error">Esta sección sólo está disponible para el master verificado.</div>`;
       return;
     }
-    // MASTER: panel moonbot (solo tú) + TODOS los canales del bot
-    el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Todos los canales y grupos donde está el bot.</div>
-      <div class="card"><h3>Panel Moonbot</h3><p>Administración completa del bot: moderación, IA, seguridad, proxies, bots.</p>
-        <button class="btn teal" id="goPanel" style="margin-top:13px;">${svg('shield')} Acceder al panel Moonbot</button></div>
-      <div class="sec">Canales del bot <span id="adCount"></span></div>
+    // MASTER: centro de control integrado + TODOS los canales del bot
+    el.innerHTML=`<div class="vtitle">Centro de control</div><div class="vsub">Administración master de Moonbot y toda la red.</div>
+      <div class="card master-hero">
+        <div class="master-kicker">Acceso master verificado</div>
+        <h3 style="margin-top:5px">Todo bajo control</h3>
+        <p>Estado, usuarios, seguridad, proxies y operaciones rápidas sin salir de Telegram.</p>
+        <div class="master-status" style="margin-top:10px">Sesión protegida activa</div>
+      </div>
+      <div class="master-grid" id="masterMetrics">
+        <div class="master-metric"><div class="mv">—</div><div class="ml">Usuarios</div></div>
+        <div class="master-metric"><div class="mv">—</div><div class="ml">Grupos</div></div>
+        <div class="master-metric"><div class="mv">—</div><div class="ml">CPU</div></div>
+        <div class="master-metric"><div class="mv">—</div><div class="ml">Proxies</div></div>
+      </div>
+      <div class="sec">Acciones master</div>
+      <div class="master-action-grid">
+        <button class="master-action" id="masterUsers"><span class="mai">${svg('users')}</span><b>Usuarios y baneos</b><small>Consultar, banear o restaurar</small></button>
+        <button class="master-action" id="masterProxies"><span class="mai">${svg('globe')}</span><b>Proxies</b><small>Estado y controles MTProto</small></button>
+        <button class="master-action" id="masterBots"><span class="mai">${svg('bot')}</span><b>Bots conectados</b><small>Nodos, chats y nuevas instancias</small></button>
+        <button class="master-action" id="masterIA"><span class="mai">${svg('sparkles')}</span><b>Moon IA</b><small>Aprendizaje, modo y fuentes</small></button>
+        <button class="master-action" id="masterQueue"><span class="mai">${svg('clock')}</span><b>Cola de tareas</b><small>Priorizar o cancelar procesos</small></button>
+        <button class="master-action" id="masterSecurity"><span class="mai">${svg('shield')}</span><b>Seguridad</b><small>Escudo neural y consulta CAS</small></button>
+        <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
+        <button class="master-action" id="masterBackup"><span class="mai">${svg('download')}</span><b>Crear backup</b><small>Copia inmediata del sistema</small></button>
+        <button class="master-action danger" id="masterMaintenance"><span class="mai">${svg('shield')}</span><b>Mantenimiento</b><small>Activar o desactivar el modo</small></button>
+      </div>
+      <div class="master-toolbar">
+        <button class="btn ghost" id="masterRefresh">${svg('refresh')} Actualizar</button>
+        <button class="btn teal" id="goPanel">${svg('ext')} Panel avanzado</button>
+      </div>
+      <div id="masterDetail" class="master-list"></div>
+      <div class="sec">Canales del bot <span id="masterChannelCount"></span></div>
       <p class="muted" style="margin:-4px 2px 12px;">Interruptor = publicar en el directorio público.</p>
-      <div id="adminList">${skel()}</div>`;
+      <div id="masterChannelList">${skel()}</div>`;
     document.getElementById("goPanel").onclick=()=>openLink("https://cintiabot.todosobreall.tech/panel");
+    document.getElementById("masterRefresh").onclick=loadMasterOverview;
+    document.getElementById("masterUsers").onclick=loadMasterUsers;
+    document.getElementById("masterProxies").onclick=loadMasterProxies;
+    document.getElementById("masterBots").onclick=loadMasterBots;
+    document.getElementById("masterIA").onclick=loadMasterIA;
+    document.getElementById("masterQueue").onclick=loadMasterQueue;
+    document.getElementById("masterSecurity").onclick=loadMasterSecurity;
+    document.getElementById("masterBroadcast").onclick=loadMasterBroadcast;
+    document.getElementById("masterBackup").onclick=createMasterBackup;
+    document.getElementById("masterMaintenance").onclick=toggleMasterMaintenance;
+    await loadMasterOverview();
     const d=await apiPost("/admin/channels",{initData:tg.initData});
     const chs=(d&&d.ok&&d.channels)||[];
-    document.getElementById("adCount").textContent=`(${chs.length})`;
-    const list=document.getElementById("adminList");
+    document.getElementById("masterChannelCount").textContent=`(${chs.length})`;
+    const list=document.getElementById("masterChannelList");
     list.innerHTML=chs.length?chs.map(adminRow).join(""):`<p class="muted">El bot no está en ningún canal todavía.</p>`;
     bindSwitches(list);
+  }
+
+  async function loadMasterOverview(){
+    const metrics=document.getElementById("masterMetrics");
+    if(!metrics)return;
+    metrics.style.opacity=".55";
+    const [summary,status,proxies]=await Promise.all([
+      masterApi("/api/admin/summary"),masterApi("/api/status"),masterApi("/api/proxies/stats")
+    ]);
+    const proxyList=(proxies&&proxies.proxies)||[];
+    const active=proxyList.filter(p=>p.running||p.active||p.status==="running").length;
+    metrics.innerHTML=`
+      <div class="master-metric good"><div class="mv">${fmt(summary&&summary.total_users)}</div><div class="ml">Usuarios</div></div>
+      <div class="master-metric"><div class="mv">${fmt(summary&&summary.total_groups)}</div><div class="ml">Grupos</div></div>
+      <div class="master-metric ${(status&&status.cpu)<80?'good':'warn'}"><div class="mv">${status&&status.cpu!=null?Math.round(status.cpu)+"%":"—"}</div><div class="ml">CPU · RAM ${status&&status.ram!=null?Math.round(status.ram)+"%":"—"}</div></div>
+      <div class="master-metric ${active?'good':''}"><div class="mv">${active}/${proxyList.length}</div><div class="ml">Proxies activos</div></div>`;
+    metrics.style.opacity="1";
+  }
+  async function loadMasterUsers(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const [summary,users,bans]=await Promise.all([
+      masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/bans")
+    ]);
+    const top=(users&&users.users)||[], banned=(bans&&bans.bans)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
+      <div class="dbody">
+        <div class="gsec" style="margin-top:8px">Ban global</div>
+        <div class="btnrow"><input id="masterBanUid" inputmode="numeric" placeholder="ID de usuario"><button class="btn ghost" id="masterBanBtn" style="width:auto">Banear</button></div>
+        <input id="masterBanReason" placeholder="Motivo (opcional)" style="margin-top:8px">
+        <div class="gsec">Más activos</div>
+        ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
+        <div class="gsec">Baneos globales</div>
+        ${banned.length?banned.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)}<small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")}</small></span><button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button></div>`).join(""):`<p class="muted">No hay usuarios baneados.</p>`}
+      </div></div>`;
+    document.getElementById("masterBanBtn").onclick=banMasterUser;
+    box.querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanMasterUser(b.dataset.unban));
+  }
+  async function banMasterUser(){
+    const uid=document.getElementById("masterBanUid").value.trim();
+    const reason=document.getElementById("masterBanReason").value.trim()||"Ban desde la Mini App master";
+    if(!uid){showToast("Introduce un ID de usuario");return;}
+    if(!await masterConfirm(`¿Banear globalmente al usuario ${uid}?`))return;
+    const r=await masterApi("/api/users/ban",{method:"POST",body:JSON.stringify({uid,reason,scope:"global"})});
+    if(r&&r.ok){showToast("Usuario baneado");loadMasterUsers();loadMasterOverview();}else showToast((r&&(r.msg||r.message))||"No se pudo banear");
+  }
+  async function unbanMasterUser(uid){
+    if(!await masterConfirm(`¿Restaurar al usuario ${uid}?`))return;
+    const r=await masterApi("/api/admin/unban",{method:"POST",body:JSON.stringify({user_id:uid})});
+    if(r&&r.ok){showToast("Usuario restaurado");loadMasterUsers();loadMasterOverview();}else showToast((r&&(r.msg||r.message))||"No se pudo restaurar");
+  }
+  async function loadMasterProxies(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const r=await masterApi("/api/proxies/stats"), proxies=(r&&r.proxies)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Proxies MTProto <span class="rbadge">${proxies.length}</span></div><div class="dbody">
+      ${proxies.length?proxies.map((p,i)=>{const on=p.running||p.active||p.status==="running";return `<div class="userchip">
+        <span class="uid">${escHtml(p.name||p.server||("Proxy "+(i+1)))}<small style="display:block;color:var(--muted)">${escHtml(p.port||p.status||"MTProto")}</small></span>
+        <button class="minibtn ${on?'red':''}" data-proxy="${i}" data-action="${on?'stop':'start'}">${on?'Detener':'Iniciar'}</button></div>`;}).join(""):`<p class="muted">No hay proxies configurados.</p>`}
+      <button class="btn ghost" id="masterScanProxies" style="margin-top:9px">${svg('refresh')} Detectar contenedores</button>
+    </div></div>`;
+    box.querySelectorAll("[data-proxy]").forEach(b=>b.onclick=()=>toggleMasterProxy(Number(b.dataset.proxy),b.dataset.action));
+    document.getElementById("masterScanProxies").onclick=scanMasterProxies;
+  }
+  async function toggleMasterProxy(index,action){
+    if(!await masterConfirm(`¿${action==="start"?"Iniciar":"Detener"} este proxy?`))return;
+    const r=await masterApi("/api/proxies/toggle",{method:"POST",body:JSON.stringify({index,action})});
+    if(r&&r.ok){showToast("Proxy actualizado");loadMasterProxies();loadMasterOverview();}else showToast("No se pudo actualizar");
+  }
+  async function scanMasterProxies(){
+    const r=await masterApi("/api/proxies/scan");
+    if(r&&r.ok){showToast(`${fmt(r.detected&&r.detected.length||r.detected||0)} detectados`);loadMasterProxies();}else showToast("No se pudo completar el escaneo");
+  }
+  async function loadMasterBots(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const r=await masterApi("/api/bots"), bots=(r&&r.bots)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Bots conectados <span class="rbadge">${bots.length}</span></div><div class="dbody">
+      ${bots.length?bots.map(b=>`<div class="userchip">
+        <span class="uid">${escHtml(b.name||"Bot")}<small style="display:block;color:var(--muted)">${escHtml(b.token_preview||"Token protegido")} · ${(b.chats||[]).length} chats</small></span>
+        <button class="minibtn red" data-delete-bot="${escAttr(b.id)}" data-bot-name="${escAttr(b.name)}">Desconectar</button>
+      </div>`).join(""):`<p class="muted">No hay bots conectados.</p>`}
+      <div class="gsec">Vincular bot</div>
+      <input id="masterBotToken" type="password" autocomplete="off" placeholder="Token proporcionado por BotFather">
+      <button class="btn ghost" id="masterAddBot" style="margin-top:9px">${svg('plus')} Añadir instancia</button>
+    </div></div>`;
+    document.getElementById("masterAddBot").onclick=addMasterBot;
+    box.querySelectorAll("[data-delete-bot]").forEach(b=>b.onclick=()=>deleteMasterBot(b.dataset.deleteBot,b.dataset.botName));
+  }
+  async function addMasterBot(){
+    const input=document.getElementById("masterBotToken"),token=input.value.trim();
+    if(!token){showToast("Introduce el token del bot");return;}
+    if(!await masterConfirm("¿Vincular esta nueva instancia de bot?"))return;
+    const r=await masterApi("/api/bots",{method:"POST",body:JSON.stringify({token})});
+    input.value="";
+    if(r&&r.ok){showToast("Bot vinculado");loadMasterBots();}else showToast((r&&r.msg)||"No se pudo vincular");
+  }
+  async function deleteMasterBot(id,name){
+    if(!await masterConfirm(`¿Desconectar ${name||"este bot"}?`))return;
+    const r=await masterApi("/api/bots",{method:"DELETE",body:JSON.stringify({id})});
+    if(r&&r.ok){showToast("Bot desconectado");loadMasterBots();}else showToast((r&&r.msg)||"No se pudo desconectar");
+  }
+  async function loadMasterIA(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const [ia,inline]=await Promise.all([masterApi("/api/ia/stats"),masterApi("/api/ia/inline_stats")]);
+    const s=(ia&&ia.stats)||{}, q=(inline&&inline.summary)||{}, feeders=(ia&&ia.feeders)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Moon IA <span class="rbadge">${escHtml(ia&&ia.ia_mode||"—")}</span></div><div class="dbody">
+      <div class="master-grid" style="margin-top:8px">
+        <div class="master-metric good"><div class="mv">${fmt(s.words)}</div><div class="ml">Palabras</div></div>
+        <div class="master-metric"><div class="mv">${fmt(s.connections)}</div><div class="ml">Conexiones</div></div>
+        <div class="master-metric"><div class="mv">${fmt(q.total_requests)}</div><div class="ml">Consultas IA</div></div>
+        <div class="master-metric"><div class="mv">${q.success_rate_percent!=null?Math.round(q.success_rate_percent)+"%":"—"}</div><div class="ml">Éxito</div></div>
+      </div>
+      <div class="casbox"><span class="k">Modo:</span> ${escHtml(ia&&ia.ia_mode||"—")}<br><span class="k">Ánimo:</span> ${escHtml(ia&&ia.ia_mood||"—")}<br><span class="k">Escucha:</span> ${ia&&ia.listen_mode?"activa":"desactivada"}</div>
+      <div class="gsec">Fuentes de aprendizaje</div>
+      ${feeders.length?feeders.slice(0,8).map(f=>`<div class="userchip"><span class="uid">${escHtml(f.name||f.id)}</span><span class="w">${escHtml(f.status||"—")}</span></div>`).join(""):`<p class="muted">No hay fuentes configuradas.</p>`}
+    </div></div>`;
+  }
+  async function loadMasterQueue(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const [queue,health]=await Promise.all([masterApi("/api/queue/list"),masterApi("/api/health/telegram")]);
+    const tasks=(queue&&queue.queue)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Cola de tareas <span class="master-status">${escHtml(health&&health.status||"DESCONOCIDO")} · ${escHtml(health&&health.ping||"—")}</span></div><div class="dbody">
+      ${tasks.length?tasks.map(t=>`<div class="userchip">
+        <span class="uid">#${escHtml(t.id)} · ${escHtml(t.type||"tarea")}<small style="display:block;color:var(--muted)">${escHtml(t.target||"sin destino")} · prioridad ${escHtml(t.priority)}</small></span>
+        <span style="display:flex;gap:5px"><button class="minibtn" data-priority="${escAttr(t.id)}">Priorizar</button><button class="minibtn red" data-cancel="${escAttr(t.id)}">Cancelar</button></span>
+      </div>`).join(""):`<p class="muted">La cola está vacía.</p>`}
+    </div></div>`;
+    box.querySelectorAll("[data-priority]").forEach(b=>b.onclick=()=>updateMasterTask(b.dataset.priority,"prioritize"));
+    box.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>updateMasterTask(b.dataset.cancel,"cancel"));
+  }
+  async function updateMasterTask(id,action){
+    if(action==="cancel"&&!await masterConfirm(`¿Cancelar la tarea #${id}?`))return;
+    const r=await masterApi(`/api/queue/${action}`,{method:"POST",body:JSON.stringify({id:Number(id)||id})});
+    if(r&&r.ok){showToast(action==="cancel"?"Tarea cancelada":"Tarea priorizada");loadMasterQueue();}else showToast("No se pudo actualizar la tarea");
+  }
+  async function loadMasterSecurity(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const [vision,audit]=await Promise.all([masterApi("/api/vision/stats"),masterApi("/api/security/audit")]);
+    const logs=(audit&&audit.logs)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Seguridad <span class="rbadge">${vision&&vision.shield_enabled?"escudo activo":"escudo inactivo"}</span></div><div class="dbody">
+      <div class="master-grid" style="margin-top:8px">
+        <div class="master-metric"><div class="mv">${fmt(vision&&vision.photos)}</div><div class="ml">Fotos analizadas</div></div>
+        <div class="master-metric warn"><div class="mv">${fmt(vision&&vision.threats)}</div><div class="ml">Amenazas</div></div>
+      </div>
+      <button class="btn ${vision&&vision.shield_enabled?'ghost':'teal'}" id="masterShield">${svg('shield')} ${vision&&vision.shield_enabled?'Desactivar':'Activar'} escudo neural</button>
+      <div class="gsec">Consultar CAS</div>
+      <div class="btnrow"><input id="masterCasUid" inputmode="numeric" placeholder="ID de Telegram"><button class="btn ghost" id="masterCasCheck" style="width:auto">Consultar</button></div>
+      <div id="masterCasResult"></div>
+      <div class="gsec">Auditoría reciente</div>
+      ${logs.length?logs.slice(-5).reverse().map(x=>`<div class="casbox">${escHtml(typeof x==="string"?x:(x.message||x.action||JSON.stringify(x)))}</div>`).join(""):`<p class="muted">Sin incidencias recientes.</p>`}
+    </div></div>`;
+    document.getElementById("masterShield").onclick=toggleMasterShield;
+    document.getElementById("masterCasCheck").onclick=checkMasterCas;
+  }
+  async function toggleMasterShield(){
+    if(!await masterConfirm("¿Cambiar el estado del escudo neural?"))return;
+    const r=await masterApi("/api/admin/shield",{method:"POST"});
+    if(r&&r.ok){showToast(r.enabled?"Escudo activado":"Escudo desactivado");loadMasterSecurity();}else showToast("No se pudo cambiar");
+  }
+  async function checkMasterCas(){
+    const uid=document.getElementById("masterCasUid").value.trim(),out=document.getElementById("masterCasResult");
+    if(!uid){showToast("Introduce un ID de Telegram");return;}
+    out.innerHTML=`<p class="muted" style="margin-top:9px">Consultando CAS…</p>`;
+    const r=await masterApi(`/api/security/cas/check/${encodeURIComponent(uid)}`);
+    out.innerHTML=r&&r.ok?`<div class="casbox" style="margin-top:9px"><span class="${r.cas_banned?'banned':'clean'}">${r.cas_banned?'Usuario reportado en CAS':'Sin reportes en CAS'}</span></div>`:`<div class="master-error" style="margin-top:9px">No se pudo consultar CAS.</div>`;
+  }
+  function loadMasterBroadcast(){
+    const box=document.getElementById("masterDetail");
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Comunicado global <span class="rbadge">todos los chats</span></div><div class="dbody">
+      <p class="muted" style="margin:6px 0 10px">El mensaje se enviará a todos los grupos conocidos por Moonbot.</p>
+      <textarea id="masterBroadcastText" rows="5" maxlength="3500" placeholder="Escribe el comunicado…"></textarea>
+      <button class="btn cta" id="masterBroadcastSend" style="margin-top:9px">${svg('megaphone')} Revisar y enviar</button>
+    </div></div>`;
+    document.getElementById("masterBroadcastSend").onclick=sendMasterBroadcast;
+  }
+  async function sendMasterBroadcast(){
+    const input=document.getElementById("masterBroadcastText"),message=input.value.trim();
+    if(!message){showToast("Escribe el comunicado");return;}
+    if(!await masterConfirm("¿Enviar este comunicado a todos los chats?"))return;
+    const r=await masterApi("/api/admin/broadcast",{method:"POST",body:JSON.stringify({message})});
+    if(r&&r.ok){input.value="";showToast(`Enviado a ${fmt(r.count)} chats`);}else showToast((r&&r.msg)||"No se pudo enviar");
+  }
+  async function createMasterBackup(){
+    if(!await masterConfirm("¿Crear una copia de seguridad ahora?"))return;
+    const r=await masterApi("/api/admin/backup",{method:"POST"});
+    showToast(r&&r.ok?"Backup creado":"No se pudo crear el backup");
+  }
+  async function toggleMasterMaintenance(){
+    if(!await masterConfirm("¿Cambiar el estado del modo mantenimiento?"))return;
+    const r=await masterApi("/api/admin/maintenance",{method:"POST"});
+    showToast(r&&r.ok?`Mantenimiento ${r.enabled?"activado":"desactivado"}`:"No se pudo cambiar");
   }
 
   // ── Directorio ──
@@ -730,7 +1006,7 @@
   function reflectTheme(){document.querySelectorAll("[data-theme-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.themeOpt===curTheme));}
 
   // ── Navegación ──
-  const LOADERS={canales:loadCanales,admin:loadAdmin,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
+  const LOADERS={canales:loadCanales,admin:loadAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
   function showView(name){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
@@ -797,7 +1073,11 @@
     if(user&&user.first_name)document.getElementById("uname").textContent=user.first_name;
     if(tg&&tg.initData){
       const d=await apiPost("/tg_auth",{initData:tg.initData});
-      if(d&&d.ok&&d.is_master){master=true;document.getElementById("roleBadge").hidden=false;}
+      if(d&&d.ok&&d.is_master){
+        master=true;masterToken=d.token||"";
+        document.getElementById("roleBadge").hidden=false;
+        document.getElementById("masterTab").hidden=false;
+      }
     }
     const t=await loadTheme();
     applyTheme(t);
