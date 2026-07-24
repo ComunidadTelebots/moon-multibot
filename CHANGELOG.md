@@ -142,6 +142,99 @@
 - Nuevas acciones de administración para usuarios, administradores de grupo y master, con permisos comprobados en servidor.
 - Las trece acciones del panel master abren ahora una subpágina completa con flecha atrás; la lista y su posición se conservan al regresar.
 
+### Mini App, identidad y navegación
+- Mini App principal en `hub.html` con validación criptográfica de `initData`, caducidad de sesión y verificación exclusiva contra el bot configurado como hub.
+- Dos experiencias separadas: espacios asociados al usuario y centro master de canales propios; un administrador de grupo no recibe permisos globales.
+- Navegación por Mis canales, Administrar, Master, Directorio, Red y Ajustes, más una pantalla independiente para cada grupo.
+- Tema nuevo y tema clásico seleccionables, con preferencia persistida mediante Telegram CloudStorage y almacenamiento local.
+- Temas visuales estacionales y festivos integrados sin modificar las funciones ni los permisos.
+- Apertura segura de enlaces internos de Telegram y enlaces externos desde la Mini App.
+- Estados de carga, vacíos, errores y avisos breves adaptados a dispositivos móviles.
+
+### Canales, directorio y estadísticas
+- Registro de canales en PocketBase con propiedad, tipo, username, visibilidad y metadatos protegidos.
+- Colector de canales y grupos observados por los bots, con backfill para instalaciones anteriores.
+- Asociación de espacios al usuario autenticado y comprobación de administración mediante Telegram.
+- Buscador, filtros por tipo y ordenación de los canales asociados.
+- Ordenación de canales personales por recientes, suscriptores, crecimiento o nombre.
+- Favoritos y accesos recientes persistentes para volver rápidamente a los espacios usados.
+- Publicación o retirada de cada canal del directorio público mediante interruptor.
+- Estadísticas globales, detalle por canal, ranking, snapshots de suscriptores y crecimiento a 30 días.
+- Directorio público ordenable por suscriptores con búsqueda y filtro de favoritos.
+- Resumen compartible del canal con miembros, crecimiento y enlace público.
+
+### Gestión de cada grupo
+- Envío inmediato de mensajes y programación por fecha y hora desde la Mini App.
+- Listado y cancelación de publicaciones programadas.
+- Borradores persistentes por grupo y biblioteca local de plantillas de mensajes.
+- Generación de imágenes desde una descripción y envío posterior al grupo.
+- Consulta de baneados, advertencias y estado CAS de cada usuario.
+- Restauración de usuarios, retirada de advertencias y acceso a contexto antes de moderar.
+- Configuración de automoderación, antienlaces, bienvenida, escudo de seguridad y aprendizaje IA.
+- Gestión de palabras prohibidas con acciones de borrar, advertir o banear.
+- Notas privadas de moderación por grupo.
+- Exportación JSON del estado completo de moderación.
+- Estadísticas de actividad del grupo y resumen operativo para administradores.
+
+### Captcha y solicitudes de acceso
+- Captcha visual configurable para solicitudes de entrada, con número máximo de intentos y caducidad.
+- Aprobación automática de Telegram cuando el usuario supera correctamente el desafío.
+- Rechazo automático al agotar intentos o expirar la solicitud.
+- Comprobación intermedia contra export local de CAS, API de CAS y respaldo de `@cas_feed`.
+- Avisos al master y a los administradores cuando el solicitante aparece en CAS.
+- Revisión manual de solicitudes con botones de aprobar o rechazar.
+- Configuración del captcha equilibrada entre panel web y Mini App.
+
+### Registro comunitario y reputación
+- Registro estructurado de baneos globales con motivo, fuente, evidencias, grupos, autor, gravedad, revisión y vencimiento.
+- Importación compatible con la lista histórica `legacy`, enriquecida posteriormente con historial y fuentes CAS locales.
+- Contadores separados de baneos globales, CAS, locales, revocados, expirados y pendientes de revisión.
+- Búsqueda por ID, motivo o fuente y filtros por estado.
+- Exportación completa del registro en CSV y JSON.
+- Reportes de administradores que requieren aprobación master antes de incorporarse al registro global.
+- Apelaciones de usuarios con resolución, auditoría y retirada automática del bloqueo cuando se aceptan.
+- Baneos temporales con expiración automática y conservación del historial.
+- Niveles de riesgo `low`, `medium`, `high` y `critical`.
+- Claves de API revocables para integraciones comunitarias.
+- Endpoint de consulta servidor a servidor con permisos limitados, rate limit y respuesta sin evidencias privadas.
+
+### Motor de riesgo, CAS y aprendizaje
+- Motor antispam explicable que combina enlaces, repetición, patrones, campañas, muestras aprendidas y reputación.
+- Umbrales configurables para vigilar, borrar, silenciar o banear.
+- Registro de cada evento con puntuación, señales y razones legibles.
+- Retroalimentación de administradores como spam confirmado, falso positivo o caso ignorado.
+- Muestras positivas y negativas aprendidas desde grupos feeder autorizados.
+- Medición por feeder de casos revisados, aciertos, falsos positivos y precisión.
+- Detección de campañas repetidas entre mensajes y grupos.
+- Caché en memoria para consultas CAS recientes.
+- Descarga atómica y periódica de `export.csv`, cargada en una estructura local optimizada.
+- Sincronización del canal público `@cas_feed` como respaldo de baneos recientes.
+- Funcionamiento degradado: si una fuente CAS falla se prueban las demás sin bloquear el bot.
+
+### Centro master
+- Resumen general de usuarios, grupos, CPU, RAM y proxies activos.
+- Administración de usuarios y baneos, reportes, apelaciones y claves de integración.
+- Estado y control individual de proxies MTProto, además de escaneo bajo demanda.
+- Listado, alta y desconexión de instancias de bots con tokens protegidos.
+- Panel de Moon IA con palabras, idiomas, fuentes, muestras de seguridad y calidad de feeders.
+- Cola de tareas con priorización, cancelación y salud de Telegram.
+- Seguridad con estado del escudo neural, métricas visuales, auditoría y consulta CAS manual.
+- Diagnóstico del sistema con versión, recursos, registros, actualización y reinicio.
+- Informes exportables de red en texto y JSON.
+- Auditoría administrativa exportable.
+- Gestión de preguntas frecuentes y respuestas automáticas desde web y Mini App.
+- Comunicados globales con confirmación previa y contador de chats alcanzados.
+- Creación manual de backups con confirmación y resultado visible.
+- Pantalla de mantenimiento con estado actual y activación o desactivación confirmada.
+
+### Publicidad cruzada y experiencia de usuario
+- Descubrimiento de canales compatibles para acuerdos de promoción cruzada.
+- Solicitud, recepción, aceptación y rechazo de propuestas entre canales.
+- Seguimiento separado de anuncios entrantes y salientes.
+- Historial de moderación, reportes y estadísticas exportables desde la Mini App.
+- Traducción y detección de idioma conservadas en el núcleo multilingüe.
+- Reparación de mojibake antes de mostrar o enviar contenido heredado.
+
 ## [v16.84.0] - 2026-07-11
 ### Feature - Proxies MTProto en CintiaBot (pedir, recomendar, administrar)
 - **`/proxy`**: envía al usuario los proxies MTProto propios + los del canal más cercanos a su zona, deducida por el `language_code` de Telegram (un bot no ve la IP). Botón "Pedir proxy" en `/start` (callback `req_proxy`).
