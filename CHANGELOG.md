@@ -1,6 +1,6 @@
 ﻿# Changelog - Moon Multibot
 
-## [Unreleased] — Roadmap de 100 funciones propuestas
+## [Unreleased] — Roadmap de 102 funciones propuestas
 > Estas funciones son propuestas priorizables y todavía no se consideran implementadas.
 
 ### Moderación y seguridad (1–10)
@@ -122,6 +122,10 @@
 98. Panel personalizable mediante widgets.
 99. Trabajo offline con sincronización posterior.
 100. Recorrido guiado para cada función nueva.
+
+### Análisis multimedia y amenazas (101–102)
+101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa.
+102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda.
 
 ## [v16.85.0] - 2026-07-25
 ### Suite avanzada de grupos — web y Mini App
