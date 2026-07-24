@@ -545,6 +545,14 @@
       <div class="gsec">Programados (${sched.length})</div><div id="gschedlist"></div>
       <div class="gsec">Moderación</div>
       <button class="btn ghost" id="gmoderationExport" style="margin-bottom:9px">${svg('download')} Exportar estado de moderación</button>
+      <div class="dropdown" id="dd-report"><div class="dhead">Reportar al registro comunitario <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" hidden>
+          <input id="greportUid" inputmode="numeric" placeholder="ID del usuario">
+          <textarea id="greportReason" rows="2" placeholder="Motivo detallado" style="margin-top:8px"></textarea>
+          <textarea id="greportEvidence" rows="2" placeholder="Evidencias o enlaces, uno por línea" style="margin-top:8px"></textarea>
+          <p class="muted">El reporte se enviará al master para revisión; no causa un ban automático.</p>
+          <button class="btn ghost" id="greportSend">Enviar reporte</button>
+        </div></div>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
       <div class="gsec">Acceso automático</div>
@@ -642,6 +650,21 @@
     bl.innerHTML=bans.length?bans.map(u=>userRow(u,"",'Quitar ban',`data-unban="${u}"`)).join(""):`<p class="muted">El bot no tiene baneados registrados en este grupo.</p>`;
     bl.querySelectorAll("[data-unban]").forEach(b=>b.onclick=async(e)=>{e.stopPropagation();const r=await gp("/group/unban",{user_id:b.dataset.unban});if(r&&r.ok){showToast("Desbaneado");loadGroup();}});
     bindCas(bl); bindDropdown("dd-bans");
+    bindDropdown("dd-report");
+    document.getElementById("greportSend").onclick=async()=>{
+      const user_id=document.getElementById("greportUid").value.trim();
+      const reason=document.getElementById("greportReason").value.trim();
+      const evidence=document.getElementById("greportEvidence").value.split("\n").map(v=>v.trim()).filter(Boolean);
+      if(!user_id||!reason){showToast("Indica usuario y motivo");return;}
+      if(!await masterConfirm(`¿Enviar el reporte sobre ${user_id} para revisión?`))return;
+      const r=await gp("/group/ban-report",{user_id,reason,evidence});
+      if(r&&r.ok){
+        document.getElementById("greportUid").value="";
+        document.getElementById("greportReason").value="";
+        document.getElementById("greportEvidence").value="";
+        showToast("Reporte enviado al master");
+      }else showToast((r&&(r.error||r.message))||"No se pudo enviar");
+    };
     const wl=document.getElementById("gwarns");
     wl.innerHTML=warns.length?warns.map(w=>userRow(w.user_id,` <span class="w">${w.count} avisos</span>`,'Quitar',`data-unwarn="${w.user_id}"`)).join(""):`<p class="muted">Sin avisos.</p>`;
     wl.querySelectorAll("[data-unwarn]").forEach(b=>b.onclick=async(e)=>{e.stopPropagation();const r=await gp("/group/unwarn",{user_id:b.dataset.unwarn});if(r&&r.ok){showToast("Aviso quitado");loadGroup();}});
@@ -908,7 +931,11 @@
     const a=document.createElement("a");a.href=url;a.download=filename;a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  function csvCell(value){return `"${String(value??"").replace(/"/g,'""')}"`;}
+  function csvCell(value){
+    let text=String(value??"");
+    if(/^[=+\-@]/.test(text))text="'"+text;
+    return `"${text.replace(/"/g,'""')}"`;
+  }
   function directoryRow(c,favs){
     const key=String(c.chat_id||c.username||"");
     const uname=c.username&&!String(c.username).startsWith("-")?`@${c.username}`:"Canal privado";
@@ -1005,11 +1032,12 @@
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [summary,users,registry,banStats,banHistory]=await Promise.all([
+    const [summary,users,registry,banStats,banHistory,banReports]=await Promise.all([
       masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/ban-registry?status=all&limit=500"),
-      masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30")
+      masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30"),
+      masterApi("/api/admin/ban-reports?status=pending")
     ]);
-    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], registryStats=(registry&&registry.stats)||{};
+    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], registryStats=(registry&&registry.stats)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
         <div class="master-grid" style="margin-top:8px">
@@ -1022,6 +1050,12 @@
         <div class="btnrow"><input id="masterBanUid" inputmode="numeric" placeholder="ID de usuario"><button class="btn ghost" id="masterBanBtn" style="width:auto">Banear</button></div>
         <input id="masterBanReason" placeholder="Motivo obligatorio" style="margin-top:8px">
         <textarea id="masterBanEvidence" placeholder="Evidencias o referencias, una por línea" rows="3" style="margin-top:8px"></textarea>
+        <div class="gsec">Reportes de administradores (${reports.length})</div>
+        <div id="masterBanReports">${reports.length?reports.map(r=>`<div class="casbox">
+          <b>${escHtml(r.user_id)}</b> · grupo ${escHtml(r.chat_id)}<br>${escHtml(r.reason)}
+          ${(r.evidence||[]).length?`<small style="display:block;color:var(--muted)">${r.evidence.map(escHtml).join("<br>")}</small>`:""}
+          <div class="btnrow" style="margin-top:8px"><button class="minibtn" data-report-approve="${escAttr(r.id)}">Añadir al registro</button><button class="minibtn red" data-report-reject="${escAttr(r.id)}">Descartar</button></div>
+        </div>`).join(""):`<p class="muted">No hay reportes pendientes.</p>`}</div>
         <div class="gsec">Más activos</div>
         ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
         <div class="gsec">Baneos globales</div>
@@ -1044,6 +1078,8 @@
       return `<div class="casbox"><span class="${h.action==="unban"?"clean":"banned"}">${h.action==="unban"?"Restaurado":"Baneado"}</span> · ${escHtml(h.uid)}<br><span class="k">${escHtml(h.scope||"global")} · ${escHtml(h.source||"manual")} ${date?"· "+escHtml(date):""}</span>${h.reason?`<br>${escHtml(h.reason)}`:""}</div>`;
     }).join(""):`<p class="muted">No hay acciones registradas.</p>`;
     document.getElementById("masterBanBtn").onclick=banMasterUser;
+    box.querySelectorAll("[data-report-approve]").forEach(b=>b.onclick=()=>resolveMasterBanReport(b.dataset.reportApprove,"approved"));
+    box.querySelectorAll("[data-report-reject]").forEach(b=>b.onclick=()=>resolveMasterBanReport(b.dataset.reportReject,"rejected"));
     document.getElementById("masterBanCsv").onclick=()=>exportMasterBans(banned,"csv");
     document.getElementById("masterBanJson").onclick=()=>exportMasterBans(banned,"json");
     document.getElementById("masterBanSearch").oninput=renderModeration;
@@ -1067,6 +1103,13 @@
   async function reviewMasterBan(uid){
     const r=await masterApi("/api/admin/ban-registry/review",{method:"POST",body:JSON.stringify({user_id:uid})});
     if(r&&r.ok){showToast("Registro revisado");loadMasterUsers();}else showToast("No se pudo revisar");
+  }
+  async function resolveMasterBanReport(report_id,decision){
+    const verb=decision==="approved"?"añadir al registro global":"descartar";
+    if(!await masterConfirm(`¿${verb.charAt(0).toUpperCase()+verb.slice(1)} este reporte?`))return;
+    const r=await masterApi("/api/admin/ban-reports/resolve",{method:"POST",body:JSON.stringify({report_id,decision})});
+    if(r&&r.ok){showToast(decision==="approved"?"Reporte aprobado":"Reporte descartado");loadMasterUsers();loadMasterOverview();}
+    else showToast((r&&(r.msg||r.message))||"No se pudo resolver");
   }
   function exportMasterBans(records,format){
     if(format==="json"){

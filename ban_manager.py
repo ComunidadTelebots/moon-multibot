@@ -11,6 +11,7 @@ class BanManager:
     GLOBAL_KEY = "GLOBAL_BANS"
     HISTORY_KEY = "BAN_HISTORY"
     RECORDS_KEY = "COMMUNITY_BAN_RECORDS"
+    REPORTS_KEY = "COMMUNITY_BAN_REPORTS"
     LEGACY_KEY = "ST_FILE"
     LOCAL_PREFIX = "BANS_"
 
@@ -262,6 +263,63 @@ class BanManager:
         records[uid_str] = record
         self._save_registry(records)
         return dict(record)
+
+    def create_ban_report(self, uid, reason, reported_by, chat_id, evidence=None):
+        uid_str = self._normalize_uid(uid)
+        reason = str(reason or "").strip()[:1000]
+        if not uid_str or not reason:
+            return None
+        reports = self.db.get(self.REPORTS_KEY, [])
+        if not isinstance(reports, list):
+            reports = []
+        now = datetime.datetime.now().isoformat()
+        report = {
+            "id": f"{int(datetime.datetime.now().timestamp() * 1000)}-{uid_str}",
+            "user_id": uid_str,
+            "reason": reason,
+            "evidence": self._clean_list(evidence),
+            "reported_by": str(reported_by),
+            "chat_id": self._normalize_cid(chat_id),
+            "status": "pending",
+            "created_at": now,
+            "updated_at": now,
+            "resolved_by": None,
+        }
+        reports.append(report)
+        self.db.set(self.REPORTS_KEY, reports[-2000:])
+        return dict(report)
+
+    def list_ban_reports(self, status="pending", limit=500):
+        reports = self.db.get(self.REPORTS_KEY, [])
+        if not isinstance(reports, list):
+            return []
+        rows = [
+            dict(item) for item in reports if isinstance(item, dict)
+            and (status == "all" or item.get("status", "pending") == status)
+        ]
+        rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
+        return rows[:max(1, min(int(limit), 2000))]
+
+    def resolve_ban_report(self, report_id, decision, resolved_by):
+        if decision not in ("approved", "rejected"):
+            return None
+        reports = self.db.get(self.REPORTS_KEY, [])
+        if not isinstance(reports, list):
+            return None
+        result = None
+        for report in reports:
+            if not isinstance(report, dict) or str(report.get("id")) != str(report_id):
+                continue
+            if report.get("status", "pending") != "pending":
+                return None
+            report["status"] = decision
+            report["resolved_by"] = str(resolved_by)
+            report["updated_at"] = datetime.datetime.now().isoformat()
+            result = dict(report)
+            break
+        if result:
+            self.db.set(self.REPORTS_KEY, reports[-2000:])
+        return result
 
     def get_all_local_bans(self) -> dict:
         keys = self.db.keys(self.LOCAL_PREFIX) if hasattr(self.db, "keys") else []

@@ -138,6 +138,11 @@ def _registry_stats(records):
     }
 
 
+def _safe_csv(value):
+    text = str(value or "")
+    return f"'{text}" if text.startswith(("=", "+", "-", "@")) else text
+
+
 @bp.route("/api/admin/ban-registry", methods=["GET", "POST"])
 def web_admin_ban_registry():
     if not _check_jwt(request):
@@ -161,7 +166,7 @@ def web_admin_ban_registry():
     body = request.json or {}
     user_id = str(body.get("user_id", "")).strip()
     reason = str(body.get("reason", "")).strip()
-    if not user_id or not reason:
+    if not user_id.isdigit() or not reason:
         return jsonify({"ok": False, "msg": "Faltan user_id y motivo"}), 400
     created = _ban_manager.ban_user(
         user_id,
@@ -193,6 +198,47 @@ def web_admin_ban_registry_review():
     return jsonify({"ok": True, "record": record})
 
 
+@bp.route("/api/admin/ban-reports")
+def web_admin_ban_reports():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    status = request.args.get("status", "pending")
+    if status not in ("pending", "approved", "rejected", "all"):
+        status = "pending"
+    reports = _ban_manager.list_ban_reports(status=status, limit=500) if _ban_manager else []
+    return jsonify({"ok": True, "reports": reports})
+
+
+@bp.route("/api/admin/ban-reports/resolve", methods=["POST"])
+def web_admin_ban_reports_resolve():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    report_id = str(body.get("report_id", "")).strip()
+    decision = body.get("decision")
+    if decision not in ("approved", "rejected"):
+        return jsonify({"ok": False, "msg": "Decisión inválida"}), 400
+    pending = next((
+        item for item in (_ban_manager.list_ban_reports(status="pending", limit=2000) if _ban_manager else [])
+        if str(item.get("id")) == report_id
+    ), None)
+    if not pending:
+        return jsonify({"ok": False, "msg": "Reporte no encontrado o ya resuelto"}), 404
+    if decision == "approved":
+        _ban_manager.ban_user(
+            pending.get("user_id"), reason=pending.get("reason"),
+            source="group_admin_report", reported_by=pending.get("reported_by"),
+            evidence=pending.get("evidence"), groups=[pending.get("chat_id")],
+            reviewed=True,
+        )
+    report = _ban_manager.resolve_ban_report(report_id, decision, "master")
+    _add_audit_log(
+        f"Reporte {report_id} {decision}: usuario {pending.get('user_id')} "
+        f"desde el grupo {pending.get('chat_id')}"
+    )
+    return jsonify({"ok": True, "report": report})
+
+
 @bp.route("/api/admin/ban-registry/export")
 def web_admin_ban_registry_export():
     if not _check_jwt(request):
@@ -205,9 +251,12 @@ def web_admin_ban_registry_export():
                          "reported_by", "groups", "evidence", "created_at", "updated_at"))
         for row in records:
             writer.writerow((
-                row.get("user_id"), row.get("status"), row.get("reason"), row.get("source"),
-                row.get("reviewed"), row.get("reported_by"), " | ".join(row.get("groups") or []),
-                " | ".join(row.get("evidence") or []), row.get("created_at"), row.get("updated_at"),
+                _safe_csv(row.get("user_id")), _safe_csv(row.get("status")),
+                _safe_csv(row.get("reason")), _safe_csv(row.get("source")),
+                row.get("reviewed"), _safe_csv(row.get("reported_by")),
+                _safe_csv(" | ".join(row.get("groups") or [])),
+                _safe_csv(" | ".join(row.get("evidence") or [])),
+                row.get("created_at"), row.get("updated_at"),
             ))
         return Response(
             output.getvalue(), mimetype="text/csv",

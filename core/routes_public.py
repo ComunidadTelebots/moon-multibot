@@ -252,6 +252,34 @@ def group_unban():
     return jsonify({"ok": True})
 
 
+@bp.route("/api/public/group/ban-report", methods=["POST", "OPTIONS"])
+def group_ban_report():
+    """Propone un usuario al registro global; nunca aplica el ban automáticamente."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    user_id = str(body.get("user_id", "")).strip()
+    reason = str(body.get("reason", "")).strip()
+    if not user_id.isdigit() or not reason:
+        return jsonify({"ok": False, "error": "faltan usuario y motivo"}), 400
+    if not _ban_manager:
+        return jsonify({"ok": False, "error": "registro no disponible"}), 503
+    duplicate = next((
+        report for report in _ban_manager.list_ban_reports(status="pending", limit=2000)
+        if str(report.get("user_id")) == user_id and str(report.get("chat_id")) == str(chat_id)
+    ), None)
+    if duplicate:
+        return jsonify({"ok": False, "error": "ya existe un reporte pendiente para este usuario"}), 409
+    report = _ban_manager.create_ban_report(
+        user_id, reason, user.get("id"), chat_id, evidence=body.get("evidence")
+    )
+    return jsonify({"ok": True, "report": report}), 201
+
+
 @bp.route("/api/public/group/unwarn", methods=["POST", "OPTIONS"])
 def group_unwarn():
     if request.method == "OPTIONS":
