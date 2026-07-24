@@ -84,7 +84,7 @@
     if(t){t.textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;t.classList.toggle("low",left<=20);}
     if(left<=0){clearInterval(timerId);timerId=null;if(window.gtag)gtag("event","captcha_expired",{reason:"timeout"});stateScreen('bad','Tiempo agotado','Vuelve a solicitar unirte al grupo para intentarlo de nuevo.');}
   }
-  function ensureTimer(){ if(!deadline)deadline=Date.now()+120000; if(timerId)clearInterval(timerId); timerId=setInterval(tick,250); tick(); }
+  function ensureTimer(seconds){ deadline=Date.now()+Math.max(30,Number(seconds)||120)*1000; if(timerId)clearInterval(timerId); timerId=setInterval(tick,250); tick(); }
   function stateScreen(kind,title,text){
     if(timerId){clearInterval(timerId);timerId=null;}
     app.innerHTML=`<div class="state"><div class="ic ${kind==='ok'?'ok':'bad'}">${kind==='ok'?svg('check'):'✕'}</div><h2>${title}</h2><p>${text}</p></div>`;
@@ -93,7 +93,7 @@
     selected=new Set();
     app.innerHTML=`
       <div class="head"><div class="title">Verificación</div><div class="sub">Confirma que no eres un bot para entrar al grupo.</div></div>
-      <div class="toprow"><div class="target">${svg(c.target)}</div><div class="timer" id="timer">2:00</div></div>
+      <div class="toprow"><div class="target">${svg(c.target)}</div><div class="timer" id="timer">--:--</div></div>
       <div class="sub" style="text-align:center;margin-bottom:14px">Toca los <b style="color:var(--ink)">3</b> iconos iguales al de arriba.</div>
       <div class="grid" id="grid">${c.grid.map((n,i)=>`<div class="cell" data-i="${i}">${svg(n)}</div>`).join("")}</div>
       <button class="btn" id="go" disabled>Verificar</button>
@@ -105,7 +105,7 @@
       else{ if(selected.size>=3)return; selected.add(i);cell.classList.add("sel"); }
       const ready=selected.size===3; go.disabled=!ready; go.classList.toggle("active",ready);
     });
-    go.onclick=submit; ensureTimer();
+    go.onclick=submit; ensureTimer(c.expires_in);
     if(window.gtag)gtag("event","captcha_view");
   }
   async function submit(){

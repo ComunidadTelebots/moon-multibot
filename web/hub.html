@@ -547,6 +547,9 @@
       <button class="btn ghost" id="gmoderationExport" style="margin-bottom:9px">${svg('download')} Exportar estado de moderación</button>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
+      <div class="gsec">Acceso automático</div>
+      <div class="dropdown open" id="dd-join"><div class="dhead">Captcha de entrada <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" id="gjoin">${skel()}</div></div>
       <div class="gsec">Ajustes</div><div id="gsettings"></div>
       <div class="gsec">Palabras prohibidas</div>
       <textarea id="gbadwords" rows="2" placeholder="palabra1, palabra2, …">${escHtml((d.badwords&&d.badwords.words||[]).join(", "))}</textarea>
@@ -675,7 +678,71 @@
       };
     };
 
-    loadStats(); loadAds();
+    loadStats(); loadAds(); loadJoinCaptcha();
+  }
+
+  async function loadJoinCaptcha(){
+    const box=document.getElementById("gjoin");if(!box)return;
+    const d=await gp("/group/join/get",{});
+    if(!d||!d.ok){box.innerHTML=`<p class="muted">No se pudo cargar el control de acceso.</p>`;return;}
+    const cfg=d.config||{}, stats=d.stats||{}, pending=d.pending||[];
+    const success=(stats.approved||0)+(stats.declined||0);
+    const rate=success?Math.round((stats.approved||0)*100/success):0;
+    box.innerHTML=`
+      <div class="setrow"><div><b>Captcha automático</b><span>Verifica al usuario antes de admitirlo</span></div>
+        <div class="switch ${cfg.enabled?"on":""}" id="gjoinEnabled"><span></span></div></div>
+      <div class="statbar" style="margin-top:10px">
+        <div class="stat"><div class="v">${pending.length}</div><div class="l">Pendientes</div></div>
+        <div class="stat"><div class="v">${stats.approved||0}</div><div class="l">Aprobados</div></div>
+        <div class="stat"><div class="v">${rate}%</div><div class="l">Éxito</div></div>
+      </div>
+      <div class="btnrow" style="align-items:center">
+        <label style="flex:1;font-size:12px;color:var(--muted)">Intentos
+          <input id="gjoinAttempts" type="number" min="1" max="10" value="${cfg.max_attempts||3}">
+        </label>
+        <label style="flex:1;font-size:12px;color:var(--muted)">Reto (seg.)
+          <input id="gjoinChallenge" type="number" min="30" max="600" value="${cfg.challenge_ttl||120}">
+        </label>
+      </div>
+      <div class="btnrow" style="align-items:center">
+        <label style="flex:1;font-size:12px;color:var(--muted)">Solicitud (horas)
+          <input id="gjoinRequest" type="number" min="1" max="168" value="${Math.round((cfg.request_ttl||86400)/3600)}">
+        </label>
+        <button class="btn ghost" id="gjoinSave" style="width:auto;margin-top:16px">Guardar</button>
+      </div>
+      <div class="dropdown" id="dd-join-pending"><div class="dhead">Solicitudes pendientes (${pending.length}) <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" id="gjoinPending" hidden></div></div>`;
+    document.getElementById("gjoinEnabled").onclick=async function(){
+      const enabled=!this.classList.contains("on");this.classList.toggle("on",enabled);
+      const r=await gp("/group/join/settings",{enabled});
+      if(!r||!r.ok)this.classList.toggle("on",!enabled);else showToast(enabled?"Captcha activado":"Captcha desactivado");
+    };
+    document.getElementById("gjoinSave").onclick=async()=>{
+      const max_attempts=Number(document.getElementById("gjoinAttempts").value);
+      const challenge_ttl=Number(document.getElementById("gjoinChallenge").value);
+      const request_ttl=Number(document.getElementById("gjoinRequest").value)*3600;
+      const r=await gp("/group/join/settings",{max_attempts,challenge_ttl,request_ttl});
+      if(r&&r.ok){showToast("Captcha configurado");loadJoinCaptcha();}else showToast((r&&r.error)||"No se pudo guardar");
+    };
+    const list=document.getElementById("gjoinPending");
+    list.innerHTML=pending.length?pending.map(item=>{
+      const name=`${item.first_name||""} ${item.last_name||""}`.trim()||`Usuario ${item.user_id}`;
+      const uname=item.username?`@${item.username}`:`ID ${item.user_id}`;
+      return `<div class="userchip" style="align-items:flex-start">
+        <div><div class="uid">${escHtml(name)}</div><div class="w">${escHtml(uname)} · ${item.attempts||0} intentos</div></div>
+        <span style="display:flex;gap:6px"><span class="minibtn" data-join-ok="${item.user_id}">Aprobar</span><span class="minibtn red" data-join-no="${item.user_id}">Rechazar</span></span>
+      </div>`;
+    }).join(""):`<p class="muted">No hay solicitudes esperando verificación.</p>`;
+    list.querySelectorAll("[data-join-ok]").forEach(b=>b.onclick=async()=>{
+      const r=await gp("/group/join/decide",{user_id:b.dataset.joinOk,action:"approve"});
+      if(r&&r.ok){showToast("Usuario aprobado");loadJoinCaptcha();}else showToast((r&&r.error)||"No se pudo aprobar");
+    });
+    list.querySelectorAll("[data-join-no]").forEach(b=>b.onclick=async()=>{
+      if(!window.confirm("¿Rechazar esta solicitud de acceso?"))return;
+      const r=await gp("/group/join/decide",{user_id:b.dataset.joinNo,action:"decline"});
+      if(r&&r.ok){showToast("Solicitud rechazada");loadJoinCaptcha();}else showToast((r&&r.error)||"No se pudo rechazar");
+    });
+    bindDropdown("dd-join");bindDropdown("dd-join-pending");
   }
 
   function bindDropdown(id){

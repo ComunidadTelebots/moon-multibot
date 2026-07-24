@@ -602,6 +602,126 @@ def public_mine():
 _JOIN_ICONS = ["star", "heart", "bolt", "moon", "cloud", "leaf"]
 
 
+def _bounded_int(value, default, minimum, maximum):
+    try:
+        return max(minimum, min(int(value), maximum))
+    except (TypeError, ValueError):
+        return default
+
+
+def _join_config(chat_id):
+    raw = _db.get(f"JOINCFG_{chat_id}", {}) if _db else {}
+    return {
+        "enabled": bool(raw.get("enabled", True)),
+        "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
+        "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
+        "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
+    }
+
+
+def _join_stats(chat_id):
+    raw = _db.get(f"JOINSTATS_{chat_id}", {}) if _db else {}
+    return {key: int(raw.get(key, 0)) for key in ("approved", "declined", "expired")}
+
+
+def _bump_join_stat(chat_id, key):
+    stats = _join_stats(chat_id)
+    stats[key] = stats.get(key, 0) + 1
+    _db.set(f"JOINSTATS_{chat_id}", stats)
+
+
+@bp.route("/api/public/group/join/get", methods=["POST", "OPTIONS"])
+def group_join_get():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    now = int(time.time())
+    pending = []
+    prefix = f"JOINQ_{chat_id}_"
+    for key in (_db.keys(prefix) if _db else []):
+        item = _db.get(key, {})
+        if item.get("exp", 0) < now:
+            _db.delete(key)
+            _bump_join_stat(chat_id, "expired")
+            continue
+        pending.append({
+            "user_id": item.get("user_id"),
+            "first_name": item.get("first_name", ""),
+            "last_name": item.get("last_name", ""),
+            "username": item.get("username", ""),
+            "attempts": int(item.get("attempts", 0)),
+            "created_at": item.get("created_at"),
+            "expires_at": item.get("exp"),
+        })
+    pending.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
+    return jsonify({"ok": True, "config": _join_config(chat_id),
+                    "stats": _join_stats(chat_id), "pending": pending})
+
+
+@bp.route("/api/public/group/join/settings", methods=["POST", "OPTIONS"])
+def group_join_settings():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    config = _join_config(chat_id)
+    for key in ("enabled", "max_attempts", "challenge_ttl", "request_ttl"):
+        if key in body:
+            config[key] = body[key]
+    config = {
+        "enabled": bool(config["enabled"]),
+        "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
+        "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
+        "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
+    }
+    _db.set(f"JOINCFG_{chat_id}", config)
+    return jsonify({"ok": True, "config": config})
+
+
+@bp.route("/api/public/group/join/decide", methods=["POST", "OPTIONS"])
+def group_join_decide():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    try:
+        user_id = int(body.get("user_id"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "user_id inválido"}), 400
+    action = body.get("action")
+    if action not in ("approve", "decline"):
+        return jsonify({"ok": False, "error": "acción inválida"}), 400
+    key = f"JOINQ_{chat_id}_{user_id}"
+    pending = _db.get(key) if _db else None
+    if not pending:
+        return jsonify({"ok": False, "error": "solicitud no encontrada"}), 404
+    bot = _hub_bot()
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    if action == "approve":
+        result = bot.api_call("answerChatJoinRequestQuery", {"query_id": pending.get("query_id")})
+        stat = "approved"
+    else:
+        result = bot.api_call("declineChatJoinRequest", {"chat_id": chat_id, "user_id": user_id})
+        stat = "declined"
+    if isinstance(result, dict) and not result.get("ok", False):
+        return jsonify({"ok": False, "error": result.get("description", "Telegram rechazó la acción")}), 502
+    _db.delete(key)
+    _db.delete(f"JOINC_{chat_id}_{user_id}")
+    _bump_join_stat(chat_id, stat)
+    return jsonify({"ok": True, "action": action})
+
+
 def _new_join_challenge():
     """9 celdas con EXACTAMENTE 3 iconos objetivo. Devuelve (target, grid, correct)."""
     rnd = secrets.SystemRandom()
@@ -626,9 +746,12 @@ def join_challenge():
     pend = _db.get(f"JOINQ_{cid}_{uid}") if _db else None
     if not pend or pend.get("exp", 0) < time.time():
         return jsonify({"ok": False, "error": "sin solicitud pendiente"}), 410
+    config = _join_config(cid)
+    if not config["enabled"]:
+        return jsonify({"ok": False, "error": "captcha desactivado"}), 403
     target, grid, correct = _new_join_challenge()
-    _db.set(f"JOINC_{cid}_{uid}", {"correct": correct, "exp": int(time.time()) + 120})
-    return jsonify({"ok": True, "target": target, "grid": grid, "expires_in": 120})
+    _db.set(f"JOINC_{cid}_{uid}", {"correct": correct, "exp": int(time.time()) + config["challenge_ttl"]})
+    return jsonify({"ok": True, "target": target, "grid": grid, "expires_in": config["challenge_ttl"]})
 
 
 @bp.route("/api/public/join/verify", methods=["POST", "OPTIONS"])
@@ -651,23 +774,26 @@ def join_verify():
     except (TypeError, ValueError):
         sel = []
     bot = _hub_bot()
+    config = _join_config(cid)
     # ── ÉXITO ──
     if sel and sel == sorted(chal.get("correct", [])):
         if bot:
             bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")})
         _db.delete(f"JOINC_{cid}_{uid}"); _db.delete(f"JOINQ_{cid}_{uid}")  # query_id de un solo uso
+        _bump_join_stat(cid, "approved")
         return jsonify({"ok": True, "approved": True})
     # ── FALLO ──
     attempts = int(pend.get("attempts", 0)) + 1
     _db.delete(f"JOINC_{cid}_{uid}")  # fuerza reto nuevo (no resetea intentos)
-    if attempts >= 3:
+    if attempts >= config["max_attempts"]:
         if bot:
             bot.api_call("declineChatJoinRequest", {"chat_id": cid, "user_id": uid})
         _db.delete(f"JOINQ_{cid}_{uid}")
+        _bump_join_stat(cid, "declined")
         return jsonify({"ok": False, "declined": True, "attempts_left": 0})
     pend["attempts"] = attempts
     _db.set(f"JOINQ_{cid}_{uid}", pend)
-    return jsonify({"ok": False, "attempts_left": 3 - attempts})
+    return jsonify({"ok": False, "attempts_left": config["max_attempts"] - attempts})
 
 
 # ─────────────────────────────── Canales ───────────────────────────────────────

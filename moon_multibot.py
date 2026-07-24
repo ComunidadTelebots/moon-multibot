@@ -4056,12 +4056,23 @@ class MoonBot:
             return False  # no somos guard_bot / feature desactivada → ignorar
         try:
             cid = (jr.get("chat") or {}).get("id")
-            uid = (jr.get("from") or {}).get("id")
+            chat = jr.get("chat") or {}
+            applicant = jr.get("from") or {}
+            uid = applicant.get("id")
             if cid is None or uid is None:
                 return True
+            cfg = db.get(f"JOINCFG_{cid}", {})
+            if not cfg.get("enabled", True):
+                return False
+            request_ttl = max(300, min(int(cfg.get("request_ttl", 86400)), 604800))
             db.set(f"JOINQ_{cid}_{uid}", {
                 "query_id": query_id, "chat_id": cid, "user_id": uid,
-                "attempts": 0, "exp": int(time.time()) + 86400,
+                "first_name": applicant.get("first_name", ""),
+                "last_name": applicant.get("last_name", ""),
+                "username": applicant.get("username", ""),
+                "chat_title": chat.get("title", ""),
+                "attempts": 0, "created_at": int(time.time()),
+                "exp": int(time.time()) + request_ttl,
             })
             self.api_call("sendChatJoinRequestWebApp", {
                 "chat_id": cid, "user_id": uid,
