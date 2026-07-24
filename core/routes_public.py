@@ -21,6 +21,7 @@ import jwt
 from flask import Blueprint, request, jsonify
 
 from . import image_gen
+from spam_risk import SpamRiskEngine
 
 bp = Blueprint("public", __name__)
 
@@ -348,6 +349,104 @@ def group_ban_reports():
         if str(report.get("chat_id")) == str(chat_id)
     ][:100]
     return jsonify({"ok": True, "reports": reports})
+
+
+@bp.route("/api/public/group/spam/get", methods=["POST", "OPTIONS"])
+def group_spam_get():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    engine = SpamRiskEngine(_db)
+    events = _db.get(f"SPAMEVENTS_{chat_id}", [])
+    if not isinstance(events, list):
+        events = []
+    visible = list(reversed(events[-50:]))
+    return jsonify({
+        "ok": True,
+        "config": engine.config(chat_id),
+        "events": visible,
+        "stats": {
+            "detected": len(events),
+            "deleted": sum(item.get("action") == "deleted" for item in events if isinstance(item, dict)),
+            "quarantined": sum(item.get("action") == "quarantined" for item in events if isinstance(item, dict)),
+            "average_score": round(
+                sum(int(item.get("score", 0)) for item in events if isinstance(item, dict)) / len(events), 1
+            ) if events else 0,
+            "spam_samples": len(_db.get(f"SPAM_SAMPLES_{chat_id}", [])),
+            "ham_samples": len(_db.get(f"HAM_SAMPLES_{chat_id}", [])),
+        },
+    })
+
+
+@bp.route("/api/public/group/spam/settings", methods=["POST", "OPTIONS"])
+def group_spam_settings():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    mode = body.get("mode", "observe")
+    if mode not in ("observe", "delete"):
+        return jsonify({"ok": False, "error": "modo inválido"}), 400
+    try:
+        watch_score = max(20, min(int(body.get("watch_score", 40)), 80))
+        delete_score = max(50, min(int(body.get("delete_score", 75)), 100))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "umbrales inválidos"}), 400
+    if delete_score <= watch_score:
+        return jsonify({"ok": False, "error": "el umbral de borrado debe ser mayor"}), 400
+    terms = [
+        str(term).strip().lower()[:100] for term in (body.get("terms") or [])
+        if str(term).strip()
+    ][:100]
+    config = {
+        "enabled": bool(body.get("enabled", True)),
+        "mode": mode,
+        "watch_score": watch_score,
+        "delete_score": delete_score,
+        "terms": terms or SpamRiskEngine.DEFAULT_TERMS,
+    }
+    _db.set(f"SPAMCFG_{chat_id}", config)
+    return jsonify({"ok": True, "config": config})
+
+
+@bp.route("/api/public/group/spam/feedback", methods=["POST", "OPTIONS"])
+def group_spam_feedback():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    event_id = str(body.get("event_id", ""))
+    verdict = body.get("verdict")
+    if verdict not in ("spam", "ham"):
+        return jsonify({"ok": False, "error": "veredicto inválido"}), 400
+    events = _db.get(f"SPAMEVENTS_{chat_id}", [])
+    event = next((
+        item for item in reversed(events) if isinstance(item, dict)
+        and str(item.get("created_at")) == event_id
+    ), None)
+    if not event or not event.get("text"):
+        return jsonify({"ok": False, "error": "detección no encontrada"}), 404
+    key = f"{'SPAM' if verdict == 'spam' else 'HAM'}_SAMPLES_{chat_id}"
+    samples = _db.get(key, [])
+    if not isinstance(samples, list):
+        samples = []
+    text = str(event["text"])[:500]
+    if text not in samples:
+        samples.append(text)
+        _db.set(key, samples[-200:])
+    event["feedback"] = verdict
+    _db.set(f"SPAMEVENTS_{chat_id}", events[-200:])
+    return jsonify({"ok": True, "verdict": verdict, "samples": len(samples)})
 
 
 @bp.route("/api/public/group/unwarn", methods=["POST", "OPTIONS"])

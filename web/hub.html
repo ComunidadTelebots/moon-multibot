@@ -557,6 +557,9 @@
         </div></div>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
+      <div class="gsec">Detección inteligente</div>
+      <div class="dropdown open" id="dd-spam-risk"><div class="dhead">Motor de riesgo de spam <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" id="gspamRisk">${skel()}</div></div>
       <div class="gsec">Acceso automático</div>
       <div class="dropdown open" id="dd-join"><div class="dhead">Captcha de entrada <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gjoin">${skel()}</div></div>
@@ -703,7 +706,52 @@
       };
     };
 
-    loadStats(); loadAds(); loadJoinCaptcha();
+    loadStats(); loadAds(); loadJoinCaptcha(); loadSpamRisk();
+  }
+
+  async function loadSpamRisk(){
+    const box=document.getElementById("gspamRisk");if(!box)return;
+    const d=await gp("/group/spam/get",{});
+    if(!d||!d.ok){box.innerHTML=`<p class="muted">No se pudo cargar el motor de riesgo.</p>`;return;}
+    const cfg=d.config||{},stats=d.stats||{},events=d.events||[];
+    box.innerHTML=`
+      <div class="setrow"><div><b>Análisis local</b><span>En modo observar no borra mensajes</span></div><div class="switch ${cfg.enabled?"on":""}" id="gspamEnabled"><span></span></div></div>
+      <div class="statbar" style="margin-top:10px">
+        <div class="stat"><div class="v">${stats.detected||0}</div><div class="l">Detectados</div></div>
+        <div class="stat"><div class="v">${stats.deleted||0}</div><div class="l">Borrados</div></div>
+        <div class="stat"><div class="v">${stats.average_score||0}</div><div class="l">Riesgo medio</div></div>
+      </div>
+      <div class="btnrow" style="margin-top:9px">
+        <select id="gspamMode"><option value="observe">Solo observar</option><option value="delete">Borrar riesgo alto</option></select>
+        <label style="flex:1;font-size:12px;color:var(--muted)">Registrar desde<input id="gspamWatch" type="number" min="20" max="80" value="${cfg.watch_score||40}"></label>
+        <label style="flex:1;font-size:12px;color:var(--muted)">Borrar desde<input id="gspamDelete" type="number" min="50" max="100" value="${cfg.delete_score||75}"></label>
+      </div>
+      <textarea id="gspamTerms" rows="3" placeholder="Frases sospechosas, una por línea">${escHtml((cfg.terms||[]).join("\n"))}</textarea>
+      <button class="btn ghost" id="gspamSave" style="margin-top:8px">Guardar motor de riesgo</button>
+      <div class="gsec">Aprendizaje · ${stats.spam_samples||0} spam / ${stats.ham_samples||0} legítimos</div>
+      <div id="gspamEvents">${events.length?events.slice(0,20).map(e=>`<div class="casbox">
+        <b>${escHtml(e.user_id)} · riesgo ${fmt(e.score)}/100</b> <span class="rbadge">${escHtml(e.action||"observado")}</span><br>
+        ${escHtml((e.text||"").slice(0,180))}<br><span class="k">${(e.reasons||[]).map(r=>escHtml(r.signal)).join(" · ")||"sin señales"}</span>
+        <div class="btnrow" style="margin-top:7px"><button class="minibtn" data-spam-good="${escAttr(e.created_at)}">Era legítimo</button><button class="minibtn red" data-spam-bad="${escAttr(e.created_at)}">Confirmar spam</button></div>
+      </div>`).join(""):`<p class="muted">Todavía no hay detecciones.</p>`}</div>`;
+    document.getElementById("gspamMode").value=cfg.mode||"observe";
+    document.getElementById("gspamEnabled").onclick=function(){this.classList.toggle("on");};
+    document.getElementById("gspamSave").onclick=async()=>{
+      const enabled=document.getElementById("gspamEnabled").classList.contains("on");
+      const mode=document.getElementById("gspamMode").value;
+      const watch_score=Number(document.getElementById("gspamWatch").value);
+      const delete_score=Number(document.getElementById("gspamDelete").value);
+      const terms=document.getElementById("gspamTerms").value.split("\n").map(v=>v.trim()).filter(Boolean);
+      const r=await gp("/group/spam/settings",{enabled,mode,watch_score,delete_score,terms});
+      if(r&&r.ok){showToast("Motor de riesgo actualizado");loadSpamRisk();}else showToast((r&&(r.error||r.message))||"No se pudo guardar");
+    };
+    box.querySelectorAll("[data-spam-good]").forEach(b=>b.onclick=()=>sendSpamFeedback(b.dataset.spamGood,"ham"));
+    box.querySelectorAll("[data-spam-bad]").forEach(b=>b.onclick=()=>sendSpamFeedback(b.dataset.spamBad,"spam"));
+  }
+  async function sendSpamFeedback(event_id,verdict){
+    const r=await gp("/group/spam/feedback",{event_id,verdict});
+    if(r&&r.ok){showToast(verdict==="spam"?"Spam aprendido":"Mensaje legítimo aprendido");loadSpamRisk();}
+    else showToast("No se pudo guardar el aprendizaje");
   }
 
   async function loadJoinCaptcha(){

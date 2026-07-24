@@ -46,6 +46,7 @@ from core.task_queue import TaskQueue
 from core.tdlib_client import TDLibClient
 from token_manager import token_manager
 from ban_manager import BanManager
+from spam_risk import SpamRiskEngine
 
 load_dotenv()
 
@@ -89,6 +90,7 @@ logger = logging.getLogger("MoonBot")
 
 db = DBManager()
 ban_manager = BanManager(db)  # Gestor centralizado de baneos
+spam_risk = SpamRiskEngine(db)
 
 task_queue = TaskQueue()
 start_time = time.time()
@@ -3582,6 +3584,43 @@ class MoonBot:
         add_audit_log(f"Palabra prohibida '{hit}' de {uname} ({uid}) en {cid} -> {action}")
         return True
 
+    def enforce_spam_risk(self, cid, text, uid, uname, message_id=None):
+        """Puntúa spam de forma explicable; nunca crea un ban global automático."""
+        if not text or not str(cid).startswith("-") or str(uid) == str(MASTER_ID) or text.startswith("/"):
+            return False
+        config = spam_risk.config(cid)
+        if not config["enabled"]:
+            return False
+        user_data = db.get(f"USER_{uid}", {})
+        result = spam_risk.analyze(cid, uid, text, karma=user_data.get("karma", 0))
+        score = result["score"]
+        if score < config["watch_score"]:
+            return False
+
+        action = "observed"
+        deleted = config["mode"] == "delete" and score >= config["delete_score"]
+        if deleted:
+            self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+            action = "deleted"
+        if score >= 90:
+            pending = any(
+                str(report.get("user_id")) == str(uid) and str(report.get("chat_id")) == str(cid)
+                for report in ban_manager.list_ban_reports(status="pending", limit=2000)
+            )
+            if not pending:
+                signals = ", ".join(reason.get("signal", "") for reason in result["reasons"])
+                ban_manager.create_ban_report(
+                    uid, f"Riesgo automático {score}/100: {signals}",
+                    "spam_risk_engine", cid,
+                    evidence=[f"mensaje:{message_id}", str(text)[:300]],
+                )
+            if deleted:
+                self.restrict_user(cid, uid, until=int(time.time()) + 600)
+                action = "quarantined"
+        spam_risk.record(cid, uid, uname, text, result, action)
+        add_web_log("SECURITY", f"Riesgo spam {score}/100 para {uname} ({uid}) en {cid}: {action}")
+        return deleted
+
     def restrict_user(self, cid, uid, until=0, can_send=False):
         permissions = {
             "can_send_messages": can_send, "can_send_media_messages": can_send,
@@ -4526,6 +4565,8 @@ class MoonBot:
                     if self.enforce_cas_ban(cid, uid, uname, msg.get("message_id")):
                         continue
                     if self.enforce_banned_words(cid, text, uid, uname, msg.get("message_id")):
+                        continue
+                    if self.enforce_spam_risk(cid, text, uid, uname, msg.get("message_id")):
                         continue
 
                     # Sistema de AuditorÃ­a IA (EvaluaciÃ³n de Calidad)
