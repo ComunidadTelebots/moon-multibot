@@ -760,6 +760,7 @@
         <div class="stat"><div class="v">${channels}</div><div class="l">Canales</div></div>
       </div>
       <div class="assoc-tools"><input id="assocSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off">
+        <button class="btn ghost" id="assocExport" aria-label="Exportar">${svg('download')}</button>
         <button class="btn ghost" id="assocRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
       <div class="filterbar" id="assocFilters">
         <button class="filterpill active" data-filter="all">Todos</button>
@@ -783,6 +784,13 @@
       bindSwitches(target);
     };
     document.getElementById("assocSearch").oninput=renderAssociated;
+    document.getElementById("assocExport").onclick=()=>{
+      const rows=[["Nombre","Usuario","Tipo","Miembros","Publicado"],...chs.map(c=>[
+        c.name,c.username||"",c.ctype==="channel"?"Canal":"Grupo",c.subscribers||0,c.listed?"Sí":"No"
+      ])];
+      downloadText(`cintiabot-espacios-${new Date().toISOString().slice(0,10)}.csv`,rows.map(r=>r.map(csvCell).join(",")).join("\n"),"text/csv;charset=utf-8");
+      showToast("Listado exportado");
+    };
     document.getElementById("assocRefresh").onclick=loadAdmin;
     document.querySelectorAll("#assocFilters [data-filter]").forEach(b=>b.onclick=()=>{
       activeFilter=b.dataset.filter;
@@ -798,6 +806,12 @@
   function saveFavorites(favs){
     try{localStorage.setItem("hub_favorite_channels",JSON.stringify([...favs]));}catch(e){}
   }
+  function downloadText(filename,content,type="text/plain"){
+    const url=URL.createObjectURL(new Blob([content],{type}));
+    const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function csvCell(value){return `"${String(value??"").replace(/"/g,'""')}"`;}
   function directoryRow(c,favs){
     const key=String(c.chat_id||c.username||"");
     const uname=c.username&&!String(c.username).startsWith("-")?`@${c.username}`:"Canal privado";
@@ -837,6 +851,8 @@
         <button class="master-action" id="masterQueue"><span class="mai">${svg('clock')}</span><b>Cola de tareas</b><small>Priorizar o cancelar procesos</small></button>
         <button class="master-action" id="masterSecurity"><span class="mai">${svg('shield')}</span><b>Seguridad</b><small>Escudo neural y consulta CAS</small></button>
         <button class="master-action" id="masterSystem"><span class="mai">${svg('activity')}</span><b>Sistema</b><small>Rendimiento, versión y registros</small></button>
+        <button class="master-action" id="masterReports"><span class="mai">${svg('download')}</span><b>Informes</b><small>Exportar métricas de la red</small></button>
+        <button class="master-action" id="masterActivity"><span class="mai">${svg('clock')}</span><b>Actividad</b><small>Auditoría administrativa</small></button>
         <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
         <button class="master-action" id="masterBackup"><span class="mai">${svg('download')}</span><b>Crear backup</b><small>Copia inmediata del sistema</small></button>
         <button class="master-action danger" id="masterMaintenance"><span class="mai">${svg('shield')}</span><b>Mantenimiento</b><small>Activar o desactivar el modo</small></button>
@@ -858,6 +874,8 @@
     document.getElementById("masterQueue").onclick=loadMasterQueue;
     document.getElementById("masterSecurity").onclick=loadMasterSecurity;
     document.getElementById("masterSystem").onclick=loadMasterSystem;
+    document.getElementById("masterReports").onclick=loadMasterReports;
+    document.getElementById("masterActivity").onclick=loadMasterActivity;
     document.getElementById("masterBroadcast").onclick=loadMasterBroadcast;
     document.getElementById("masterBackup").onclick=createMasterBackup;
     document.getElementById("masterMaintenance").onclick=toggleMasterMaintenance;
@@ -1082,6 +1100,52 @@
     if(!await masterConfirm("¿Reiniciar Moonbot? La Mini App podría desconectarse durante unos segundos."))return;
     const r=await masterApi("/api/reboot",{method:"POST"});
     showToast(r&&r.ok?"Reinicio solicitado":"No se pudo reiniciar");
+  }
+  async function loadMasterReports(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const [summary,status,proxies,bots,channels]=await Promise.all([
+      masterApi("/api/admin/summary"),masterApi("/api/status"),masterApi("/api/proxies/stats"),
+      masterApi("/api/bots"),apiPost("/admin/channels",{initData:tg.initData})
+    ]);
+    const report={
+      generated_at:new Date().toISOString(),
+      users:summary&&summary.total_users||0,groups:summary&&summary.total_groups||0,
+      banned:summary&&summary.total_banned||0,bots:(bots&&bots.bots||[]).length,
+      channels:(channels&&channels.channels||[]).length,proxies:(proxies&&proxies.proxies||[]).length,
+      cpu_percent:status&&status.cpu||0,ram_percent:status&&status.ram||0,
+      disk_percent:status&&status.disk||0,uptime:status&&status.uptime||""
+    };
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Informes de la red <span class="rbadge">actualizado ahora</span></div><div class="dbody">
+      <div class="master-grid" style="margin-top:8px">
+        <div class="master-metric"><div class="mv">${fmt(report.users)}</div><div class="ml">Usuarios</div></div>
+        <div class="master-metric"><div class="mv">${fmt(report.groups)}</div><div class="ml">Grupos</div></div>
+        <div class="master-metric"><div class="mv">${fmt(report.channels)}</div><div class="ml">Canales</div></div>
+        <div class="master-metric"><div class="mv">${fmt(report.bots)}</div><div class="ml">Bots</div></div>
+      </div>
+      <p class="muted" style="margin-bottom:10px">Descarga una instantánea sin datos sensibles ni tokens.</p>
+      <div class="master-toolbar"><button class="btn ghost" id="reportCsv">${svg('download')} CSV</button><button class="btn teal" id="reportJson">${svg('download')} JSON</button></div>
+    </div></div>`;
+    document.getElementById("reportCsv").onclick=()=>{
+      const keys=Object.keys(report);
+      downloadText(`moon-report-${Date.now()}.csv`,`${keys.map(csvCell).join(",")}\n${keys.map(k=>csvCell(report[k])).join(",")}`,"text/csv;charset=utf-8");
+      showToast("Informe CSV exportado");
+    };
+    document.getElementById("reportJson").onclick=()=>{
+      downloadText(`moon-report-${Date.now()}.json`,JSON.stringify(report,null,2),"application/json");
+      showToast("Informe JSON exportado");
+    };
+  }
+  async function loadMasterActivity(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const r=await masterApi("/api/audit"),logs=(r&&r.logs)||[],lines=logs.slice(-30).reverse();
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Actividad administrativa <span class="rbadge">${logs.length} eventos</span></div><div class="dbody">
+      <button class="btn ghost" id="activityExport" style="margin:8px 0 12px">${svg('download')} Exportar auditoría</button>
+      ${lines.length?lines.map(l=>`<div class="casbox"><span class="k">${escHtml(l.time||l.timestamp||"")}</span><br>${escHtml(l.action||l.message||JSON.stringify(l))}</div>`).join(""):`<p class="muted">No hay actividad registrada.</p>`}
+    </div></div>`;
+    document.getElementById("activityExport").onclick=()=>{
+      downloadText(`moon-audit-${Date.now()}.txt`,logs.map(l=>`[${l.time||l.timestamp||""}] ${l.action||l.message||JSON.stringify(l)}`).join("\n"));
+      showToast("Auditoría exportada");
+    };
   }
   function loadMasterBroadcast(){
     const box=document.getElementById("masterDetail");
