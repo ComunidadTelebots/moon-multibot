@@ -383,8 +383,19 @@
   function bindRowOpen(container){
     container.querySelectorAll(".row.tappable").forEach(r=> r.addEventListener("click", e=>{
       if(e.target.closest(".switch")) return;
+      rememberRecentChat(r.dataset.chat);
       openGroup(r.dataset.chat, r.dataset.name);
     }));
+  }
+  function loadRecentChats(){
+    try{return JSON.parse(localStorage.getItem("hub_recent_chats")||"[]").map(String);}
+    catch(e){return [];}
+  }
+  function rememberRecentChat(chatId){
+    if(!chatId)return;
+    const id=String(chatId),recent=loadRecentChats().filter(x=>x!==id);
+    recent.unshift(id);
+    try{localStorage.setItem("hub_recent_chats",JSON.stringify(recent.slice(0,6)));}catch(e){}
   }
 
   // ── Mis canales ──
@@ -407,11 +418,43 @@
       document.getElementById("ctaAdd").onclick=()=>{ev("add_channel",{from:"canales_empty"});openTg(ADD_LINK);};
       return;
     }
-    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>`
-      +chs.map(c=>channelRow(c,true)).join("")
-      +`<button class="btn cta" id="ctaAdd2" style="margin-top:6px;">${svg('plus')} Añadir otro canal</button>`;
+    const recentIds=loadRecentChats();
+    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
+      <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
+        <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
+      <div class="filterbar" id="myChannelsSort">
+        <button class="filterpill active" data-sort="recent">Recientes</button>
+        <button class="filterpill" data-sort="subscribers">Más grandes</button>
+        <button class="filterpill" data-sort="growth">Mayor crecimiento</button>
+        <button class="filterpill" data-sort="name">A–Z</button>
+      </div>
+      <div class="result-count" id="myChannelsCount"></div><div id="myChannelsList"></div>
+      <button class="btn cta" id="ctaAdd2" style="margin-top:6px;">${svg('plus')} Añadir otro canal</button>`;
+    let activeSort="recent";
+    const renderMyChannels=()=>{
+      const q=document.getElementById("myChannelsSearch").value.trim().toLowerCase();
+      const filtered=chs.filter(c=>!q||`${c.name||""} ${c.username||""}`.toLowerCase().includes(q));
+      filtered.sort((a,b)=>{
+        if(activeSort==="subscribers")return (b.subscribers||0)-(a.subscribers||0);
+        if(activeSort==="growth")return (b.growth30d||0)-(a.growth30d||0);
+        if(activeSort==="name")return String(a.name||"").localeCompare(String(b.name||""),"es");
+        const ai=recentIds.indexOf(String(a.chat_id)),bi=recentIds.indexOf(String(b.chat_id));
+        return (ai<0?999:ai)-(bi<0?999:bi);
+      });
+      document.getElementById("myChannelsCount").textContent=`${filtered.length} espacio${filtered.length===1?"":"s"}`;
+      const list=document.getElementById("myChannelsList");
+      list.innerHTML=filtered.length?filtered.map(c=>channelRow(c,true)).join(""):`<div class="empty" style="padding-top:18px"><p>No hay espacios que coincidan.</p></div>`;
+      bindRowOpen(list);
+    };
+    document.getElementById("myChannelsSearch").oninput=renderMyChannels;
+    document.getElementById("myChannelsRefresh").onclick=loadCanales;
+    document.querySelectorAll("#myChannelsSort [data-sort]").forEach(b=>b.onclick=()=>{
+      activeSort=b.dataset.sort;
+      document.querySelectorAll("#myChannelsSort [data-sort]").forEach(x=>x.classList.toggle("active",x===b));
+      renderMyChannels();
+    });
     document.getElementById("ctaAdd2").onclick=()=>{ev("add_channel",{from:"canales_list"});openTg(ADD_LINK);};
-    bindRowOpen(el);
+    renderMyChannels();
   }
 
   // ── Administrar ──
