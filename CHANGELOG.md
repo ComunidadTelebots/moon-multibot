@@ -1,5 +1,22 @@
 ﻿# Changelog - Moon Multibot
 
+## [v16.85.0] - 2026-07-25
+### Suite avanzada de grupos — web y Mini App
+- Diez herramientas compartidas y persistentes: cuarentena para miembros nuevos, escudo anti-raid, reglas horarias, reportes mediante `/report`, decisiones por consenso, historial contextual, roles personalizados, bienvenidas, resúmenes inteligentes y plantillas con copia JSON.
+- El panel web master y el panel de cada grupo en la Mini App exponen las mismas capacidades sin modificar el diseño ni la navegación existente.
+- Las plantillas son compartidas entre grupos y permiten replicar protección, palabras prohibidas y configuración antispam.
+
+### Seguridad y aprendizaje antispam
+- Motor de riesgo explicable con señales, puntuación y registro de eventos para que cada decisión pueda revisarse.
+- Integración del aprendizaje de grupos feeder, medición de precisión, falsos positivos y detección de campañas repetidas.
+- Consulta de CAS mediante exportación local en caché, API y canal `@cas_feed` como respaldo; alertas a administradores antes de aplicar un ban.
+- Registro comunitario de reportes y compatibilidad con fuentes externas de reputación sin delegar automáticamente decisiones críticas.
+
+### Acceso automático y administración
+- Flujo captcha para solicitudes de acceso, aprobación automática tras superarlo y comprobaciones de reputación intermedias.
+- Separación entre la lista personal de grupos del usuario y el centro master de canales propios.
+- Nuevas acciones de administración para usuarios, administradores de grupo y master, con permisos comprobados en servidor.
+
 ## [v16.84.0] - 2026-07-11
 ### Feature - Proxies MTProto en CintiaBot (pedir, recomendar, administrar)
 - **`/proxy`**: envía al usuario los proxies MTProto propios + los del canal más cercanos a su zona, deducida por el `language_code` de Telegram (un bot no ve la IP). Botón "Pedir proxy" en `/start` (callback `req_proxy`).

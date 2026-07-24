@@ -22,6 +22,7 @@ from flask import Blueprint, request, jsonify
 
 from . import image_gen
 from spam_risk import SpamRiskEngine
+from group_suite import GroupSuite
 
 bp = Blueprint("public", __name__)
 
@@ -473,6 +474,188 @@ def group_spam_feedback():
         _db.set("IA_FEEDER_CONFIG", configs)
     return jsonify({"ok": True, "verdict": verdict, "samples": len(samples),
                     "sources_updated": len(affected_sources)})
+
+
+def _group_suite():
+    return GroupSuite(_db)
+
+
+@bp.route("/api/public/group/suite/get", methods=["POST", "OPTIONS"])
+def group_suite_get():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    return jsonify({"ok": True, **_group_suite().snapshot(chat_id)})
+
+
+@bp.route("/api/public/group/suite/settings", methods=["POST", "OPTIONS"])
+def group_suite_settings():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    config = _group_suite().save_config(chat_id, body.get("config") or {})
+    return jsonify({"ok": True, "config": config})
+
+
+@bp.route("/api/public/group/suite/report", methods=["POST", "OPTIONS"])
+def group_suite_report():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    target = str(body.get("target_id", "")).strip()
+    if not target.isdigit():
+        return jsonify({"ok": False, "error": "usuario inválido"}), 400
+    report = _group_suite().create_report(
+        chat_id, user.get("id"), target, body.get("message_id"), body.get("reason")
+    )
+    return jsonify({"ok": True, "report": report}), 201
+
+
+@bp.route("/api/public/group/suite/report/resolve", methods=["POST", "OPTIONS"])
+def group_suite_report_resolve():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    decision = body.get("decision")
+    if decision not in ("reviewed", "dismissed"):
+        return jsonify({"ok": False, "error": "decisión inválida"}), 400
+    report = _group_suite().resolve_report(chat_id, body.get("report_id"), decision, user.get("id"))
+    if not report:
+        return jsonify({"ok": False, "error": "reporte no encontrado"}), 404
+    return jsonify({"ok": True, "report": report})
+
+
+@bp.route("/api/public/group/suite/consensus", methods=["POST", "OPTIONS"])
+def group_suite_consensus():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    action = body.get("action")
+    target = str(body.get("target_id", "")).strip()
+    if action not in ("ban", "mute", "warn") or not target.isdigit():
+        return jsonify({"ok": False, "error": "propuesta inválida"}), 400
+    proposal = _group_suite().proposal(
+        chat_id, target, action, body.get("reason", ""), user.get("id")
+    )
+    return jsonify({"ok": True, "proposal": proposal}), 201
+
+
+@bp.route("/api/public/group/suite/consensus/vote", methods=["POST", "OPTIONS"])
+def group_suite_consensus_vote():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    proposal = _group_suite().vote(chat_id, body.get("proposal_id"), user.get("id"))
+    if not proposal:
+        return jsonify({"ok": False, "error": "propuesta no encontrada"}), 404
+    executed = False
+    if proposal.get("status") == "approved" and not proposal.get("executed_at"):
+        target, action = proposal.get("target_id"), proposal.get("action")
+        bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
+        if action == "ban":
+            _ban_manager.ban_local_user(chat_id, target, reason=proposal.get("reason"), source="admin_consensus")
+            if bot:
+                bot.api_call("banChatMember", {"chat_id": chat_id, "user_id": target}, silent=True)
+        elif action == "mute" and bot:
+            bot.restrict_user(chat_id, target, until=int(time.time()) + 3600)
+        elif action == "warn":
+            warns = _db.get(f"WARNS_{chat_id}", {})
+            warns[str(target)] = int(warns.get(str(target), 0)) + 1
+            _db.set(f"WARNS_{chat_id}", warns)
+        proposal["executed_at"] = datetime.datetime.now().isoformat()
+        rows = _db.get(f"CONSENSUS_{chat_id}", [])
+        for row in rows:
+            if row.get("id") == proposal.get("id"):
+                row.update(proposal)
+        _db.set(f"CONSENSUS_{chat_id}", rows[-200:])
+        executed = True
+    return jsonify({"ok": True, "proposal": proposal, "executed": executed})
+
+
+@bp.route("/api/public/group/suite/role", methods=["POST", "OPTIONS"])
+def group_suite_role():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    role = _group_suite().set_role(
+        chat_id, body.get("user_id"), body.get("role"), body.get("expires_at")
+    )
+    if not role:
+        return jsonify({"ok": False, "error": "rol inválido"}), 400
+    return jsonify({"ok": True, "role": role})
+
+
+@bp.route("/api/public/group/suite/context", methods=["POST", "OPTIONS"])
+def group_suite_context():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    return jsonify({"ok": True, "context": _group_suite().user_context(chat_id, body.get("user_id"))})
+
+
+@bp.route("/api/public/group/suite/summary", methods=["POST", "OPTIONS"])
+def group_suite_summary():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    return jsonify({"ok": True, "summary": _group_suite().summary(chat_id)})
+
+
+@bp.route("/api/public/group/suite/template", methods=["POST", "OPTIONS"])
+def group_suite_template():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    action = body.get("action")
+    if action == "save":
+        template = _group_suite().save_template(chat_id, body.get("name") or "Plantilla")
+    elif action == "apply":
+        template = _group_suite().apply_template(chat_id, body.get("template_id"))
+    else:
+        return jsonify({"ok": False, "error": "acción inválida"}), 400
+    if not template:
+        return jsonify({"ok": False, "error": "plantilla no encontrada"}), 404
+    return jsonify({"ok": True, "template": template})
 
 
 @bp.route("/api/public/group/unwarn", methods=["POST", "OPTIONS"])

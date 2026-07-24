@@ -2181,7 +2181,63 @@ function loadModerationData() {
         const notesArea = document.getElementById("modGroupNotes");
         if (notesArea) notesArea.value = data.notes || "";
     });
+    loadGroupSuite();
 }
+
+let currentSuiteSnapshot = null;
+const suiteHeaders = () => ({ "Authorization": authToken, "Content-Type": "application/json" });
+const suiteAction = (action, extra={}) => fetch("/api/moderation/suite/action", {
+    method:"POST", headers:suiteHeaders(), body:JSON.stringify({cid:currentModCid, action, ...extra})
+}).then(r=>r.json());
+
+function suiteEsc(value) {
+    const el=document.createElement("div"); el.textContent=String(value == null ? "" : value); return el.innerHTML;
+}
+
+function loadGroupSuite() {
+    if(!currentModCid) return;
+    fetch(`/api/moderation/${currentModCid}/suite`, {headers:{"Authorization":authToken}})
+    .then(r=>r.json()).then(data=>{
+        if(!data.ok) return;
+        currentSuiteSnapshot=data;
+        document.getElementById("modSuiteEmpty").hidden=true;
+        document.getElementById("modSuite").hidden=false;
+        const c=data.config;
+        sqQuarantine.checked=c.quarantine.enabled; sqRaid.checked=c.raid.enabled;
+        sqWelcome.checked=c.welcome.enabled; sqConsensus.checked=c.consensus.enabled;
+        sqQHours.value=c.quarantine.hours; sqQMessages.value=c.quarantine.messages;
+        sqRaidJoins.value=c.raid.joins; sqVotes.value=c.consensus.votes_required;
+        sqWelcomeText.value=c.welcome.message;
+        sqRules.innerHTML=c.rules.length?c.rules.map((x,i)=>`<div class="mod-item">${suiteEsc(x.start)}–${suiteEsc(x.end)} · ${suiteEsc(x.action)} <button class="btn-mod-mini" onclick="removeSuiteRule(${i})">Quitar</button></div>`).join(""):"<p>Sin reglas.</p>";
+        sqReports.innerHTML=data.reports.length?data.reports.map(x=>`<div class="mod-item"><span>${suiteEsc(x.target_id)} · ${suiteEsc(x.reason)} · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<span><button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','reviewed')">Revisado</button> <button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','dismissed')">Descartar</button></span>`:""}</div>`).join(""):"<p>Sin reportes.</p>";
+        sqConsensusList.innerHTML=data.consensus.length?data.consensus.map(x=>`<div class="mod-item"><span>${suiteEsc(x.action)} ${suiteEsc(x.target_id)} · ${x.votes.length} votos · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<button class="btn-mod-mini" onclick="voteSuiteProposal('${x.id}')">Votar</button>`:""}</div>`).join(""):"<p>Sin propuestas.</p>";
+        sqTemplates.innerHTML=data.templates.length?data.templates.map(x=>`<div class="mod-item"><span>${suiteEsc(x.name)}</span><button class="btn-mod-mini" onclick="applySuiteTemplate('${x.id}')">Aplicar</button></div>`).join(""):"<p>Sin plantillas.</p>";
+    });
+}
+
+function saveGroupSuite() {
+    const old=(currentSuiteSnapshot&&currentSuiteSnapshot.config)||{};
+    const config={...old,
+        quarantine:{...(old.quarantine||{}),enabled:sqQuarantine.checked,hours:+sqQHours.value,messages:+sqQMessages.value},
+        raid:{...(old.raid||{}),enabled:sqRaid.checked,joins:+sqRaidJoins.value},
+        welcome:{...(old.welcome||{}),enabled:sqWelcome.checked,message:sqWelcomeText.value},
+        consensus:{...(old.consensus||{}),enabled:sqConsensus.checked,votes_required:+sqVotes.value}
+    };
+    fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config})})
+    .then(r=>r.json()).then(d=>{if(d.ok){showToast("✅ Suite guardada","Protección actualizada.");loadGroupSuite();}});
+}
+function addSuiteRule(){const c=currentSuiteSnapshot.config;c.rules.push({enabled:true,start:sqRuleStart.value||"00:00",end:sqRuleEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});saveSuiteRules(c.rules);}
+function removeSuiteRule(i){const rules=currentSuiteSnapshot.config.rules.filter((_,n)=>n!==i);saveSuiteRules(rules);}
+function saveSuiteRules(rules){fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config:{rules}})}).then(()=>loadGroupSuite());}
+function resolveSuiteReport(report_id,decision){suiteAction("resolve_report",{report_id,decision}).then(loadGroupSuite);}
+function createSuiteProposal(){suiteAction("proposal",{target_id:sqProposalUid.value,moderation_action:sqProposalAction.value,reason:sqProposalReason.value}).then(loadGroupSuite);}
+function voteSuiteProposal(proposal_id){suiteAction("vote",{proposal_id}).then(loadGroupSuite);}
+function assignSuiteRole(){suiteAction("role",{user_id:sqUserUid.value,role:sqUserRole.value}).then(d=>showToast(d.ok?"✅ Rol asignado":"❌ Error",d.ok?sqUserUid.value:(d.error||"No se pudo guardar")));}
+function loadSuiteContext(){fetch(`/api/moderation/${currentModCid}/suite/context/${encodeURIComponent(sqUserUid.value)}`,{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>sqContext.textContent=JSON.stringify(d.context||d,null,2));}
+function loadSuiteSummary(){fetch(`/api/moderation/${currentModCid}/suite/summary`,{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>sqSummary.textContent=JSON.stringify(d.summary||d,null,2));}
+function saveSuiteTemplate(){suiteAction("template_save",{name:sqTemplateName.value||"Plantilla"}).then(loadGroupSuite);}
+function applySuiteTemplate(template_id){if(confirm("¿Aplicar esta configuración al grupo?"))suiteAction("template_apply",{template_id}).then(loadGroupSuite);}
+function exportSuiteBackup(){const blob=new Blob([JSON.stringify(currentSuiteSnapshot,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`grupo-${currentModCid}-backup.json`;a.click();URL.revokeObjectURL(a.href);}
 
 function webUnwarn(target) {
     if (!currentModCid) return;

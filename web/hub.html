@@ -493,6 +493,58 @@
   function fromUTC(s){ if(!s)return""; const d=new Date(String(s).replace(" ","T")+"Z"); return isNaN(d)?s:d.toLocaleString(); }
   const gp=(p,b)=>apiPost(p,Object.assign({initData:tg&&tg.initData,chat_id:curChat},b));
 
+  async function loadGroupSuiteMini(){
+    const host=document.getElementById("gGroupSuite");if(!host)return;
+    const d=await gp("/group/suite/get",{});
+    if(!d||!d.ok){host.innerHTML='<p class="muted">No se pudo cargar la suite avanzada.</p>';return;}
+    const c=d.config;
+    host.innerHTML=`
+      <div class="dropdown"><div class="dhead">Protección, acceso y bienvenida <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <label class="setrow"><b>Cuarentena</b><input id="mqEnabled" type="checkbox" ${c.quarantine.enabled?"checked":""}></label>
+        <div class="btnrow"><input id="mqHours" type="number" value="${c.quarantine.hours}" placeholder="Horas"><input id="mqMessages" type="number" value="${c.quarantine.messages}" placeholder="Mensajes"></div>
+        <label class="setrow"><b>Escudo anti-raid</b><input id="mrEnabled" type="checkbox" ${c.raid.enabled?"checked":""}></label>
+        <div class="btnrow"><input id="mrJoins" type="number" value="${c.raid.joins}" placeholder="Entradas"><input id="mrWindow" type="number" value="${c.raid.window_seconds}" placeholder="Ventana en segundos"></div>
+        <label class="setrow"><b>Bienvenida automática</b><input id="mwEnabled" type="checkbox" ${c.welcome.enabled?"checked":""}></label>
+        <textarea id="mwText" rows="2">${escHtml(c.welcome.message)}</textarea>
+        <label class="setrow"><b>Consenso administrativo</b><input id="mcEnabled" type="checkbox" ${c.consensus.enabled?"checked":""}></label>
+        <input id="mcVotes" type="number" value="${c.consensus.votes_required}" placeholder="Votos requeridos">
+        <button class="btn teal" id="msSave">Guardar protección</button>
+      </div></div>
+      <div class="dropdown"><div class="dhead">Reglas programadas (${c.rules.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <div id="msRules">${c.rules.map((r,i)=>`<div class="userchip"><span>${escHtml(r.start)}–${escHtml(r.end)} · solo admins</span><span class="minibtn red" data-rule="${i}">Quitar</span></div>`).join("")||'<p class="muted">Sin reglas.</p>'}</div>
+        <div class="btnrow"><input id="msStart" type="time"><input id="msEnd" type="time"></div><button class="btn ghost" id="msAddRule">Añadir tramo</button>
+      </div></div>
+      <div class="dropdown"><div class="dhead">Reportes y consenso <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        ${(d.reports||[]).slice(0,10).map(r=>`<div class="userchip"><span>${escHtml(r.target_id)} · ${escHtml(r.reason)} · ${escHtml(r.status)}</span>${r.status==="pending"?`<span class="minibtn" data-report="${r.id}">Revisar</span>`:""}</div>`).join("")||'<p class="muted">Sin reportes.</p>'}
+        <div class="btnrow"><input id="mpUid" inputmode="numeric" placeholder="ID usuario"><select id="mpAction"><option value="warn">Avisar</option><option value="mute">Silenciar</option><option value="ban">Banear</option></select></div>
+        <input id="mpReason" placeholder="Motivo"><button class="btn ghost" id="mpCreate">Crear propuesta</button>
+        ${(d.consensus||[]).slice(0,10).map(p=>`<div class="userchip"><span>${escHtml(p.action)} ${escHtml(p.target_id)} · ${(p.votes||[]).length} votos · ${escHtml(p.status)}</span>${p.status==="pending"?`<span class="minibtn" data-vote="${p.id}">Votar</span>`:""}</div>`).join("")}
+      </div></div>
+      <div class="dropdown"><div class="dhead">Contexto, roles y resumen <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <input id="muUid" inputmode="numeric" placeholder="ID usuario"><select id="muRole"><option value="member">Miembro</option><option value="verified">Verificado</option><option value="collaborator">Colaborador</option><option value="moderator">Moderador</option><option value="watch">Vigilancia</option><option value="guest">Invitado</option></select>
+        <div class="btnrow"><button class="btn ghost" id="muContext">Ver contexto</button><button class="btn ghost" id="muRoleSave">Asignar rol</button></div><pre id="muOutput" class="muted"></pre>
+        <button class="btn ghost" id="msSummary">Generar resumen inteligente</button><pre id="msSummaryOut" class="muted"></pre>
+      </div></div>
+      <div class="dropdown"><div class="dhead">Plantillas y copia de seguridad <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <input id="mtName" placeholder="Nombre de plantilla"><button class="btn ghost" id="mtSave">Guardar configuración</button>
+        ${(d.templates||[]).map(t=>`<div class="userchip"><span>${escHtml(t.name)}</span><span class="minibtn" data-template="${t.id}">Aplicar</span></div>`).join("")||'<p class="muted">Sin plantillas compartidas.</p>'}
+        <button class="btn ghost" id="msBackup">${svg('download')} Descargar copia JSON</button>
+      </div></div>`;
+    host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;h.parentElement.classList.toggle("open",!b.hidden);});
+    const save=()=>gp("/group/suite/settings",{config:{quarantine:{enabled:mqEnabled.checked,hours:+mqHours.value,messages:+mqMessages.value,block_links:true},raid:{enabled:mrEnabled.checked,joins:+mrJoins.value,window_seconds:+mrWindow.value,lock_minutes:c.raid.lock_minutes},welcome:{enabled:mwEnabled.checked,message:mwText.value,delete_after:c.welcome.delete_after},consensus:{enabled:mcEnabled.checked,votes_required:+mcVotes.value},rules:c.rules}}).then(()=>{showToast("Suite guardada");loadGroupSuiteMini();});
+    msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
+    host.querySelectorAll("[data-rule]").forEach(x=>x.onclick=()=>{c.rules.splice(+x.dataset.rule,1);save();});
+    host.querySelectorAll("[data-report]").forEach(x=>x.onclick=()=>gp("/group/suite/report/resolve",{report_id:x.dataset.report,decision:"reviewed"}).then(loadGroupSuiteMini));
+    mpCreate.onclick=()=>gp("/group/suite/consensus",{target_id:mpUid.value,action:mpAction.value,reason:mpReason.value}).then(loadGroupSuiteMini);
+    host.querySelectorAll("[data-vote]").forEach(x=>x.onclick=()=>gp("/group/suite/consensus/vote",{proposal_id:x.dataset.vote}).then(loadGroupSuiteMini));
+    muContext.onclick=()=>gp("/group/suite/context",{user_id:muUid.value}).then(x=>muOutput.textContent=JSON.stringify(x.context||x,null,2));
+    muRoleSave.onclick=()=>gp("/group/suite/role",{user_id:muUid.value,role:muRole.value}).then(()=>showToast("Rol guardado"));
+    msSummary.onclick=()=>gp("/group/suite/summary",{}).then(x=>msSummaryOut.textContent=JSON.stringify(x.summary||x,null,2));
+    mtSave.onclick=()=>gp("/group/suite/template",{action:"save",name:mtName.value||"Plantilla"}).then(loadGroupSuiteMini);
+    host.querySelectorAll("[data-template]").forEach(x=>x.onclick=()=>gp("/group/suite/template",{action:"apply",template_id:x.dataset.template}).then(loadGroupSuiteMini));
+    msBackup.onclick=()=>downloadText(`grupo-${curChat}-suite.json`,JSON.stringify(d,null,2),"application/json");
+  }
+
   function openGroup(chat_id,name){
     curChat=chat_id;
     if(window.gtag)gtag("event","page_view",{page_path:"/hub/grupo"});
@@ -560,6 +612,8 @@
       <div class="gsec">Detección inteligente</div>
       <div class="dropdown open" id="dd-spam-risk"><div class="dhead">Motor de riesgo de spam <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gspamRisk">${skel()}</div></div>
+      <div class="gsec">Suite avanzada de grupos</div>
+      <div id="gGroupSuite">${skel()}</div>
       <div class="gsec">Acceso automático</div>
       <div class="dropdown open" id="dd-join"><div class="dhead">Captcha de entrada <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gjoin">${skel()}</div></div>
@@ -578,6 +632,7 @@
       <div class="gsec">Notas de moderación</div>
       <textarea id="gnotes" rows="2" placeholder="Notas internas…">${escHtml(d.notes)}</textarea>
       <div class="btnrow"><button class="btn ghost" id="gnotesSave">Guardar notas</button></div>`;
+    loadGroupSuiteMini();
     document.getElementById("gback").onclick=()=>showView("canales");
     if(document.getElementById("gopen"))document.getElementById("gopen").onclick=()=>openTg(`https://t.me/${m.username}`);
     document.getElementById("gshare").onclick=()=>{

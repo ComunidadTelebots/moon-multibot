@@ -47,6 +47,7 @@ from core.tdlib_client import TDLibClient
 from token_manager import token_manager
 from ban_manager import BanManager
 from spam_risk import SpamRiskEngine
+from group_suite import GroupSuite
 
 load_dotenv()
 
@@ -91,6 +92,7 @@ logger = logging.getLogger("MoonBot")
 db = DBManager()
 ban_manager = BanManager(db)  # Gestor centralizado de baneos
 spam_risk = SpamRiskEngine(db)
+group_suite = GroupSuite(db)
 
 task_queue = TaskQueue()
 start_time = time.time()
@@ -3649,6 +3651,24 @@ class MoonBot:
         add_web_log("SECURITY", f"Riesgo spam {score}/100 para {uname} ({uid}) en {cid}: {action}")
         return deleted
 
+    def enforce_group_suite(self, cid, text, uid, uname, message_id=None):
+        if not str(cid).startswith("-") or str(uid) == str(MASTER_ID):
+            return False
+        quarantined = str(uid) in db.get(f"QUARANTINE_{cid}", {})
+        active_rule = group_suite.active_rule(cid)
+        if not quarantined and not active_rule:
+            return False
+        rank = self.get_user_rank(cid, uid)
+        policy = group_suite.message_policy(
+            cid, uid, text, is_admin=rank in ("Admin", "Master")
+        )
+        if not policy["delete"]:
+            return False
+        self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+        self.send_msg(cid, f"🛡️ {uname}: mensaje retenido ({policy['reason']}).")
+        add_audit_log(f"Group Suite eliminó mensaje de {uid} en {cid}: {policy['reason']}")
+        return True
+
     def restrict_user(self, cid, uid, until=0, can_send=False):
         permissions = {
             "can_send_messages": can_send, "can_send_media_messages": can_send,
@@ -4007,6 +4027,16 @@ class MoonBot:
         add_web_log("DEBUG", f"[CMD] Procesando '{raw_cmd}' de {uname} (Rango: {rk})")
 
         # 2. Comandos PÃºblicos / Globales
+        if raw_cmd in ["/report", "/reportar"]:
+            replied = msg.get("reply_to_message") or {}
+            target = (replied.get("from") or {}).get("id")
+            if not target:
+                self.send_msg(cid, "Responde al mensaje del usuario que quieres reportar y usa `/report motivo`.")
+                return True
+            report = group_suite.create_report(cid, uid, target, replied.get("message_id"), arg_str)
+            self.send_msg(cid, f"✅ Reporte `{report['id']}` enviado a los administradores para revisión.")
+            return True
+
         # --- Proxies MTProto (solo CintiaBot) ---
         if raw_cmd in ["/proxy", "/proxies", "/proxi"]:
             if (self.bot_username or "").lower() == "cintiabot":
@@ -4603,6 +4633,8 @@ class MoonBot:
                         continue
                     if self.enforce_banned_words(cid, text, uid, uname, msg.get("message_id")):
                         continue
+                    if self.enforce_group_suite(cid, text, uid, uname, msg.get("message_id")):
+                        continue
                     feeder_groups = db.get("IA_FEEDERS", [])
                     if cid in [str(item) for item in feeder_groups]:
                         _learn_from_security_feeder(cid, text)
@@ -4690,6 +4722,19 @@ class MoonBot:
                             if member_uid and self.enforce_cas_ban(cid, member_uid, member_name, msg.get("message_id")):
                                 join_security_hit = True
                                 continue
+                            suite_join = group_suite.register_join(cid, member_uid, member_name)
+                            if suite_join.get("raid_activated"):
+                                self.send_msg(
+                                    cid,
+                                    "🚨 **Protección anti-raid activada:** se reforzará el acceso temporalmente.",
+                                )
+                                add_audit_log(f"Anti-raid Group Suite activado en {cid}")
+                            welcome = group_suite.config(cid)["welcome"]
+                            if welcome["enabled"]:
+                                welcome_text = welcome["message"].replace("{name}", str(member_name)).replace(
+                                    "{group}", global_chat_names.get(cid, "el grupo")
+                                )
+                                self.send_msg(cid, welcome_text)
                         if join_security_hit:
                             continue
                         join_count = len(msg["new_chat_members"])

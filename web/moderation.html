@@ -31,6 +31,49 @@
             <button class="btn-glow" style="margin: 0; padding: 8px; font-size: 12px;" onclick="saveGroupNotes()">💾 Guardar Nota</button>
         </div>
     </div>
+    <div class="glass-panel" style="margin-top:20px;border-left:3px solid #2dd4bf;">
+        <h3 style="margin-top:0;">🧰 Suite avanzada de grupos</h3>
+        <p style="color:var(--text-muted);font-size:12px;">Las mismas funciones disponibles en la Mini App, centralizadas para el master.</p>
+        <div id="modSuiteEmpty" style="color:var(--text-muted);">Selecciona un grupo para cargar sus herramientas.</div>
+        <div id="modSuite" hidden>
+            <div class="suite-grid">
+                <label><input type="checkbox" id="sqQuarantine"> Cuarentena de nuevos miembros</label>
+                <label><input type="checkbox" id="sqRaid"> Escudo anti-raid</label>
+                <label><input type="checkbox" id="sqWelcome"> Bienvenida automática</label>
+                <label><input type="checkbox" id="sqConsensus"> Moderación por consenso</label>
+                <input id="sqQHours" class="input-style" type="number" min="1" max="168" placeholder="Horas de cuarentena">
+                <input id="sqQMessages" class="input-style" type="number" min="1" max="50" placeholder="Mensajes para completar">
+                <input id="sqRaidJoins" class="input-style" type="number" min="3" max="100" placeholder="Entradas para activar raid">
+                <input id="sqVotes" class="input-style" type="number" min="1" max="10" placeholder="Votos requeridos">
+            </div>
+            <textarea id="sqWelcomeText" class="input-style" rows="2" placeholder="Bienvenida: usa {name}"></textarea>
+            <button class="btn-glow" onclick="saveGroupSuite()">Guardar protección y bienvenida</button>
+
+            <details><summary>⏰ Reglas programadas</summary>
+                <div class="suite-grid"><input id="sqRuleStart" class="input-style" type="time"><input id="sqRuleEnd" class="input-style" type="time"></div>
+                <button class="btn-glow" onclick="addSuiteRule()">Añadir tramo solo administradores</button>
+                <div id="sqRules"></div>
+            </details>
+            <details><summary>🚩 Reportes de miembros</summary><div id="sqReports"></div></details>
+            <details><summary>🗳️ Consenso administrativo</summary>
+                <div class="suite-grid"><input id="sqProposalUid" class="input-style" placeholder="ID usuario"><select id="sqProposalAction" class="input-style"><option value="warn">Avisar</option><option value="mute">Silenciar</option><option value="ban">Banear</option></select></div>
+                <input id="sqProposalReason" class="input-style" placeholder="Motivo">
+                <button class="btn-glow" onclick="createSuiteProposal()">Crear propuesta</button><div id="sqConsensusList"></div>
+            </details>
+            <details><summary>👤 Historial contextual y roles</summary>
+                <div class="suite-grid"><input id="sqUserUid" class="input-style" placeholder="ID usuario"><select id="sqUserRole" class="input-style"><option value="member">Miembro</option><option value="verified">Verificado</option><option value="collaborator">Colaborador</option><option value="moderator">Moderador</option><option value="watch">Vigilancia</option><option value="guest">Invitado</option></select></div>
+                <div class="btnrow"><button class="btn-glow" onclick="loadSuiteContext()">Ver contexto</button><button class="btn-glow" onclick="assignSuiteRole()">Asignar rol</button></div>
+                <pre id="sqContext" class="suite-output"></pre>
+            </details>
+            <details><summary>📝 Resumen inteligente</summary><button class="btn-glow" onclick="loadSuiteSummary()">Generar resumen</button><pre id="sqSummary" class="suite-output"></pre></details>
+            <details><summary>📦 Plantillas y copias de configuración</summary>
+                <input id="sqTemplateName" class="input-style" placeholder="Nombre de plantilla">
+                <button class="btn-glow" onclick="saveSuiteTemplate()">Guardar plantilla</button>
+                <div id="sqTemplates"></div>
+                <button class="btn-glow" onclick="exportSuiteBackup()">Descargar copia JSON</button>
+            </details>
+        </div>
+    </div>
 </div>
 
 <!-- Tabla de Leaderboard -->
@@ -151,4 +194,9 @@
 .mod-item:last-child { border-bottom: none; }
 .btn-mod-mini { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
 .btn-mod-mini:hover { background: rgba(239,68,68,0.2); }
+.suite-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0; }
+#modSuite details { margin-top:12px;padding:12px;border:1px solid var(--glass-border);border-radius:10px; }
+#modSuite summary { cursor:pointer;font-weight:700; }
+.suite-output { white-space:pre-wrap;max-height:240px;overflow:auto;background:rgba(0,0,0,.25);padding:10px;border-radius:8px; }
+@media(max-width:700px){.suite-grid{grid-template-columns:1fr}}
 </style>

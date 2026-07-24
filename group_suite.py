@@ -1,0 +1,294 @@
+"""Funciones avanzadas de gestión de grupos, compartidas por web y Mini App."""
+
+import datetime
+import re
+import time
+import uuid
+from collections import Counter
+
+
+class GroupSuite:
+    PURPOSES = ("member", "verified", "collaborator", "moderator", "watch", "guest")
+
+    def __init__(self, db):
+        self.db = db
+
+    @staticmethod
+    def _cid(chat_id):
+        return str(chat_id)
+
+    @staticmethod
+    def _uid(user_id):
+        return str(user_id)
+
+    def config(self, chat_id):
+        cid = self._cid(chat_id)
+        raw = self.db.get(f"GROUPSUITE_{cid}", {})
+        if not isinstance(raw, dict):
+            raw = {}
+        def section(name):
+            value = raw.get(name, {})
+            return value if isinstance(value, dict) else {}
+        quarantine, raid = section("quarantine"), section("raid")
+        welcome, consensus = section("welcome"), section("consensus")
+        return {
+            "quarantine": {
+                "enabled": bool(quarantine.get("enabled", False)),
+                "hours": max(1, min(int(quarantine.get("hours", 24)), 168)),
+                "messages": max(1, min(int(quarantine.get("messages", 5)), 50)),
+                "block_links": bool(quarantine.get("block_links", True)),
+            },
+            "raid": {
+                "enabled": bool(raid.get("enabled", True)),
+                "joins": max(3, min(int(raid.get("joins", 8)), 100)),
+                "window_seconds": max(10, min(int(raid.get("window_seconds", 60)), 600)),
+                "lock_minutes": max(1, min(int(raid.get("lock_minutes", 15)), 180)),
+            },
+            "welcome": {
+                "enabled": bool(welcome.get("enabled", False)),
+                "message": str(welcome.get(
+                    "message", "Bienvenido, {name}. Revisa las reglas del grupo."
+                ))[:1000],
+                "delete_after": max(0, min(int(welcome.get("delete_after", 0)), 86400)),
+            },
+            "consensus": {
+                "enabled": bool(consensus.get("enabled", True)),
+                "votes_required": max(1, min(int(consensus.get("votes_required", 2)), 10)),
+            },
+            "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
+        }
+
+    def save_config(self, chat_id, updates):
+        current = self.config(chat_id)
+        for section in ("quarantine", "raid", "welcome", "consensus"):
+            if isinstance(updates.get(section), dict):
+                current[section].update(updates[section])
+        if isinstance(updates.get("rules"), list):
+            current["rules"] = updates["rules"][:30]
+        self.db.set(f"GROUPSUITE_{self._cid(chat_id)}", current)
+        return self.config(chat_id)
+
+    def register_join(self, chat_id, user_id, name=""):
+        cid, uid, now = self._cid(chat_id), self._uid(user_id), int(time.time())
+        cfg = self.config(cid)
+        was_raid_active = self.raid_state(cid)["active"]
+        quarantine = self.db.get(f"QUARANTINE_{cid}", {})
+        if cfg["quarantine"]["enabled"]:
+            quarantine[uid] = {"joined_at": now, "messages": 0, "name": str(name)[:100]}
+            self.db.set(f"QUARANTINE_{cid}", quarantine)
+
+        joins = self.db.get(f"RAID_JOINS_{cid}", [])
+        joins = [stamp for stamp in joins if now - int(stamp) <= cfg["raid"]["window_seconds"]]
+        joins.append(now)
+        self.db.set(f"RAID_JOINS_{cid}", joins[-200:])
+        raid_triggered = cfg["raid"]["enabled"] and len(joins) >= cfg["raid"]["joins"]
+        if raid_triggered:
+            until = now + cfg["raid"]["lock_minutes"] * 60
+            self.db.set(f"RAID_STATE_{cid}", {"active": True, "until": until, "joins": len(joins)})
+        return {"quarantined": cfg["quarantine"]["enabled"], "raid_triggered": raid_triggered,
+                "raid_activated": raid_triggered and not was_raid_active,
+                "raid": self.raid_state(cid)}
+
+    def raid_state(self, chat_id):
+        cid, now = self._cid(chat_id), int(time.time())
+        state = self.db.get(f"RAID_STATE_{cid}", {})
+        if not isinstance(state, dict) or int(state.get("until", 0)) <= now:
+            if state:
+                self.db.set(f"RAID_STATE_{cid}", {})
+            return {"active": False, "until": None, "joins": 0}
+        return {"active": True, "until": state.get("until"), "joins": int(state.get("joins", 0))}
+
+    def message_policy(self, chat_id, user_id, text, is_admin=False):
+        cid, uid, now = self._cid(chat_id), self._uid(user_id), int(time.time())
+        cfg = self.config(cid)
+        result = {"delete": False, "reason": None, "quarantine": False, "rule": None}
+        quarantine = self.db.get(f"QUARANTINE_{cid}", {})
+        entry = quarantine.get(uid) if isinstance(quarantine, dict) else None
+        if entry and not is_admin:
+            expired = now - int(entry.get("joined_at", now)) >= cfg["quarantine"]["hours"] * 3600
+            completed = int(entry.get("messages", 0)) >= cfg["quarantine"]["messages"]
+            if expired or completed:
+                quarantine.pop(uid, None)
+            else:
+                entry["messages"] = int(entry.get("messages", 0)) + 1
+                quarantine[uid] = entry
+                result["quarantine"] = True
+                if cfg["quarantine"]["block_links"] and re.search(r"(?:https?://|t\.me/)", text or "", re.I):
+                    result.update({"delete": True, "reason": "enlace durante la cuarentena"})
+            self.db.set(f"QUARANTINE_{cid}", quarantine)
+
+        rule = self.active_rule(cid)
+        if rule and not is_admin:
+            result["rule"] = rule
+            if rule.get("action") == "admin_only":
+                result.update({"delete": True, "reason": "regla programada: solo administradores"})
+        return result
+
+    def active_rule(self, chat_id, when=None):
+        when = when or datetime.datetime.now()
+        weekday, current = when.weekday(), when.strftime("%H:%M")
+        for rule in self.config(chat_id)["rules"]:
+            if not isinstance(rule, dict) or not rule.get("enabled", True):
+                continue
+            days = rule.get("days", list(range(7)))
+            start, end = str(rule.get("start", "00:00")), str(rule.get("end", "23:59"))
+            if weekday in days and (start <= current <= end if start <= end else current >= start or current <= end):
+                return rule
+        return None
+
+    def create_report(self, chat_id, reporter_id, target_id, message_id=None, reason=""):
+        cid = self._cid(chat_id)
+        rows = self.db.get(f"GROUP_REPORTS_{cid}", [])
+        if not isinstance(rows, list):
+            rows = []
+        now = datetime.datetime.now().isoformat()
+        report = {
+            "id": uuid.uuid4().hex[:12], "reporter_id": self._uid(reporter_id),
+            "target_id": self._uid(target_id), "message_id": message_id,
+            "reason": str(reason or "Reporte de usuario")[:500],
+            "status": "pending", "created_at": now,
+        }
+        rows.append(report)
+        self.db.set(f"GROUP_REPORTS_{cid}", rows[-500:])
+        return report
+
+    def resolve_report(self, chat_id, report_id, decision, admin_id):
+        cid = self._cid(chat_id)
+        rows = self.db.get(f"GROUP_REPORTS_{cid}", [])
+        for row in rows:
+            if row.get("id") == report_id and row.get("status") == "pending":
+                row.update({"status": decision, "resolved_by": self._uid(admin_id),
+                            "resolved_at": datetime.datetime.now().isoformat()})
+                self.db.set(f"GROUP_REPORTS_{cid}", rows[-500:])
+                return row
+        return None
+
+    def proposal(self, chat_id, target_id, action, reason, admin_id):
+        cid = self._cid(chat_id)
+        rows = self.db.get(f"CONSENSUS_{cid}", [])
+        if not isinstance(rows, list):
+            rows = []
+        proposal = {
+            "id": uuid.uuid4().hex[:12], "target_id": self._uid(target_id),
+            "action": action, "reason": str(reason)[:500], "status": "pending",
+            "votes": [self._uid(admin_id)], "created_at": datetime.datetime.now().isoformat(),
+        }
+        rows.append(proposal)
+        self.db.set(f"CONSENSUS_{cid}", rows[-200:])
+        return proposal
+
+    def vote(self, chat_id, proposal_id, admin_id):
+        cid = self._cid(chat_id)
+        rows = self.db.get(f"CONSENSUS_{cid}", [])
+        required = self.config(cid)["consensus"]["votes_required"]
+        for row in rows:
+            if row.get("id") != proposal_id or row.get("status") != "pending":
+                continue
+            votes = [str(value) for value in row.get("votes", [])]
+            if self._uid(admin_id) not in votes:
+                votes.append(self._uid(admin_id))
+            row["votes"] = votes
+            if len(votes) >= required:
+                row["status"] = "approved"
+                row["approved_at"] = datetime.datetime.now().isoformat()
+            self.db.set(f"CONSENSUS_{cid}", rows[-200:])
+            return row
+        return None
+
+    def roles(self, chat_id):
+        rows = self.db.get(f"GROUP_ROLES_{self._cid(chat_id)}", {})
+        return rows if isinstance(rows, dict) else {}
+
+    def set_role(self, chat_id, user_id, role, expires_at=None):
+        if role not in self.PURPOSES:
+            return None
+        rows = self.roles(chat_id)
+        rows[self._uid(user_id)] = {"role": role, "expires_at": expires_at,
+                                    "updated_at": datetime.datetime.now().isoformat()}
+        self.db.set(f"GROUP_ROLES_{self._cid(chat_id)}", rows)
+        return rows[self._uid(user_id)]
+
+    def user_context(self, chat_id, user_id):
+        cid, uid = self._cid(chat_id), self._uid(user_id)
+        history = self.db.get(f"CHAT_HIST_{cid}", [])
+        history = history if isinstance(history, list) else []
+        messages = [row for row in history if str(row.get("uid")) == uid][-20:]
+        events = self.db.get(f"SPAMEVENTS_{cid}", [])
+        events = events if isinstance(events, list) else []
+        reports = self.db.get(f"GROUP_REPORTS_{cid}", [])
+        reports = reports if isinstance(reports, list) else []
+        warns = self.db.get(f"WARNS_{cid}", {})
+        bans = self.db.get(f"BANS_{cid}", {})
+        quarantine = self.db.get(f"QUARANTINE_{cid}", {})
+        warns = warns if isinstance(warns, dict) else {}
+        bans = bans if isinstance(bans, dict) else {}
+        quarantine = quarantine if isinstance(quarantine, dict) else {}
+        return {
+            "user_id": uid, "role": self.roles(cid).get(uid),
+            "warnings": int(warns.get(uid, 0)),
+            "locally_banned": uid in [str(value) for value in bans.get("users", [])],
+            "messages": messages,
+            "spam_events": [row for row in events if str(row.get("user_id")) == uid][-20:],
+            "reports": [row for row in reports if str(row.get("target_id")) == uid][-20:],
+            "quarantine": quarantine.get(uid),
+        }
+
+    def summary(self, chat_id):
+        cid = self._cid(chat_id)
+        history = self.db.get(f"CHAT_HIST_{cid}", [])
+        history = history[-500:] if isinstance(history, list) else []
+        texts = [str(row.get("text", "")) for row in history if row.get("text")]
+        words = Counter(
+            word for text in texts for word in re.findall(r"[a-záéíóúñ]{4,}", text.lower())
+            if word not in {"para", "como", "este", "esta", "pero", "porque", "desde", "sobre"}
+        )
+        reports = self.db.get(f"GROUP_REPORTS_{cid}", [])
+        return {
+            "generated_at": datetime.datetime.now().isoformat(),
+            "messages": len(texts), "participants": len(set(str(row.get("uid")) for row in history if row.get("uid"))),
+            "topics": [word for word, _ in words.most_common(8)],
+            "questions": [text[:250] for text in texts if text.strip().endswith("?")][-10:],
+            "reports": len(reports),
+            "moderation_events": len(self.db.get(f"SPAMEVENTS_{cid}", [])),
+        }
+
+    def templates(self, chat_id):
+        rows = self.db.get("GROUP_TEMPLATES", [])
+        return rows if isinstance(rows, list) else []
+
+    def save_template(self, chat_id, name):
+        rows = self.templates(chat_id)
+        template = {
+            "id": uuid.uuid4().hex[:12], "name": str(name)[:80],
+            "source_chat_id": self._cid(chat_id),
+            "config": self.config(chat_id),
+            "badwords": self.db.get(f"BADWORDS_{self._cid(chat_id)}", {}),
+            "spam_config": self.db.get(f"SPAMCFG_{self._cid(chat_id)}", {}),
+            "created_at": datetime.datetime.now().isoformat(),
+        }
+        rows.append(template)
+        self.db.set("GROUP_TEMPLATES", rows[-50:])
+        return template
+
+    def apply_template(self, chat_id, template_id):
+        template = next((row for row in self.templates(chat_id) if row.get("id") == template_id), None)
+        if not template:
+            return None
+        cid = self._cid(chat_id)
+        self.db.set(f"GROUPSUITE_{cid}", template.get("config", {}))
+        self.db.set(f"BADWORDS_{cid}", template.get("badwords", {}))
+        self.db.set(f"SPAMCFG_{cid}", template.get("spam_config", {}))
+        return template
+
+    def snapshot(self, chat_id):
+        cid = self._cid(chat_id)
+        reports = self.db.get(f"GROUP_REPORTS_{cid}", [])
+        consensus = self.db.get(f"CONSENSUS_{cid}", [])
+        quarantine = self.db.get(f"QUARANTINE_{cid}", {})
+        return {
+            "config": self.config(cid), "raid": self.raid_state(cid),
+            "quarantine": quarantine if isinstance(quarantine, dict) else {},
+            "reports": list(reversed(reports[-100:])) if isinstance(reports, list) else [],
+            "consensus": list(reversed(consensus[-100:])) if isinstance(consensus, list) else [],
+            "roles": self.roles(cid), "templates": self.templates(cid),
+        }
