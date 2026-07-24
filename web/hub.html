@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Panel · ComunidadTelebots</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Google Analytics (GA4) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-F5P08EW3SV"></script>
+<script>
+  window.dataLayer=window.dataLayer||[];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js',new Date());
+  gtag('config','G-F5P08EW3SV');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -84,9 +92,9 @@
   .row{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;
     background:var(--card);margin-bottom:9px;}
   .row .av{width:40px;height:40px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;color:#04121f;
-    font-family:var(--mono);font-weight:600;font-size:14px;background:var(--grad);}
+    font-family:var(--mono);font-weight:500;font-size:14px;background:var(--grad);}
   .row .meta{min-width:0;flex:1;}
-  .row .nm{font-family:var(--display);font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row .nm{font-family:var(--display);font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .row .un{font-family:var(--mono);font-size:11.5px;color:var(--muted);}
   .row .num{text-align:right;}
   .row .num .s{font-family:var(--mono);font-weight:600;font-size:15px;}
@@ -182,10 +190,10 @@
   .themeopt .to-t span{display:block;font-size:12.5px;color:var(--muted);}
 
   /* ── Barra de pestañas ── */
-  .tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;display:flex;height:var(--tabh);
+  .tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;display:flex;min-height:var(--tabh);
     padding-bottom:env(safe-area-inset-bottom);background:rgba(9,14,24,.92);backdrop-filter:blur(16px);border-top:1px solid var(--line);}
   .tab{flex:1;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:3px;color:var(--muted);font-family:var(--body);font-size:10.5px;font-weight:600;transition:.15s;}
+    justify-content:center;gap:3px;color:var(--muted);font-family:var(--body);font-size:10.5px;font-weight:500;transition:.15s;}
   .tab svg{font-size:21px;}
   .tab.active{color:var(--teal);}
 
@@ -294,6 +302,8 @@
   function initials(s){return(s||"C").replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||"CH";}
   async function apiGet(p){try{const r=await fetch(API+p);return await r.json();}catch(e){return null;}}
   async function apiPost(p,b){try{const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return await r.json();}catch(e){return null;}}
+  // Evento GA4 seguro (no rompe la app si gtag no está / está bloqueado). Sin PII.
+  function ev(name,params){try{if(window.gtag)gtag("event",name,params||{});}catch(e){}}
 
   const skel=()=>`<div class="skel"></div><div class="skel"></div><div class="skel"></div>`;
 
@@ -334,13 +344,13 @@
           <li><span class="n">2</span><div>Toca <b>Añadir administrador</b> y busca <code>@${BOT}</code></div></li>
           <li><span class="n">3</span><div>Deja activado <b>Publicar mensajes</b> y confirma</div></li>
         </ol></div>`;
-      document.getElementById("ctaAdd").onclick=()=>openTg(ADD_LINK);
+      document.getElementById("ctaAdd").onclick=()=>{ev("add_channel",{from:"canales_empty"});openTg(ADD_LINK);};
       return;
     }
     el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>`
       +chs.map(c=>channelRow(c,true)).join("")
       +`<button class="btn cta" id="ctaAdd2" style="margin-top:6px;">${svg('plus')} Añadir otro canal</button>`;
-    document.getElementById("ctaAdd2").onclick=()=>openTg(ADD_LINK);
+    document.getElementById("ctaAdd2").onclick=()=>{ev("add_channel",{from:"canales_list"});openTg(ADD_LINK);};
     bindRowOpen(el);
   }
 
@@ -360,6 +370,7 @@
       e.stopPropagation();
       const chat=sw.dataset.chat, on=!sw.classList.contains("on");
       sw.classList.toggle("on",on);
+      ev("channel_publish",{listed:on});
       apiPost("/admin/set_listed",{initData:tg&&tg.initData,chat_id:chat,listed:on})
         .then(d=>{ if(!d||!d.ok) sw.classList.toggle("on",!on); });  // revertir si falla
     });
@@ -381,6 +392,7 @@
 
   function openGroup(chat_id,name){
     curChat=chat_id;
+    if(window.gtag)gtag("event","page_view",{page_path:"/hub/grupo"});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!=="grupo");
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.remove("active"));
     const el=document.getElementById("v-grupo");
@@ -439,7 +451,7 @@
     document.getElementById("gsend").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(); if(!txt){showToast("Escribe el mensaje");return;}
       const r=await gp("/group/send",{text:txt});
-      if(r&&r.ok){document.getElementById("gmsg").value="";showToast("Mensaje enviado");} else showToast("No se pudo enviar");
+      if(r&&r.ok){ev("group_message_sent");document.getElementById("gmsg").value="";showToast("Mensaje enviado");} else showToast("No se pudo enviar");
     };
     document.getElementById("gsched").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(), when=toUTC(document.getElementById("gwhen").value);
@@ -657,7 +669,7 @@
         <div class="empty"><div class="big">${svg('compass')}</div><h2>Sé el primero</h2>
         <p>Todavía no hay canales en el directorio. Añade el tuyo y aparecerá aquí con sus métricas.</p>
         <button class="btn cta" id="dirAdd">${svg('plus')} Añadir mi canal</button></div>`;
-      document.getElementById("dirAdd").onclick=()=>openTg(ADD_LINK);
+      document.getElementById("dirAdd").onclick=()=>{ev("add_channel",{from:"directorio"});openTg(ADD_LINK);};
       return;
     }
     const gv=g&&g.ok?g:{channels:chs.length,totalSubscribers:0,avgGrowth:0};
@@ -690,7 +702,7 @@
         <div class="li-t"><b>Obtener proxy MTProto</b><span>Salta bloqueos de Telegram</span></div>
         <span class="chev">${svg('chevron')}</span></div>
       <div class="proxy-out" id="proxyOut"></div>`;
-    el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>openLink(SERVICES[x.dataset.i].url));
+    el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>{ev("service_open",{service:SERVICES[x.dataset.i].n});openLink(SERVICES[x.dataset.i].url);});
     document.getElementById("proxyItem").onclick=fetchProxy;
   }
   function fetchProxy(){
@@ -699,7 +711,7 @@
     apiGet("/proxy").then(d=>{
       if(!d||!d.ok||!d.proxies||!d.proxies.length){out.innerHTML=`<p class="muted" style="margin-top:10px;">No hay proxies disponibles ahora mismo.</p>`;return;}
       out.innerHTML=d.proxies.slice(0,3).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
-      out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>openTg(el.dataset.l));
+      out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ev("proxy_connect");openTg(el.dataset.l);});
     });
   }
 
@@ -720,6 +732,7 @@
   function showView(name){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
+    if(window.gtag)gtag("event","page_view",{page_path:"/hub/"+name});
     (LOADERS[name]||(()=>{}))();
   }
   let newBound=false;
@@ -749,7 +762,7 @@
       apiGet("/proxy").then(d=>{
         if(!d||!d.ok||!d.proxies||!d.proxies.length){out.innerHTML=`<p class="muted">No hay proxies disponibles ahora.</p>`;return;}
         out.innerHTML=d.proxies.slice(0,3).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
-        out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>openTg(el.dataset.l));
+        out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ev("proxy_connect");openTg(el.dataset.l);});
       });
     };
   }
@@ -763,7 +776,7 @@
     document.getElementById("app-classic").hidden=nuevo;
     if(nuevo)initNew();else initClassic();
   }
-  function setTheme(t){saveTheme(t);applyTheme(t);if(curTheme==="nuevo"){reflectTheme();}}
+  function setTheme(t){ev("theme_change",{theme:t});saveTheme(t);applyTheme(t);if(curTheme==="nuevo"){reflectTheme();}}
   function saveTheme(t){
     try{if(tg&&tg.CloudStorage)tg.CloudStorage.setItem("hub_theme",t);}catch(e){}
     try{localStorage.setItem("hub_theme",t);}catch(e){}

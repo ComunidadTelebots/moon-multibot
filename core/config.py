@@ -14,6 +14,10 @@ MOON_ENV = os.getenv("MOON_ENV", "prod").lower()
 MOON_ROLE = os.getenv("MOON_ROLE", "master").lower()
 MASTER_ID = int(os.getenv("MASTER_ID", 0))
 
+# Bot que sirve la Mini App del hub. El initData SOLO se valida contra este
+# bot (no contra cualquier bot activo). Case-insensitive.
+HUB_BOT_USERNAME = os.getenv("HUB_BOT_USERNAME", "cintiabot")
+
 # --- Flask server ---
 FLASK_PORT = int(os.getenv("FLASK_PORT", "5001" if os.getenv("MOON_ENV", "prod").lower() == "dev" else "5000"))
 FLASK_THREADS = int(os.getenv("FLASK_THREADS", "6"))

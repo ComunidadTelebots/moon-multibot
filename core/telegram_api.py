@@ -2,7 +2,7 @@ import time
 import requests
 
 
-TELEGRAM_BOT_API_VERSION = "10.0"
+TELEGRAM_BOT_API_VERSION = "10.1"
 
 DEPRECATED_METHOD_ALIASES = {
     "kickChatMember": "banChatMember",

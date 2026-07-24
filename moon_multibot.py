@@ -10,6 +10,7 @@ from core.config import (
     MOON_ENV,
     MOON_ROLE,
     MASTER_ID,
+    HUB_BOT_USERNAME,
     FLASK_PORT,
     FLASK_THREADS,
     GEMINI_API_KEY,
@@ -317,7 +318,7 @@ from core.routes_tdlib import setup as _setup_tdlib
 from core.routes_security import setup as _setup_security
 from core.routes_queue import setup as _setup_queue
 from core.routes_moderation import setup as _setup_moderation
-from core.routes_ia import setup as _setup_ia
+from core.routes_ia import setup as _setup_ia, _start_audit_logic
 from core.routes_admin import setup as _setup_admin
 from core.routes_system import setup as _setup_system
 from core.routes_users import setup as _setup_users
@@ -360,6 +361,7 @@ app.register_blueprint(_setup_public(
     ban_manager=ban_manager,
     get_bot_for_chat=get_bot_for_chat,
     check_cas=check_cas_status,
+    hub_bot_username=HUB_BOT_USERNAME,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,
@@ -4041,6 +4043,35 @@ class MoonBot:
             add_web_log("ERROR", f"handle_channel_membership: {e}")
         return True
 
+    def handle_join_request(self, u):
+        """Captcha anti-bot. Si CintiaBot es guard_bot del chat, el update
+        chat_join_request llega con query_id → abrimos la Mini App de verificación."""
+        if (self.bot_username or "").lower() != "cintiabot":
+            return False
+        jr = u.get("chat_join_request")
+        if not jr:
+            return False
+        query_id = jr.get("query_id")
+        if not query_id:
+            return False  # no somos guard_bot / feature desactivada → ignorar
+        try:
+            cid = (jr.get("chat") or {}).get("id")
+            uid = (jr.get("from") or {}).get("id")
+            if cid is None or uid is None:
+                return True
+            db.set(f"JOINQ_{cid}_{uid}", {
+                "query_id": query_id, "chat_id": cid, "user_id": uid,
+                "attempts": 0, "exp": int(time.time()) + 86400,
+            })
+            self.api_call("sendChatJoinRequestWebApp", {
+                "chat_id": cid, "user_id": uid,
+                "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"},
+            })
+            add_web_log("SECURITY", f"Captcha de entrada enviado a {uid} en {cid}")
+        except Exception as e:
+            add_web_log("ERROR", f"handle_join_request: {e}")
+        return True
+
     def run_periodic_maintenance(self):
         now_s = int(time.time())
 
@@ -4192,6 +4223,8 @@ class MoonBot:
                         continue
                     if self.handle_channel_membership(u):
                         continue
+                    if self.handle_join_request(u):
+                        continue
                     # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
@@ -4273,7 +4306,7 @@ class MoonBot:
                                 db.set("POTENTIAL_FEEDERS", potentials)
                                 # Auto-AuditorÃ­a: Comenzar a analizar de inmediato de forma silenciosa
                                 if cid not in active_audits:
-                                    start_audit_logic(cid)
+                                    _start_audit_logic(cid)
                     
                     # Karma & RPG System
                     user_id = str(uid)

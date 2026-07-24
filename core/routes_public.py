@@ -13,6 +13,8 @@ import hmac
 import hashlib
 import json
 import datetime
+import time
+import secrets
 from urllib.parse import parse_qsl
 
 import jwt
@@ -31,12 +33,15 @@ _db = None
 _ban_manager = None
 _get_bot_for_chat = None
 _check_cas = None
+_hub_bot_username = "cintiabot"
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
-          db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None):
+          db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
+          hub_bot_username="cintiabot"):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
+    global _hub_bot_username
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -46,12 +51,33 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _db = db
     _ban_manager = ban_manager
     _get_bot_for_chat = get_bot_for_chat
+    _hub_bot_username = hub_bot_username or "cintiabot"
     return bp
 
 
-def _verify_init_data(init_data):
-    """Valida el initData de una Telegram Mini App contra los tokens de los bots
-    activos. Devuelve el dict de usuario si la firma es válida, o None."""
+# Desfase máximo (s) permitido hacia el futuro: un auth_date muy adelantado
+# indica reloj manipulado / firma falsificada.
+_AUTH_DATE_SKEW = 300
+
+
+def _hub_bot():
+    """La ÚNICA instancia de bot que sirve la Mini App del hub (por username).
+    Devuelve None si no está activa → fail-closed (se deniega la validación)."""
+    if not _get_active_bots:
+        return None
+    want = (_hub_bot_username or "").lower()
+    for b in _get_active_bots() or []:
+        if (getattr(b, "bot_username", "") or "").lower() == want:
+            return b
+    return None
+
+
+def _verify_init_data(init_data, max_age=86400):
+    """Valida el initData de la Mini App del hub. Endurecido:
+      1) auth_date obligatorio: rechaza firmas de más de `max_age` s (24h por
+         defecto) o con reloj en el futuro (> _AUTH_DATE_SKEW).
+      2) firma SOLO contra el token del bot del hub, no contra cualquier bot.
+    Devuelve el dict de usuario si la firma es válida y vigente, o None."""
     try:
         pairs = dict(parse_qsl(init_data, keep_blank_values=True))
     except Exception:
@@ -59,19 +85,27 @@ def _verify_init_data(init_data):
     recv_hash = pairs.pop("hash", None)
     if not recv_hash:
         return None
+    # 1) Vigencia (auth_date sí forma parte del data_check_string; solo se saca 'hash').
+    try:
+        auth_date = int(pairs.get("auth_date", ""))
+    except (TypeError, ValueError):
+        return None
+    now = int(time.time())
+    if auth_date <= 0 or now - auth_date > max_age or auth_date - now > _AUTH_DATE_SKEW:
+        return None
+    # 2) Firma: únicamente el bot del hub (fail-closed si no está activo).
+    bot = _hub_bot()
+    token = getattr(bot, "token", None) if bot else None
+    if not token:
+        return None
     data_check = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
-    bots = _get_active_bots() if _get_active_bots else []
-    for b in bots:
-        token = getattr(b, "token", None)
-        if not token:
-            continue
-        secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-        calc = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
-        if hmac.compare_digest(calc, recv_hash):
-            try:
-                return json.loads(pairs.get("user", "{}"))
-            except Exception:
-                return {}
+    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+    calc = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+    if hmac.compare_digest(calc, recv_hash):
+        try:
+            return json.loads(pairs.get("user", "{}"))
+        except Exception:
+            return {}
     return None
 
 
@@ -561,6 +595,79 @@ def public_mine():
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     return jsonify({"ok": True, "channels": _channel_stats.get_user_channels(user.get("id"))})
+
+
+# ─────────────────────────── Captcha de entrada (Join Request Queries) ──────────
+# Pool de iconos del captcha (los mismos nombres que join.html mapea a SVG).
+_JOIN_ICONS = ["star", "heart", "bolt", "moon", "cloud", "leaf"]
+
+
+def _new_join_challenge():
+    """9 celdas con EXACTAMENTE 3 iconos objetivo. Devuelve (target, grid, correct)."""
+    rnd = secrets.SystemRandom()
+    target = rnd.choice(_JOIN_ICONS)
+    others = [i for i in _JOIN_ICONS if i != target]
+    correct = sorted(rnd.sample(range(9), 3))
+    grid = [target if i in correct else rnd.choice(others) for i in range(9)]
+    return target, grid, correct
+
+
+@bp.route("/api/public/join/challenge", methods=["POST", "OPTIONS"])
+def join_challenge():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    cid, uid = body.get("chat"), user.get("id")
+    if cid is None:
+        return jsonify({"ok": False, "error": "falta chat"}), 400
+    pend = _db.get(f"JOINQ_{cid}_{uid}") if _db else None
+    if not pend or pend.get("exp", 0) < time.time():
+        return jsonify({"ok": False, "error": "sin solicitud pendiente"}), 410
+    target, grid, correct = _new_join_challenge()
+    _db.set(f"JOINC_{cid}_{uid}", {"correct": correct, "exp": int(time.time()) + 120})
+    return jsonify({"ok": True, "target": target, "grid": grid, "expires_in": 120})
+
+
+@bp.route("/api/public/join/verify", methods=["POST", "OPTIONS"])
+def join_verify():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    cid, uid = body.get("chat"), user.get("id")
+    pend = _db.get(f"JOINQ_{cid}_{uid}") if _db else None
+    if not pend or pend.get("exp", 0) < time.time():
+        return jsonify({"ok": False, "expired": True, "error": "solicitud expirada"}), 410
+    chal = _db.get(f"JOINC_{cid}_{uid}")
+    if not chal or chal.get("exp", 0) < time.time():
+        return jsonify({"ok": False, "expired": True, "error": "reto expirado"})
+    try:
+        sel = sorted(int(i) for i in (body.get("selected") or []))
+    except (TypeError, ValueError):
+        sel = []
+    bot = _hub_bot()
+    # ── ÉXITO ──
+    if sel and sel == sorted(chal.get("correct", [])):
+        if bot:
+            bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")})
+        _db.delete(f"JOINC_{cid}_{uid}"); _db.delete(f"JOINQ_{cid}_{uid}")  # query_id de un solo uso
+        return jsonify({"ok": True, "approved": True})
+    # ── FALLO ──
+    attempts = int(pend.get("attempts", 0)) + 1
+    _db.delete(f"JOINC_{cid}_{uid}")  # fuerza reto nuevo (no resetea intentos)
+    if attempts >= 3:
+        if bot:
+            bot.api_call("declineChatJoinRequest", {"chat_id": cid, "user_id": uid})
+        _db.delete(f"JOINQ_{cid}_{uid}")
+        return jsonify({"ok": False, "declined": True, "attempts_left": 0})
+    pend["attempts"] = attempts
+    _db.set(f"JOINQ_{cid}_{uid}", pend)
+    return jsonify({"ok": False, "attempts_left": 3 - attempts})
 
 
 # ─────────────────────────────── Canales ───────────────────────────────────────
