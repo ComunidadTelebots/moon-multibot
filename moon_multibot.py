@@ -139,6 +139,34 @@ listen_mode = db.get("LISTEN_MODE", False)  # Modo escucha: solo aprende, no res
 multilingual_seeds = {}
 telemetry_history = {"cpu": [], "ram": [], "msgs": [], "time": []}
 
+
+def _feeder_config(cid):
+    configs = db.get("IA_FEEDER_CONFIG", {})
+    raw = configs.get(str(cid), {}) if isinstance(configs, dict) else {}
+    purpose = raw.get("purpose", "conversation")
+    if purpose not in ("conversation", "ham", "spam", "disabled"):
+        purpose = "conversation"
+    try:
+        confidence = max(0, min(int(raw.get("confidence", 80)), 100))
+    except (TypeError, ValueError):
+        confidence = 80
+    return {**raw, "purpose": purpose, "confidence": confidence}
+
+
+def _learn_from_security_feeder(cid, text):
+    config = _feeder_config(cid)
+    if not spam_risk.learn_source(cid, config["purpose"], text, config["confidence"]):
+        return False
+    configs = db.get("IA_FEEDER_CONFIG", {})
+    if not isinstance(configs, dict):
+        configs = {}
+    current = configs.get(str(cid), {})
+    current["samples"] = int(current.get("samples", 0)) + 1
+    current["last_sample_at"] = datetime.datetime.now().isoformat()
+    configs[str(cid)] = current
+    db.set("IA_FEEDER_CONFIG", configs)
+    return True
+
 def telemetry_worker():
     while True:
         try:
@@ -4232,7 +4260,16 @@ class MoonBot:
                     return True
                 feeder_groups = db.get("IA_FEEDERS", [])
                 if arg_str == "on":
-                    if cid not in feeder_groups: feeder_groups.append(cid); db.set("IA_FEEDERS", feeder_groups)
+                    if cid not in feeder_groups:
+                        feeder_groups.append(cid); db.set("IA_FEEDERS", feeder_groups)
+                    configs = db.get("IA_FEEDER_CONFIG", {})
+                    if not isinstance(configs, dict):
+                        configs = {}
+                    configs.setdefault(cid, {
+                        "purpose": "conversation", "confidence": 80,
+                        "samples": 0, "created_at": datetime.datetime.now().isoformat(),
+                    })
+                    db.set("IA_FEEDER_CONFIG", configs)
                     self.send_msg(cid, "ðŸ“¡ Modo alimentaciÃ³n IA activado.")
                 elif arg_str == "off":
                     if cid in feeder_groups: feeder_groups.remove(cid); db.set("IA_FEEDERS", feeder_groups)
@@ -4566,6 +4603,9 @@ class MoonBot:
                         continue
                     if self.enforce_banned_words(cid, text, uid, uname, msg.get("message_id")):
                         continue
+                    feeder_groups = db.get("IA_FEEDERS", [])
+                    if cid in [str(item) for item in feeder_groups]:
+                        _learn_from_security_feeder(cid, text)
                     if self.enforce_spam_risk(cid, text, uid, uname, msg.get("message_id")):
                         continue
 
@@ -4917,7 +4957,10 @@ class MoonBot:
                         continue
 
                     # 2. IA Nativa (Auto-learning y respuesta)
-                    ia_nativa.learn(text, source=global_chat_names.get(cid, cid))
+                    feeder_groups = db.get("IA_FEEDERS", [])
+                    feeder_purpose = _feeder_config(cid)["purpose"] if cid in [str(item) for item in feeder_groups] else None
+                    if feeder_purpose in (None, "conversation"):
+                        ia_nativa.learn(text, source=global_chat_names.get(cid, cid))
                     
                     # Track language usage
                     lang = ia_nativa.detect_lang(text)
@@ -4933,7 +4976,7 @@ class MoonBot:
                     
                     # 2. Modo Alimentador IA (Aprende pero no responde, a menos que sea comando arriba)
                     feeder_groups = db.get("IA_FEEDERS", [])
-                    if cid in feeder_groups and not text.startswith("/"):
+                    if cid in [str(item) for item in feeder_groups] and not text.startswith("/"):
                         add_web_log("IA", f"ðŸ§  Aprendiendo en silencio de {global_chat_names.get(cid, cid)}")
                         continue
 

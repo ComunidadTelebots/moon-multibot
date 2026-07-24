@@ -106,27 +106,42 @@ class SpamRiskEngine:
             score += repeat_points
             reasons.append({"signal": "repeated_message", "points": repeat_points})
 
-        spam_samples = self.db.get(f"SPAM_SAMPLES_{chat_id}", [])
-        ham_samples = self.db.get(f"HAM_SAMPLES_{chat_id}", [])
-        spam_similarity = max(
-            (SequenceMatcher(None, normalized, self.normalize(sample)).ratio()
-             for sample in spam_samples[-100:] if sample),
-            default=0,
-        )
-        ham_similarity = max(
-            (SequenceMatcher(None, normalized, self.normalize(sample)).ratio()
-             for sample in ham_samples[-100:] if sample),
-            default=0,
-        )
+        def recent(key, limit):
+            values = self.db.get(key, [])
+            return values[-limit:] if isinstance(values, list) else []
+
+        spam_samples = recent(f"SPAM_SAMPLES_{chat_id}", 100) + recent("SPAM_SOURCE_SAMPLES", 200)
+        ham_samples = recent(f"HAM_SAMPLES_{chat_id}", 100) + recent("HAM_SOURCE_SAMPLES", 200)
+
+        def best_match(samples):
+            best = (0, 1.0)
+            for sample in samples:
+                if isinstance(sample, dict):
+                    sample_text = sample.get("text", "")
+                    confidence = max(0.0, min(float(sample.get("confidence", 100)) / 100, 1.0))
+                else:
+                    sample_text, confidence = sample, 1.0
+                if not sample_text:
+                    continue
+                similarity = SequenceMatcher(None, normalized, self.normalize(sample_text)).ratio()
+                if similarity * confidence > best[0] * best[1]:
+                    best = (similarity, confidence)
+            return best
+
+        spam_similarity, spam_confidence = best_match(spam_samples)
+        ham_similarity, ham_confidence = best_match(ham_samples)
         if spam_similarity >= 0.82:
-            points = min(50, int(spam_similarity * 50))
+            points = min(50, int(spam_similarity * 50 * spam_confidence))
             score += points
             reasons.append({"signal": "spam_sample", "points": points,
-                            "value": round(spam_similarity, 2)})
+                            "value": round(spam_similarity, 2),
+                            "confidence": round(spam_confidence, 2)})
         if ham_similarity >= 0.9:
-            score -= 35
-            reasons.append({"signal": "ham_sample", "points": -35,
-                            "value": round(ham_similarity, 2)})
+            deduction = int(35 * ham_confidence)
+            score -= deduction
+            reasons.append({"signal": "ham_sample", "points": -deduction,
+                            "value": round(ham_similarity, 2),
+                            "confidence": round(ham_confidence, 2)})
 
         return {"score": max(0, min(score, 100)), "reasons": reasons,
                 "normalized": normalized, "checked_at": datetime.datetime.now().isoformat()}
@@ -145,3 +160,30 @@ class SpamRiskEngine:
             "created_at": result.get("checked_at"),
         })
         self.db.set(f"SPAMEVENTS_{chat_id}", events[-200:])
+
+    def learn_source(self, source_id, purpose, text, confidence=80):
+        clean = str(text or "").strip()
+        try:
+            confidence = max(0, min(int(confidence), 100))
+        except (TypeError, ValueError):
+            confidence = 80
+        if purpose not in ("spam", "ham") or confidence < 50 or not 15 <= len(clean) <= 500:
+            return False
+        key = "SPAM_SOURCE_SAMPLES" if purpose == "spam" else "HAM_SOURCE_SAMPLES"
+        samples = self.db.get(key, [])
+        if not isinstance(samples, list):
+            samples = []
+        normalized = self.normalize(clean)
+        if any(
+            self.normalize(item.get("text", "") if isinstance(item, dict) else item) == normalized
+            for item in samples[-1000:]
+        ):
+            return False
+        samples.append({
+            "text": clean,
+            "source": str(source_id),
+            "confidence": confidence,
+            "created_at": datetime.datetime.now().isoformat(),
+        })
+        self.db.set(key, samples[-2000:])
+        return True

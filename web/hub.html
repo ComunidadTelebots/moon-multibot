@@ -1269,7 +1269,7 @@
   async function loadMasterIA(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
     const [ia,inline]=await Promise.all([masterApi("/api/ia/stats"),masterApi("/api/ia/inline_stats")]);
-    const s=(ia&&ia.stats)||{}, q=(inline&&inline.summary)||{}, feeders=(ia&&ia.feeders)||[];
+    const s=(ia&&ia.stats)||{}, q=(inline&&inline.summary)||{}, feeders=(ia&&ia.feeders)||[], securitySamples=(ia&&ia.security_samples)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Moon IA <span class="rbadge">${escHtml(ia&&ia.ia_mode||"—")}</span></div><div class="dbody">
       <div class="master-grid" style="margin-top:8px">
         <div class="master-metric good"><div class="mv">${fmt(s.words)}</div><div class="ml">Palabras</div></div>
@@ -1279,8 +1279,30 @@
       </div>
       <div class="casbox"><span class="k">Modo:</span> ${escHtml(ia&&ia.ia_mode||"—")}<br><span class="k">Ánimo:</span> ${escHtml(ia&&ia.ia_mood||"—")}<br><span class="k">Escucha:</span> ${ia&&ia.listen_mode?"activa":"desactivada"}</div>
       <div class="gsec">Fuentes de aprendizaje</div>
-      ${feeders.length?feeders.slice(0,8).map(f=>`<div class="userchip"><span class="uid">${escHtml(f.name||f.id)}</span><span class="w">${escHtml(f.status||"—")}</span></div>`).join(""):`<p class="muted">No hay fuentes configuradas.</p>`}
+      <div class="casbox"><span class="k">Corpus de seguridad:</span> ${fmt(securitySamples.spam)} muestras spam · ${fmt(securitySamples.ham)} legítimas.<br>Cada fuente tiene una finalidad separada para no contaminar la IA conversacional.</div>
+      ${feeders.length?feeders.map(f=>`<div class="casbox" data-feeder-row="${escAttr(f.id)}">
+        <b>${escHtml(f.name||f.id)}</b> <span class="rbadge">${escHtml(f.status||"—")}</span><br>
+        <span class="k">${fmt(f.samples)} muestras · confianza ${fmt(f.confidence)}%${f.last_sample_at?" · "+escHtml(new Date(f.last_sample_at).toLocaleString()):""}</span>
+        <div class="btnrow" style="margin-top:8px">
+          <select data-feeder-purpose="${escAttr(f.id)}">
+            <option value="conversation" ${f.purpose==="conversation"?"selected":""}>IA conversacional</option>
+            <option value="ham" ${f.purpose==="ham"?"selected":""}>Contenido legítimo</option>
+            <option value="spam" ${f.purpose==="spam"?"selected":""}>Muestras de spam</option>
+            <option value="disabled" ${f.purpose==="disabled"?"selected":""}>No aprender</option>
+          </select>
+          <input data-feeder-confidence="${escAttr(f.id)}" type="number" min="0" max="100" value="${f.confidence!=null?Number(f.confidence):80}" aria-label="Confianza">
+          <button class="minibtn" data-feeder-save="${escAttr(f.id)}">Guardar</button>
+        </div>
+      </div>`).join(""):`<p class="muted">No hay fuentes configuradas.</p>`}
     </div></div>`;
+    box.querySelectorAll("[data-feeder-save]").forEach(b=>b.onclick=()=>saveMasterFeeder(b.dataset.feederSave));
+  }
+  async function saveMasterFeeder(id){
+    const purpose=document.querySelector(`[data-feeder-purpose="${id}"]`).value;
+    const confidence=Number(document.querySelector(`[data-feeder-confidence="${id}"]`).value);
+    const r=await masterApi("/api/ia/feeders/config",{method:"POST",body:JSON.stringify({id,purpose,confidence})});
+    if(r&&r.ok){showToast("Finalidad de la fuente actualizada");loadMasterIA();}
+    else showToast((r&&(r.msg||r.message))||"No se pudo actualizar");
   }
   async function loadMasterQueue(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();

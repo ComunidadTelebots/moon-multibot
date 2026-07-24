@@ -247,6 +247,9 @@ def web_ia_stats():
         if not isinstance(feeders, list):
             feeders = []
         resolved = []
+        feeder_configs = _db.get("IA_FEEDER_CONFIG", {})
+        if not isinstance(feeder_configs, dict):
+            feeder_configs = {}
         for cid in feeders:
             try:
                 res = proxy_bot.api_call("getChat", {"chat_id": cid}, silent=True)
@@ -262,14 +265,31 @@ def web_ia_stats():
                     elif st in ["left", "kicked"]:
                         status_text = "BANEADO/EXPULSADO"
                 last_msg = _db.get(f"FEEDER_LAST_{cid}", "Sin actividad")
-                resolved.append({"id": cid, "name": name, "status": status_text, "last": last_msg})
+                cfg = feeder_configs.get(str(cid), {})
+                resolved.append({
+                    "id": cid, "name": name, "status": status_text, "last": last_msg,
+                    "purpose": cfg.get("purpose", "conversation"),
+                    "confidence": int(cfg.get("confidence", 80)),
+                    "samples": int(cfg.get("samples", 0)),
+                    "last_sample_at": cfg.get("last_sample_at"),
+                })
             except Exception:
-                resolved.append({"id": cid, "name": cid, "status": "ERROR", "last": "N/A"})
+                cfg = feeder_configs.get(str(cid), {})
+                resolved.append({
+                    "id": cid, "name": cid, "status": "ERROR", "last": "N/A",
+                    "purpose": cfg.get("purpose", "conversation"),
+                    "confidence": int(cfg.get("confidence", 80)),
+                    "samples": int(cfg.get("samples", 0)),
+                })
         return jsonify(
             {
                 "ok": True,
                 "stats": ia_nativa.get_stats(),
                 "feeders": resolved,
+                "security_samples": {
+                    "spam": len(_db.get("SPAM_SOURCE_SAMPLES", [])),
+                    "ham": len(_db.get("HAM_SOURCE_SAMPLES", [])),
+                },
                 "potentials": _db.get("POTENTIAL_FEEDERS", {}),
                 "lang_counts": _db.get("IA_LANG_COUNTS", {}),
                 "ia_mode": ia_nativa.mode,
@@ -485,6 +505,14 @@ def web_ia_feeder_add():
             if cid not in f:
                 f.append(cid)
                 _db.set("IA_FEEDERS", f)
+            configs = _db.get("IA_FEEDER_CONFIG", {})
+            if not isinstance(configs, dict):
+                configs = {}
+            configs.setdefault(cid, {
+                "purpose": "conversation", "confidence": 80,
+                "samples": 0, "created_at": datetime.datetime.now().isoformat(),
+            })
+            _db.set("IA_FEEDER_CONFIG", configs)
             potentials = _db.get("POTENTIAL_FEEDERS", {})
             if cid in potentials:
                 del potentials[cid]
@@ -499,6 +527,37 @@ def web_ia_feeder_add():
     except Exception as e:
         _add_web_log("ERROR", f"Crash en vinculacion: {str(e)}")
         return jsonify({"ok": False, "msg": f"Error interno: {str(e)}"}), 500
+
+
+@bp.route("/api/ia/feeders/config", methods=["POST"])
+def web_ia_feeder_config():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    cid = str(body.get("id", "")).strip()
+    purpose = body.get("purpose")
+    if purpose not in ("conversation", "ham", "spam", "disabled"):
+        return jsonify({"ok": False, "msg": "Finalidad inválida"}), 400
+    try:
+        confidence = max(0, min(int(body.get("confidence", 80)), 100))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "msg": "Confianza inválida"}), 400
+    feeders = [str(item) for item in _db.get("IA_FEEDERS", [])]
+    if cid not in feeders:
+        return jsonify({"ok": False, "msg": "Fuente no encontrada"}), 404
+    configs = _db.get("IA_FEEDER_CONFIG", {})
+    if not isinstance(configs, dict):
+        configs = {}
+    current = configs.get(cid, {})
+    current.update({
+        "purpose": purpose,
+        "confidence": confidence,
+        "updated_at": datetime.datetime.now().isoformat(),
+    })
+    configs[cid] = current
+    _db.set("IA_FEEDER_CONFIG", configs)
+    _add_audit_log(f"Fuente IA {cid}: finalidad={purpose}, confianza={confidence}%")
+    return jsonify({"ok": True, "config": current})
 
 
 @bp.route("/api/ia/library")
