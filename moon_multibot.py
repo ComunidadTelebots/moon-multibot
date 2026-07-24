@@ -24,6 +24,8 @@ from core.config import (
     CAS_CACHE_TTL,
     CAS_EXPORT_PATH,
     CAS_EXPORT_REFRESH_SECONDS,
+    CAS_FEED_PATH,
+    CAS_FEED_REFRESH_SECONDS,
     TDLIB_API_ID,
     TDLIB_API_HASH,
     DB_PATH,
@@ -112,6 +114,9 @@ cas_cache = {}  # {uid: {"time": ts, "status": {...}}}
 cas_export_ids = array("q")
 cas_export_lock = threading.Lock()
 cas_export_loaded = False
+cas_feed_ids = set()
+cas_feed_lock = threading.Lock()
+cas_feed_loaded = False
 global_chat_history, global_chat_names, global_user_stats, global_media_list, global_msg_log = {}, {}, {}, [], []
 maintenance_mode = False
 
@@ -338,6 +343,14 @@ def refresh_cas_export(force=False):
         with cas_export_lock:
             cas_export_ids = loaded
             cas_export_loaded = True
+        # Todo lo visto antes en el feed ya queda absorbido por este snapshot completo.
+        with cas_feed_lock:
+            cas_feed_ids.clear()
+        try:
+            with open(CAS_FEED_PATH, "w", encoding="ascii"):
+                pass
+        except OSError:
+            pass
         logger.info("CAS export actualizado: %s IDs, %.2f MB", len(loaded), downloaded / 1048576)
         return len(loaded)
     except Exception as error:
@@ -354,6 +367,71 @@ def cas_export_worker():
     while True:
         refresh_cas_export()
         time.sleep(max(3600, min(CAS_EXPORT_REFRESH_SECONDS, 21600)))
+
+
+def _load_cas_feed(path):
+    ids = set()
+    if not os.path.exists(path):
+        return ids
+    with open(path, "rb") as source:
+        for raw_line in source:
+            value = raw_line.strip()
+            if value.isdigit():
+                ids.add(int(value))
+    return ids
+
+
+def refresh_cas_feed():
+    """Sincroniza los baneos recientes publicados por el canal público @cas_feed."""
+    global cas_feed_ids, cas_feed_loaded
+    path = CAS_FEED_PATH
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    if not cas_feed_loaded:
+        loaded = _load_cas_feed(path)
+        with cas_feed_lock:
+            cas_feed_ids = loaded
+            cas_feed_loaded = True
+    try:
+        response = requests.get(
+            "https://t.me/s/cas_feed",
+            headers={"User-Agent": "MoonMultibot/CAS-feed"},
+            timeout=(10, 30),
+        )
+        response.raise_for_status()
+        recent = {int(value) for value in re.findall(r"User\s+#(\d+)\s+has\s+been\s+CAS\s+banned", response.text)}
+        if not recent:
+            raise ValueError("el feed no contiene IDs reconocibles")
+        with cas_feed_lock:
+            previous_count = len(cas_feed_ids)
+            cas_feed_ids.update(recent)
+            snapshot = sorted(cas_feed_ids)
+        temp_path = f"{path}.tmp"
+        with open(temp_path, "w", encoding="ascii", newline="\n") as target:
+            target.writelines(f"{value}\n" for value in snapshot)
+        os.replace(temp_path, path)
+        if len(snapshot) != previous_count:
+            logger.info("CAS feed sincronizado: %s IDs recientes (+%s)", len(snapshot), len(snapshot) - previous_count)
+        return len(snapshot)
+    except Exception as error:
+        logger.warning("No se pudo sincronizar @cas_feed: %s", error)
+        return len(cas_feed_ids)
+
+
+def cas_feed_worker():
+    while True:
+        refresh_cas_feed()
+        time.sleep(max(60, CAS_FEED_REFRESH_SECONDS))
+
+
+def _cas_feed_contains(uid):
+    if not cas_feed_loaded:
+        return False
+    try:
+        needle = int(uid)
+    except (TypeError, ValueError):
+        return False
+    with cas_feed_lock:
+        return needle in cas_feed_ids
 
 
 def _cas_export_contains(uid):
@@ -375,6 +453,15 @@ def check_cas_status(uid, use_cache=True):
         return {"ok": False, "banned": False, "description": "UID vacio"}
     if uid_str.startswith("-"):
         return {"ok": True, "banned": False, "description": "CAS solo aplica a usuarios"}
+
+    if use_cache and _cas_feed_contains(uid_str):
+        return {
+            "ok": True,
+            "banned": True,
+            "description": "Detectado en @cas_feed local",
+            "result": {"source": "cas_feed"},
+            "status_code": 200,
+        }
 
     local_result = _cas_export_contains(uid_str) if use_cache else None
     if local_result is not None:
@@ -4941,6 +5028,7 @@ if __name__ == "__main__":
             threading.Thread(target=auto_backup_worker, daemon=True).start()
             threading.Thread(target=cleanup_worker, daemon=True).start()
             threading.Thread(target=cas_export_worker, daemon=True).start()
+            threading.Thread(target=cas_feed_worker, daemon=True).start()
             threading.Thread(target=health_monitor, daemon=True).start()
         else:
             add_web_log("ERROR", "No se pudo iniciar ningÃºn bot. Verifica data/bots.json")
