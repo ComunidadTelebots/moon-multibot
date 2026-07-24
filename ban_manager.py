@@ -12,6 +12,7 @@ class BanManager:
     HISTORY_KEY = "BAN_HISTORY"
     RECORDS_KEY = "COMMUNITY_BAN_RECORDS"
     REPORTS_KEY = "COMMUNITY_BAN_REPORTS"
+    APPEALS_KEY = "COMMUNITY_BAN_APPEALS"
     LEGACY_KEY = "ST_FILE"
     LOCAL_PREFIX = "BANS_"
 
@@ -319,6 +320,69 @@ class BanManager:
             break
         if result:
             self.db.set(self.REPORTS_KEY, reports[-2000:])
+        return result
+
+    def create_ban_appeal(self, uid, message):
+        uid_str = self._normalize_uid(uid)
+        message = str(message or "").strip()[:2000]
+        record = self.get_ban_record(uid_str)
+        if not uid_str or not message or not record or record.get("status") != "active":
+            return None
+        appeals = self.db.get(self.APPEALS_KEY, [])
+        if not isinstance(appeals, list):
+            appeals = []
+        if any(
+            isinstance(item, dict) and item.get("status", "pending") == "pending"
+            and self._normalize_uid(item.get("user_id")) == uid_str
+            for item in appeals
+        ):
+            return False
+        now = datetime.datetime.now().isoformat()
+        appeal = {
+            "id": f"{int(datetime.datetime.now().timestamp() * 1000)}-{uid_str}",
+            "user_id": uid_str,
+            "message": message,
+            "status": "pending",
+            "created_at": now,
+            "updated_at": now,
+            "resolved_by": None,
+        }
+        appeals.append(appeal)
+        self.db.set(self.APPEALS_KEY, appeals[-2000:])
+        return dict(appeal)
+
+    def list_ban_appeals(self, status="pending", limit=500, uid=None):
+        appeals = self.db.get(self.APPEALS_KEY, [])
+        if not isinstance(appeals, list):
+            return []
+        uid_str = self._normalize_uid(uid) if uid is not None else None
+        rows = [
+            dict(item) for item in appeals if isinstance(item, dict)
+            and (status == "all" or item.get("status", "pending") == status)
+            and (uid_str is None or self._normalize_uid(item.get("user_id")) == uid_str)
+        ]
+        rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
+        return rows[:max(1, min(int(limit), 2000))]
+
+    def resolve_ban_appeal(self, appeal_id, decision, resolved_by):
+        if decision not in ("approved", "rejected"):
+            return None
+        appeals = self.db.get(self.APPEALS_KEY, [])
+        if not isinstance(appeals, list):
+            return None
+        result = None
+        for appeal in appeals:
+            if not isinstance(appeal, dict) or str(appeal.get("id")) != str(appeal_id):
+                continue
+            if appeal.get("status", "pending") != "pending":
+                return None
+            appeal["status"] = decision
+            appeal["resolved_by"] = str(resolved_by)
+            appeal["updated_at"] = datetime.datetime.now().isoformat()
+            result = dict(appeal)
+            break
+        if result:
+            self.db.set(self.APPEALS_KEY, appeals[-2000:])
         return result
 
     def get_all_local_bans(self) -> dict:

@@ -505,14 +505,14 @@
   }
 
   async function loadGroup(){
-    const d=await gp("/group/get",{});
+    const [d,reportData]=await Promise.all([gp("/group/get",{}),gp("/group/ban-reports",{})]);
     const el=document.getElementById("v-grupo");
     if(!d||!d.ok){
       el.innerHTML=`<button class="backbtn" id="gb">${svg('chevron')} Volver</button><p class="muted">No se pudo cargar (sin permiso o error).</p>`;
       document.getElementById("gb").onclick=()=>showView("canales"); return;
     }
     const m=d.meta||{}, t=m.ctype==="channel"?"Canal":"Grupo";
-    const sched=d.scheduled||[], bans=d.bans||[], warns=d.warns||[], cfg=d.config||{};
+    const sched=d.scheduled||[], bans=d.bans||[], warns=d.warns||[], cfg=d.config||{}, sentReports=(reportData&&reportData.reports)||[];
     const draftKey=`hub_group_draft_${curChat}`, templateKey=`hub_group_templates_${curChat}`;
     let savedDraft="";try{savedDraft=localStorage.getItem(draftKey)||"";}catch(e){}
     let messageTemplates=[];try{messageTemplates=JSON.parse(localStorage.getItem(templateKey)||"[]");}catch(e){}
@@ -552,6 +552,8 @@
           <textarea id="greportEvidence" rows="2" placeholder="Evidencias o enlaces, uno por línea" style="margin-top:8px"></textarea>
           <p class="muted">El reporte se enviará al master para revisión; no causa un ban automático.</p>
           <button class="btn ghost" id="greportSend">Enviar reporte</button>
+          <div class="gsec">Reportes enviados (${sentReports.length})</div>
+          ${sentReports.length?sentReports.slice(0,10).map(r=>`<div class="userchip"><span class="uid">${escHtml(r.user_id)}<small style="display:block;color:var(--muted)">${escHtml(r.reason)}</small></span><span class="rbadge">${r.status==="approved"?"aprobado":r.status==="rejected"?"descartado":"pendiente"}</span></div>`).join(""):`<p class="muted">Aún no hay reportes.</p>`}
         </div></div>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
@@ -1032,12 +1034,12 @@
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [summary,users,registry,banStats,banHistory,banReports]=await Promise.all([
+    const [summary,users,registry,banStats,banHistory,banReports,banAppeals]=await Promise.all([
       masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/ban-registry?status=all&limit=500"),
       masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30"),
-      masterApi("/api/admin/ban-reports?status=pending")
+      masterApi("/api/admin/ban-reports?status=pending"),masterApi("/api/admin/ban-appeals?status=pending")
     ]);
-    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], registryStats=(registry&&registry.stats)||{};
+    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], appeals=(banAppeals&&banAppeals.appeals)||[], registryStats=(registry&&registry.stats)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
         <div class="master-grid" style="margin-top:8px">
@@ -1056,6 +1058,11 @@
           ${(r.evidence||[]).length?`<small style="display:block;color:var(--muted)">${r.evidence.map(escHtml).join("<br>")}</small>`:""}
           <div class="btnrow" style="margin-top:8px"><button class="minibtn" data-report-approve="${escAttr(r.id)}">Añadir al registro</button><button class="minibtn red" data-report-reject="${escAttr(r.id)}">Descartar</button></div>
         </div>`).join(""):`<p class="muted">No hay reportes pendientes.</p>`}</div>
+        <div class="gsec">Apelaciones (${appeals.length})</div>
+        <div id="masterBanAppeals">${appeals.length?appeals.map(a=>`<div class="casbox">
+          <b>${escHtml(a.user_id)}</b><br>${escHtml(a.message)}
+          <div class="btnrow" style="margin-top:8px"><button class="minibtn" data-appeal-approve="${escAttr(a.id)}">Aceptar y restaurar</button><button class="minibtn red" data-appeal-reject="${escAttr(a.id)}">Rechazar</button></div>
+        </div>`).join(""):`<p class="muted">No hay apelaciones pendientes.</p>`}</div>
         <div class="gsec">Más activos</div>
         ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
         <div class="gsec">Baneos globales</div>
@@ -1080,6 +1087,8 @@
     document.getElementById("masterBanBtn").onclick=banMasterUser;
     box.querySelectorAll("[data-report-approve]").forEach(b=>b.onclick=()=>resolveMasterBanReport(b.dataset.reportApprove,"approved"));
     box.querySelectorAll("[data-report-reject]").forEach(b=>b.onclick=()=>resolveMasterBanReport(b.dataset.reportReject,"rejected"));
+    box.querySelectorAll("[data-appeal-approve]").forEach(b=>b.onclick=()=>resolveMasterBanAppeal(b.dataset.appealApprove,"approved"));
+    box.querySelectorAll("[data-appeal-reject]").forEach(b=>b.onclick=()=>resolveMasterBanAppeal(b.dataset.appealReject,"rejected"));
     document.getElementById("masterBanCsv").onclick=()=>exportMasterBans(banned,"csv");
     document.getElementById("masterBanJson").onclick=()=>exportMasterBans(banned,"json");
     document.getElementById("masterBanSearch").oninput=renderModeration;
@@ -1109,6 +1118,13 @@
     if(!await masterConfirm(`¿${verb.charAt(0).toUpperCase()+verb.slice(1)} este reporte?`))return;
     const r=await masterApi("/api/admin/ban-reports/resolve",{method:"POST",body:JSON.stringify({report_id,decision})});
     if(r&&r.ok){showToast(decision==="approved"?"Reporte aprobado":"Reporte descartado");loadMasterUsers();loadMasterOverview();}
+    else showToast((r&&(r.msg||r.message))||"No se pudo resolver");
+  }
+  async function resolveMasterBanAppeal(appeal_id,decision){
+    const message=decision==="approved"?"¿Aceptar la apelación y retirar el bloqueo global?":"¿Rechazar esta apelación?";
+    if(!await masterConfirm(message))return;
+    const r=await masterApi("/api/admin/ban-appeals/resolve",{method:"POST",body:JSON.stringify({appeal_id,decision})});
+    if(r&&r.ok){showToast(decision==="approved"?"Usuario restaurado":"Apelación rechazada");loadMasterUsers();loadMasterOverview();}
     else showToast((r&&(r.msg||r.message))||"No se pudo resolver");
   }
   function exportMasterBans(records,format){
@@ -1459,14 +1475,32 @@
   }
 
   // ── Ajustes ──
-  function loadAjustes(){
+  async function loadAjustes(){
     const el=document.getElementById("v-ajustes");
     el.innerHTML=`<div class="vtitle">Ajustes</div><div class="vsub">Personaliza tu panel.</div>
       <div class="sec">Tema</div>
       <div class="themeopt" data-theme-opt="nuevo"><div class="ra"></div><div class="to-t"><b>Nuevo</b><span>Pestañas, jerarquía por producto. Recomendado.</span></div></div>
-      <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>Clásico</b><span>La maqueta original con tarjetas apiladas.</span></div></div>`;
+      <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>Clásico</b><span>La maqueta original con tarjetas apiladas.</span></div></div>
+      <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     reflectTheme();
+    const box=document.getElementById("myRegistryStatus");
+    if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
+    const d=await apiPost("/registry/status",{initData:tg.initData});
+    if(!d||!d.ok){box.innerHTML=`<p class="muted">No se pudo consultar el registro.</p>`;return;}
+    const appeals=d.appeals||[], pending=appeals.find(a=>a.status==="pending"), last=appeals[0];
+    if(!d.listed){
+      box.innerHTML=`<div class="casbox"><span class="clean">Sin bloqueo global activo</span>${last?`<br><span class="k">Última apelación: ${last.status==="approved"?"aceptada":last.status==="rejected"?"rechazada":"pendiente"}</span>`:""}</div>`;
+      return;
+    }
+    box.innerHTML=`<div class="casbox"><span class="banned">Bloqueo global activo</span><br><span class="k">Motivo:</span> ${escHtml((d.record&&d.record.reason)||"No especificado")}</div>
+      ${pending?`<p class="muted">Tu apelación está pendiente de revisión.</p>`:`<textarea id="myAppealText" rows="3" placeholder="Explica por qué debería revisarse el bloqueo"></textarea><button class="btn ghost" id="myAppealSend" style="margin-top:8px">Enviar apelación</button>`}`;
+    if(!pending)document.getElementById("myAppealSend").onclick=async()=>{
+      const message=document.getElementById("myAppealText").value.trim();
+      if(message.length<10){showToast("Explica el caso con algo más de detalle");return;}
+      const r=await apiPost("/registry/appeal",{initData:tg.initData,message});
+      if(r&&r.ok){showToast("Apelación enviada");loadAjustes();}else showToast((r&&(r.error||r.message))||"No se pudo enviar");
+    };
   }
   function reflectTheme(){document.querySelectorAll("[data-theme-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.themeOpt===curTheme));}
 

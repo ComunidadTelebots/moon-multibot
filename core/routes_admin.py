@@ -239,6 +239,41 @@ def web_admin_ban_reports_resolve():
     return jsonify({"ok": True, "report": report})
 
 
+@bp.route("/api/admin/ban-appeals")
+def web_admin_ban_appeals():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    status = request.args.get("status", "pending")
+    if status not in ("pending", "approved", "rejected", "all"):
+        status = "pending"
+    appeals = _ban_manager.list_ban_appeals(status=status, limit=500) if _ban_manager else []
+    return jsonify({"ok": True, "appeals": appeals})
+
+
+@bp.route("/api/admin/ban-appeals/resolve", methods=["POST"])
+def web_admin_ban_appeals_resolve():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    appeal_id = str(body.get("appeal_id", "")).strip()
+    decision = body.get("decision")
+    if decision not in ("approved", "rejected"):
+        return jsonify({"ok": False, "msg": "Decisión inválida"}), 400
+    pending = next((
+        item for item in (_ban_manager.list_ban_appeals(status="pending", limit=2000) if _ban_manager else [])
+        if str(item.get("id")) == appeal_id
+    ), None)
+    if not pending:
+        return jsonify({"ok": False, "msg": "Apelación no encontrada o ya resuelta"}), 404
+    if decision == "approved":
+        _ban_manager.unban_user(pending.get("user_id"))
+    appeal = _ban_manager.resolve_ban_appeal(appeal_id, decision, "master")
+    _add_audit_log(
+        f"Apelación {appeal_id} {decision}: usuario {pending.get('user_id')}"
+    )
+    return jsonify({"ok": True, "appeal": appeal})
+
+
 @bp.route("/api/admin/ban-registry/export")
 def web_admin_ban_registry_export():
     if not _check_jwt(request):

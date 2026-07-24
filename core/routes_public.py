@@ -280,6 +280,22 @@ def group_ban_report():
     return jsonify({"ok": True, "report": report}), 201
 
 
+@bp.route("/api/public/group/ban-reports", methods=["POST", "OPTIONS"])
+def group_ban_reports():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    reports = [
+        report for report in (_ban_manager.list_ban_reports(status="all", limit=2000) if _ban_manager else [])
+        if str(report.get("chat_id")) == str(chat_id)
+    ][:100]
+    return jsonify({"ok": True, "reports": reports})
+
+
 @bp.route("/api/public/group/unwarn", methods=["POST", "OPTIONS"])
 def group_unwarn():
     if request.method == "OPTIONS":
@@ -486,6 +502,48 @@ def _auth_user(body):
     if user is None:
         return None, (jsonify({"ok": False, "error": "initData inválido"}), 401)
     return user, None
+
+
+@bp.route("/api/public/registry/status", methods=["POST", "OPTIONS"])
+def registry_status():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err:
+        return err
+    uid = str(user.get("id"))
+    record = _ban_manager.get_ban_record(uid) if _ban_manager else None
+    appeals = _ban_manager.list_ban_appeals(status="all", limit=20, uid=uid) if _ban_manager else []
+    safe_record = None
+    if record:
+        safe_record = {
+            "status": record.get("status", "active"),
+            "reason": record.get("reason", ""),
+            "source": record.get("source", ""),
+            "created_at": record.get("created_at"),
+            "updated_at": record.get("updated_at"),
+        }
+    return jsonify({"ok": True, "listed": bool(record and record.get("status") == "active"),
+                    "record": safe_record, "appeals": appeals})
+
+
+@bp.route("/api/public/registry/appeal", methods=["POST", "OPTIONS"])
+def registry_appeal():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err:
+        return err
+    if not _ban_manager:
+        return jsonify({"ok": False, "error": "registro no disponible"}), 503
+    appeal = _ban_manager.create_ban_appeal(user.get("id"), body.get("message"))
+    if appeal is False:
+        return jsonify({"ok": False, "error": "ya tienes una apelación pendiente"}), 409
+    if not appeal:
+        return jsonify({"ok": False, "error": "no hay un bloqueo activo o falta el motivo"}), 400
+    return jsonify({"ok": True, "appeal": appeal}), 201
 
 
 @bp.route("/api/public/ads/partners", methods=["POST", "OPTIONS"])
