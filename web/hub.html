@@ -513,6 +513,9 @@
     }
     const m=d.meta||{}, t=m.ctype==="channel"?"Canal":"Grupo";
     const sched=d.scheduled||[], bans=d.bans||[], warns=d.warns||[], cfg=d.config||{};
+    const draftKey=`hub_group_draft_${curChat}`, templateKey=`hub_group_templates_${curChat}`;
+    let savedDraft="";try{savedDraft=localStorage.getItem(draftKey)||"";}catch(e){}
+    let messageTemplates=[];try{messageTemplates=JSON.parse(localStorage.getItem(templateKey)||"[]");}catch(e){}
     el.innerHTML=`
       <button class="backbtn" id="gback">${svg('chevron')} Volver</button>
       <div class="vtitle">${escHtml(m.name||'Grupo')}</div>
@@ -526,7 +529,12 @@
       <div id="gads"></div>
 
       <div class="gsec">${svg('share')} Enviar mensaje</div>
-      <textarea id="gmsg" rows="3" placeholder="Escribe un mensaje para el grupo…"></textarea>
+      <textarea id="gmsg" rows="3" placeholder="Escribe un mensaje para el grupo…">${escHtml(savedDraft)}</textarea>
+      <div class="btnrow" style="align-items:center">
+        <select id="gtemplate" style="flex:1"><option value="">Plantillas guardadas</option>${messageTemplates.map((x,i)=>`<option value="${i}">${escHtml(x.name)}</option>`).join("")}</select>
+        <button class="btn ghost" id="gtemplateUse" style="width:auto;padding:11px 13px">Usar</button>
+        <button class="btn ghost" id="gtemplateSave" style="width:auto;padding:11px 13px">Guardar</button>
+      </div>
       <div class="btnrow"><button class="btn cta" id="gsend" style="flex:1">Enviar ahora</button></div>
       <div class="btnrow" style="align-items:center"><input type="datetime-local" id="gwhen" style="flex:1"><button class="btn ghost" id="gsched" style="width:auto;padding:13px 16px">Programar</button></div>
 
@@ -536,6 +544,7 @@
 
       <div class="gsec">Programados (${sched.length})</div><div id="gschedlist"></div>
       <div class="gsec">Moderación</div>
+      <button class="btn ghost" id="gmoderationExport" style="margin-bottom:9px">${svg('download')} Exportar estado de moderación</button>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
       <div class="gsec">Ajustes</div><div id="gsettings"></div>
@@ -562,11 +571,31 @@
       ev("group_summary_shared",{type:m.ctype||"group"});
       openTg(`https://t.me/share/url?url=${encodeURIComponent(publicUrl)}&text=${encodeURIComponent(summary)}`);
     };
+    const msgBox=document.getElementById("gmsg");
+    msgBox.oninput=()=>{try{localStorage.setItem(draftKey,msgBox.value);}catch(e){}};
+    document.getElementById("gtemplateUse").onclick=()=>{
+      const index=Number(document.getElementById("gtemplate").value);
+      if(!Number.isInteger(index)||!messageTemplates[index]){showToast("Elige una plantilla");return;}
+      msgBox.value=messageTemplates[index].text;msgBox.dispatchEvent(new Event("input"));showToast("Plantilla aplicada");
+    };
+    document.getElementById("gtemplateSave").onclick=()=>{
+      const text=msgBox.value.trim();if(!text){showToast("Escribe un mensaje");return;}
+      const name=window.prompt("Nombre de la plantilla:");if(!name||!name.trim())return;
+      messageTemplates.push({name:name.trim().slice(0,40),text});
+      try{localStorage.setItem(templateKey,JSON.stringify(messageTemplates.slice(-20)));}catch(e){}
+      showToast("Plantilla guardada");loadGroup();
+    };
+    document.getElementById("gmoderationExport").onclick=()=>{
+      const report={generated_at:new Date().toISOString(),chat_id:curChat,name:m.name||"",type:t,
+        subscribers:m.subscribers||0,banned_users:bans,warnings:warns,settings:cfg,badwords:d.badwords||{},notes:d.notes||""};
+      downloadText(`moderacion-${curChat}-${Date.now()}.json`,JSON.stringify(report,null,2),"application/json");
+      showToast("Moderación exportada");
+    };
 
     document.getElementById("gsend").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(); if(!txt){showToast("Escribe el mensaje");return;}
       const r=await gp("/group/send",{text:txt});
-      if(r&&r.ok){ev("group_message_sent");document.getElementById("gmsg").value="";showToast("Mensaje enviado");} else showToast("No se pudo enviar");
+      if(r&&r.ok){ev("group_message_sent");document.getElementById("gmsg").value="";try{localStorage.removeItem(draftKey);}catch(e){}showToast("Mensaje enviado");} else showToast("No se pudo enviar");
     };
     document.getElementById("gsched").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(), when=toUTC(document.getElementById("gwhen").value);
