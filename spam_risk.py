@@ -114,34 +114,49 @@ class SpamRiskEngine:
         ham_samples = recent(f"HAM_SAMPLES_{chat_id}", 100) + recent("HAM_SOURCE_SAMPLES", 200)
 
         def best_match(samples):
-            best = (0, 1.0)
+            best = {"similarity": 0, "confidence": 1.0, "sources": []}
             for sample in samples:
                 if isinstance(sample, dict):
                     sample_text = sample.get("text", "")
                     confidence = max(0.0, min(float(sample.get("confidence", 100)) / 100, 1.0))
+                    sources = sample.get("sources") or ([sample.get("source")] if sample.get("source") else [])
                 else:
-                    sample_text, confidence = sample, 1.0
+                    sample_text, confidence, sources = sample, 1.0, []
                 if not sample_text:
                     continue
                 similarity = SequenceMatcher(None, normalized, self.normalize(sample_text)).ratio()
-                if similarity * confidence > best[0] * best[1]:
-                    best = (similarity, confidence)
+                if similarity * confidence > best["similarity"] * best["confidence"]:
+                    best = {
+                        "similarity": similarity,
+                        "confidence": confidence,
+                        "sources": [str(source) for source in sources if source is not None],
+                    }
             return best
 
-        spam_similarity, spam_confidence = best_match(spam_samples)
-        ham_similarity, ham_confidence = best_match(ham_samples)
+        spam_match = best_match(spam_samples)
+        ham_match = best_match(ham_samples)
+        spam_similarity, spam_confidence = spam_match["similarity"], spam_match["confidence"]
+        ham_similarity, ham_confidence = ham_match["similarity"], ham_match["confidence"]
         if spam_similarity >= 0.82:
             points = min(50, int(spam_similarity * 50 * spam_confidence))
             score += points
             reasons.append({"signal": "spam_sample", "points": points,
                             "value": round(spam_similarity, 2),
-                            "confidence": round(spam_confidence, 2)})
+                            "confidence": round(spam_confidence, 2),
+                            "sources": spam_match["sources"]})
+            if len(set(spam_match["sources"])) >= 2:
+                score += 15
+                reasons.append({
+                    "signal": "source_consensus", "points": 15,
+                    "sources": spam_match["sources"],
+                })
         if ham_similarity >= 0.9:
             deduction = int(35 * ham_confidence)
             score -= deduction
             reasons.append({"signal": "ham_sample", "points": -deduction,
                             "value": round(ham_similarity, 2),
-                            "confidence": round(ham_confidence, 2)})
+                            "confidence": round(ham_confidence, 2),
+                            "sources": ham_match["sources"]})
 
         return {"score": max(0, min(score, 100)), "reasons": reasons,
                 "normalized": normalized, "checked_at": datetime.datetime.now().isoformat()}
@@ -174,14 +189,29 @@ class SpamRiskEngine:
         if not isinstance(samples, list):
             samples = []
         normalized = self.normalize(clean)
-        if any(
-            self.normalize(item.get("text", "") if isinstance(item, dict) else item) == normalized
-            for item in samples[-1000:]
-        ):
-            return False
+        source_id = str(source_id)
+        for index, item in enumerate(samples[-1000:], start=max(0, len(samples) - 1000)):
+            sample_text = item.get("text", "") if isinstance(item, dict) else item
+            if self.normalize(sample_text) != normalized:
+                continue
+            if not isinstance(item, dict):
+                return False
+            sources = [str(value) for value in (item.get("sources") or [item.get("source")]) if value is not None]
+            if source_id in sources:
+                return False
+            sources.append(source_id)
+            item["sources"] = sources
+            item["occurrences"] = int(item.get("occurrences", 1)) + 1
+            item["confidence"] = max(int(item.get("confidence", 0)), confidence)
+            item["updated_at"] = datetime.datetime.now().isoformat()
+            samples[index] = item
+            self.db.set(key, samples[-2000:])
+            return True
         samples.append({
             "text": clean,
-            "source": str(source_id),
+            "source": source_id,
+            "sources": [source_id],
+            "occurrences": 1,
             "confidence": confidence,
             "created_at": datetime.datetime.now().isoformat(),
         })

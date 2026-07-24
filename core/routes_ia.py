@@ -272,6 +272,10 @@ def web_ia_stats():
                     "confidence": int(cfg.get("confidence", 80)),
                     "samples": int(cfg.get("samples", 0)),
                     "last_sample_at": cfg.get("last_sample_at"),
+                    "confirmed_hits": int(cfg.get("confirmed_hits", 0)),
+                    "false_positives": int(cfg.get("false_positives", 0)),
+                    "reviewed": int(cfg.get("reviewed", 0)),
+                    "precision": cfg.get("precision"),
                 })
             except Exception:
                 cfg = feeder_configs.get(str(cid), {})
@@ -280,6 +284,10 @@ def web_ia_stats():
                     "purpose": cfg.get("purpose", "conversation"),
                     "confidence": int(cfg.get("confidence", 80)),
                     "samples": int(cfg.get("samples", 0)),
+                    "confirmed_hits": int(cfg.get("confirmed_hits", 0)),
+                    "false_positives": int(cfg.get("false_positives", 0)),
+                    "reviewed": int(cfg.get("reviewed", 0)),
+                    "precision": cfg.get("precision"),
                 })
         return jsonify(
             {
@@ -289,6 +297,11 @@ def web_ia_stats():
                 "security_samples": {
                     "spam": len(_db.get("SPAM_SOURCE_SAMPLES", [])),
                     "ham": len(_db.get("HAM_SOURCE_SAMPLES", [])),
+                    "campaigns": sum(
+                        len(set(item.get("sources") or [])) >= 2
+                        for item in _db.get("SPAM_SOURCE_SAMPLES", [])
+                        if isinstance(item, dict)
+                    ),
                 },
                 "potentials": _db.get("POTENTIAL_FEEDERS", {}),
                 "lang_counts": _db.get("IA_LANG_COUNTS", {}),

@@ -436,6 +436,8 @@ def group_spam_feedback():
     ), None)
     if not event or not event.get("text"):
         return jsonify({"ok": False, "error": "detección no encontrada"}), 404
+    if event.get("feedback"):
+        return jsonify({"ok": False, "error": "esta detección ya fue revisada"}), 409
     key = f"{'SPAM' if verdict == 'spam' else 'HAM'}_SAMPLES_{chat_id}"
     samples = _db.get(key, [])
     if not isinstance(samples, list):
@@ -446,7 +448,31 @@ def group_spam_feedback():
         _db.set(key, samples[-200:])
     event["feedback"] = verdict
     _db.set(f"SPAMEVENTS_{chat_id}", events[-200:])
-    return jsonify({"ok": True, "verdict": verdict, "samples": len(samples)})
+    configs = _db.get("IA_FEEDER_CONFIG", {})
+    if not isinstance(configs, dict):
+        configs = {}
+    affected_sources = set()
+    for reason in event.get("reasons", []):
+        if not isinstance(reason, dict) or reason.get("signal") not in ("spam_sample", "ham_sample"):
+            continue
+        expected = "spam" if reason.get("signal") == "spam_sample" else "ham"
+        for source in reason.get("sources") or []:
+            source = str(source)
+            current = configs.get(source)
+            if not isinstance(current, dict):
+                continue
+            field = "confirmed_hits" if verdict == expected else "false_positives"
+            current[field] = int(current.get(field, 0)) + 1
+            reviewed = int(current.get("confirmed_hits", 0)) + int(current.get("false_positives", 0))
+            current["reviewed"] = reviewed
+            current["precision"] = round(int(current.get("confirmed_hits", 0)) * 100 / reviewed, 1)
+            current["last_review_at"] = datetime.datetime.now().isoformat()
+            configs[source] = current
+            affected_sources.add(source)
+    if affected_sources:
+        _db.set("IA_FEEDER_CONFIG", configs)
+    return jsonify({"ok": True, "verdict": verdict, "samples": len(samples),
+                    "sources_updated": len(affected_sources)})
 
 
 @bp.route("/api/public/group/unwarn", methods=["POST", "OPTIONS"])

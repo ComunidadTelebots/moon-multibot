@@ -1279,10 +1279,11 @@
       </div>
       <div class="casbox"><span class="k">Modo:</span> ${escHtml(ia&&ia.ia_mode||"—")}<br><span class="k">Ánimo:</span> ${escHtml(ia&&ia.ia_mood||"—")}<br><span class="k">Escucha:</span> ${ia&&ia.listen_mode?"activa":"desactivada"}</div>
       <div class="gsec">Fuentes de aprendizaje</div>
-      <div class="casbox"><span class="k">Corpus de seguridad:</span> ${fmt(securitySamples.spam)} muestras spam · ${fmt(securitySamples.ham)} legítimas.<br>Cada fuente tiene una finalidad separada para no contaminar la IA conversacional.</div>
+      <div class="casbox"><span class="k">Corpus de seguridad:</span> ${fmt(securitySamples.spam)} muestras spam · ${fmt(securitySamples.ham)} legítimas · ${fmt(securitySamples.campaigns)} campañas en varias fuentes.<br>Cada fuente tiene una finalidad separada para no contaminar la IA conversacional.</div>
       ${feeders.length?feeders.map(f=>`<div class="casbox" data-feeder-row="${escAttr(f.id)}">
         <b>${escHtml(f.name||f.id)}</b> <span class="rbadge">${escHtml(f.status||"—")}</span><br>
-        <span class="k">${fmt(f.samples)} muestras · confianza ${fmt(f.confidence)}%${f.last_sample_at?" · "+escHtml(new Date(f.last_sample_at).toLocaleString()):""}</span>
+        <span class="k">${fmt(f.samples)} muestras · confianza ${fmt(f.confidence)}%${f.reviewed?` · precisión ${fmt(f.precision)}% (${fmt(f.reviewed)} revisiones)`:" · sin revisiones"}${f.last_sample_at?" · "+escHtml(new Date(f.last_sample_at).toLocaleString()):""}</span>
+        ${f.reviewed>=3&&f.precision<70?`<div class="banned" style="margin-top:6px">Revisar fuente: demasiados falsos positivos (${fmt(f.false_positives)})</div>`:""}
         <div class="btnrow" style="margin-top:8px">
           <select data-feeder-purpose="${escAttr(f.id)}">
             <option value="conversation" ${f.purpose==="conversation"?"selected":""}>IA conversacional</option>
