@@ -175,6 +175,14 @@
   .master-status{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--teal);}
   .master-status::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor;}
   .master-error{padding:11px 13px;border:1px solid rgba(248,113,113,.25);border-radius:12px;color:var(--red);font-size:12.5px;}
+  .assoc-tools{display:flex;gap:8px;margin:0 0 10px}.assoc-tools input{min-width:0;flex:1;}
+  .assoc-tools .btn{width:auto;margin:0;padding:10px 12px;}
+  .filterbar{display:flex;gap:7px;overflow-x:auto;padding:0 0 11px;scrollbar-width:none;}
+  .filterbar::-webkit-scrollbar{display:none}
+  .filterpill{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:7px 11px;background:var(--card);
+    color:var(--muted);font:600 11.5px var(--body);cursor:pointer;}
+  .filterpill.active{color:var(--teal);border-color:rgba(93,202,165,.45);background:rgba(93,202,165,.08);}
+  .result-count{font:10.5px var(--mono);color:var(--muted);margin:0 2px 10px;}
 
   /* ── Grid de servicios (Red) ── */
   .services{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
@@ -683,7 +691,44 @@
     if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
     const list=document.getElementById("adminList");
     if(!chs.length){ list.innerHTML=`<p class="muted">No administras ningún grupo o canal todavía. Añade @${BOT} como admin.</p>`; return; }
-    list.innerHTML=chs.map(adminRow).join(""); bindSwitches(list);
+    const groups=chs.filter(c=>c.ctype!=="channel").length, channels=chs.length-groups, listed=chs.filter(c=>c.listed).length;
+    el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Tus grupos y canales asociados. Toca uno para gestionarlo.</div>
+      <div class="statbar">
+        <div class="stat"><div class="v">${chs.length}</div><div class="l">Total</div></div>
+        <div class="stat"><div class="v">${groups}</div><div class="l">Grupos</div></div>
+        <div class="stat"><div class="v">${channels}</div><div class="l">Canales</div></div>
+      </div>
+      <div class="assoc-tools"><input id="assocSearch" type="search" placeholder="Buscar por nombre o usuario…" autocomplete="off">
+        <button class="btn ghost" id="assocRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
+      <div class="filterbar" id="assocFilters">
+        <button class="filterpill active" data-filter="all">Todos</button>
+        <button class="filterpill" data-filter="group">Grupos</button>
+        <button class="filterpill" data-filter="channel">Canales</button>
+        <button class="filterpill" data-filter="listed">Publicados · ${listed}</button>
+      </div>
+      <div class="result-count" id="assocCount"></div><div id="adminList"></div>`;
+    let activeFilter="all";
+    const renderAssociated=()=>{
+      const q=document.getElementById("assocSearch").value.trim().toLowerCase();
+      const filtered=chs.filter(c=>{
+        const matchesText=!q||`${c.name||""} ${c.username||""}`.toLowerCase().includes(q);
+        const matchesType=activeFilter==="all"||(activeFilter==="listed"&&c.listed)||
+          (activeFilter==="channel"&&c.ctype==="channel")||(activeFilter==="group"&&c.ctype!=="channel");
+        return matchesText&&matchesType;
+      });
+      const target=document.getElementById("adminList");
+      document.getElementById("assocCount").textContent=`${filtered.length} resultado${filtered.length===1?"":"s"}`;
+      target.innerHTML=filtered.length?filtered.map(adminRow).join(""):`<div class="empty" style="padding-top:18px"><p>No hay espacios que coincidan con el filtro.</p></div>`;
+      bindSwitches(target);
+    };
+    document.getElementById("assocSearch").oninput=renderAssociated;
+    document.getElementById("assocRefresh").onclick=loadAdmin;
+    document.querySelectorAll("#assocFilters [data-filter]").forEach(b=>b.onclick=()=>{
+      activeFilter=b.dataset.filter;
+      document.querySelectorAll("#assocFilters [data-filter]").forEach(x=>x.classList.toggle("active",x===b));
+      renderAssociated();
+    });
+    renderAssociated();
   }
 
   async function loadMaster(){
