@@ -113,6 +113,7 @@
     go.disabled=true; go.classList.remove("active"); go.textContent="Comprobando…";
     const {data}=await post("/join/verify",{initData:tg&&tg.initData,chat,selected:[...selected]});
     if(data&&data.approved){if(window.gtag)gtag("event","captcha_passed");stateScreen('ok','¡Verificado!','Ya puedes entrar al grupo. Puedes cerrar esta ventana.');if(tg&&tg.close)setTimeout(()=>tg.close(),2200);return;}
+    if(data&&data.under_review){if(window.gtag)gtag("event","captcha_review");stateScreen('ok','Verificación completada','Tu solicitud necesita una revisión de seguridad. Los administradores ya han sido avisados.');return;}
     if(data&&data.declined){if(window.gtag)gtag("event","captcha_failed",{reason:"attempts"});stateScreen('bad','Verificación fallida','Has agotado los intentos. Vuelve a solicitar unirte más tarde.');return;}
     if(data&&data.expired){if(window.gtag)gtag("event","captcha_expired",{reason:"challenge"});stateScreen('bad','Caducado','El reto expiró. Vuelve a solicitar unirte al grupo.');return;}
     const left=(data&&data.attempts_left)||0;
@@ -125,6 +126,7 @@
     if(!errMsg)app.innerHTML=`<div class="head"><div class="title">Verificación</div><div class="sub">Cargando…</div></div>`;
     const {status,data}=await post("/join/challenge",{initData:tg.initData,chat});
     if(status===410){stateScreen('bad','Sin solicitud pendiente','No encontramos una solicitud de entrada tuya. Solicita unirte al grupo primero.');return;}
+    if(data&&data.under_review){stateScreen('ok','En revisión','Ya completaste el captcha. Los administradores están revisando tu solicitud.');return;}
     if(!data||!data.ok){stateScreen('bad','Error','No se pudo cargar la verificación. Inténtalo más tarde.');return;}
     renderChallenge(data);
     if(errMsg){const m=document.getElementById("msg"); if(m){m.textContent=errMsg;m.className="msg err";}}

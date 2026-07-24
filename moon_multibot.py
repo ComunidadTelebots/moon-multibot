@@ -3080,6 +3080,11 @@ class MoonBot:
             self.handle_proxy_approval(cbq_id, cid, uid, data)
             return True
 
+        # --- Revisión CAS tras superar el captcha de entrada ---
+        if data.startswith("casjoin:"):
+            self.handle_cas_join_decision(cbq_id, uid, data)
+            return True
+
         # Juegos inline nativos en Telegram
         if data.startswith("moon_game:"):
             parts = data.split(":")
@@ -3177,6 +3182,47 @@ class MoonBot:
 
         self.answer_callback_query(cbq_id)
         return True
+
+    def handle_cas_join_decision(self, callback_id, admin_id, data):
+        parts = data.split(":")
+        if len(parts) != 4 or parts[1] not in ("a", "b"):
+            self.answer_callback_query(callback_id, "Acción inválida", show_alert=True)
+            return
+        action, chat_id, user_id = parts[1], parts[2], parts[3]
+        allowed = str(admin_id) == str(MASTER_ID)
+        if not allowed:
+            admins = self.api_call("getChatAdministrators", {"chat_id": chat_id}, silent=True)
+            if isinstance(admins, dict) and admins.get("ok"):
+                allowed = any(
+                    str((member.get("user") or {}).get("id")) == str(admin_id)
+                    and member.get("status") in ("creator", "administrator")
+                    for member in admins.get("result", [])
+                )
+        if not allowed:
+            self.answer_callback_query(callback_id, "Solo los administradores del grupo pueden decidir.", show_alert=True)
+            return
+        key = f"JOINQ_{chat_id}_{user_id}"
+        pending = db.get(key)
+        if not pending or not pending.get("cas_flagged"):
+            self.answer_callback_query(callback_id, "La solicitud ya no está pendiente.", show_alert=True)
+            return
+        if action == "a":
+            result = self.api_call("answerChatJoinRequestQuery", {"query_id": pending.get("query_id")})
+            label, stat = "✅ Usuario aprobado", "approved"
+        else:
+            self.api_call("declineChatJoinRequest", {"chat_id": chat_id, "user_id": user_id}, silent=True)
+            result = self.api_call("banChatMember", {"chat_id": chat_id, "user_id": user_id})
+            label, stat = "🚫 Usuario baneado y rechazado", "declined"
+        if isinstance(result, dict) and not result.get("ok", False):
+            self.answer_callback_query(callback_id, result.get("description", "Telegram rechazó la acción"), show_alert=True)
+            return
+        db.delete(key)
+        db.delete(f"JOINC_{chat_id}_{user_id}")
+        stats = db.get(f"JOINSTATS_{chat_id}", {})
+        stats[stat] = int(stats.get(stat, 0)) + 1
+        db.set(f"JOINSTATS_{chat_id}", stats)
+        add_audit_log(f"{label}: {user_id} en {chat_id}, decidido por {admin_id}")
+        self.answer_callback_query(callback_id, label, show_alert=True)
 
     def _send_games_menu(self, cid, text):
         kb = {

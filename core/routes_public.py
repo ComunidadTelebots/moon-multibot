@@ -630,6 +630,41 @@ def _bump_join_stat(chat_id, key):
     _db.set(f"JOINSTATS_{chat_id}", stats)
 
 
+def _notify_cas_join_review(bot, chat_id, pending, cas):
+    """Avisa por privado al master y a los administradores que puedan recibir al bot."""
+    recipients = {str(_master_id)} if _master_id else set()
+    admins = bot.api_call("getChatAdministrators", {"chat_id": chat_id}, silent=True)
+    if isinstance(admins, dict) and admins.get("ok"):
+        for member in admins.get("result", []):
+            admin = member.get("user") or {}
+            if not admin.get("is_bot") and admin.get("id") is not None:
+                recipients.add(str(admin["id"]))
+    user_id = pending.get("user_id")
+    full_name = " ".join(filter(None, [pending.get("first_name"), pending.get("last_name")])).strip()
+    username = f"@{pending.get('username')}" if pending.get("username") else "sin username"
+    result = cas.get("result") if isinstance(cas.get("result"), dict) else {}
+    text = (
+        "⚠️ Solicitud retenida por CAS\n\n"
+        f"Usuario: {full_name or 'Sin nombre'} ({username})\n"
+        f"ID: {user_id}\n"
+        f"Grupo: {pending.get('chat_title') or chat_id}\n"
+        f"Ofensas CAS: {result.get('offenses', 'desconocidas')}\n\n"
+        "El usuario completó correctamente el captcha. Revisa el caso antes de permitir su entrada."
+    )
+    keyboard = {"inline_keyboard": [[
+        {"text": "✅ Aprobar igualmente", "callback_data": f"casjoin:a:{chat_id}:{user_id}"},
+        {"text": "🚫 Banear y rechazar", "callback_data": f"casjoin:b:{chat_id}:{user_id}"},
+    ]]}
+    delivered = 0
+    for recipient in recipients:
+        response = bot.api_call("sendMessage", {
+            "chat_id": recipient, "text": text, "reply_markup": json.dumps(keyboard),
+        }, silent=True)
+        if not isinstance(response, dict) or response.get("ok"):
+            delivered += 1
+    return delivered
+
+
 @bp.route("/api/public/group/join/get", methods=["POST", "OPTIONS"])
 def group_join_get():
     if request.method == "OPTIONS":
@@ -656,6 +691,9 @@ def group_join_get():
             "attempts": int(item.get("attempts", 0)),
             "created_at": item.get("created_at"),
             "expires_at": item.get("exp"),
+            "captcha_passed": bool(item.get("captcha_passed")),
+            "cas_flagged": bool(item.get("cas_flagged")),
+            "cas_offenses": item.get("cas_offenses"),
         })
     pending.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
     return jsonify({"ok": True, "config": _join_config(chat_id),
@@ -746,6 +784,9 @@ def join_challenge():
     pend = _db.get(f"JOINQ_{cid}_{uid}") if _db else None
     if not pend or pend.get("exp", 0) < time.time():
         return jsonify({"ok": False, "error": "sin solicitud pendiente"}), 410
+    if pend.get("captcha_passed") and pend.get("cas_flagged"):
+        return jsonify({"ok": False, "under_review": True,
+                        "error": "solicitud en revisión administrativa"}), 423
     config = _join_config(cid)
     if not config["enabled"]:
         return jsonify({"ok": False, "error": "captcha desactivado"}), 403
@@ -777,6 +818,17 @@ def join_verify():
     config = _join_config(cid)
     # ── ÉXITO ──
     if sel and sel == sorted(chal.get("correct", [])):
+        cas = _check_cas(uid) if _check_cas else {"ok": False, "banned": False}
+        if cas.get("ok") and cas.get("banned"):
+            result = cas.get("result") if isinstance(cas.get("result"), dict) else {}
+            pend["captcha_passed"] = True
+            pend["cas_flagged"] = True
+            pend["cas_offenses"] = result.get("offenses")
+            pend["cas_checked_at"] = int(time.time())
+            _db.set(f"JOINQ_{cid}_{uid}", pend)
+            _db.delete(f"JOINC_{cid}_{uid}")
+            notified = _notify_cas_join_review(bot, cid, pend, cas) if bot else 0
+            return jsonify({"ok": True, "under_review": True, "notified": notified})
         if bot:
             bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")})
         _db.delete(f"JOINC_{cid}_{uid}"); _db.delete(f"JOINQ_{cid}_{uid}")  # query_id de un solo uso

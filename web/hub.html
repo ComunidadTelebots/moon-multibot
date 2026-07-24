@@ -728,8 +728,9 @@
     list.innerHTML=pending.length?pending.map(item=>{
       const name=`${item.first_name||""} ${item.last_name||""}`.trim()||`Usuario ${item.user_id}`;
       const uname=item.username?`@${item.username}`:`ID ${item.user_id}`;
-      return `<div class="userchip" style="align-items:flex-start">
-        <div><div class="uid">${escHtml(name)}</div><div class="w">${escHtml(uname)} · ${item.attempts||0} intentos</div></div>
+      return `<div class="userchip" style="align-items:flex-start;${item.cas_flagged?"border-color:var(--red)":""}">
+        <div><div class="uid">${escHtml(name)} ${item.cas_flagged?'<span class="rbadge" style="color:var(--red)">CAS</span>':""}</div>
+          <div class="w">${escHtml(uname)} · ${item.attempts||0} intentos${item.captcha_passed?" · captcha superado":""}${item.cas_offenses!=null?` · ${item.cas_offenses} ofensas`:""}</div></div>
         <span style="display:flex;gap:6px"><span class="minibtn" data-join-ok="${item.user_id}">Aprobar</span><span class="minibtn red" data-join-no="${item.user_id}">Rechazar</span></span>
       </div>`;
     }).join(""):`<p class="muted">No hay solicitudes esperando verificación.</p>`;
