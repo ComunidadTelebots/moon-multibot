@@ -876,22 +876,44 @@
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [summary,users,bans]=await Promise.all([
-      masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/bans")
+    const [summary,users,bans,banStats,banHistory]=await Promise.all([
+      masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/bans"),
+      masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30")
     ]);
-    const top=(users&&users.users)||[], banned=(bans&&bans.bans)||[];
+    const top=(users&&users.users)||[], banned=(bans&&bans.bans)||[], history=(banHistory&&banHistory.history)||[];
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
+        <div class="master-grid" style="margin-top:8px">
+          <div class="master-metric warn"><div class="mv">${fmt(banStats&&banStats.total_banned_users)}</div><div class="ml">Baneos globales</div></div>
+          <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.total_local_banned_users)}</div><div class="ml">Baneos locales</div></div>
+          <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.groups_with_local_bans)}</div><div class="ml">Grupos afectados</div></div>
+          <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.recent_bans)}</div><div class="ml">Últimas 24 h</div></div>
+        </div>
         <div class="gsec" style="margin-top:8px">Ban global</div>
         <div class="btnrow"><input id="masterBanUid" inputmode="numeric" placeholder="ID de usuario"><button class="btn ghost" id="masterBanBtn" style="width:auto">Banear</button></div>
         <input id="masterBanReason" placeholder="Motivo (opcional)" style="margin-top:8px">
         <div class="gsec">Más activos</div>
         ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
         <div class="gsec">Baneos globales</div>
-        ${banned.length?banned.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)}<small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")}</small></span><button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button></div>`).join(""):`<p class="muted">No hay usuarios baneados.</p>`}
+        <input id="masterBanSearch" type="search" placeholder="Buscar por ID o motivo…" autocomplete="off">
+        <div id="masterBanList" style="margin-top:8px"></div>
+        <div class="gsec">Historial de moderación</div>
+        <div id="masterBanHistory"></div>
       </div></div>`;
+    const renderModeration=()=>{
+      const q=document.getElementById("masterBanSearch").value.trim().toLowerCase();
+      const visible=banned.filter(b=>!q||`${b.user_id||""} ${b.reason||""}`.toLowerCase().includes(q));
+      const list=document.getElementById("masterBanList");
+      list.innerHTML=visible.length?visible.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)}<small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")}</small></span><button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button></div>`).join(""):`<p class="muted">No hay baneos que coincidan.</p>`;
+      list.querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanMasterUser(b.dataset.unban));
+    };
+    document.getElementById("masterBanHistory").innerHTML=history.length?history.slice().reverse().slice(0,10).map(h=>{
+      const date=h.timestamp?new Date(h.timestamp).toLocaleString():"";
+      return `<div class="casbox"><span class="${h.action==="unban"?"clean":"banned"}">${h.action==="unban"?"Restaurado":"Baneado"}</span> · ${escHtml(h.uid)}<br><span class="k">${escHtml(h.scope||"global")} · ${escHtml(h.source||"manual")} ${date?"· "+escHtml(date):""}</span>${h.reason?`<br>${escHtml(h.reason)}`:""}</div>`;
+    }).join(""):`<p class="muted">No hay acciones registradas.</p>`;
     document.getElementById("masterBanBtn").onclick=banMasterUser;
-    box.querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanMasterUser(b.dataset.unban));
+    document.getElementById("masterBanSearch").oninput=renderModeration;
+    renderModeration();
   }
   async function banMasterUser(){
     const uid=document.getElementById("masterBanUid").value.trim();
