@@ -109,7 +109,40 @@ class BanManager:
             self.db.set(self.GLOBAL_KEY, data)
 
     def is_global_banned(self, uid) -> bool:
-        return self._normalize_uid(uid) in self.global_bans
+        uid_str = self._normalize_uid(uid)
+        if uid_str not in self.global_bans:
+            return False
+        record = self._registry().get(uid_str)
+        if isinstance(record, dict) and self._is_expired(record):
+            self._expire_ban(uid_str, record)
+            return False
+        return True
+
+    @staticmethod
+    def _is_expired(record):
+        expires_at = record.get("expires_at") if isinstance(record, dict) else None
+        if not expires_at:
+            return False
+        try:
+            return datetime.datetime.fromisoformat(str(expires_at)) <= datetime.datetime.now()
+        except (TypeError, ValueError):
+            return False
+
+    def _expire_ban(self, uid, record=None):
+        uid_str = self._normalize_uid(uid)
+        self.global_bans.discard(uid_str)
+        data = self._global_data()
+        data["users"] = [item for item in data.get("users", []) if self._normalize_uid(item) != uid_str]
+        self.db.set(self.GLOBAL_KEY, data)
+        records = self._registry()
+        current = dict(record or records.get(uid_str) or {})
+        current["user_id"] = uid_str
+        current["status"] = "expired"
+        current["updated_at"] = datetime.datetime.now().isoformat()
+        records[uid_str] = current
+        self._save_registry(records)
+        self._record(uid_str, "Bloqueo temporal expirado", "automatic_expiry",
+                     scope="global", action="expire")
 
     def get_local_bans(self, cid) -> dict:
         data = self.db.get(self._local_key(cid), self._empty_local())
@@ -130,7 +163,8 @@ class BanManager:
         return cid is not None and self.is_local_banned(cid, uid)
 
     def ban_user(self, uid, reason="", source="manual", reported_by=None,
-                 evidence=None, groups=None, reviewed=True) -> bool:
+                 evidence=None, groups=None, reviewed=True, severity="medium",
+                 expires_at=None) -> bool:
         """Banea un usuario globalmente en todos los grupos."""
         uid_str = self._normalize_uid(uid)
         if not uid_str:
@@ -155,6 +189,8 @@ class BanManager:
             "reported_by": str(reported_by) if reported_by is not None else previous.get("reported_by"),
             "reviewed": bool(reviewed),
             "reviewed_by": str(reported_by) if reviewed and reported_by is not None else previous.get("reviewed_by"),
+            "severity": severity if severity in ("low", "medium", "high", "critical") else "medium",
+            "expires_at": str(expires_at) if expires_at else None,
             "created_at": previous.get("created_at") or now,
             "updated_at": now,
         }
@@ -222,12 +258,16 @@ class BanManager:
         uid_str = self._normalize_uid(uid)
         record = self._registry().get(uid_str)
         if isinstance(record, dict):
+            if record.get("status", "active") == "active" and self._is_expired(record):
+                self._expire_ban(uid_str, record)
+                record = self._registry().get(uid_str)
             return dict(record)
         if self.is_global_banned(uid_str):
             return {
                 "user_id": uid_str, "status": "active", "reason": "",
                 "source": "legacy", "evidence": [], "groups": [],
-                "reviewed": True, "created_at": None, "updated_at": None,
+                "reviewed": True, "severity": "medium", "expires_at": None,
+                "created_at": None, "updated_at": None,
             }
         return None
 
@@ -235,6 +275,12 @@ class BanManager:
         query = str(query or "").strip().lower()
         records = self._registry()
         # Los baneos anteriores a este registro siguen siendo visibles y editables.
+        for uid in self.global_bans:
+            records.setdefault(uid, self.get_ban_record(uid))
+        for uid, record in list(records.items()):
+            if isinstance(record, dict) and record.get("status", "active") == "active" and self._is_expired(record):
+                self._expire_ban(uid, record)
+        records = self._registry()
         for uid in self.global_bans:
             records.setdefault(uid, self.get_ban_record(uid))
         rows = []

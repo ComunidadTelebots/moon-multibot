@@ -1,5 +1,6 @@
 import json
 import csv
+import datetime
 import io
 import time
 
@@ -131,6 +132,7 @@ def _registry_stats(records):
     return {
         "active": sum(row.get("status", "active") == "active" for row in records),
         "revoked": sum(row.get("status") == "revoked" for row in records),
+        "expired": sum(row.get("status") == "expired" for row in records),
         "pending_review": sum(
             row.get("status", "active") == "active" and not row.get("reviewed", False)
             for row in records
@@ -151,7 +153,7 @@ def web_admin_ban_registry():
         return jsonify({"ok": False, "msg": "Registro no disponible"}), 503
     if request.method == "GET":
         status = request.args.get("status", "active")
-        if status not in ("active", "revoked", "all"):
+        if status not in ("active", "revoked", "expired", "all"):
             status = "active"
         try:
             limit = int(request.args.get("limit", 500))
@@ -168,6 +170,18 @@ def web_admin_ban_registry():
     reason = str(body.get("reason", "")).strip()
     if not user_id.isdigit() or not reason:
         return jsonify({"ok": False, "msg": "Faltan user_id y motivo"}), 400
+    severity = body.get("severity", "medium")
+    if severity not in ("low", "medium", "high", "critical"):
+        return jsonify({"ok": False, "msg": "Gravedad inválida"}), 400
+    try:
+        expires_in_days = int(body.get("expires_in_days") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "msg": "Duración inválida"}), 400
+    if expires_in_days not in (0, 1, 7, 30, 90, 365):
+        return jsonify({"ok": False, "msg": "Duración no permitida"}), 400
+    expires_at = (
+        datetime.datetime.now() + datetime.timedelta(days=expires_in_days)
+    ).isoformat() if expires_in_days else None
     created = _ban_manager.ban_user(
         user_id,
         reason=reason,
@@ -176,6 +190,8 @@ def web_admin_ban_registry():
         evidence=body.get("evidence"),
         groups=body.get("groups"),
         reviewed=bool(body.get("reviewed", True)),
+        severity=severity,
+        expires_at=expires_at,
     )
     record = _ban_manager.get_ban_record(user_id)
     _add_audit_log(f"Registro global {'creado' if created else 'actualizado'} para {user_id}")
@@ -309,11 +325,12 @@ def web_admin_ban_registry_export():
     if request.args.get("format", "json").lower() == "csv":
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(("user_id", "status", "reason", "source", "reviewed",
+        writer.writerow(("user_id", "status", "severity", "expires_at", "reason", "source", "reviewed",
                          "reported_by", "groups", "evidence", "created_at", "updated_at"))
         for row in records:
             writer.writerow((
                 _safe_csv(row.get("user_id")), _safe_csv(row.get("status")),
+                _safe_csv(row.get("severity")), row.get("expires_at"),
                 _safe_csv(row.get("reason")), _safe_csv(row.get("source")),
                 row.get("reviewed"), _safe_csv(row.get("reported_by")),
                 _safe_csv(" | ".join(row.get("groups") or [])),

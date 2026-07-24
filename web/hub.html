@@ -1048,11 +1048,16 @@
           <div class="master-metric"><div class="mv">${fmt(registryStats.pending_review)}</div><div class="ml">Sin revisar</div></div>
           <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.total_local_banned_users)}</div><div class="ml">Baneos locales</div></div>
           <div class="master-metric"><div class="mv">${fmt(registryStats.revoked)}</div><div class="ml">Revocados</div></div>
+          <div class="master-metric"><div class="mv">${fmt(registryStats.expired)}</div><div class="ml">Expirados</div></div>
         </div>
         <div class="gsec" style="margin-top:8px">Ban global</div>
         <div class="btnrow"><input id="masterBanUid" inputmode="numeric" placeholder="ID de usuario"><button class="btn ghost" id="masterBanBtn" style="width:auto">Banear</button></div>
         <input id="masterBanReason" placeholder="Motivo obligatorio" style="margin-top:8px">
         <textarea id="masterBanEvidence" placeholder="Evidencias o referencias, una por línea" rows="3" style="margin-top:8px"></textarea>
+        <div class="btnrow" style="margin-top:8px">
+          <select id="masterBanSeverity"><option value="low">Riesgo bajo</option><option value="medium" selected>Riesgo medio</option><option value="high">Riesgo alto</option><option value="critical">Riesgo crítico</option></select>
+          <select id="masterBanDuration"><option value="0">Permanente</option><option value="1">1 día</option><option value="7">7 días</option><option value="30">30 días</option><option value="90">90 días</option><option value="365">1 año</option></select>
+        </div>
         <div class="gsec">Reportes de administradores (${reports.length})</div>
         <div id="masterBanReports">${reports.length?reports.map(r=>`<div class="casbox">
           <b>${escHtml(r.user_id)}</b> · grupo ${escHtml(r.chat_id)}<br>${escHtml(r.reason)}
@@ -1082,7 +1087,7 @@
       const q=document.getElementById("masterBanSearch").value.trim().toLowerCase();
       const visible=banned.filter(b=>!q||`${b.user_id||""} ${b.reason||""}`.toLowerCase().includes(q));
       const list=document.getElementById("masterBanList");
-      list.innerHTML=visible.length?visible.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)} <span class="rbadge">${b.status==="revoked"?"revocado":"activo"}</span><small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")} · ${escHtml(b.source||"legacy")}${b.reviewed?"":" · sin revisar"}</small></span>${b.status==="active"?`<button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button>`:""}${!b.reviewed?`<button class="minibtn" data-review="${escAttr(b.user_id)}">Revisado</button>`:""}</div>`).join(""):`<p class="muted">No hay registros que coincidan.</p>`;
+      list.innerHTML=visible.length?visible.map(b=>`<div class="userchip"><span class="uid">${escHtml(b.user_id)} <span class="rbadge">${b.status==="revoked"?"revocado":b.status==="expired"?"expirado":"activo"}</span><small style="display:block;color:var(--muted)">${escHtml(b.reason||"Sin motivo")} · riesgo ${escHtml(b.severity||"medio")} · ${escHtml(b.source||"legacy")}${b.expires_at?" · vence "+escHtml(new Date(b.expires_at).toLocaleString()):""}${b.reviewed?"":" · sin revisar"}</small></span>${b.status==="active"?`<button class="minibtn" data-unban="${escAttr(b.user_id)}">Restaurar</button>`:""}${!b.reviewed?`<button class="minibtn" data-review="${escAttr(b.user_id)}">Revisado</button>`:""}</div>`).join(""):`<p class="muted">No hay registros que coincidan.</p>`;
       list.querySelectorAll("[data-unban]").forEach(b=>b.onclick=()=>unbanMasterUser(b.dataset.unban));
       list.querySelectorAll("[data-review]").forEach(b=>b.onclick=()=>reviewMasterBan(b.dataset.review));
     };
@@ -1106,10 +1111,12 @@
     const uid=document.getElementById("masterBanUid").value.trim();
     const reason=document.getElementById("masterBanReason").value.trim();
     const evidence=document.getElementById("masterBanEvidence").value.split("\n").map(v=>v.trim()).filter(Boolean);
+    const severity=document.getElementById("masterBanSeverity").value;
+    const expires_in_days=Number(document.getElementById("masterBanDuration").value);
     if(!uid){showToast("Introduce un ID de usuario");return;}
     if(!reason){showToast("Introduce el motivo del registro");return;}
     if(!await masterConfirm(`¿Banear globalmente al usuario ${uid}?`))return;
-    const r=await masterApi("/api/admin/ban-registry",{method:"POST",body:JSON.stringify({user_id:uid,reason,evidence,source:"master_panel",reviewed:true})});
+    const r=await masterApi("/api/admin/ban-registry",{method:"POST",body:JSON.stringify({user_id:uid,reason,evidence,severity,expires_in_days,source:"master_panel",reviewed:true})});
     if(r&&r.ok){showToast("Usuario baneado");loadMasterUsers();loadMasterOverview();}else showToast((r&&(r.msg||r.message))||"No se pudo banear");
   }
   async function unbanMasterUser(uid){
@@ -1158,7 +1165,7 @@
       downloadText("community-ban-registry.json",JSON.stringify({exported_at:new Date().toISOString(),records},null,2),"application/json");
       return;
     }
-    const fields=["user_id","status","reason","source","reviewed","reported_by","groups","evidence","created_at","updated_at"];
+    const fields=["user_id","status","severity","expires_at","reason","source","reviewed","reported_by","groups","evidence","created_at","updated_at"];
     const rows=[fields.map(csvCell).join(","),...records.map(r=>fields.map(k=>csvCell(Array.isArray(r[k])?r[k].join(" | "):r[k])).join(","))];
     downloadText("community-ban-registry.csv",rows.join("\n"),"text/csv");
   }
@@ -1519,7 +1526,7 @@
       box.innerHTML=`<div class="casbox"><span class="clean">Sin bloqueo global activo</span>${last?`<br><span class="k">Última apelación: ${last.status==="approved"?"aceptada":last.status==="rejected"?"rechazada":"pendiente"}</span>`:""}</div>`;
       return;
     }
-    box.innerHTML=`<div class="casbox"><span class="banned">Bloqueo global activo</span><br><span class="k">Motivo:</span> ${escHtml((d.record&&d.record.reason)||"No especificado")}</div>
+    box.innerHTML=`<div class="casbox"><span class="banned">Bloqueo global activo</span><br><span class="k">Motivo:</span> ${escHtml((d.record&&d.record.reason)||"No especificado")}<br><span class="k">Riesgo:</span> ${escHtml((d.record&&d.record.severity)||"medium")}${d.record&&d.record.expires_at?`<br><span class="k">Vence:</span> ${escHtml(new Date(d.record.expires_at).toLocaleString())}`:""}</div>
       ${pending?`<p class="muted">Tu apelación está pendiente de revisión.</p>`:`<textarea id="myAppealText" rows="3" placeholder="Explica por qué debería revisarse el bloqueo"></textarea><button class="btn ghost" id="myAppealSend" style="margin-top:8px">Enviar apelación</button>`}`;
     if(!pending)document.getElementById("myAppealSend").onclick=async()=>{
       const message=document.getElementById("myAppealText").value.trim();

@@ -164,6 +164,8 @@ def community_registry_check():
             "user_id": uid,
             "listed": active,
             "source": record.get("source") if active else None,
+            "severity": record.get("severity", "medium") if active else None,
+            "expires_at": record.get("expires_at") if active else None,
             "updated_at": record.get("updated_at") if active else None,
         })
     return jsonify({"ok": True, "count": len(results), "results": results})
@@ -573,6 +575,8 @@ def registry_status():
             "status": record.get("status", "active"),
             "reason": record.get("reason", ""),
             "source": record.get("source", ""),
+            "severity": record.get("severity", "medium"),
+            "expires_at": record.get("expires_at"),
             "created_at": record.get("created_at"),
             "updated_at": record.get("updated_at"),
         }
