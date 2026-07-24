@@ -517,6 +517,10 @@
       <button class="backbtn" id="gback">${svg('chevron')} Volver</button>
       <div class="vtitle">${escHtml(m.name||'Grupo')}</div>
       <div class="vsub">${t} · ${fmt(m.subscribers)} miembros</div>
+      <div class="master-toolbar">
+        ${m.username?`<button class="btn ghost" id="gopen">${svg('ext')} Abrir en Telegram</button>`:""}
+        <button class="btn teal" id="gshare">${svg('share')} Compartir resumen</button>
+      </div>
 
       <div id="gstats"></div>
       <div id="gads"></div>
@@ -550,6 +554,14 @@
       <textarea id="gnotes" rows="2" placeholder="Notas internas…">${escHtml(d.notes)}</textarea>
       <div class="btnrow"><button class="btn ghost" id="gnotesSave">Guardar notas</button></div>`;
     document.getElementById("gback").onclick=()=>showView("canales");
+    if(document.getElementById("gopen"))document.getElementById("gopen").onclick=()=>openTg(`https://t.me/${m.username}`);
+    document.getElementById("gshare").onclick=()=>{
+      const growth=m.growth30d!=null?`\nCrecimiento 30 días: ${gpct(m.growth30d)}`:"";
+      const publicUrl=m.username?`https://t.me/${m.username}`:"";
+      const summary=`${m.name||t}\n${fmt(m.subscribers)} ${t==="Canal"?"suscriptores":"miembros"}${growth}\n\nGestionado con @${BOT}`;
+      ev("group_summary_shared",{type:m.ctype||"group"});
+      openTg(`https://t.me/share/url?url=${encodeURIComponent(publicUrl)}&text=${encodeURIComponent(summary)}`);
+    };
 
     document.getElementById("gsend").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(); if(!txt){showToast("Escribe el mensaje");return;}
