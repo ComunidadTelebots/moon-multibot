@@ -55,10 +55,13 @@
   .state p{font-size:14px;color:var(--muted);max-width:20rem;margin:0 auto;}
   @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
   .shake{animation:shake .35s;}
+  .cas-credit{margin-top:auto;padding-top:20px;font-size:11px;color:var(--muted);text-decoration:none;opacity:.75;}
+  .cas-credit:hover{color:var(--teal);opacity:1;}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
+<a class="cas-credit" href="https://cas.chat/" target="_blank" rel="noopener noreferrer">Powered by CAS</a>
 <script>
   const tg=(window.Telegram&&window.Telegram.WebApp)?window.Telegram.WebApp:null;
   if(tg){try{tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor("#070b14");tg.setBackgroundColor&&tg.setBackgroundColor("#070b14");}catch(e){}}

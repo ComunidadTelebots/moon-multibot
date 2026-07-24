@@ -2,6 +2,8 @@
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from dotenv import load_dotenv
 from collections import Counter
+from array import array
+from bisect import bisect_left
 from core.config import (
     APP_VERSION,
     BOT_STORE_PATH,
@@ -20,6 +22,8 @@ from core.config import (
     OLLAMA_MODEL,
     DEEP_DREAM_MODE,
     CAS_CACHE_TTL,
+    CAS_EXPORT_PATH,
+    CAS_EXPORT_REFRESH_SECONDS,
     TDLIB_API_ID,
     TDLIB_API_HASH,
     DB_PATH,
@@ -105,6 +109,9 @@ tdlib_client = TDLibClient(TDLIB_API_ID, TDLIB_API_HASH, db) if TDLIB_API_ID and
 web_logs = []
 flood_cache = {}  # {f"{cid}_{uid}": [timestamps]} â€” en memoria para evitar ops SQLite por mensaje
 cas_cache = {}  # {uid: {"time": ts, "status": {...}}}
+cas_export_ids = array("q")
+cas_export_lock = threading.Lock()
+cas_export_loaded = False
 global_chat_history, global_chat_names, global_user_stats, global_media_list, global_msg_log = {}, {}, {}, [], []
 maintenance_mode = False
 
@@ -266,6 +273,101 @@ def iter_known_group_targets():
                 seen.add(key)
                 yield bot, cid_str
 
+def _load_cas_export(path):
+    """Carga el CSV de CAS como array ordenado compacto para búsquedas binarias."""
+    ids = []
+    with open(path, "rb") as source:
+        for raw_line in source:
+            value = raw_line.strip()
+            if value.isdigit():
+                ids.append(int(value))
+    if len(ids) < 1000:
+        raise ValueError(f"export CAS incompleto ({len(ids)} IDs)")
+    ids.sort()
+    compact = array("q")
+    previous = None
+    for value in ids:
+        if value != previous:
+            compact.append(value)
+            previous = value
+    return compact
+
+
+def refresh_cas_export(force=False):
+    """Carga la copia local y descarga una nueva de forma atómica si está caducada."""
+    global cas_export_ids, cas_export_loaded
+    path = CAS_EXPORT_PATH
+    refresh_after = max(3600, CAS_EXPORT_REFRESH_SECONDS)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    exists = os.path.exists(path)
+    stale = not exists or time.time() - os.path.getmtime(path) >= refresh_after
+    if exists and not cas_export_loaded:
+        try:
+            loaded = _load_cas_export(path)
+            with cas_export_lock:
+                cas_export_ids = loaded
+                cas_export_loaded = True
+            logger.info("CAS export local cargado: %s IDs", len(loaded))
+        except Exception as error:
+            stale = True
+            logger.warning("Copia local de CAS inválida: %s", error)
+    if not force and not stale:
+        return len(cas_export_ids)
+    temp_path = f"{path}.tmp"
+    try:
+        response = requests.get(
+            "https://api.cas.chat/export.csv",
+            headers={"User-Agent": "MoonMultibot/CAS-export"},
+            stream=True, timeout=(10, 120),
+        )
+        response.raise_for_status()
+        content_length = int(response.headers.get("Content-Length", 0) or 0)
+        if content_length and content_length > 100 * 1024 * 1024:
+            raise ValueError("export CAS supera el límite de 100 MB")
+        downloaded = 0
+        with open(temp_path, "wb") as target:
+            for chunk in response.iter_content(1024 * 256):
+                if not chunk:
+                    continue
+                downloaded += len(chunk)
+                if downloaded > 100 * 1024 * 1024:
+                    raise ValueError("export CAS supera el límite de 100 MB")
+                target.write(chunk)
+        loaded = _load_cas_export(temp_path)
+        os.replace(temp_path, path)
+        with cas_export_lock:
+            cas_export_ids = loaded
+            cas_export_loaded = True
+        logger.info("CAS export actualizado: %s IDs, %.2f MB", len(loaded), downloaded / 1048576)
+        return len(loaded)
+    except Exception as error:
+        logger.warning("No se pudo actualizar CAS export: %s", error)
+        try:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except OSError:
+            pass
+        return len(cas_export_ids)
+
+
+def cas_export_worker():
+    while True:
+        refresh_cas_export()
+        time.sleep(max(3600, min(CAS_EXPORT_REFRESH_SECONDS, 21600)))
+
+
+def _cas_export_contains(uid):
+    if not cas_export_loaded:
+        return None
+    try:
+        needle = int(uid)
+    except (TypeError, ValueError):
+        return False
+    with cas_export_lock:
+        pos = bisect_left(cas_export_ids, needle)
+        return pos < len(cas_export_ids) and cas_export_ids[pos] == needle
+
+
 def check_cas_status(uid, use_cache=True):
     """Verifica CAS y devuelve estado normalizado con cache corta."""
     uid_str = str(uid).strip()
@@ -273,6 +375,16 @@ def check_cas_status(uid, use_cache=True):
         return {"ok": False, "banned": False, "description": "UID vacio"}
     if uid_str.startswith("-"):
         return {"ok": True, "banned": False, "description": "CAS solo aplica a usuarios"}
+
+    local_result = _cas_export_contains(uid_str) if use_cache else None
+    if local_result is not None:
+        return {
+            "ok": True,
+            "banned": local_result,
+            "description": "Comprobado en export.csv local",
+            "result": {"source": "export.csv"},
+            "status_code": 200,
+        }
 
     ttl = CAS_CACHE_TTL
     now = time.time()
@@ -4828,6 +4940,7 @@ if __name__ == "__main__":
             threading.Thread(target=daily_report_worker, daemon=True).start()
             threading.Thread(target=auto_backup_worker, daemon=True).start()
             threading.Thread(target=cleanup_worker, daemon=True).start()
+            threading.Thread(target=cas_export_worker, daemon=True).start()
             threading.Thread(target=health_monitor, daemon=True).start()
         else:
             add_web_log("ERROR", "No se pudo iniciar ningÃºn bot. Verifica data/bots.json")

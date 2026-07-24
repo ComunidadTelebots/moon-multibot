@@ -33,6 +33,8 @@ DEEP_DREAM_MODE = os.getenv("DEEP_DREAM_MODE", "false").lower() == "true"
 
 # --- Moderación ---
 CAS_CACHE_TTL = int(os.getenv("CAS_CACHE_TTL", "1800"))
+CAS_EXPORT_PATH = os.getenv("CAS_EXPORT_PATH", "data/cas_export.csv")
+CAS_EXPORT_REFRESH_SECONDS = int(os.getenv("CAS_EXPORT_REFRESH_SECONDS", "86400"))
 
 # --- TDLib (MTProto user client) ---
 TDLIB_API_ID = os.getenv("TDLIB_API_ID", "")
