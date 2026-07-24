@@ -10,6 +10,7 @@
 - Motor de riesgo explicable con señales, puntuación y registro de eventos para que cada decisión pueda revisarse.
 - Integración del aprendizaje de grupos feeder, medición de precisión, falsos positivos y detección de campañas repetidas.
 - Consulta de CAS mediante exportación local en caché, API y canal `@cas_feed` como respaldo; alertas a administradores antes de aplicar un ban.
+- Contador independiente de baneados por CAS y enriquecimiento automático de baneos antiguos con su fuente y motivo desde el historial y el export local.
 - Registro comunitario de reportes y compatibilidad con fuentes externas de reputación sin delegar automáticamente decisiones críticas.
 
 ### Acceso automático y administración

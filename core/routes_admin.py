@@ -19,6 +19,7 @@ _get_ia_nativa = None
 _get_maintenance_mode = None
 _set_maintenance_mode = None
 _ban_manager = None
+_check_cas_status = None
 
 
 def setup(
@@ -33,10 +34,11 @@ def setup(
     get_maintenance_mode,
     set_maintenance_mode,
     ban_manager=None,
+    check_cas_status=None,
 ):
     global _check_jwt, _db, _add_audit_log, _get_global_chat_names, _get_proxy_bot
     global _get_global_user_stats, _get_global_msg_log, _get_ia_nativa
-    global _get_maintenance_mode, _set_maintenance_mode, _ban_manager
+    global _get_maintenance_mode, _set_maintenance_mode, _ban_manager, _check_cas_status
     _check_jwt = check_jwt
     _db = db
     _add_audit_log = add_audit_log
@@ -48,6 +50,7 @@ def setup(
     _get_maintenance_mode = get_maintenance_mode
     _set_maintenance_mode = set_maintenance_mode
     _ban_manager = ban_manager
+    _check_cas_status = check_cas_status
     return bp
 
 
@@ -131,6 +134,11 @@ def web_admin_bans():
 def _registry_stats(records):
     return {
         "active": sum(row.get("status", "active") == "active" for row in records),
+        "cas_active": sum(
+            row.get("status", "active") == "active"
+            and str(row.get("source", "")).lower() in ("cas", "cas_feed", "export.csv")
+            for row in records
+        ),
         "revoked": sum(row.get("status") == "revoked" for row in records),
         "expired": sum(row.get("status") == "expired" for row in records),
         "pending_review": sum(
@@ -152,6 +160,9 @@ def web_admin_ban_registry():
     if _ban_manager is None:
         return jsonify({"ok": False, "msg": "Registro no disponible"}), 503
     if request.method == "GET":
+        # Migra metadatos antiguos sin hacer llamadas remotas: primero usa el
+        # historial y después el export/feed local de CAS ya descargado.
+        _ban_manager.enrich_legacy_records(_check_cas_status)
         status = request.args.get("status", "active")
         if status not in ("active", "revoked", "expired", "all"):
             status = "active"

@@ -297,6 +297,54 @@ class BanManager:
         rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
         return rows[:max(1, min(int(limit), 2000))]
 
+    def enrich_legacy_records(self, cas_checker=None):
+        """Completa motivo/fuente de baneos antiguos usando datos locales conocidos."""
+        records = self._registry()
+        history = self.db.get(self.HISTORY_KEY, [])
+        latest = {}
+        if isinstance(history, list):
+            for event in history:
+                if not isinstance(event, dict):
+                    continue
+                if event.get("scope") == "global" and event.get("action", "ban") == "ban":
+                    latest[self._normalize_uid(event.get("uid"))] = event
+        changed = 0
+        now = datetime.datetime.now().isoformat()
+        for uid in self.global_bans:
+            current = records.get(uid)
+            current = dict(current) if isinstance(current, dict) else self.get_ban_record(uid)
+            if not isinstance(current, dict):
+                continue
+            event = latest.get(uid)
+            if event and (not current.get("reason") or current.get("source") == "legacy"):
+                current["reason"] = str(event.get("reason") or current.get("reason") or "")[:1000]
+                current["source"] = str(event.get("source") or current.get("source") or "legacy")[:100]
+            if current.get("source") == "legacy" and cas_checker:
+                try:
+                    cas = cas_checker(uid) or {}
+                except Exception:
+                    cas = {}
+                if cas.get("ok") and cas.get("banned"):
+                    detected_source = str((cas.get("result") or {}).get("source") or "cas")
+                    current["source"] = "cas"
+                    current["reason"] = current.get("reason") or (
+                        "CAS global blacklist · " + str(cas.get("description") or detected_source)
+                    )
+                    current["evidence"] = self._clean_list(
+                        (current.get("evidence") or []) + [f"CAS source: {detected_source}"]
+                    )
+            current.setdefault("status", "active")
+            current.setdefault("reviewed", True)
+            current.setdefault("severity", "medium")
+            current.setdefault("created_at", event.get("timestamp") if event else None)
+            if records.get(uid) != current:
+                current["updated_at"] = now
+                records[uid] = current
+                changed += 1
+        if changed:
+            self._save_registry(records)
+        return changed
+
     def review_ban_record(self, uid, reviewed_by=None, reason=None, evidence=None):
         uid_str = self._normalize_uid(uid)
         records = self._registry()

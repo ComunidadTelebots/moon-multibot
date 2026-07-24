@@ -1147,7 +1147,8 @@
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
         <div class="master-grid" style="margin-top:8px">
-          <div class="master-metric warn"><div class="mv">${fmt(registryStats.active)}</div><div class="ml">Activos</div></div>
+          <div class="master-metric warn"><div class="mv">${fmt(registryStats.active)}</div><div class="ml">Baneos globales activos</div></div>
+          <div class="master-metric warn"><div class="mv">${fmt(registryStats.cas_active)}</div><div class="ml">Baneados por CAS</div></div>
           <div class="master-metric"><div class="mv">${fmt(registryStats.pending_review)}</div><div class="ml">Sin revisar</div></div>
           <div class="master-metric"><div class="mv">${fmt(banStats&&banStats.total_local_banned_users)}</div><div class="ml">Baneos locales</div></div>
           <div class="master-metric"><div class="mv">${fmt(registryStats.revoked)}</div><div class="ml">Revocados</div></div>

@@ -478,7 +478,7 @@ def _cas_export_contains(uid):
         return pos < len(cas_export_ids) and cas_export_ids[pos] == needle
 
 
-def check_cas_status(uid, use_cache=True):
+def check_cas_status(uid, use_cache=True, local_only=False):
     """Verifica CAS y devuelve estado normalizado con cache corta."""
     uid_str = str(uid).strip()
     if not uid_str:
@@ -503,6 +503,13 @@ def check_cas_status(uid, use_cache=True):
             "description": "Comprobado en export.csv local",
             "result": {"source": "export.csv"},
             "status_code": 200,
+        }
+    if local_only:
+        return {
+            "ok": False, "banned": False,
+            "description": "Las fuentes locales de CAS aún no están cargadas",
+            "result": {"source": "local_unavailable"},
+            "status_code": 503,
         }
 
     ttl = CAS_CACHE_TTL
@@ -658,6 +665,7 @@ app.register_blueprint(_setup_admin(
     get_maintenance_mode=lambda: maintenance_mode,
     set_maintenance_mode=lambda value: globals().__setitem__("maintenance_mode", value),
     ban_manager=ban_manager,
+    check_cas_status=lambda uid: check_cas_status(uid, use_cache=True, local_only=True),
 ))
 app.register_blueprint(_setup_system(
     check_jwt=check_jwt,
