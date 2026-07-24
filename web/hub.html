@@ -882,6 +882,7 @@
         <button class="master-action" id="masterSystem"><span class="mai">${svg('activity')}</span><b>Sistema</b><small>Rendimiento, versión y registros</small></button>
         <button class="master-action" id="masterReports"><span class="mai">${svg('download')}</span><b>Informes</b><small>Exportar métricas de la red</small></button>
         <button class="master-action" id="masterActivity"><span class="mai">${svg('clock')}</span><b>Actividad</b><small>Auditoría administrativa</small></button>
+        <button class="master-action" id="masterFaq"><span class="mai">${svg('message')}</span><b>Respuestas automáticas</b><small>Preguntas frecuentes del bot</small></button>
         <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
         <button class="master-action" id="masterBackup"><span class="mai">${svg('download')}</span><b>Crear backup</b><small>Copia inmediata del sistema</small></button>
         <button class="master-action danger" id="masterMaintenance"><span class="mai">${svg('shield')}</span><b>Mantenimiento</b><small>Activar o desactivar el modo</small></button>
@@ -905,6 +906,7 @@
     document.getElementById("masterSystem").onclick=loadMasterSystem;
     document.getElementById("masterReports").onclick=loadMasterReports;
     document.getElementById("masterActivity").onclick=loadMasterActivity;
+    document.getElementById("masterFaq").onclick=loadMasterFaq;
     document.getElementById("masterBroadcast").onclick=loadMasterBroadcast;
     document.getElementById("masterBackup").onclick=createMasterBackup;
     document.getElementById("masterMaintenance").onclick=toggleMasterMaintenance;
@@ -1175,6 +1177,30 @@
       downloadText(`moon-audit-${Date.now()}.txt`,logs.map(l=>`[${l.time||l.timestamp||""}] ${l.action||l.message||JSON.stringify(l)}`).join("\n"));
       showToast("Auditoría exportada");
     };
+  }
+  async function loadMasterFaq(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const r=await masterApi("/api/automation/faq"),faq=(r&&r.faq)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Respuestas automáticas <span class="rbadge">${faq.length} preguntas</span></div><div class="dbody">
+      <p class="muted" style="margin:6px 0 10px">Moonbot detecta preguntas frecuentes. Asigna una respuesta para contestarlas automáticamente.</p>
+      ${faq.length?faq.slice(0,25).map((item,i)=>`<div class="casbox" data-faq-row="${i}">
+        <div style="display:flex;justify-content:space-between;gap:8px"><b>${escHtml(item.question)}</b><span class="w">${fmt(item.count)} veces</span></div>
+        <textarea rows="2" data-faq-answer="${i}" placeholder="Escribe la respuesta automática…" style="margin-top:8px">${escHtml(item.answer||"")}</textarea>
+        <div class="btnrow"><button class="minibtn" data-faq-save="${i}">Guardar</button><button class="minibtn red" data-faq-delete="${i}">Eliminar</button></div>
+      </div>`).join(""):`<p class="muted">Todavía no se han detectado preguntas frecuentes.</p>`}
+    </div></div>`;
+    box.querySelectorAll("[data-faq-save]").forEach(b=>b.onclick=async()=>{
+      const i=Number(b.dataset.faqSave),answer=box.querySelector(`[data-faq-answer="${i}"]`).value.trim();
+      if(!answer){showToast("Escribe una respuesta");return;}
+      const res=await masterApi("/api/automation/faq/set",{method:"POST",body:JSON.stringify({question:faq[i].question,answer})});
+      if(res&&res.ok){showToast("Respuesta guardada");loadMasterFaq();}else showToast((res&&res.msg)||"No se pudo guardar");
+    });
+    box.querySelectorAll("[data-faq-delete]").forEach(b=>b.onclick=async()=>{
+      const i=Number(b.dataset.faqDelete);
+      if(!await masterConfirm(`¿Eliminar la pregunta “${faq[i].question}”?`))return;
+      const res=await masterApi("/api/automation/faq/delete",{method:"POST",body:JSON.stringify({question:faq[i].question})});
+      if(res&&res.ok){showToast("Pregunta eliminada");loadMasterFaq();}else showToast("No se pudo eliminar");
+    });
   }
   function loadMasterBroadcast(){
     const box=document.getElementById("masterDetail");
