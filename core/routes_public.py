@@ -24,6 +24,8 @@ from . import image_gen
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
 from community_members import CommunityMembers
+from community_engagement import CommunityEngagement
+from roadmap_engine import RoadmapEngine
 
 bp = Blueprint("public", __name__)
 
@@ -1216,6 +1218,54 @@ def community_directory():
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     return jsonify({"ok": True, "members": _community_members().directory()})
+
+
+@bp.route("/api/public/community/engagement", methods=["POST", "OPTIONS"])
+def community_engagement_snapshot():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None: return jsonify({"ok": False, "error": "initData inválido"}), 401
+    service = CommunityEngagement(_db)
+    return jsonify({"ok": True, "surveys": service.surveys(), "events": service.events(),
+                    "challenges": list(reversed(service._rows(_db, "COMMUNITY_CHALLENGES")))})
+
+
+@bp.route("/api/public/community/engagement/action", methods=["POST", "OPTIONS"])
+def community_engagement_action():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None: return jsonify({"ok": False, "error": "initData inválido"}), 401
+    service, uid, action = CommunityEngagement(_db), user.get("id"), body.get("action")
+    try:
+        if action == "survey_vote": result = service.vote_survey(body.get("survey_id"), uid, body.get("option_id"))
+        elif action == "anonymous": result = service.anonymous_message(uid, body.get("text"), body.get("category"))
+        elif action == "event_register": result = service.register_event(body.get("event_id"), uid)
+        elif action == "event_cancel": result = service.cancel_registration(body.get("event_id"), uid)
+        elif action == "event_checkin": result = service.checkin(body.get("event_id"), uid)
+        elif action == "challenge": result = service.challenge_progress(body.get("challenge_id"), uid, body.get("amount", 1))
+        elif action == "mentor": result = service.mentor_match(uid, body.get("skills") or [])
+        elif action == "mentor_profile": result = service.mentor_profile(uid, body.get("skills") or [], body.get("capacity", 3), body.get("active", True))
+        elif action == "certificate": result = service.certificate(body.get("event_id"), uid)
+        elif action == "contest_submit": result = service.submit_contest(body.get("event_id"), uid, body.get("title"), body.get("content"))
+        elif action == "contest_vote": result = service.vote_contest(body.get("event_id"), body.get("submission_id"), uid)
+        elif action == "qa_question": result = service.qa_question(body.get("event_id"), uid, body.get("text"))
+        elif action == "agenda": result = service.agenda_ics()
+        else: return jsonify({"ok": False, "error": "acción inválida"}), 400
+        return jsonify({"ok": bool(result), "result": result}), 200 if result else 404
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/public/community/form/submit", methods=["POST", "OPTIONS"])
+def community_form_submit():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    result = RoadmapEngine(_db).form_submit(body.get("form_id"), user.get("id"), body.get("answers") or {})
+    return jsonify({"ok": bool(result), "result": result}), 200 if result else 404
 
 
 # ─────────────────────────── Captcha de entrada (Join Request Queries) ──────────

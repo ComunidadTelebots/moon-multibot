@@ -50,6 +50,9 @@ from ban_manager import BanManager
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
 from community_members import CommunityMembers
+from community_engagement import CommunityEngagement
+from group_administration import GroupAdministration
+from roadmap_engine import RoadmapEngine
 
 load_dotenv()
 
@@ -96,13 +99,18 @@ ban_manager = BanManager(db)  # Gestor centralizado de baneos
 spam_risk = SpamRiskEngine(db)
 group_suite = GroupSuite(db)
 community_members = CommunityMembers(db)
+community_engagement = CommunityEngagement(db)
+group_administration = GroupAdministration(db)
+roadmap_engine = RoadmapEngine(db, JWT_SECRET)
 
 task_queue = TaskQueue()
 start_time = time.time()
 bots_data = []
 active_bots = []
+next_group_admin_check = 0
 
 def queue_worker():
+    global next_group_admin_check
     while True:
         try:
             if active_bots:
@@ -121,6 +129,62 @@ def queue_worker():
                     community_members.mark_reminder(
                         reminder["id"], "sent" if result and result.get("ok") else "failed"
                     )
+                event_bot = next(
+                    (bot for bot in active_bots if (bot.bot_username or "").lower() == HUB_BOT_USERNAME.lower()),
+                    active_bots[0],
+                )
+                for event in community_engagement.due_event_reminders():
+                    when = datetime.datetime.fromisoformat(event["starts_at"]).strftime("%d/%m %H:%M")
+                    for user_id in event["users"]:
+                        if community_members.preferences(user_id)["events"]:
+                            event_bot.send_msg(
+                                user_id, f"📅 **{event['title']}**\nEmpieza el {when}. Te esperamos."
+                            )
+                for scheduled in group_administration.due_calendar_actions():
+                    target_bot = get_bot_for_chat(scheduled["group_id"]) if "get_bot_for_chat" in globals() else active_bots[0]
+                    payload = scheduled.get("payload") or {}
+                    result = None
+                    if scheduled["action"] == "message":
+                        result = target_bot.send_msg(scheduled["group_id"], str(payload.get("text", ""))[:4000])
+                    group_administration.mark_calendar_action(scheduled["id"], "executed" if result else "unsupported")
+                for transition in group_administration.opening_transitions():
+                    target_bot = get_bot_for_chat(transition["group_id"]) if "get_bot_for_chat" in globals() else active_bots[0]
+                    permissions = {"can_send_messages": transition["open"], "can_send_audios": transition["open"],
+                                   "can_send_documents": transition["open"], "can_send_photos": transition["open"],
+                                   "can_send_videos": transition["open"], "can_send_other_messages": transition["open"]}
+                    target_bot.api_call("setChatPermissions", {"chat_id": transition["group_id"], "permissions": permissions}, silent=True)
+                if time.time() >= next_group_admin_check:
+                    for audit_bot in active_bots:
+                        for group_id in db.get(f"CHATS_{audit_bot.token}", []):
+                            if not str(group_id).startswith("-"):
+                                continue
+                            response = audit_bot.api_call("getChatMember", {"chat_id": group_id, "user_id": audit_bot.bot_id}, silent=True)
+                            actual = response.get("result", {}) if isinstance(response, dict) and response.get("ok") else {}
+                            group_administration.permission_audit(group_id, actual)
+                    next_group_admin_check = time.time() + 3600
+                content_items = {x.get("id"): x for x in roadmap_engine._list("CONTENT_ITEMS")}
+                for scheduled in roadmap_engine.due_content():
+                    content = content_items.get(scheduled["content_id"])
+                    successful = bool(content)
+                    for target in scheduled["targets"] if content else []:
+                        target_bot = get_bot_for_chat(target) if "get_bot_for_chat" in globals() else active_bots[0]
+                        rendered = roadmap_engine.render_template(content["body"], {
+                            "group_id": target, "date": datetime.datetime.now().strftime("%d/%m/%Y"),
+                            "time": datetime.datetime.now().strftime("%H:%M"),
+                        })
+                        response = target_bot.send_msg(target, rendered)
+                        successful = successful and bool(response and response.get("ok"))
+                    roadmap_engine.complete_content_schedule(scheduled["id"], successful)
+                for job in roadmap_engine._list("WEBHOOK_QUEUE"):
+                    try:
+                        if job.get("status") not in ("queued", "retry") or datetime.datetime.fromisoformat(job["next_attempt"]) > datetime.datetime.now():
+                            continue
+                        response = requests.post(job["url"], json=job["payload"], headers={
+                            "X-Moonbot-Event": job["event"], "X-Moonbot-Signature": job["signature"],
+                        }, timeout=8)
+                        roadmap_engine.webhook_result(job["id"], 200 <= response.status_code < 300, f"HTTP {response.status_code}")
+                    except Exception as webhook_error:
+                        roadmap_engine.webhook_result(job["id"], False, str(webhook_error))
         except: pass
         time.sleep(1)
 

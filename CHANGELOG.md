@@ -5,127 +5,168 @@
 
 ### Moderación y seguridad (1–10)
 1. Modo lento adaptativo según el volumen y riesgo del chat. **Implementado en v16.91.0.**
-2. Detección coordinada de raids entre varios grupos.
-3. Cuarentena reforzada por nivel de reputación.
-4. Bloqueo de suplantaciones de administradores.
-5. Detección de enlaces acortados y redirecciones encadenadas.
-6. Análisis de archivos peligrosos por hash y tipo MIME.
+2. Detección coordinada de raids entre varios grupos. **Implementado en v17.0.0.**
+3. Cuarentena reforzada por nivel de reputación. **Implementado en v17.0.0.**
+4. Bloqueo de suplantaciones de administradores. **Implementado en v17.0.0.**
+5. Detección de enlaces acortados y redirecciones encadenadas. **Implementado en v17.0.0.**
+6. Análisis de archivos peligrosos por hash y tipo MIME. **Implementado en v17.0.0.**
 7. Límites personalizados de menciones, emojis y mayúsculas. **Implementado en v16.91.0.**
-8. Reincidencia compartida entre grupos autorizados.
+8. Reincidencia compartida entre grupos autorizados. **Implementado en v17.0.0.**
 9. Simulación previa de reglas antes de activarlas. **Implementado en v16.91.0.**
 10. Caducidad y revisión automática de sanciones. **Implementado en v16.91.0.**
 
 ### Miembros y comunidad (11–20)
 11. Perfil comunitario con actividad, karma y roles. **Implementado en v16.92.0.**
 12. Solicitudes para obtener roles personalizados. **Implementado en v16.92.0.**
-13. Programa de mentores para nuevos miembros.
+13. Programa de mentores para nuevos miembros. **Implementado en v16.93.0.**
 14. Reconocimientos semanales a colaboradores. **Implementado en v16.92.0.**
 15. Sistema configurable de niveles y experiencia. **Implementado en v16.92.0.**
 16. Directorio interno de miembros verificados. **Implementado en v16.92.0.**
-17. Encuestas de satisfacción y clima del grupo.
-18. Buzón anónimo con protección antiabuso.
+17. Encuestas de satisfacción y clima del grupo. **Implementado en v16.93.0.**
+18. Buzón anónimo con protección antiabuso. **Implementado en v16.93.0.**
 19. Recordatorios personales gestionados por el bot. **Implementado en v16.92.0.**
 20. Panel de preferencias de notificaciones por usuario. **Implementado en v16.92.0.**
 
 ### Administración de grupos (21–30)
-21. Asistente inicial de configuración por tipo de comunidad.
-22. Comparador de configuración entre grupos.
-23. Sincronización selectiva de reglas y roles.
-24. Historial de cambios con restauración por versión.
-25. Aprobación dual para cambios críticos.
-26. Delegación temporal de permisos administrativos.
-27. Calendario común de acciones y eventos.
-28. Horarios de apertura y cierre del chat.
-29. Archivado automático de grupos inactivos.
-30. Comprobación periódica de permisos del bot.
+21. Asistente inicial de configuración por tipo de comunidad. **Implementado en v16.94.0.**
+22. Comparador de configuración entre grupos. **Implementado en v16.94.0.**
+23. Sincronización selectiva de reglas y roles. **Implementado en v16.94.0.**
+24. Historial de cambios con restauración por versión. **Implementado en v16.94.0.**
+25. Aprobación dual para cambios críticos. **Implementado en v16.94.0.**
+26. Delegación temporal de permisos administrativos. **Implementado en v16.94.0.**
+27. Calendario común de acciones y eventos. **Implementado en v16.94.0.**
+28. Horarios de apertura y cierre del chat. **Implementado en v16.94.0.**
+29. Archivado automático de grupos inactivos. **Implementado en v16.94.0.**
+30. Comprobación periódica de permisos del bot. **Implementado en v16.94.0.**
 
 ### Automatización y contenido (31–40)
-31. Publicaciones recurrentes con calendario visual.
-32. Flujo de aprobación editorial antes de publicar.
-33. Biblioteca compartida de mensajes y recursos.
-34. Variables dinámicas en plantillas.
-35. Traducción automática opcional de publicaciones.
-36. Reutilización de contenido entre canales autorizados.
-37. Caducidad automática de mensajes promocionales.
-38. Respuestas por palabra clave con condiciones.
-39. Formularios conversacionales configurables.
-40. Webhooks por eventos de grupo.
+31. Publicaciones recurrentes con calendario visual. **Implementado en v17.0.0.**
+32. Flujo de aprobación editorial antes de publicar. **Implementado en v17.0.0.**
+33. Biblioteca compartida de mensajes y recursos. **Implementado en v17.0.0.**
+34. Variables dinámicas en plantillas. **Implementado en v17.0.0.**
+35. Traducción automática opcional de publicaciones. **Implementado en v17.0.0.**
+36. Reutilización de contenido entre canales autorizados. **Implementado en v17.0.0.**
+37. Caducidad automática de mensajes promocionales. **Implementado en v17.0.0.**
+38. Respuestas por palabra clave con condiciones. **Implementado en v17.0.0.**
+39. Formularios conversacionales configurables. **Implementado en v17.0.0.**
+40. Webhooks por eventos de grupo. **Implementado en v17.0.0.**
 
 ### Inteligencia artificial (41–50)
-41. Resúmenes diarios, semanales y por tema.
-42. Respuestas basadas exclusivamente en fuentes aprobadas.
-43. Detección de preguntas sin respuesta.
-44. Clasificación automática de conversaciones por tema.
-45. Explicación legible de cada decisión de moderación.
-46. Comparador de precisión entre modelos.
-47. Pruebas A/B de respuestas automáticas.
-48. Memoria separada y exportable por grupo.
-49. Detección de cambios de tono y conflictos emergentes.
-50. Asistente para redactar reglas comunitarias.
+41. Resúmenes diarios, semanales y por tema. **Implementado en v17.0.0.**
+42. Respuestas basadas exclusivamente en fuentes aprobadas. **Implementado en v17.0.0.**
+43. Detección de preguntas sin respuesta. **Implementado en v17.0.0.**
+44. Clasificación automática de conversaciones por tema. **Implementado en v17.0.0.**
+45. Explicación legible de cada decisión de moderación. **Implementado en v17.0.0.**
+46. Comparador de precisión entre modelos. **Implementado en v17.0.0.**
+47. Pruebas A/B de respuestas automáticas. **Implementado en v17.0.0.**
+48. Memoria separada y exportable por grupo. **Implementado en v17.0.0.**
+49. Detección de cambios de tono y conflictos emergentes. **Implementado en v17.0.0.**
+50. Asistente para redactar reglas comunitarias. **Implementado en v17.0.0.**
 
 ### Eventos y participación (51–60)
-51. Creación guiada de eventos en Telegram.
-52. Inscripciones con cupos y lista de espera.
-53. Confirmación de asistencia y recordatorios.
-54. Sorteos auditables con reglas configurables.
-55. Concursos con jurado y votación comunitaria.
-56. Retos periódicos con progreso y clasificación.
-57. Sesiones de preguntas y respuestas moderadas.
-58. Agenda comunitaria exportable a calendario.
-59. Certificados o insignias de participación.
-60. Estadísticas posteriores a cada evento.
+51. Creación guiada de eventos en Telegram. **Implementado en v16.93.0.**
+52. Inscripciones con cupos y lista de espera. **Implementado en v16.93.0.**
+53. Confirmación de asistencia y recordatorios. **Implementado en v16.93.0.**
+54. Sorteos auditables con reglas configurables. **Implementado en v16.93.0.**
+55. Concursos con jurado y votación comunitaria. **Implementado en v16.93.0.**
+56. Retos periódicos con progreso y clasificación. **Implementado en v16.93.0.**
+57. Sesiones de preguntas y respuestas moderadas. **Implementado en v16.93.0.**
+58. Agenda comunitaria exportable a calendario. **Implementado en v16.93.0.**
+59. Certificados o insignias de participación. **Implementado en v16.93.0.**
+60. Estadísticas posteriores a cada evento. **Implementado en v16.93.0.**
 
 ### Analítica e informes (61–70)
-61. Retención de miembros por cohortes.
-62. Embudo de entrada desde solicitud hasta participación.
-63. Horas y días con mayor actividad.
-64. Crecimiento orgánico frente a campañas.
-65. Panel de salud comunitaria.
-66. Alertas por anomalías en métricas.
-67. Informes programados por Telegram o correo.
-68. Comparación anónima entre grupos propios.
-69. Exportación compatible con herramientas BI.
-70. Objetivos mensuales con seguimiento visual.
+61. Retención de miembros por cohortes. **Implementado en v17.0.0.**
+62. Embudo de entrada desde solicitud hasta participación. **Implementado en v17.0.0.**
+63. Horas y días con mayor actividad. **Implementado en v17.0.0.**
+64. Crecimiento orgánico frente a campañas. **Implementado en v17.0.0.**
+65. Panel de salud comunitaria. **Implementado en v17.0.0.**
+66. Alertas por anomalías en métricas. **Implementado en v17.0.0.**
+67. Informes programados por Telegram o correo. **Implementado en v17.0.0.**
+68. Comparación anónima entre grupos propios. **Implementado en v17.0.0.**
+69. Exportación compatible con herramientas BI. **Implementado en v17.0.0.**
+70. Objetivos mensuales con seguimiento visual. **Implementado en v17.0.0.**
 
 ### Bots, integraciones y API (71–80)
-71. Marketplace interno de módulos verificados.
-72. Tokens de API con permisos granulares.
-73. Rotación automática de credenciales.
-74. Entorno de pruebas aislado por bot.
-75. Monitor de cuotas y límites de Telegram.
-76. Integración con calendarios externos.
-77. Integración con gestores de incidencias.
-78. Importación y exportación de configuración firmada.
-79. Registro de webhooks con reintentos y cola muerta.
-80. SDK documentado para extensiones de Moonbot.
+71. Marketplace interno de módulos verificados. **Implementado en v17.0.0.**
+72. Tokens de API con permisos granulares. **Implementado en v17.0.0.**
+73. Rotación automática de credenciales. **Implementado en v17.0.0.**
+74. Entorno de pruebas aislado por bot. **Implementado en v17.0.0.**
+75. Monitor de cuotas y límites de Telegram. **Implementado en v17.0.0.**
+76. Integración con calendarios externos. **Implementado en v17.0.0.**
+77. Integración con gestores de incidencias. **Implementado en v17.0.0.**
+78. Importación y exportación de configuración firmada. **Implementado en v17.0.0.**
+79. Registro de webhooks con reintentos y cola muerta. **Implementado en v17.0.0.**
+80. SDK documentado para extensiones de Moonbot. **Implementado en v17.0.0.**
 
 ### Operaciones y fiabilidad (81–90)
-81. Despliegues graduales entre instancias.
-82. Reversión automática ante fallos de salud.
-83. Copias cifradas con política de retención.
-84. Restauración selectiva por grupo o módulo.
-85. Panel de dependencias y servicios externos.
-86. Alertas de disco, memoria, CPU y latencia.
-87. Modo degradado cuando falla la IA o CAS.
-88. Diagnóstico automático con recomendaciones.
-89. Registro de errores agrupado por causa.
-90. Ventanas de mantenimiento programadas.
+81. Despliegues graduales entre instancias. **Implementado en v17.0.0.**
+82. Reversión automática ante fallos de salud. **Implementado en v17.0.0.**
+83. Copias cifradas con política de retención. **Implementado en v17.0.0.**
+84. Restauración selectiva por grupo o módulo. **Implementado en v17.0.0.**
+85. Panel de dependencias y servicios externos. **Implementado en v17.0.0.**
+86. Alertas de disco, memoria, CPU y latencia. **Implementado en v17.0.0.**
+87. Modo degradado cuando falla la IA o CAS. **Implementado en v17.0.0.**
+88. Diagnóstico automático con recomendaciones. **Implementado en v17.0.0.**
+89. Registro de errores agrupado por causa. **Implementado en v17.0.0.**
+90. Ventanas de mantenimiento programadas. **Implementado en v17.0.0.**
 
 ### Experiencia web y Mini App (91–100)
 91. Buscador global de acciones y ajustes. **Implementado en v16.88.0.**
 92. Acciones favoritas en la portada. **Implementado en v16.89.0.**
-93. Navegación con historial y enlaces internos. **Historial de pestañas implementado en v16.89.0.**
-94. Centro unificado de notificaciones. **Conectado a eventos reales en v16.89.0.**
+93. Navegación con historial y enlaces internos. **Implementado en v16.89.0.**
+94. Centro unificado de notificaciones. **Implementado en v16.89.0.**
 95. Modo compacto para administradores avanzados. **Implementado en v16.88.0.**
-96. Accesibilidad mejorada y control de tamaño de texto. **Control de tamaño implementado en v16.88.0.**
+96. Accesibilidad mejorada y control de tamaño de texto. **Implementado en v16.88.0.**
 97. Temas visuales por grupo. **Implementado en v16.90.0.**
-98. Panel personalizable mediante widgets.
-99. Trabajo offline con sincronización posterior.
+98. Panel personalizable mediante widgets. **Implementado en v17.0.0.**
+99. Trabajo offline con sincronización posterior. **Implementado en v17.0.0.**
 100. Recorrido guiado para cada función nueva. **Recorrido base y reiniciable implementado en v16.90.0.**
 
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v17.0.0] - 2026-07-25
+
+### Roadmap completo
+
+- Seguridad coordinada contra raids, cuarentena por reputación, suplantaciones, redirecciones y archivos peligrosos.
+- Automatización editorial con biblioteca, plantillas, traducción, recurrencias, formularios, palabras clave y webhooks fiables.
+- Inteligencia comunitaria con resúmenes, fuentes aprobadas, temas, preguntas pendientes, explicaciones, A/B, memoria y tono.
+- Analítica de cohortes, embudos, actividad, campañas, salud, anomalías, informes, comparación anónima, BI y objetivos.
+- Marketplace, tokens granulares, rotación, sandbox, cuotas, calendarios, incidencias, configuración firmada y SDK.
+- Operaciones con despliegues graduales, rollback, backups cifrados, restauración selectiva, dependencias, alertas y diagnóstico.
+- Widgets personalizables y cola offline con sincronización automática en la Mini App.
+- Centro avanzado disponible tanto en la web clásica como en la Mini App master.
+- Versión visible sincronizada a `v17.0.0`.
+
+## [v16.94.0] - 2026-07-25
+
+### Administración avanzada de grupos
+
+- Asistente inicial con perfiles para comunidades, soporte, noticias y gaming.
+- Comparación y sincronización selectiva de ajustes entre grupos.
+- Historial versionado con restauración de configuraciones anteriores.
+- Aprobación dual para cambios críticos y delegaciones administrativas temporales.
+- Calendario ejecutable de acciones y horarios automáticos de apertura y cierre.
+- Detección de grupos inactivos para archivado y auditoría horaria de permisos del bot.
+- Paneles equivalentes en la web clásica y la Mini App master.
+- Versión visible sincronizada a `v16.94.0`.
+
+## [v16.93.0] - 2026-07-25
+
+### Comunidad, eventos y participación
+
+- Programa de mentorías por habilidades, capacidad y asignación automática.
+- Encuestas anónimas de clima y buzón protegido con límite antiabuso.
+- Eventos con cupos, lista de espera, promoción automática, check-in y recordatorios.
+- Sorteos reproducibles con semilla y huella de participantes para auditoría.
+- Concursos con propuestas, voto comunitario y puntuación independiente del jurado.
+- Retos con progreso y clasificación; sesiones Q&A con aprobación administrativa.
+- Agenda exportable en iCalendar, certificados verificables y estadísticas de asistencia.
+- Funciones equilibradas entre la web de administración y la Mini App de Telegram.
+- Versión visible sincronizada a `v16.93.0`.
 
 ## [v16.92.0] - 2026-07-25
 ### Perfiles y progresión comunitaria

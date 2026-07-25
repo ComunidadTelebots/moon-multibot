@@ -380,13 +380,17 @@
   function gpct(n){if(n==null||isNaN(n))return"—";const s=Math.abs(n).toFixed(1).replace('.',',');return(n>=0?"+":"−")+s+"%";}
   function initials(s){return(s||"C").replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||"CH";}
   async function apiGet(p){try{const r=await fetch(API+p);return await r.json();}catch(e){return null;}}
-  async function apiPost(p,b){try{const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return await r.json();}catch(e){return null;}}
+  function offlineQueue(){try{return JSON.parse(localStorage.getItem("moon_offline_queue")||"[]");}catch(e){return [];}}
+  function queueOffline(kind,path,payload){const rows=offlineQueue();rows.push({id:Date.now()+"-"+Math.random(),kind,path,payload,created_at:new Date().toISOString()});localStorage.setItem("moon_offline_queue",JSON.stringify(rows.slice(-200)));return {ok:false,offline:true,queued:true};}
+  async function syncOfflineQueue(){if(!navigator.onLine)return;const rows=offlineQueue(),pending=[];for(const item of rows){try{const url=item.kind==="public"?API+item.path:item.path,headers={"Content-Type":"application/json"};if(item.kind==="master")headers.Authorization=`Bearer ${masterToken}`;const r=await fetch(url,{method:"POST",headers,body:JSON.stringify(item.payload)});if(!r.ok)pending.push(item);}catch(e){pending.push(item);}}localStorage.setItem("moon_offline_queue",JSON.stringify(pending));if(rows.length&&!pending.length)showToast("Cambios offline sincronizados");}
+  window.addEventListener("online",syncOfflineQueue);
+  async function apiPost(p,b){try{const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return await r.json();}catch(e){return queueOffline("public",p,b);}}
   async function masterApi(p,opts={}){
     if(!masterToken)return null;
     const headers={...(opts.headers||{}),Authorization:`Bearer ${masterToken}`};
     if(opts.body&&!(opts.body instanceof FormData)&&!headers["Content-Type"])headers["Content-Type"]="application/json";
     try{const r=await fetch(p,{...opts,headers});const data=await r.json();return {...data,_status:r.status};}
-    catch(e){return null;}
+    catch(e){if((opts.method||"GET").toUpperCase()!=="GET")return queueOffline("master",p,JSON.parse(opts.body||"{}"));return null;}
   }
   async function masterConfirm(message){
     if(tg&&tg.showConfirm)return new Promise(resolve=>tg.showConfirm(message,resolve));
@@ -450,12 +454,12 @@
       return;
     }
     const recentIds=loadRecentChats();
-    const favoriteActions=UX_ACTIONS.filter(x=>uxFavorites().includes(x.id)&&(!x.master||master));
+    const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true}),favoriteActions=widgetPrefs.favorites?UX_ACTIONS.filter(x=>uxFavorites().includes(x.id)&&(!x.master||master)):[];
     el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
       <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
         <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
       ${favoriteActions.length?`<div class="sec">Acciones favoritas</div><div class="filterbar">${favoriteActions.map(x=>`<button class="filterpill" data-home-action="${x.id}">★ ${x.name}</button>`).join("")}</div>`:""}
-      <div class="filterbar" id="myChannelsSort">
+      <div class="filterbar" id="myChannelsSort" ${widgetPrefs.sort?"":"hidden"}>
         <button class="filterpill active" data-sort="recent">Recientes</button>
         <button class="filterpill" data-sort="subscribers">Más grandes</button>
         <button class="filterpill" data-sort="growth">Mayor crecimiento</button>
@@ -1184,6 +1188,9 @@
         <button class="master-action" id="masterSystem"><span class="mai">${svg('activity')}</span><b>Sistema</b><small>Rendimiento, versión y registros</small></button>
         <button class="master-action" id="masterReports"><span class="mai">${svg('download')}</span><b>Informes</b><small>Exportar métricas de la red</small></button>
         <button class="master-action" id="masterActivity"><span class="mai">${svg('clock')}</span><b>Actividad</b><small>Auditoría administrativa</small></button>
+        <button class="master-action" id="masterEngagement"><span class="mai">${svg('users')}</span><b>Comunidad y eventos</b><small>Encuestas, agenda, retos y sorteos</small></button>
+        <button class="master-action" id="masterGroupAdmin"><span class="mai">${svg('settings')}</span><b>Grupos avanzados</b><small>Versiones, sincronización y delegaciones</small></button>
+        <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
         <button class="master-action" id="masterFaq"><span class="mai">${svg('message')}</span><b>Respuestas automáticas</b><small>Preguntas frecuentes del bot</small></button>
         <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
         <button class="master-action" id="masterBackup"><span class="mai">${svg('download')}</span><b>Crear backup</b><small>Copia inmediata del sistema</small></button>
@@ -1207,6 +1214,9 @@
     document.getElementById("masterSystem").onclick=()=>openMasterPage("Sistema","Rendimiento, versión y registros",loadMasterSystem);
     document.getElementById("masterReports").onclick=()=>openMasterPage("Informes","Exportar métricas de la red",loadMasterReports);
     document.getElementById("masterActivity").onclick=()=>openMasterPage("Actividad","Auditoría administrativa",loadMasterActivity);
+    document.getElementById("masterEngagement").onclick=()=>openMasterPage("Comunidad y eventos","Encuestas, agenda, retos y sorteos",loadMasterEngagement);
+    document.getElementById("masterGroupAdmin").onclick=()=>openMasterPage("Grupos avanzados","Versiones, sincronización y delegaciones",loadMasterGroupAdministration);
+    document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
     document.getElementById("masterFaq").onclick=()=>openMasterPage("Respuestas automáticas","Preguntas frecuentes del bot",loadMasterFaq);
     document.getElementById("masterBroadcast").onclick=()=>openMasterPage("Comunicado","Mensaje global a todos los chats",loadMasterBroadcast);
     document.getElementById("masterBackup").onclick=()=>openMasterPage("Crear backup","Copia inmediata del sistema",loadMasterBackup);
@@ -1643,6 +1653,79 @@
       showToast("Auditoría exportada");
     };
   }
+  async function loadMasterEngagement(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();const d=await masterApi("/api/users/engagement");
+    const events=(d&&d.events)||[],inbox=(d&&d.inbox)||[],matches=(d&&d.matches)||[],challenges=(d&&d.challenges)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Crear evento</div><div class="dbody"><input id="meTitle" placeholder="Título"><input id="meAt" type="datetime-local"><div class="btnrow"><input id="meCapacity" type="number" value="0" placeholder="Cupo"><select id="meKind"><option value="event">Evento</option><option value="contest">Concurso</option><option value="qa">Preguntas y respuestas</option></select></div><textarea id="meDescription" placeholder="Descripción"></textarea><button class="btn teal" id="meCreate">Crear</button></div></div>
+      <div class="dropdown open"><div class="dhead">Crear encuesta</div><div class="dbody"><input id="msvTitle" placeholder="Pregunta"><input id="msvOptions" placeholder="Opciones separadas por |"><button class="btn teal" id="msvCreate">Publicar encuesta</button></div></div>
+      <div class="sec">Eventos</div>${events.map(e=>`<div class="userchip"><span>${escHtml(e.title)}<small style="display:block;color:var(--muted)">${new Date(e.starts_at).toLocaleString()} · ${e.attendees.length} inscritos · ${e.waitlist.length} espera</small></span><span><button class="minibtn" data-me-draw="${e.id}">Sortear</button><button class="minibtn" data-me-stats="${e.id}">Datos</button></span></div>`).join("")||'<p class="muted">Sin eventos.</p>'}
+      <div class="sec">Buzón anónimo</div>${inbox.slice(0,30).map(x=>`<div class="casbox"><b>${escHtml(x.category)}</b><br>${escHtml(x.text)}</div>`).join("")||'<p class="muted">Vacío.</p>'}
+      <div class="sec">Mentorías</div>${matches.slice(0,30).map(x=>`<div class="userchip"><span>${escHtml(x.mentor_id)} → ${escHtml(x.mentee_id)}</span></div>`).join("")||'<p class="muted">Sin asignaciones.</p>'}`;
+    const action=(action,extra={})=>masterApi("/api/users/engagement/action",{method:"POST",body:JSON.stringify({action,...extra})});
+    meCreate.onclick=()=>{const date=new Date(meAt.value);if(isNaN(date))return showToast("Selecciona una fecha");action("event_create",{title:meTitle.value,starts_at:date.toISOString(),capacity:+meCapacity.value,kind:meKind.value,description:meDescription.value}).then(loadMasterEngagement);};
+    msvCreate.onclick=()=>action("survey_create",{title:msvTitle.value,options:msvOptions.value.split("|")}).then(loadMasterEngagement);
+    const extra=document.createElement("div");
+    extra.innerHTML=`<div class="dropdown open"><div class="dhead">Retos, agenda y asistencia</div><div class="dbody"><input id="mchTitle" placeholder="Nombre del reto"><input id="mchTarget" type="number" value="10" min="1"><input id="mchEnd" type="datetime-local"><button class="btn teal" id="mchCreate">Publicar reto</button><button class="btn ghost" id="meAgenda">Exportar agenda .ics</button><input id="meCheckEvent" placeholder="ID del evento"><input id="meCheckUser" placeholder="ID del asistente"><button class="btn ghost" id="meCheckin">Confirmar asistencia</button></div></div><div class="sec">Retos activos</div>${challenges.map(c=>`<div class="userchip"><span>${escHtml(c.title)} · objetivo ${c.target} · ${Object.keys(c.progress||{}).length} participantes</span></div>`).join("")||'<p class="muted">Sin retos.</p>'}`;
+    box.insertBefore(extra,box.children[2]||null);
+    mchCreate.onclick=()=>{const date=new Date(mchEnd.value);if(isNaN(date))return showToast("Selecciona una fecha");action("challenge_create",{title:mchTitle.value,target:+mchTarget.value,ends_at:date.toISOString()}).then(loadMasterEngagement);};
+    meAgenda.onclick=()=>action("agenda").then(r=>{if(r.ok){downloadText("moonbot-agenda.ics",r.result,"text/calendar");showToast("Agenda exportada");}});
+    meCheckin.onclick=()=>action("checkin",{event_id:meCheckEvent.value,user_id:meCheckUser.value}).then(r=>showToast(r.ok?"Asistencia confirmada":"Usuario no inscrito"));
+    box.querySelectorAll("[data-me-draw]").forEach(x=>x.onclick=()=>action("draw",{event_id:x.dataset.meDraw,winners:1}).then(r=>showToast(r.ok?`Ganador: ${r.result.winners.join(", ")}`:(r.error||"Sin participantes"))));
+    box.querySelectorAll("[data-me-stats]").forEach(x=>x.onclick=()=>action("event_stats",{event_id:x.dataset.meStats}).then(r=>showToast(r.ok?`${r.result.attended}/${r.result.registered} asistentes`:(r.error||"Error"))));
+    events.forEach(e=>{
+      (e.questions||[]).filter(q=>q.status==="pending").forEach(q=>{
+        const row=document.createElement("div");row.className="casbox";row.innerHTML=`<b>Pregunta pendiente · ${escHtml(e.title)}</b><p>${escHtml(q.text)}</p><div class="btnrow"><button class="minibtn" data-status="approved">Aprobar</button><button class="minibtn" data-status="rejected">Rechazar</button><button class="minibtn" data-status="answered">Respondida</button></div>`;
+        row.querySelectorAll("[data-status]").forEach(b=>b.onclick=()=>action("question_moderate",{event_id:e.id,question_id:q.id,status:b.dataset.status}).then(loadMasterEngagement));box.appendChild(row);
+      });
+      (e.submissions||[]).forEach(s=>{
+        const row=document.createElement("div");row.className="casbox";row.innerHTML=`<b>Concurso · ${escHtml(e.title)} · ${escHtml(s.title)}</b><p>${s.votes.length} votos · jurado ${s.jury_average??"-"}</p><input type="number" min="0" max="10" step=".5" placeholder="Puntuación 0-10"><button class="minibtn">Puntuar</button>`;
+        row.querySelector("button").onclick=()=>action("contest_score",{event_id:e.id,submission_id:s.id,score:+row.querySelector("input").value}).then(loadMasterEngagement);box.appendChild(row);
+      });
+    });
+  }
+
+  async function loadMasterGroupAdministration(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const d=await masterApi("/api/users/group-administration"),configs=(d&&d.configs)||{},approvals=((d&&d.approvals)||[]).filter(x=>x.status==="pending"),delegations=((d&&d.delegations)||[]).filter(x=>x.status==="active");
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Asistente inicial</div><div class="dbody"><input id="mgaGroup" placeholder="ID del grupo"><select id="mgaType"><option value="community">Comunidad</option><option value="support">Soporte</option><option value="news">Noticias</option><option value="gaming">Gaming</option></select><button class="btn teal" id="mgaSetup">Configurar</button></div></div>
+      <div class="dropdown open"><div class="dhead">Comparar y sincronizar</div><div class="dbody"><input id="mgaCompare" placeholder="IDs separados por comas"><button class="btn ghost" id="mgaCompareBtn">Comparar</button><input id="mgaTargets" placeholder="Grupos destino"><input id="mgaFields" placeholder="Campos: slow_mode,links"><button class="btn ghost" id="mgaSync">Sincronizar desde el ID principal</button><pre id="mgaOutput"></pre></div></div>
+      <div class="dropdown open"><div class="dhead">Delegación temporal</div><div class="dbody"><input id="mgaUser" placeholder="ID usuario"><input id="mgaPerms" placeholder="Permisos separados por comas"><input id="mgaEnd" type="datetime-local"><button class="btn teal" id="mgaDelegate">Delegar</button></div></div>
+      <div class="sec">Grupos versionados</div>${Object.values(configs).map(x=>`<div class="userchip"><span>${escHtml(x.group_id)} · ${escHtml(x.community_type||"personalizado")} · v${x.version}</span><button class="minibtn" data-mga-history="${x.group_id}">Historial</button></div>`).join("")||'<p class="muted">Sin grupos configurados.</p>'}
+      <div class="sec">Aprobación dual</div>${approvals.map(x=>`<div class="userchip"><span>${escHtml(x.group_id)} · solicitada por ${escHtml(x.requested_by)}</span><button class="minibtn" data-mga-approve="${x.id}">Segunda aprobación</button></div>`).join("")||'<p class="muted">Sin cambios críticos pendientes.</p>'}
+      <div class="sec">Delegaciones activas</div>${delegations.map(x=>`<div class="userchip"><span>${escHtml(x.user_id)} · ${escHtml(x.group_id)} · hasta ${new Date(x.expires_at).toLocaleString()}</span></div>`).join("")||'<p class="muted">Sin delegaciones.</p>'}
+      <div class="sec">Grupos inactivos</div>${((d&&d.inactive)||[]).map(x=>`<div class="casbox">${escHtml(x.group_id)} · ${escHtml(x.last_activity)}</div>`).join("")||'<p class="muted">Sin candidatos a archivo.</p>'}`;
+    const action=(action,extra={})=>masterApi("/api/users/group-administration/action",{method:"POST",body:JSON.stringify({action,...extra})});
+    mgaSetup.onclick=()=>action("setup",{group_id:mgaGroup.value,community_type:mgaType.value}).then(loadMasterGroupAdministration);
+    mgaCompareBtn.onclick=()=>action("compare",{group_ids:mgaCompare.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(r=>mgaOutput.textContent=JSON.stringify(r.result,null,2));
+    mgaSync.onclick=()=>action("sync",{source_id:mgaGroup.value,target_ids:mgaTargets.value.split(",").map(x=>x.trim()).filter(Boolean),fields:mgaFields.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(loadMasterGroupAdministration);
+    mgaDelegate.onclick=()=>{const date=new Date(mgaEnd.value);if(isNaN(date))return showToast("Selecciona una fecha");action("delegate",{group_id:mgaGroup.value,user_id:mgaUser.value,permissions:mgaPerms.value.split(","),expires_at:date.toISOString()}).then(loadMasterGroupAdministration);};
+    box.querySelectorAll("[data-mga-history]").forEach(x=>x.onclick=()=>action("history",{group_id:x.dataset.mgaHistory}).then(r=>mgaOutput.textContent=JSON.stringify(r.result,null,2)));
+    box.querySelectorAll("[data-mga-approve]").forEach(x=>x.onclick=()=>action("approve",{request_id:x.dataset.mgaApprove,actor:"master_miniapp"}).then(loadMasterGroupAdministration));
+  }
+
+  async function loadMasterRoadmap(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const d=await masterApi("/api/users/roadmap");
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Automatización editorial</div><div class="dbody"><input id="rmTitle" placeholder="Título"><textarea id="rmBody" placeholder="Contenido; admite {{date}}, {{time}} y {{group_id}}"></textarea><select id="rmKind"><option value="post">Publicación</option><option value="resource">Recurso</option><option value="campaign">Campaña</option></select><button class="btn teal" data-rm-action="content_create">Crear borrador</button><input id="rmContentId" placeholder="ID del contenido"><input id="rmTargets" placeholder="Grupos destino separados por comas"><input id="rmExecute" type="datetime-local"><select id="rmRecurrence"><option value="">Una vez</option><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensual</option></select><button class="btn ghost" data-rm-action="content_schedule">Programar</button></div></div>
+      <div class="dropdown"><div class="dhead">IA y conocimiento <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmAiGroup" placeholder="ID grupo"><input id="rmAiTitle" placeholder="Título de fuente"><textarea id="rmAiContent" placeholder="Contenido aprobado"></textarea><button class="btn teal" data-rm-action="ai_source">Añadir fuente</button><input id="rmPriorities" placeholder="Prioridades separadas por comas"><button class="btn ghost" data-rm-action="draft_rules">Redactar reglas</button></div></div>
+      <div class="dropdown"><div class="dhead">Seguridad coordinada <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmSecGroup" placeholder="ID grupo"><div class="btnrow"><input id="rmJoins" type="number" placeholder="Entradas"><input id="rmMessages" type="number" placeholder="Mensajes"><input id="rmUnique" type="number" placeholder="Usuarios"></div><button class="btn teal" data-rm-action="raid_signal">Analizar raid</button><input id="rmUrl" placeholder="URL o enlace acortado"><button class="btn ghost" data-rm-action="link_chain">Analizar enlace</button></div></div>
+      <div class="dropdown"><div class="dhead">API e integraciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmTokenName" placeholder="Nombre del token"><input id="rmScopes" placeholder="Permisos separados por comas"><button class="btn teal" data-rm-action="api_token">Crear token granular</button><input id="rmWebhookGroup" placeholder="ID grupo"><input id="rmWebhookUrl" placeholder="URL webhook"><input id="rmWebhookEvents" placeholder="Eventos separados por comas"><button class="btn ghost" data-rm-action="webhook">Registrar webhook</button></div></div>
+      <div class="dropdown"><div class="dhead">Operaciones y fiabilidad <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmVersion" placeholder="Versión"><input id="rmInstances" placeholder="Instancias separadas por comas"><input id="rmBatch" type="number" value="1"><button class="btn teal" data-rm-action="deployment">Crear despliegue gradual</button><div class="btnrow"><input id="rmRetention" type="number" value="30"><button class="btn ghost" data-rm-action="backup_policy">Guardar política de backup cifrado</button></div></div></div>
+      <pre id="rmResult" class="casbox"></pre><div class="sec">Estado del sistema avanzado</div><pre class="casbox">${escHtml(JSON.stringify(d,null,2))}</pre>`;
+    box.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const body=h.nextElementSibling;if(body)body.hidden=!body.hidden;});
+    const action=(action,data)=>masterApi("/api/users/roadmap/action",{method:"POST",body:JSON.stringify({action,data})}).then(r=>{rmResult.textContent=JSON.stringify(r.result||r,null,2);return r;});
+    box.querySelector('[data-rm-action="content_create"]').onclick=()=>action("content_create",{kind:rmKind.value,title:rmTitle.value,body:rmBody.value});
+    box.querySelector('[data-rm-action="content_schedule"]').onclick=()=>{const date=new Date(rmExecute.value);if(isNaN(date))return showToast("Selecciona una fecha");action("content_schedule",{content_id:rmContentId.value,targets:rmTargets.value.split(","),execute_at:date.toISOString(),recurrence:rmRecurrence.value||null});};
+    box.querySelector('[data-rm-action="ai_source"]').onclick=()=>action("ai_source",{group_id:rmAiGroup.value,title:rmAiTitle.value,content:rmAiContent.value});
+    box.querySelector('[data-rm-action="draft_rules"]').onclick=()=>action("draft_rules",{community_type:"community",priorities:rmPriorities.value.split(",")});
+    box.querySelector('[data-rm-action="raid_signal"]').onclick=()=>action("raid_signal",{group_id:rmSecGroup.value,joins:+rmJoins.value,messages:+rmMessages.value,unique_users:+rmUnique.value});
+    box.querySelector('[data-rm-action="link_chain"]').onclick=()=>action("link_chain",{url:rmUrl.value});
+    box.querySelector('[data-rm-action="api_token"]').onclick=()=>action("api_token",{name:rmTokenName.value,scopes:rmScopes.value.split(",")});
+    box.querySelector('[data-rm-action="webhook"]').onclick=()=>action("webhook",{group_id:rmWebhookGroup.value,url:rmWebhookUrl.value,events:rmWebhookEvents.value.split(",")});
+    box.querySelector('[data-rm-action="deployment"]').onclick=()=>action("deployment",{version:rmVersion.value,instances:rmInstances.value.split(","),batch_size:+rmBatch.value});
+    box.querySelector('[data-rm-action="backup_policy"]').onclick=()=>action("backup_policy",{retention_days:+rmRetention.value,encrypted:true});
+  }
+
   async function loadMasterFaq(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
     const r=await masterApi("/api/automation/faq"),faq=(r&&r.faq)||[];
@@ -1881,6 +1964,34 @@
     communityReminderSave.onclick=()=>{const date=new Date(communityReminderAt.value);if(!communityReminderText.value.trim()||isNaN(date)){showToast("Completa texto y fecha");return;}apiPost("/community/reminder",{initData:tg.initData,text:communityReminderText.value,remind_at:date.toISOString()}).then(x=>{showToast(x.ok?"Recordatorio creado":(x.error||"Error"));if(x.ok)loadCommunityMini();});};
     communityPrefsSave.onclick=()=>{const preferences={digest:communityDigest.value};host.querySelectorAll("[data-community-pref]").forEach(x=>preferences[x.dataset.communityPref]=x.checked);apiPost("/community/preferences",{initData:tg.initData,preferences}).then(()=>showToast("Notificaciones guardadas"));};
   }
+  async function loadEngagementMini(){
+    const host=document.getElementById("communityEngagement");if(!host||!tg||!tg.initData)return;
+    const data=await apiPost("/community/engagement",{initData:tg.initData});if(!data||!data.ok)return;
+    const act=(action,extra={})=>apiPost("/community/engagement/action",{initData:tg.initData,action,...extra});
+    host.innerHTML=`<div class="dropdown"><div class="dhead">Encuestas y clima <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>${(data.surveys||[]).map(s=>`<div class="card"><h3>${escHtml(s.title)}</h3>${s.options.map(o=>`<button class="btn ghost" data-survey="${s.id}" data-option="${o.id}">${escHtml(o.text)} · ${o.votes}</button>`).join("")}</div>`).join("")||'<p class="muted">Sin encuestas abiertas.</p>'}</div></div>
+      <div class="dropdown"><div class="dhead">Eventos y agenda <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>${(data.events||[]).map(e=>`<div class="card"><h3>${escHtml(e.title)}</h3><p>${new Date(e.starts_at).toLocaleString()} · ${e.attendees.length}${e.capacity?"/"+e.capacity:""} inscritos · ${e.waitlist.length} en espera</p><div class="btnrow"><button class="btn ghost" data-event-register="${e.id}">Inscribirme</button><button class="btn ghost" data-event-cancel="${e.id}">Cancelar</button></div><button class="btn ghost" data-certificate="${e.id}">Mi certificado</button></div>`).join("")||'<p class="muted">Sin eventos.</p>'}</div></div>
+      <div class="dropdown"><div class="dhead">Retos y clasificación <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>${(data.challenges||[]).map(c=>`<div class="userchip"><span>${escHtml(c.title)} · objetivo ${c.target}</span><button class="minibtn" data-challenge="${c.id}">+1 progreso</button></div>`).join("")||'<p class="muted">Sin retos.</p>'}</div></div>
+      <div class="dropdown"><div class="dhead">Mentoría <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="mentorSkills" placeholder="Habilidades separadas por comas"><div class="btnrow"><button class="btn ghost" id="mentorOffer">Ofrecerme como mentor</button><button class="btn ghost" id="mentorFind">Buscar mentor</button></div></div></div>
+      <div class="dropdown"><div class="dhead">Buzón anónimo <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><select id="anonymousCategory"><option value="general">General</option><option value="climate">Clima del grupo</option><option value="safety">Seguridad</option></select><textarea id="anonymousText" rows="3" placeholder="Tu identidad no se mostrará a los administradores"></textarea><button class="btn ghost" id="anonymousSend">Enviar de forma anónima</button></div></div>`;
+    const participation=document.createElement("div");participation.className="dropdown";
+    participation.innerHTML=`<div class="dhead">Concursos y preguntas <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><button class="btn ghost" id="communityAgenda">Exportar agenda .ics</button>${(data.events||[]).filter(e=>e.kind==="contest"||e.kind==="qa").map(e=>`<div class="card"><h3>${escHtml(e.title)}</h3>${e.kind==="contest"?`<input data-contest-title="${e.id}" placeholder="Título de tu propuesta"><textarea data-contest-content="${e.id}" placeholder="Contenido"></textarea><button class="btn ghost" data-contest-submit="${e.id}">Enviar propuesta</button>${(e.submissions||[]).map(s=>`<div class="userchip"><span>${escHtml(s.title)} · ${s.votes.length} votos · jurado ${s.jury_average??"-"}</span><button class="minibtn" data-contest-event="${e.id}" data-contest-vote="${s.id}">Votar</button></div>`).join("")}`:`<textarea data-qa-text="${e.id}" placeholder="Haz tu pregunta"></textarea><button class="btn ghost" data-qa-submit="${e.id}">Enviar para moderación</button>${(e.questions||[]).filter(q=>q.status==="approved"||q.status==="answered").map(q=>`<div class="casbox">${escHtml(q.text)} · ${q.status}</div>`).join("")}`}</div>`).join("")||'<p class="muted">No hay concursos ni sesiones de preguntas.</p>'}</div>`;
+    host.appendChild(participation);
+    host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{h.nextElementSibling.hidden=!h.nextElementSibling.hidden;});
+    host.querySelectorAll("[data-survey]").forEach(x=>x.onclick=()=>act("survey_vote",{survey_id:x.dataset.survey,option_id:x.dataset.option}).then(loadEngagementMini));
+    host.querySelectorAll("[data-event-register]").forEach(x=>x.onclick=()=>act("event_register",{event_id:x.dataset.eventRegister}).then(r=>{showToast(r.result&&r.result.registration==="waitlist"?"Añadido a espera":"Inscripción confirmada");loadEngagementMini();}));
+    host.querySelectorAll("[data-event-cancel]").forEach(x=>x.onclick=()=>act("event_cancel",{event_id:x.dataset.eventCancel}).then(loadEngagementMini));
+    host.querySelectorAll("[data-event-register]").forEach(x=>x.insertAdjacentHTML("afterend",`<button class="btn ghost" data-event-checkin="${x.dataset.eventRegister}">Confirmar asistencia</button>`));
+    host.querySelectorAll("[data-event-checkin]").forEach(x=>x.onclick=()=>act("event_checkin",{event_id:x.dataset.eventCheckin}).then(r=>showToast(r.ok?"Asistencia confirmada":"Debes estar inscrito")));
+    host.querySelectorAll("[data-certificate]").forEach(x=>x.onclick=()=>act("certificate",{event_id:x.dataset.certificate}).then(r=>showToast(r.ok?`Certificado ${r.result.certificate_id}`:"Aún no consta tu asistencia")));
+    host.querySelectorAll("[data-challenge]").forEach(x=>x.onclick=()=>act("challenge",{challenge_id:x.dataset.challenge,amount:1}).then(loadEngagementMini));
+    host.querySelectorAll("[data-contest-submit]").forEach(x=>x.onclick=()=>act("contest_submit",{event_id:x.dataset.contestSubmit,title:host.querySelector(`[data-contest-title="${x.dataset.contestSubmit}"]`).value,content:host.querySelector(`[data-contest-content="${x.dataset.contestSubmit}"]`).value}).then(loadEngagementMini));
+    host.querySelectorAll("[data-contest-vote]").forEach(x=>x.onclick=()=>act("contest_vote",{event_id:x.dataset.contestEvent,submission_id:x.dataset.contestVote}).then(loadEngagementMini));
+    host.querySelectorAll("[data-qa-submit]").forEach(x=>x.onclick=()=>act("qa_question",{event_id:x.dataset.qaSubmit,text:host.querySelector(`[data-qa-text="${x.dataset.qaSubmit}"]`).value}).then(r=>{showToast(r.ok?"Pregunta enviada a moderación":"No se pudo enviar");if(r.ok)loadEngagementMini();}));
+    communityAgenda.onclick=()=>act("agenda").then(r=>{if(r.ok)downloadText("moonbot-agenda.ics",r.result,"text/calendar");});
+    mentorOffer.onclick=()=>act("mentor_profile",{skills:mentorSkills.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(()=>showToast("Perfil de mentor guardado"));
+    mentorFind.onclick=()=>act("mentor",{skills:mentorSkills.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(r=>showToast(r.ok?`Mentor asignado: ${r.result.mentor_id}`:"No hay mentor disponible"));
+    anonymousSend.onclick=()=>act("anonymous",{category:anonymousCategory.value,text:anonymousText.value}).then(r=>{showToast(r.ok?"Mensaje enviado":(r.error||"Error"));if(r.ok)anonymousText.value="";});
+  }
   const TOUR_STEPS=[
     ["Bienvenido a Moonbot","Gestiona tus canales, seguridad y automatizaciones sin salir de Telegram."],
     ["Busca cualquier acción","Usa el botón de búsqueda de la cabecera y fija tus herramientas favoritas."],
@@ -1903,15 +2014,21 @@
       <div class="sec">Accesibilidad y densidad</div>
       <label class="setrow"><span><b>Modo compacto</b><span>Muestra más controles en pantalla.</span></span><input id="uxCompact" type="checkbox"></label>
       <label class="setrow"><span><b>Tamaño de texto</b><span>Ajusta toda la Mini App.</span></span><select id="uxFont" style="width:130px"><option value="small">Pequeño</option><option value="normal">Normal</option><option value="large">Grande</option></select></label>
+      <div class="sec">Widgets de portada</div>
+      <label class="setrow"><span><b>Acciones favoritas</b><span>Muestra tus accesos fijados.</span></span><input id="widgetFavorites" type="checkbox"></label>
+      <label class="setrow"><span><b>Ordenación rápida</b><span>Muestra filtros sobre tus canales.</span></span><input id="widgetSort" type="checkbox"></label>
+      <div class="casbox"><span id="offlineQueueCount">0</span> cambios pendientes de sincronización offline.</div>
       <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
       <button class="btn ghost" id="uxTourRestart" style="margin-top:8px">Repetir recorrido guiado</button>
-      <div class="sec">Mi comunidad</div><div id="communityProfile">${skel()}</div>
+      <div class="sec">Mi comunidad</div><div id="communityProfile">${skel()}</div><div id="communityEngagement">${skel()}</div>
       <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     reflectTheme();applyUxPreferences();
-    document.getElementById("uxPreferencesSave").onclick=saveUxPreferences;
+    const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true});widgetFavorites.checked=widgetPrefs.favorites;widgetSort.checked=widgetPrefs.sort;offlineQueueCount.textContent=offlineQueue().length;
+    document.getElementById("uxPreferencesSave").onclick=()=>{saveUxPreferences();uxWrite("hub_widgets",{favorites:widgetFavorites.checked,sort:widgetSort.checked});};
     document.getElementById("uxTourRestart").onclick=()=>startGuidedTour();
     loadCommunityMini();
+    loadEngagementMini();
     const box=document.getElementById("myRegistryStatus");
     if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
     const d=await apiPost("/registry/status",{initData:tg.initData});

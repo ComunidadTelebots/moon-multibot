@@ -2,6 +2,9 @@ import time
 
 from flask import Blueprint, jsonify, request
 from community_members import CommunityMembers
+from community_engagement import CommunityEngagement
+from group_administration import GroupAdministration
+from roadmap_engine import RoadmapEngine
 
 bp = Blueprint("users_routes", __name__)
 
@@ -231,3 +234,156 @@ def web_community_verify():
     return jsonify({"ok": True, "profile": CommunityMembers(_db).verify(
         body.get("user_id"), body.get("verified", True)
     )})
+
+
+@bp.route("/api/users/engagement")
+def web_engagement():
+    if not _check_jwt(request): return jsonify({"ok": False}), 401
+    service = CommunityEngagement(_db)
+    return jsonify({"ok": True, "events": service.events(), "surveys": service.surveys(),
+                    "inbox": list(reversed(service._rows(_db, "COMMUNITY_ANONYMOUS_INBOX"))),
+                    "mentors": _db.get("COMMUNITY_MENTORS", {}),
+                    "matches": list(reversed(service._rows(_db, "COMMUNITY_MENTOR_MATCHES"))),
+                    "challenges": list(reversed(service._rows(_db, "COMMUNITY_CHALLENGES")))})
+
+
+@bp.route("/api/users/engagement/action", methods=["POST"])
+def web_engagement_action():
+    if not _check_jwt(request): return jsonify({"ok": False}), 401
+    body, service = request.json or {}, CommunityEngagement(_db)
+    action = body.get("action")
+    try:
+        if action == "event_create": result = service.create_event(body.get("title"), body.get("starts_at"), body.get("capacity", 0), body.get("description", ""), body.get("kind", "event"))
+        elif action == "survey_create": result = service.create_survey(body.get("title"), body.get("options") or [], body.get("anonymous", True), body.get("closes_at"))
+        elif action == "challenge_create": result = service.create_challenge(body.get("title"), body.get("target", 1), body.get("ends_at"))
+        elif action == "draw": result = service.draw(body.get("event_id"), body.get("winners", 1), body.get("seed"))
+        elif action == "event_stats": result = service.event_stats(body.get("event_id"))
+        elif action == "checkin": result = service.checkin(body.get("event_id"), body.get("user_id"))
+        elif action == "question_moderate": result = service.moderate_question(body.get("event_id"), body.get("question_id"), body.get("status"))
+        elif action == "contest_score": result = service.score_contest(body.get("event_id"), body.get("submission_id"), "master_web", body.get("score"))
+        elif action == "agenda": result = service.agenda_ics()
+        else: return jsonify({"ok": False, "error": "acción inválida"}), 400
+        return jsonify({"ok": bool(result), "result": result}), 200 if result else 404
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/users/group-administration")
+def web_group_administration():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **GroupAdministration(_db).snapshot()})
+
+
+@bp.route("/api/users/group-administration/action", methods=["POST"])
+def web_group_administration_action():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body, service = request.json or {}, GroupAdministration(_db)
+    action, actor = body.get("action"), "master_web"
+    try:
+        if action == "setup":
+            result = service.setup(body.get("group_id"), body.get("community_type"), actor)
+        elif action == "update":
+            result = service.update(body.get("group_id"), body.get("patch") or {}, actor)
+        elif action == "compare":
+            result = service.compare(body.get("group_ids") or [])
+        elif action == "sync":
+            result = service.sync(body.get("source_id"), body.get("target_ids") or [], body.get("fields") or [], actor)
+        elif action == "history":
+            result = service.history(body.get("group_id"))
+        elif action == "restore":
+            result = service.restore(body.get("group_id"), body.get("version"), actor)
+        elif action == "approve":
+            result = service.approve(body.get("request_id"), body.get("actor") or actor)
+        elif action == "delegate":
+            result = service.delegate(body.get("group_id"), body.get("user_id"), body.get("permissions") or [], body.get("expires_at"), actor)
+        elif action == "calendar":
+            result = service.calendar_action(body.get("group_id"), body.get("scheduled_action"), body.get("execute_at"), body.get("payload"))
+        elif action == "hours":
+            result = service.set_hours(body.get("group_id"), body.get("timezone", "Europe/Madrid"), body.get("schedule") or {}, actor)
+        elif action == "permission_audit":
+            result = service.permission_audit(body.get("group_id"), body.get("actual") or {}, body.get("required"))
+        else:
+            return jsonify({"ok": False, "error": "acción inválida"}), 400
+        return jsonify({"ok": bool(result), "result": result}), 200 if result else 404
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/users/roadmap")
+def web_roadmap_snapshot():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **RoadmapEngine(_db).snapshot()})
+
+
+@bp.route("/api/users/roadmap/action", methods=["POST"])
+def web_roadmap_action():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body, service = request.json or {}, RoadmapEngine(_db)
+    action, data = body.get("action"), body.get("data") or {}
+    handlers = {
+        "raid_signal": lambda: service.raid_signal(data.get("group_id"), data.get("joins", 0), data.get("messages", 0), data.get("unique_users", 0), data.get("window", 60)),
+        "quarantine": lambda: service.quarantine_decision(data.get("user_id"), data.get("reputation", 0), data.get("signals")),
+        "shared_recurrence": lambda: service.shared_recurrence(data.get("user_id"), data.get("requesting_group"), data.get("authorized_groups") or []),
+        "impersonation": lambda: service.impersonation_check(data.get("candidate") or {}, data.get("administrators") or []),
+        "link_chain": lambda: service.link_chain(data.get("url"), data.get("hops")),
+        "file_risk": lambda: service.file_risk(data.get("filename"), data.get("mime"), data.get("hash"), data.get("size", 0)),
+        "content_create": lambda: service.content_create(data.get("kind", "post"), data.get("title"), data.get("body"), "master_web", **(data.get("options") or {})),
+        "content_schedule": lambda: service.content_schedule(data.get("content_id"), data.get("targets") or [], data.get("execute_at"), data.get("recurrence"), data.get("expires_at")),
+        "editorial": lambda: service.editorial_decision(data.get("content_id"), "master_web", data.get("decision"), data.get("comment", "")),
+        "library": lambda: service.library_save(data.get("title"), data.get("body"), data.get("tags")),
+        "render": lambda: service.render_template(data.get("template"), data.get("variables") or {}),
+        "translation": lambda: service.translation_job(data.get("content_id"), data.get("languages") or []),
+        "keyword": lambda: service.keyword_rule(data.get("group_id"), data.get("keyword"), data.get("response"), data.get("conditions")),
+        "form": lambda: service.form_save(data.get("title"), data.get("fields") or [], data.get("destination")),
+        "webhook": lambda: service.webhook_save(data.get("group_id"), data.get("url"), data.get("events") or [], data.get("secret")),
+        "webhook_enqueue": lambda: service.webhook_enqueue(data.get("event"), data.get("group_id"), data.get("payload") or {}),
+        "webhook_result": lambda: service.webhook_result(data.get("job_id"), data.get("success", False), data.get("error", "")),
+        "ai_source": lambda: service.ai_source(data.get("group_id"), data.get("title"), data.get("content"), data.get("approved", True)),
+        "ai_summary": lambda: service.ai_summary(data.get("group_id"), data.get("messages") or [], data.get("period", "daily"), data.get("topic")),
+        "unanswered": lambda: service.unanswered_questions(data.get("messages") or [], data.get("response_window", 10)),
+        "topics": lambda: service.classify_topics(data.get("messages") or []),
+        "explain": lambda: service.moderation_explanation(data.get("decision"), data.get("evidence") or [], data.get("policy")),
+        "model_eval": lambda: service.model_evaluation(data.get("model"), data.get("correct", 0), data.get("total", 0), data.get("latency_ms", 0), data.get("cost", 0)),
+        "ab": lambda: service.ab_assignment(data.get("experiment"), data.get("user_id"), data.get("variants") or ["A", "B"]),
+        "memory": lambda: service.memory_export(data.get("group_id")),
+        "tone": lambda: service.tone_signal(data.get("group_id"), data.get("messages") or []),
+        "draft_rules": lambda: service.draft_rules(data.get("community_type"), data.get("priorities") or []),
+        "analytics": lambda: service.analytics(data.get("memberships") or [], data.get("messages") or [], data.get("campaigns")),
+        "health": lambda: service.health_score(data.get("metrics") or {}),
+        "anomaly": lambda: service.anomaly(data.get("metric"), data.get("current", 0), data.get("history") or []),
+        "goal": lambda: service.goal(data.get("group_id"), data.get("metric"), data.get("target"), data.get("month")),
+        "bi": lambda: service.bi_export(data.get("dataset") or []),
+        "report_schedule": lambda: service.report_schedule(data.get("group_id"), data.get("channel"), data.get("frequency"), data.get("recipients") or []),
+        "benchmark": lambda: service.anonymous_benchmark(data.get("group_ids") or [], data.get("metric_rows") or {}),
+        "module": lambda: service.module_register(data.get("name"), data.get("version"), data.get("permissions") or [], data.get("checksum"), data.get("verified", False)),
+        "api_token": lambda: service.api_token(data.get("name"), data.get("scopes") or [], data.get("expires_at")),
+        "rotate_token": lambda: service.rotate_token(data.get("token_id")),
+        "sandbox": lambda: service.sandbox(data.get("bot_id"), data.get("enabled", True)),
+        "quota": lambda: service.quota(data.get("bot_id"), data.get("method"), data.get("used", 0), data.get("limit", 1), data.get("reset_at")),
+        "sign_config": lambda: service.signed_config(data.get("payload")),
+        "verify_config": lambda: service.verify_config(data.get("bundle") or {}),
+        "incident": lambda: service.incident_link(data.get("provider"), data.get("external_id"), data.get("group_id"), data.get("title")),
+        "calendar_link": lambda: service.calendar_link(data.get("provider"), data.get("calendar_id"), data.get("group_id"), data.get("sync_token")),
+        "sdk": service.sdk_manifest,
+        "deployment": lambda: service.deployment(data.get("version"), data.get("instances") or [], data.get("batch_size", 1)),
+        "health_result": lambda: service.health_result(data.get("deployment_id"), data.get("instance"), data.get("healthy", False)),
+        "backup_policy": lambda: service.backup_policy(data.get("retention_days", 30), data.get("encrypted", True), data.get("modules")),
+        "restore_plan": lambda: service.restore_plan(data.get("backup_id"), data.get("groups"), data.get("modules")),
+        "dependency": lambda: service.dependency_status(data.get("name"), data.get("status"), data.get("latency_ms"), data.get("detail", "")),
+        "resource_alerts": lambda: service.resource_alerts(data.get("metrics") or {}, data.get("thresholds")),
+        "degraded": lambda: service.degraded_mode(data.get("dependencies") or {}),
+        "diagnose": lambda: service.diagnose(data.get("metrics") or {}, data.get("errors") or []),
+        "group_errors": lambda: service.group_errors(data.get("errors") or []),
+        "maintenance": lambda: service.maintenance_window(data.get("starts_at"), data.get("ends_at"), data.get("modules") or [], data.get("message", "")),
+    }
+    if action not in handlers:
+        return jsonify({"ok": False, "error": "acción inválida"}), 400
+    try:
+        result = handlers[action]()
+        return jsonify({"ok": result is not None, "result": result}), 200 if result is not None else 404
+    except (TypeError, ValueError, KeyError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
