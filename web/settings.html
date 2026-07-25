@@ -103,6 +103,14 @@
         <div class="settings-col">
             <h4>💎 IDENTIDAD & UI</h4>
             <div class="setting-item">
+                <label>Modo compacto</label>
+                <select id="webCompactMode" class="input-style" onchange="saveWebDisplayPreferences()"><option value="off">Normal</option><option value="on">Compacto</option></select>
+            </div>
+            <div class="setting-item">
+                <label>Tamaño de texto</label>
+                <select id="webFontSize" class="input-style" onchange="saveWebDisplayPreferences()"><option value="small">Pequeño</option><option value="normal">Normal</option><option value="large">Grande</option></select>
+            </div>
+            <div class="setting-item">
                 <label>👋 Bienvenida</label>
                 <input type="text" id="welcomeMsgInput" class="input-style" placeholder="Hola...">
                 <div class="help-hint" title="Mensaje que el bot enviará a los nuevos miembros.">?</div>

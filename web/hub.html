@@ -50,6 +50,15 @@
   .gear{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--muted);
     font-size:19px;display:grid;place-items:center;cursor:pointer;transition:.2s;}
   .gear:active{color:var(--ink);}
+  .topact{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--muted);display:grid;place-items:center;cursor:pointer;position:relative;flex-shrink:0;font-size:18px;}
+  .topact .dot{position:absolute;right:6px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--red);}
+  .uxsheet{position:fixed;inset:0;z-index:95;background:rgba(3,7,14,.72);backdrop-filter:blur(10px);padding:72px 16px 24px;}
+  .uxpanel{max-width:620px;margin:0 auto;background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:14px;max-height:78vh;overflow:auto;}
+  .uxhead{display:flex;align-items:center;gap:9px;margin-bottom:12px}.uxhead b{flex:1;font-size:17px}.uxclose{border:0;background:none;color:var(--muted);font-size:24px;cursor:pointer;}
+  .uxresult{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:13px;margin:7px 0;background:var(--card);cursor:pointer;}
+  .uxresult .meta{flex:1}.uxresult small{display:block;color:var(--muted);font-size:11px}.uxstar{border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer}.uxstar.on{color:var(--amber);}
+  body.compact main{padding-top:10px}body.compact .card{padding:12px;margin-bottom:8px}body.compact .row{padding:9px 11px}body.compact .master-action{min-height:72px;padding:10px}
+  html.font-small{font-size:14px}html.font-large{font-size:18px}
 
   /* ── Vistas ── */
   main{padding:18px 16px calc(var(--tabh) + env(safe-area-inset-bottom) + 24px);max-width:640px;margin:0 auto;}
@@ -263,6 +272,8 @@
       <div class="hi">Hola <b id="uname">invitado</b> <span class="badge" id="roleBadge" hidden>master</span></div>
       <div class="sub">ComunidadTelebots</div>
     </div>
+    <button class="topact" id="btnSearch" aria-label="Buscar" title="Buscar">⌕</button>
+    <button class="topact" id="btnNotifications" aria-label="Notificaciones" title="Notificaciones">♢<span class="dot" id="notificationDot"></span></button>
     <button class="gear" id="btnAjustes" aria-label="Ajustes" data-ic="settings"></button>
   </div>
 
@@ -290,6 +301,9 @@
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
   </nav>
+</div>
+<div class="uxsheet" id="uxSheet" hidden>
+  <div class="uxpanel"><div class="uxhead"><b id="uxTitle">Buscar</b><button class="uxclose" id="uxClose">×</button></div><div id="uxBody"></div></div>
 </div>
 
 <!-- ══════════════════ DISEÑO CLÁSICO ══════════════════ -->
@@ -1753,15 +1767,54 @@
   }
 
   // ── Ajustes ──
+  const UX_ACTIONS=[
+    {id:"canales",name:"Mis canales",desc:"Tus grupos y canales",view:"canales"},
+    {id:"administrar",name:"Administrar grupos",desc:"Moderación y configuración",view:"admin"},
+    {id:"directorio",name:"Directorio",desc:"Explorar la comunidad",view:"directorio"},
+    {id:"red",name:"Servicios y proxies",desc:"Herramientas de la red",view:"red"},
+    {id:"ajustes",name:"Ajustes",desc:"Tema y accesibilidad",view:"ajustes"},
+    {id:"master",name:"Panel master",desc:"Administración global",view:"master",master:true},
+  ];
+  function uxRead(key,fallback){try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(e){return fallback;}}
+  function uxWrite(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
+  function uxFavorites(){return uxRead("hub_action_favorites",[]);}
+  function closeUx(){document.getElementById("uxSheet").hidden=true;}
+  function runUxAction(id){const action=UX_ACTIONS.find(x=>x.id===id);if(!action)return;closeUx();showView(action.view);}
+  function renderUxActions(rows,query=""){
+    const favs=uxFavorites();
+    return rows.filter(x=>!x.master||master).filter(x=>(x.name+" "+x.desc).toLowerCase().includes(query.toLowerCase())).map(x=>`
+      <div class="uxresult" data-ux-action="${x.id}"><div class="meta"><b>${x.name}</b><small>${x.desc}</small></div>
+      <button class="uxstar ${favs.includes(x.id)?"on":""}" data-ux-fav="${x.id}" aria-label="Favorito">★</button></div>`).join("")||'<p class="muted">No hay resultados.</p>';
+  }
+  function bindUxActions(){
+    document.querySelectorAll("[data-ux-action]").forEach(x=>x.onclick=()=>runUxAction(x.dataset.uxAction));
+    document.querySelectorAll("[data-ux-fav]").forEach(x=>x.onclick=e=>{e.stopPropagation();let favs=uxFavorites();const id=x.dataset.uxFav;favs=favs.includes(id)?favs.filter(v=>v!==id):[...favs,id];uxWrite("hub_action_favorites",favs);openUxSearch();});
+  }
+  function openUxSearch(){
+    uxTitle.textContent="Buscar acciones";uxSheet.hidden=false;
+    uxBody.innerHTML=`<input id="uxQuery" type="search" placeholder="Buscar paneles y acciones…" autocomplete="off"><div id="uxFavorites"></div><div id="uxResults"></div>`;
+    const draw=()=>{const q=uxQuery.value.trim(),favs=uxFavorites();document.getElementById("uxFavorites").innerHTML=!q&&favs.length?`<div class="sec">Favoritos</div>${renderUxActions(UX_ACTIONS.filter(x=>favs.includes(x.id)))}`:"";uxResults.innerHTML=`<div class="sec">${q?"Resultados":"Todas las acciones"}</div>${renderUxActions(UX_ACTIONS,q)}`;bindUxActions();};
+    uxQuery.oninput=draw;draw();uxQuery.focus();
+  }
+  function uxNotifications(){const saved=uxRead("hub_notifications",[]);return saved.length?saved:[{id:"welcome",title:"Centro de notificaciones activo",body:"Aquí aparecerán alertas de seguridad y administración.",read:false,time:Date.now()}];}
+  function openUxNotifications(){const rows=uxNotifications();uxTitle.textContent="Notificaciones";uxSheet.hidden=false;uxBody.innerHTML=rows.map(x=>`<div class="uxresult"><div class="meta"><b>${x.title}</b><small>${x.body}</small></div></div>`).join("")||'<p class="muted">No tienes notificaciones.</p>';uxWrite("hub_notifications",rows.map(x=>({...x,read:true})));notificationDot.hidden=true;}
+  function applyUxPreferences(){const p=uxRead("hub_ui_preferences",{compact:false,font:"normal"});document.body.classList.toggle("compact",!!p.compact);document.documentElement.classList.remove("font-small","font-large");if(p.font==="small"||p.font==="large")document.documentElement.classList.add("font-"+p.font);if(document.getElementById("uxCompact"))uxCompact.checked=!!p.compact;if(document.getElementById("uxFont"))uxFont.value=p.font||"normal";}
+  function saveUxPreferences(){uxWrite("hub_ui_preferences",{compact:uxCompact.checked,font:uxFont.value});applyUxPreferences();showToast("Accesibilidad guardada");}
+
   async function loadAjustes(){
     const el=document.getElementById("v-ajustes");
     el.innerHTML=`<div class="vtitle">Ajustes</div><div class="vsub">Personaliza tu panel.</div>
       <div class="sec">Tema</div>
       <div class="themeopt" data-theme-opt="nuevo"><div class="ra"></div><div class="to-t"><b>Nuevo</b><span>Pestañas, jerarquía por producto. Recomendado.</span></div></div>
       <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>Clásico</b><span>La maqueta original con tarjetas apiladas.</span></div></div>
+      <div class="sec">Accesibilidad y densidad</div>
+      <label class="setrow"><span><b>Modo compacto</b><span>Muestra más controles en pantalla.</span></span><input id="uxCompact" type="checkbox"></label>
+      <label class="setrow"><span><b>Tamaño de texto</b><span>Ajusta toda la Mini App.</span></span><select id="uxFont" style="width:130px"><option value="small">Pequeño</option><option value="normal">Normal</option><option value="large">Grande</option></select></label>
+      <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
       <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
-    reflectTheme();
+    reflectTheme();applyUxPreferences();
+    document.getElementById("uxPreferencesSave").onclick=saveUxPreferences;
     const box=document.getElementById("myRegistryStatus");
     if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
     const d=await apiPost("/registry/status",{initData:tg.initData});
@@ -1795,8 +1848,14 @@
     if(!newBound){
       document.querySelectorAll("#app .tab").forEach(t=>t.onclick=()=>showView(t.dataset.tab));
       document.getElementById("btnAjustes").onclick=()=>showView("ajustes");
+      document.getElementById("btnSearch").onclick=openUxSearch;
+      document.getElementById("btnNotifications").onclick=openUxNotifications;
+      document.getElementById("uxClose").onclick=closeUx;
+      document.getElementById("uxSheet").onclick=e=>{if(e.target.id==="uxSheet")closeUx();};
       newBound=true;
     }
+    applyUxPreferences();
+    notificationDot.hidden=!uxNotifications().some(x=>!x.read);
     showView("canales");
   }
 

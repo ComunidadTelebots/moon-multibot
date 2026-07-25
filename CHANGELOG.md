@@ -112,12 +112,12 @@
 90. Ventanas de mantenimiento programadas.
 
 ### Experiencia web y Mini App (91–100)
-91. Buscador global de acciones y ajustes.
-92. Acciones favoritas en la portada.
+91. Buscador global de acciones y ajustes. **Implementado en v16.88.0.**
+92. Acciones favoritas en la portada. **Fase 1 implementada en v16.88.0 mediante el buscador global; pendiente mostrarlas también como widget de portada.**
 93. Navegación con historial y enlaces internos.
-94. Centro unificado de notificaciones.
-95. Modo compacto para administradores avanzados.
-96. Accesibilidad mejorada y control de tamaño de texto.
+94. Centro unificado de notificaciones. **Fase visual implementada en v16.88.0; pendiente conectar más eventos del servidor.**
+95. Modo compacto para administradores avanzados. **Implementado en v16.88.0.**
+96. Accesibilidad mejorada y control de tamaño de texto. **Control de tamaño implementado en v16.88.0.**
 97. Temas visuales por grupo.
 98. Panel personalizable mediante widgets.
 99. Trabajo offline con sincronización posterior.
@@ -126,6 +126,20 @@
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v16.88.0] - 2026-07-25
+### Navegación y productividad
+- Buscador global de paneles y acciones en la Mini App y en la web clásica.
+- Acciones favoritas persistentes para acceder rápidamente a las herramientas habituales.
+- Los resultados respetan el rol y no muestran el panel master a usuarios sin permiso.
+- Primera fase del centro de notificaciones, con estado leído persistente y acceso desde la cabecera.
+
+### Accesibilidad
+- Modo compacto opcional para administradores que necesitan mayor densidad de información.
+- Tamaños de texto pequeño, normal y grande aplicados a toda la interfaz.
+- Las preferencias se guardan localmente y se restauran al volver a abrir cualquiera de los paneles.
+- La navegación, los temas y las pestañas existentes permanecen sin cambios.
+- Versión visible sincronizada a `v16.88.0`.
 
 ## [v16.87.0] - 2026-07-25
 ### Políticas multimedia por grupo

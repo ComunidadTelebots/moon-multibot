@@ -212,6 +212,40 @@ function logout() {
     location.reload();
 }
 
+const WEB_ACTIONS = [
+    ["dashboard","Panel","Estado general"],["bots","Bots","Instancias conectadas"],
+    ["chat","Chat","Conversaciones"],["ia","Moon IA","Aprendizaje y fuentes"],
+    ["moderation","Moderación","Grupos, usuarios y políticas"],["proxies","Proxies","Controles MTProto"],
+    ["security","Seguridad","CAS, VirusTotal y análisis"],["queue","Cola","Procesos pendientes"],
+    ["history","Historial","Actividad global"],["settings","Ajustes","Sistema y accesibilidad"]
+];
+function webFavoriteActions(){try{return JSON.parse(localStorage.getItem("moon_action_favorites")||"[]");}catch(e){return [];}}
+function toggleWebFavorite(id){let rows=webFavoriteActions();rows=rows.includes(id)?rows.filter(x=>x!==id):[...rows,id];localStorage.setItem("moon_action_favorites",JSON.stringify(rows));renderCommandPalette(commandPaletteQuery.value);}
+function openCommandPalette(){commandPalette.style.display="flex";commandPaletteTitle.textContent="Buscar acciones";commandPaletteQuery.style.display="block";commandPaletteQuery.value="";renderCommandPalette("");setTimeout(()=>commandPaletteQuery.focus(),0);}
+function closeCommandPalette(){commandPalette.style.display="none";}
+function runWebAction(id){closeCommandPalette();switchTab(id);}
+function renderCommandPalette(query=""){
+    const q=query.toLowerCase(),favs=webFavoriteActions();
+    const rows=WEB_ACTIONS.filter(x=>(x[1]+" "+x[2]).toLowerCase().includes(q));
+    commandPaletteResults.innerHTML=rows.map(x=>`<div class="command-result" onclick="runWebAction('${x[0]}')"><div><b>${x[1]}</b><small>${x[2]}</small></div><button class="command-star ${favs.includes(x[0])?"on":""}" onclick="event.stopPropagation();toggleWebFavorite('${x[0]}')">★</button></div>`).join("")||"<p>Sin resultados.</p>";
+}
+function openWebNotifications(){
+    commandPalette.style.display="flex";commandPaletteTitle.textContent="Notificaciones";commandPaletteQuery.style.display="none";
+    commandPaletteResults.innerHTML='<div class="command-result"><div><b>Centro de notificaciones activo</b><small>Las alertas administrativas aparecerán aquí.</small></div></div>';
+}
+function applyWebDisplayPreferences(){
+    let p={compact:"off",font:"normal"};try{p={...p,...JSON.parse(localStorage.getItem("moon_display_preferences")||"{}")};}catch(e){}
+    document.body.classList.toggle("moon-compact",p.compact==="on");
+    document.documentElement.classList.remove("moon-font-small","moon-font-large");
+    if(p.font==="small"||p.font==="large")document.documentElement.classList.add("moon-font-"+p.font);
+    if(document.getElementById("webCompactMode"))webCompactMode.value=p.compact;
+    if(document.getElementById("webFontSize"))webFontSize.value=p.font;
+}
+function saveWebDisplayPreferences(){
+    localStorage.setItem("moon_display_preferences",JSON.stringify({compact:webCompactMode.value,font:webFontSize.value}));
+    applyWebDisplayPreferences();showToast("Interfaz","Preferencias visuales guardadas.");
+}
+
 // --- Tab Management ---
 function switchTab(tabId, btn) {
     const container = document.getElementById('tab-container');
@@ -1320,6 +1354,7 @@ async function injectMultilingual() {
 
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
+    applyWebDisplayPreferences();
     setTheme(localStorage.getItem('moon_theme') || 'moon');
     refreshAnalyticsSettings();
     if(authToken) {
@@ -1333,6 +1368,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- Settings Logic ---
 function loadSettings() {
+    applyWebDisplayPreferences();
     if(!authToken) return;
     fetch('/api/admin/settings', { headers: { 'Authorization': authToken } })
     .then(r => r.json()).then(data => {
