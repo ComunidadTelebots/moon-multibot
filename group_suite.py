@@ -31,6 +31,10 @@ class GroupSuite:
             return value if isinstance(value, dict) else {}
         quarantine, raid = section("quarantine"), section("raid")
         welcome, consensus = section("welcome"), section("consensus")
+        media = section("media_security")
+        action = str(media.get("action", "notify"))
+        if action not in ("notify", "delete", "ban"):
+            action = "notify"
         return {
             "quarantine": {
                 "enabled": bool(quarantine.get("enabled", False)),
@@ -55,18 +59,67 @@ class GroupSuite:
                 "enabled": bool(consensus.get("enabled", True)),
                 "votes_required": max(1, min(int(consensus.get("votes_required", 2)), 10)),
             },
+            "media_security": {
+                "enabled": bool(media.get("enabled", False)),
+                "scan_photos": bool(media.get("scan_photos", True)),
+                "scan_links": bool(media.get("scan_links", False)),
+                "scan_files": bool(media.get("scan_files", False)),
+                "ocr": bool(media.get("ocr", True)),
+                "impersonation": bool(media.get("impersonation", True)),
+                "sensitive": bool(media.get("sensitive", False)),
+                "threshold": max(20, min(int(media.get("threshold", 60)), 100)),
+                "vt_malicious": max(1, min(int(media.get("vt_malicious", 3)), 25)),
+                "action": action,
+                "notify_admins": bool(media.get("notify_admins", True)),
+                "notify_master": bool(media.get("notify_master", True)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
             current["rules"] = updates["rules"][:30]
         self.db.set(f"GROUPSUITE_{self._cid(chat_id)}", current)
         return self.config(chat_id)
+
+    def media_decision(self, chat_id, result, source="vision"):
+        """Evalúa un resultado; nunca ejecuta acciones de Telegram por sí mismo."""
+        cid = self._cid(chat_id)
+        cfg = self.config(cid)["media_security"]
+        score = int(result.get("score", 0) or 0)
+        malicious = int(result.get("malicious", 0) or 0)
+        suspicious = int(result.get("suspicious", 0) or 0)
+        matched = score >= cfg["threshold"] or malicious >= cfg["vt_malicious"]
+        decision = {
+            "matched": matched,
+            "action": cfg["action"] if matched else "allow",
+            "source": source,
+            "score": score,
+            "malicious": malicious,
+            "suspicious": suspicious,
+            "threshold": cfg["threshold"],
+            "reason": (
+                f"riesgo visual {score}/{cfg['threshold']}" if source == "vision"
+                else f"{malicious} detecciones maliciosas"
+            ),
+            "created_at": datetime.datetime.now().isoformat(),
+        }
+        rows = self.db.get(f"MEDIA_SECURITY_EVENTS_{cid}", [])
+        if not isinstance(rows, list):
+            rows = []
+        rows.append(decision)
+        self.db.set(f"MEDIA_SECURITY_EVENTS_{cid}", rows[-300:])
+        return decision
+
+    def media_events(self, chat_id, limit=50):
+        rows = self.db.get(f"MEDIA_SECURITY_EVENTS_{self._cid(chat_id)}", [])
+        if not isinstance(rows, list):
+            return []
+        return list(reversed(rows[-max(1, min(int(limit), 100)):]))
 
     def register_join(self, chat_id, user_id, name=""):
         cid, uid, now = self._cid(chat_id), self._uid(user_id), int(time.time())
@@ -291,4 +344,5 @@ class GroupSuite:
             "reports": list(reversed(reports[-100:])) if isinstance(reports, list) else [],
             "consensus": list(reversed(consensus[-100:])) if isinstance(consensus, list) else [],
             "roles": self.roles(cid), "templates": self.templates(cid),
+            "media_events": self.media_events(cid),
         }

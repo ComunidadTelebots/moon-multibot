@@ -49,6 +49,23 @@
             <textarea id="sqWelcomeText" class="input-style" rows="2" placeholder="Bienvenida: usa {name}"></textarea>
             <button class="btn-glow" onclick="saveGroupSuite()">Guardar protección y bienvenida</button>
 
+            <details><summary>🛡️ Seguridad multimedia automática</summary>
+                <p style="color:var(--text-muted);font-size:12px;">Empieza en modo aviso. Los administradores nunca se expulsan automáticamente.</p>
+                <div class="suite-grid">
+                    <label><input type="checkbox" id="sqMediaEnabled"> Activar política</label>
+                    <label><input type="checkbox" id="sqMediaPhotos"> Analizar fotografías</label>
+                    <label><input type="checkbox" id="sqMediaLinks"> Analizar enlaces con VirusTotal</label>
+                    <label><input type="checkbox" id="sqMediaFiles"> Analizar archivos con VirusTotal</label>
+                    <label><input type="checkbox" id="sqMediaOcr"> OCR de texto</label>
+                    <label><input type="checkbox" id="sqMediaImpersonation"> Detectar suplantación</label>
+                    <label><input type="checkbox" id="sqMediaSensitive"> Señales sensibles</label>
+                    <select id="sqMediaAction" class="input-style"><option value="notify">Solo avisar</option><option value="delete">Eliminar contenido</option><option value="ban">Eliminar y banear</option></select>
+                    <input id="sqMediaThreshold" class="input-style" type="number" min="20" max="100" placeholder="Umbral visual">
+                    <input id="sqMediaVt" class="input-style" type="number" min="1" max="25" placeholder="Motores VT">
+                </div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar política multimedia</button>
+                <div id="sqMediaEvents"></div>
+            </details>
             <details><summary>⏰ Reglas programadas</summary>
                 <div class="suite-grid"><input id="sqRuleStart" class="input-style" type="time"><input id="sqRuleEnd" class="input-style" type="time"></div>
                 <button class="btn-glow" onclick="addSuiteRule()">Añadir tramo solo administradores</button>

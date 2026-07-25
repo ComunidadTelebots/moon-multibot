@@ -2208,6 +2208,13 @@ function loadGroupSuite() {
         sqQHours.value=c.quarantine.hours; sqQMessages.value=c.quarantine.messages;
         sqRaidJoins.value=c.raid.joins; sqVotes.value=c.consensus.votes_required;
         sqWelcomeText.value=c.welcome.message;
+        const media=c.media_security;
+        sqMediaEnabled.checked=media.enabled; sqMediaPhotos.checked=media.scan_photos;
+        sqMediaLinks.checked=media.scan_links; sqMediaFiles.checked=media.scan_files;
+        sqMediaOcr.checked=media.ocr; sqMediaImpersonation.checked=media.impersonation;
+        sqMediaSensitive.checked=media.sensitive; sqMediaAction.value=media.action;
+        sqMediaThreshold.value=media.threshold; sqMediaVt.value=media.vt_malicious;
+        sqMediaEvents.innerHTML=(data.media_events||[]).slice(0,10).map(x=>`<div class="mod-item"><span>${suiteEsc(x.source)} · ${suiteEsc(x.user||x.user_id||"")} · ${suiteEsc(x.reason)} · ${suiteEsc(x.action_applied||x.action)}</span></div>`).join("")||"<p>Sin decisiones multimedia.</p>";
         sqRules.innerHTML=c.rules.length?c.rules.map((x,i)=>`<div class="mod-item">${suiteEsc(x.start)}–${suiteEsc(x.end)} · ${suiteEsc(x.action)} <button class="btn-mod-mini" onclick="removeSuiteRule(${i})">Quitar</button></div>`).join(""):"<p>Sin reglas.</p>";
         sqReports.innerHTML=data.reports.length?data.reports.map(x=>`<div class="mod-item"><span>${suiteEsc(x.target_id)} · ${suiteEsc(x.reason)} · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<span><button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','reviewed')">Revisado</button> <button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','dismissed')">Descartar</button></span>`:""}</div>`).join(""):"<p>Sin reportes.</p>";
         sqConsensusList.innerHTML=data.consensus.length?data.consensus.map(x=>`<div class="mod-item"><span>${suiteEsc(x.action)} ${suiteEsc(x.target_id)} · ${x.votes.length} votos · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<button class="btn-mod-mini" onclick="voteSuiteProposal('${x.id}')">Votar</button>`:""}</div>`).join(""):"<p>Sin propuestas.</p>";
@@ -2221,7 +2228,13 @@ function saveGroupSuite() {
         quarantine:{...(old.quarantine||{}),enabled:sqQuarantine.checked,hours:+sqQHours.value,messages:+sqQMessages.value},
         raid:{...(old.raid||{}),enabled:sqRaid.checked,joins:+sqRaidJoins.value},
         welcome:{...(old.welcome||{}),enabled:sqWelcome.checked,message:sqWelcomeText.value},
-        consensus:{...(old.consensus||{}),enabled:sqConsensus.checked,votes_required:+sqVotes.value}
+        consensus:{...(old.consensus||{}),enabled:sqConsensus.checked,votes_required:+sqVotes.value},
+        media_security:{...(old.media_security||{}),enabled:sqMediaEnabled.checked,
+            scan_photos:sqMediaPhotos.checked,scan_links:sqMediaLinks.checked,
+            scan_files:sqMediaFiles.checked,ocr:sqMediaOcr.checked,
+            impersonation:sqMediaImpersonation.checked,sensitive:sqMediaSensitive.checked,
+            action:sqMediaAction.value,threshold:+sqMediaThreshold.value,
+            vt_malicious:+sqMediaVt.value}
     };
     fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config})})
     .then(r=>r.json()).then(d=>{if(d.ok){showToast("✅ Suite guardada","Protección actualizada.");loadGroupSuite();}});

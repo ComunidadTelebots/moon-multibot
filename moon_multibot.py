@@ -42,6 +42,7 @@ from core.invoked_ai import InvokedAIService
 from core.telegram_events import TelegramEventStore
 from core.proxy_manager import ProxyManager
 from core.vt_manager import VirusTotalManager
+from core.media_analyzer import analyze_image as analyze_media_image
 from core.task_queue import TaskQueue
 from core.tdlib_client import TDLibClient
 from token_manager import token_manager
@@ -3250,6 +3251,95 @@ class MoonBot:
     def send_photo(self, cid, photo, caption=""):
         return self.api_call("sendPhoto", {"chat_id": cid, "photo": photo, "caption": caption, "parse_mode": "Markdown"})
 
+    def apply_media_policy(self, cid, uid, uname, message_id, result, source="vision"):
+        """Aplica una política ya evaluada, protegiendo siempre a los administradores."""
+        decision = group_suite.media_decision(cid, result, source)
+        decision.update({
+            "chat_id": str(cid), "user_id": str(uid), "user": str(uname)[:100],
+            "message_id": message_id,
+        })
+        events = db.get(f"MEDIA_SECURITY_EVENTS_{cid}", [])
+        if isinstance(events, list) and events:
+            events[-1].update(decision)
+            db.set(f"MEDIA_SECURITY_EVENTS_{cid}", events[-300:])
+        if not decision["matched"]:
+            return False
+
+        cfg = group_suite.config(cid)["media_security"]
+        member = self.api_call("getChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
+        status = ((member.get("result") or {}).get("status") if member.get("ok") else "")
+        protected = str(uid) == str(MASTER_ID) or status in ("creator", "administrator")
+        action = "notify" if protected else decision["action"]
+        decision["action_applied"] = action
+        reason = decision["reason"]
+        alert = (
+            f"🛡️ **Alerta multimedia**\nUsuario: {uname} (`{uid}`)\n"
+            f"Motivo: {reason}\nAcción: {action}"
+        )
+        if cfg["notify_admins"]:
+            self.send_msg(cid, alert)
+        if cfg["notify_master"] and MASTER_ID and str(cid) != str(MASTER_ID):
+            self.send_msg(MASTER_ID, f"{alert}\nGrupo: {global_chat_names.get(str(cid), cid)}")
+        if action in ("delete", "ban"):
+            self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+        if action == "ban":
+            self.apply_user_ban(
+                cid, uid, uname, reason=reason, source=f"{source}_policy",
+                scope="local", message_id=message_id,
+            )
+        add_web_log("SECURITY", f"Política multimedia {action} en {cid}: {uname} — {reason}")
+        return action in ("delete", "ban")
+
+    def enforce_message_threat_policy(self, cid, uid, uname, msg, text=""):
+        """Analiza, bajo demanda del grupo, el primer enlace o documento del mensaje."""
+        cfg = group_suite.config(cid)["media_security"]
+        if not cfg["enabled"]:
+            return False
+        if cfg["scan_links"]:
+            urls = re.findall(r"https?://[^\s<>()]+", text or "", re.I)
+            if urls:
+                result = vt_mgr.analyze("url", urls[0].rstrip(".,;!?"))
+                if result.get("ok") and self.apply_media_policy(
+                    cid, uid, uname, msg["message_id"], result, "virustotal_url"
+                ):
+                    return True
+        document = msg.get("document")
+        if not cfg["scan_files"] or not document:
+            return False
+        size = int(document.get("file_size", 0) or 0)
+        if size > 10 * 1024 * 1024:
+            add_web_log("SECURITY", f"Archivo de {cid} omitido: supera 10 MB")
+            return False
+        info = self.api_call("getFile", {"file_id": document.get("file_id")}, silent=True)
+        if not info.get("ok"):
+            return False
+        filename = os.path.basename(document.get("file_name") or "document.bin")
+        path = os.path.join("downloads", f"scan-{msg['message_id']}-{filename}")
+        try:
+            response = requests.get(
+                f"https://api.telegram.org/file/bot{self.token}/{info['result']['file_path']}",
+                timeout=45,
+            )
+            response.raise_for_status()
+            if len(response.content) > 10 * 1024 * 1024:
+                return False
+            with open(path, "wb") as target:
+                target.write(response.content)
+            result = vt_mgr.scan_file(path, filename)
+            return bool(
+                result.get("ok") and self.apply_media_policy(
+                    cid, uid, uname, msg["message_id"], result, "virustotal_file"
+                )
+            )
+        except Exception as error:
+            add_web_log("ERROR", f"No se pudo analizar el archivo de {cid}: {error}")
+            return False
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
     def send_audio(self, cid, audio, caption=""):
         return self.api_call("sendAudio", {"chat_id": cid, "audio": audio, "caption": caption})
 
@@ -4794,6 +4884,9 @@ class MoonBot:
                         self.send_msg(cid, "âš ï¸ El bot estÃ¡ en modo mantenimiento. IntÃ©ntalo mÃ¡s tarde.")
                         continue
 
+                    if self.enforce_message_threat_policy(cid, uid, uname, msg, text):
+                        continue
+
                     # Voice Transcription Simulation
                     if "voice" in msg:
                         voice_log.append({"time": datetime.datetime.now().strftime("%H:%M"), "user": uname})
@@ -4806,32 +4899,47 @@ class MoonBot:
                     # Neural Vision: PercepciÃ³n Binaria Nativa
                     if "photo" in msg:
                         file_id = msg["photo"][-1]["file_id"]
-                        self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando estructura binaria de la imagen...")
-                        
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.jpg")
                             url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
-                            # Descarga con requests (estÃ¡ndar en el proyecto)
-                            r = requests.get(url)
-                            with open(path, 'wb') as f_out: f_out.write(r.content)
-                            
-                            # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
-                            f_hash = self.get_file_hash(path)
-                            self.last_media_hash = f_hash
-                            caption = msg.get("caption", "")
-                            visual_data = self.analyze_image(path)
-                            if self.check_security_blacklist(f_hash, cid, uid, uname, caption, visual_data):
-                                try: os.remove(path)
-                                except: pass
-                                continue
-                            
-                            self.send_msg(cid, f"ðŸŒŒ **PercepciÃ³n IA:** {visual_data}")
-                            ia_nativa.learn(visual_data, source=global_chat_names.get(cid, cid))
-                            # Incremento para Dashboard
-                            db.set("STATS_PHOTOS", db.get("STATS_PHOTOS", 0) + 1)
-                            try: os.remove(path)
-                            except: pass
+                            try:
+                                r = requests.get(url, timeout=30)
+                                r.raise_for_status()
+                                with open(path, "wb") as f_out:
+                                    f_out.write(r.content)
+                                f_hash = self.get_file_hash(path)
+                                self.last_media_hash = f_hash
+                                caption = msg.get("caption", "")
+                                media_cfg = group_suite.config(cid)["media_security"]
+                                if media_cfg["enabled"] and media_cfg["scan_photos"]:
+                                    result = analyze_media_image(path, {
+                                        "ocr": media_cfg["ocr"],
+                                        "impersonation": media_cfg["impersonation"],
+                                        "sensitive": media_cfg["sensitive"],
+                                    })
+                                    if result.get("ok"):
+                                        db.set("STATS_PHOTOS", db.get("STATS_PHOTOS", 0) + 1)
+                                        if self.apply_media_policy(
+                                            cid, uid, uname, msg["message_id"], result, "vision"
+                                        ):
+                                            continue
+                                    else:
+                                        add_web_log("SECURITY", f"Análisis visual omitido: {result.get('error')}")
+                                else:
+                                    visual_data = self.analyze_image(path)
+                                    if self.check_security_blacklist(
+                                        f_hash, cid, uid, uname, caption, visual_data
+                                    ):
+                                        continue
+                                    db.set("STATS_PHOTOS", db.get("STATS_PHOTOS", 0) + 1)
+                            except Exception as error:
+                                add_web_log("ERROR", f"No se pudo analizar la imagen de {cid}: {error}")
+                            finally:
+                                try:
+                                    os.remove(path)
+                                except OSError:
+                                    pass
                         continue
 
                     # Neural Vision: PercepciÃ³n de Video Nativa (100% Antigravity Core)

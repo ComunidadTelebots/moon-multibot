@@ -525,6 +525,20 @@
         <input id="mcVotes" type="number" value="${c.consensus.votes_required}" placeholder="Votos requeridos">
         <button class="btn teal" id="msSave">Guardar protección</button>
       </div></div>
+      <div class="dropdown"><div class="dhead">Seguridad multimedia <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Política por grupo. Los administradores quedan protegidos de acciones automáticas.</p>
+        <label class="setrow"><b>Activar política</b><input id="mmEnabled" type="checkbox" ${c.media_security.enabled?"checked":""}></label>
+        <label class="setrow"><b>Fotografías</b><input id="mmPhotos" type="checkbox" ${c.media_security.scan_photos?"checked":""}></label>
+        <label class="setrow"><b>Enlaces VirusTotal</b><input id="mmLinks" type="checkbox" ${c.media_security.scan_links?"checked":""}></label>
+        <label class="setrow"><b>Archivos VirusTotal</b><input id="mmFiles" type="checkbox" ${c.media_security.scan_files?"checked":""}></label>
+        <label class="setrow"><b>Leer texto OCR</b><input id="mmOcr" type="checkbox" ${c.media_security.ocr?"checked":""}></label>
+        <label class="setrow"><b>Suplantación</b><input id="mmImpersonation" type="checkbox" ${c.media_security.impersonation?"checked":""}></label>
+        <label class="setrow"><b>Señales sensibles</b><input id="mmSensitive" type="checkbox" ${c.media_security.sensitive?"checked":""}></label>
+        <select id="mmAction"><option value="notify" ${c.media_security.action==="notify"?"selected":""}>Solo avisar</option><option value="delete" ${c.media_security.action==="delete"?"selected":""}>Eliminar contenido</option><option value="ban" ${c.media_security.action==="ban"?"selected":""}>Eliminar y banear</option></select>
+        <div class="btnrow"><input id="mmThreshold" type="number" min="20" max="100" value="${c.media_security.threshold}" placeholder="Umbral visual"><input id="mmVt" type="number" min="1" max="25" value="${c.media_security.vt_malicious}" placeholder="Motores VT"></div>
+        <button class="btn teal" id="mmSave">Guardar política</button>
+        ${(d.media_events||[]).slice(0,8).map(x=>`<div class="userchip"><span>${escHtml(x.source)} · ${escHtml(x.user||x.user_id||"")} · ${escHtml(x.reason)} · ${escHtml(x.action_applied||x.action)}</span></div>`).join("")||'<p class="muted">Sin decisiones multimedia.</p>'}
+      </div></div>
       <div class="dropdown"><div class="dhead">Reglas programadas (${c.rules.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <div id="msRules">${c.rules.map((r,i)=>`<div class="userchip"><span>${escHtml(r.start)}–${escHtml(r.end)} · solo admins</span><span class="minibtn red" data-rule="${i}">Quitar</span></div>`).join("")||'<p class="muted">Sin reglas.</p>'}</div>
         <div class="btnrow"><input id="msStart" type="time"><input id="msEnd" type="time"></div><button class="btn ghost" id="msAddRule">Añadir tramo</button>
@@ -547,7 +561,9 @@
       </div></div>`;
     host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;h.parentElement.classList.toggle("open",!b.hidden);});
     const save=()=>gp("/group/suite/settings",{config:{quarantine:{enabled:mqEnabled.checked,hours:+mqHours.value,messages:+mqMessages.value,block_links:true},raid:{enabled:mrEnabled.checked,joins:+mrJoins.value,window_seconds:+mrWindow.value,lock_minutes:c.raid.lock_minutes},welcome:{enabled:mwEnabled.checked,message:mwText.value,delete_after:c.welcome.delete_after},consensus:{enabled:mcEnabled.checked,votes_required:+mcVotes.value},rules:c.rules}}).then(()=>{showToast("Suite guardada");loadGroupSuiteMini();});
+    const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
     msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
+    mmSave.onclick=saveMedia;
     host.querySelectorAll("[data-rule]").forEach(x=>x.onclick=()=>{c.rules.splice(+x.dataset.rule,1);save();});
     host.querySelectorAll("[data-report]").forEach(x=>x.onclick=()=>gp("/group/suite/report/resolve",{report_id:x.dataset.report,decision:"reviewed"}).then(loadGroupSuiteMini));
     mpCreate.onclick=()=>gp("/group/suite/consensus",{target_id:mpUid.value,action:mpAction.value,reason:mpReason.value}).then(loadGroupSuiteMini);

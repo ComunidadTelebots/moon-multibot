@@ -124,8 +124,22 @@
 100. Recorrido guiado para cada función nueva.
 
 ### Análisis multimedia y amenazas (101–102)
-101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Fase 1 implementada en v16.86.0; pendiente automatización por grupo.**
-102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Fase 1 implementada en v16.86.0; pendientes políticas automáticas por grupo.**
+101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
+102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v16.87.0] - 2026-07-25
+### Políticas multimedia por grupo
+- Cada grupo puede activar por separado el análisis automático de fotografías, enlaces y archivos.
+- Controles para OCR, suplantación, señales sensibles, umbral visual y número mínimo de detecciones de VirusTotal.
+- Tres acciones configurables: solo avisar, eliminar el contenido o eliminar y banear al remitente.
+- El modo seguro por defecto es solo aviso y los creadores o administradores del grupo nunca reciben acciones destructivas automáticas.
+- Alertas opcionales en el grupo y al master, con historial de las últimas 300 decisiones por grupo.
+- Los archivos superiores a 10 MB se omiten y los temporales se eliminan incluso si falla la descarga o el análisis.
+
+### Paridad de interfaces
+- La política y su historial aparecen en la suite del grupo de la Mini App.
+- Los mismos controles y decisiones están disponibles en el panel web de moderación.
+- Versión visible sincronizada a `v16.87.0`.
 
 ## [v16.86.0] - 2026-07-25
 ### Análisis avanzado de fotografías
