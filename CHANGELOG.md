@@ -118,14 +118,22 @@
 94. Centro unificado de notificaciones. **Conectado a eventos reales en v16.89.0.**
 95. Modo compacto para administradores avanzados. **Implementado en v16.88.0.**
 96. Accesibilidad mejorada y control de tamaño de texto. **Control de tamaño implementado en v16.88.0.**
-97. Temas visuales por grupo.
+97. Temas visuales por grupo. **Implementado en v16.90.0.**
 98. Panel personalizable mediante widgets.
 99. Trabajo offline con sincronización posterior.
-100. Recorrido guiado para cada función nueva.
+100. Recorrido guiado para cada función nueva. **Recorrido base y reiniciable implementado en v16.90.0.**
 
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v16.90.0] - 2026-07-25
+### Personalización y ayuda
+- Temas visuales independientes por grupo con cinco colores de acento y vista compacta opcional.
+- Configuración persistente compartida por la Mini App y el panel web de moderación.
+- Recorrido guiado de cuatro pasos para usuarios de la Mini App y administradores del panel web.
+- El recorrido aparece en el primer acceso, se puede omitir y reiniciar desde Ajustes.
+- Versión visible sincronizada a `v16.90.0`.
 
 ## [v16.89.0] - 2026-07-25
 ### Portada, historial y notificaciones reales

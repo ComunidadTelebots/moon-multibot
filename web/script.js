@@ -196,6 +196,7 @@ function login() {
                 gtag("event", "login", { method: "dashboard" });
             }
             switchTab('dashboard');
+            if(!localStorage.getItem("moon_tour_done")) setTimeout(() => startWebTour(), 300);
             refreshAnalyticsSettings();
             showToast("🌙 Bienvenido", "Conexión neuronal establecida.");
         } else {
@@ -259,6 +260,18 @@ function saveWebDisplayPreferences(){
     localStorage.setItem("moon_display_preferences",JSON.stringify({compact:webCompactMode.value,font:webFontSize.value}));
     applyWebDisplayPreferences();showToast("Interfaz","Preferencias visuales guardadas.");
 }
+const WEB_TOUR=[
+    ["Panel principal","Consulta el estado del sistema y de todos los bots."],
+    ["Búsqueda global","Encuentra cualquier panel y guarda accesos favoritos."],
+    ["Moderación y seguridad","Gestiona grupos, reportes, CAS, fotografías y VirusTotal."],
+    ["Ajustes","Personaliza densidad y tamaño del texto cuando lo necesites."]
+];
+function startWebTour(index=0){
+    const step=WEB_TOUR[index];commandPalette.style.display="flex";commandPaletteQuery.style.display="none";
+    commandPaletteTitle.textContent=`Guía ${index+1}/${WEB_TOUR.length}`;
+    commandPaletteResults.innerHTML=`<div class="command-result"><div><b>${step[0]}</b><small>${step[1]}</small></div></div><div style="display:flex;gap:10px"><button class="btn-mini-wide" onclick="finishWebTour()">Omitir</button><button class="btn-mini-wide" onclick="${index===WEB_TOUR.length-1?"finishWebTour()":`startWebTour(${index+1})`}">${index===WEB_TOUR.length-1?"Terminar":"Siguiente"}</button></div>`;
+}
+function finishWebTour(){localStorage.setItem("moon_tour_done","1");closeCommandPalette();}
 
 // --- Tab Management ---
 function switchTab(tabId, btn, fromHistory = false) {
@@ -2271,6 +2284,7 @@ function loadGroupSuite() {
         sqMediaOcr.checked=media.ocr; sqMediaImpersonation.checked=media.impersonation;
         sqMediaSensitive.checked=media.sensitive; sqMediaAction.value=media.action;
         sqMediaThreshold.value=media.threshold; sqMediaVt.value=media.vt_malicious;
+        sqGroupAccent.value=c.appearance.accent;sqGroupCompact.checked=c.appearance.compact;
         sqMediaEvents.innerHTML=(data.media_events||[]).slice(0,10).map(x=>`<div class="mod-item"><span>${suiteEsc(x.source)} · ${suiteEsc(x.user||x.user_id||"")} · ${suiteEsc(x.reason)} · ${suiteEsc(x.action_applied||x.action)}</span></div>`).join("")||"<p>Sin decisiones multimedia.</p>";
         sqRules.innerHTML=c.rules.length?c.rules.map((x,i)=>`<div class="mod-item">${suiteEsc(x.start)}–${suiteEsc(x.end)} · ${suiteEsc(x.action)} <button class="btn-mod-mini" onclick="removeSuiteRule(${i})">Quitar</button></div>`).join(""):"<p>Sin reglas.</p>";
         sqReports.innerHTML=data.reports.length?data.reports.map(x=>`<div class="mod-item"><span>${suiteEsc(x.target_id)} · ${suiteEsc(x.reason)} · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<span><button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','reviewed')">Revisado</button> <button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','dismissed')">Descartar</button></span>`:""}</div>`).join(""):"<p>Sin reportes.</p>";
@@ -2291,7 +2305,8 @@ function saveGroupSuite() {
             scan_files:sqMediaFiles.checked,ocr:sqMediaOcr.checked,
             impersonation:sqMediaImpersonation.checked,sensitive:sqMediaSensitive.checked,
             action:sqMediaAction.value,threshold:+sqMediaThreshold.value,
-            vt_malicious:+sqMediaVt.value}
+            vt_malicious:+sqMediaVt.value},
+        appearance:{accent:sqGroupAccent.value,compact:sqGroupCompact.checked}
     };
     fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config})})
     .then(r=>r.json()).then(d=>{if(d.ok){showToast("✅ Suite guardada","Protección actualizada.");loadGroupSuite();}});

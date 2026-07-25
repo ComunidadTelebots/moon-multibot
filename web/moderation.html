@@ -66,6 +66,11 @@
                 <button class="btn-glow" onclick="saveGroupSuite()">Guardar política multimedia</button>
                 <div id="sqMediaEvents"></div>
             </details>
+            <details><summary>🎨 Tema visual del grupo</summary>
+                <div class="suite-grid"><select id="sqGroupAccent" class="input-style"><option value="teal">Verde azulado</option><option value="blue">Azul</option><option value="violet">Violeta</option><option value="amber">Ámbar</option><option value="rose">Rosa</option></select>
+                <label><input type="checkbox" id="sqGroupCompact"> Vista compacta</label></div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar tema</button>
+            </details>
             <details><summary>⏰ Reglas programadas</summary>
                 <div class="suite-grid"><input id="sqRuleStart" class="input-style" type="time"><input id="sqRuleEnd" class="input-style" type="time"></div>
                 <button class="btn-glow" onclick="addSuiteRule()">Añadir tramo solo administradores</button>

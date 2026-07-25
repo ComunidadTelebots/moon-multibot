@@ -58,6 +58,7 @@
   .uxresult{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:13px;margin:7px 0;background:var(--card);cursor:pointer;}
   .uxresult .meta{flex:1}.uxresult small{display:block;color:var(--muted);font-size:11px}.uxstar{border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer}.uxstar.on{color:var(--amber);}
   body.compact main{padding-top:10px}body.compact .card{padding:12px;margin-bottom:8px}body.compact .row{padding:9px 11px}body.compact .master-action{min-height:72px;padding:10px}
+  body.group-compact #v-grupo .card{padding:11px;margin-bottom:7px}body.group-compact #v-grupo .dropdown{margin-bottom:6px}body.group-compact #v-grupo .dhead{padding:10px 12px}
   html.font-small{font-size:14px}html.font-large{font-size:18px}
 
   /* ── Vistas ── */
@@ -525,6 +526,12 @@
     return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:00`; }
   function fromUTC(s){ if(!s)return""; const d=new Date(String(s).replace(" ","T")+"Z"); return isNaN(d)?s:d.toLocaleString(); }
   const gp=(p,b)=>apiPost(p,Object.assign({initData:tg&&tg.initData,chat_id:curChat},b));
+  const GROUP_ACCENTS={teal:["#5dcaa5","#22d3ee"],blue:["#60a5fa","#38bdf8"],violet:["#a78bfa","#c084fc"],amber:["#fbbf24","#fb923c"],rose:["#fb7185","#f472b6"]};
+  function applyGroupAppearance(appearance){
+    const colors=GROUP_ACCENTS[(appearance&&appearance.accent)||"teal"]||GROUP_ACCENTS.teal;
+    document.documentElement.style.setProperty("--teal",colors[0]);document.documentElement.style.setProperty("--cyan",colors[1]);
+    document.body.classList.toggle("group-compact",!!(appearance&&appearance.compact));
+  }
 
   async function loadGroupSuiteMini(){
     const host=document.getElementById("gGroupSuite");if(!host)return;
@@ -557,6 +564,11 @@
         <button class="btn teal" id="mmSave">Guardar política</button>
         ${(d.media_events||[]).slice(0,8).map(x=>`<div class="userchip"><span>${escHtml(x.source)} · ${escHtml(x.user||x.user_id||"")} · ${escHtml(x.reason)} · ${escHtml(x.action_applied||x.action)}</span></div>`).join("")||'<p class="muted">Sin decisiones multimedia.</p>'}
       </div></div>
+      <div class="dropdown"><div class="dhead">Tema visual del grupo <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <select id="maAccent"><option value="teal">Verde azulado</option><option value="blue">Azul</option><option value="violet">Violeta</option><option value="amber">Ámbar</option><option value="rose">Rosa</option></select>
+        <label class="setrow"><b>Vista compacta del grupo</b><input id="maCompact" type="checkbox" ${c.appearance.compact?"checked":""}></label>
+        <button class="btn teal" id="maSave">Guardar tema</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Reglas programadas (${c.rules.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <div id="msRules">${c.rules.map((r,i)=>`<div class="userchip"><span>${escHtml(r.start)}–${escHtml(r.end)} · solo admins</span><span class="minibtn red" data-rule="${i}">Quitar</span></div>`).join("")||'<p class="muted">Sin reglas.</p>'}</div>
         <div class="btnrow"><input id="msStart" type="time"><input id="msEnd" type="time"></div><button class="btn ghost" id="msAddRule">Añadir tramo</button>
@@ -580,8 +592,11 @@
     host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;h.parentElement.classList.toggle("open",!b.hidden);});
     const save=()=>gp("/group/suite/settings",{config:{quarantine:{enabled:mqEnabled.checked,hours:+mqHours.value,messages:+mqMessages.value,block_links:true},raid:{enabled:mrEnabled.checked,joins:+mrJoins.value,window_seconds:+mrWindow.value,lock_minutes:c.raid.lock_minutes},welcome:{enabled:mwEnabled.checked,message:mwText.value,delete_after:c.welcome.delete_after},consensus:{enabled:mcEnabled.checked,votes_required:+mcVotes.value},rules:c.rules}}).then(()=>{showToast("Suite guardada");loadGroupSuiteMini();});
     const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
+    maAccent.value=c.appearance.accent;applyGroupAppearance(c.appearance);
+    const saveAppearance=()=>gp("/group/suite/settings",{config:{appearance:{accent:maAccent.value,compact:maCompact.checked}}}).then(()=>{showToast("Tema del grupo guardado");loadGroupSuiteMini();});
     msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
     mmSave.onclick=saveMedia;
+    maSave.onclick=saveAppearance;
     host.querySelectorAll("[data-rule]").forEach(x=>x.onclick=()=>{c.rules.splice(+x.dataset.rule,1);save();});
     host.querySelectorAll("[data-report]").forEach(x=>x.onclick=()=>gp("/group/suite/report/resolve",{report_id:x.dataset.report,decision:"reviewed"}).then(loadGroupSuiteMini));
     mpCreate.onclick=()=>gp("/group/suite/consensus",{target_id:mpUid.value,action:mpAction.value,reason:mpReason.value}).then(loadGroupSuiteMini);
@@ -1819,6 +1834,18 @@
   }
   function applyUxPreferences(){const p=uxRead("hub_ui_preferences",{compact:false,font:"normal"});document.body.classList.toggle("compact",!!p.compact);document.documentElement.classList.remove("font-small","font-large");if(p.font==="small"||p.font==="large")document.documentElement.classList.add("font-"+p.font);if(document.getElementById("uxCompact"))uxCompact.checked=!!p.compact;if(document.getElementById("uxFont"))uxFont.value=p.font||"normal";}
   function saveUxPreferences(){uxWrite("hub_ui_preferences",{compact:uxCompact.checked,font:uxFont.value});applyUxPreferences();showToast("Accesibilidad guardada");}
+  const TOUR_STEPS=[
+    ["Bienvenido a Moonbot","Gestiona tus canales, seguridad y automatizaciones sin salir de Telegram."],
+    ["Busca cualquier acción","Usa el botón de búsqueda de la cabecera y fija tus herramientas favoritas."],
+    ["Notificaciones reales","La campana reúne reportes, apelaciones y alertas de los grupos que administras."],
+    ["Configura cada grupo","Toca un grupo para ajustar moderación, seguridad multimedia y su tema visual."],
+  ];
+  function startGuidedTour(index=0){
+    const step=TOUR_STEPS[index];uxTitle.textContent=`Guía ${index+1}/${TOUR_STEPS.length}`;uxSheet.hidden=false;
+    uxBody.innerHTML=`<div class="card"><h3>${step[0]}</h3><p>${step[1]}</p></div><div class="btnrow"><button class="btn ghost" id="tourSkip">Omitir</button><button class="btn teal" id="tourNext">${index===TOUR_STEPS.length-1?"Terminar":"Siguiente"}</button></div>`;
+    tourSkip.onclick=()=>{uxWrite("hub_tour_done",true);closeUx();};
+    tourNext.onclick=()=>{if(index<TOUR_STEPS.length-1)startGuidedTour(index+1);else{uxWrite("hub_tour_done",true);closeUx();showToast("Guía completada");}};
+  }
 
   async function loadAjustes(){
     const el=document.getElementById("v-ajustes");
@@ -1830,10 +1857,12 @@
       <label class="setrow"><span><b>Modo compacto</b><span>Muestra más controles en pantalla.</span></span><input id="uxCompact" type="checkbox"></label>
       <label class="setrow"><span><b>Tamaño de texto</b><span>Ajusta toda la Mini App.</span></span><select id="uxFont" style="width:130px"><option value="small">Pequeño</option><option value="normal">Normal</option><option value="large">Grande</option></select></label>
       <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
+      <button class="btn ghost" id="uxTourRestart" style="margin-top:8px">Repetir recorrido guiado</button>
       <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     reflectTheme();applyUxPreferences();
     document.getElementById("uxPreferencesSave").onclick=saveUxPreferences;
+    document.getElementById("uxTourRestart").onclick=()=>startGuidedTour();
     const box=document.getElementById("myRegistryStatus");
     if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
     const d=await apiPost("/registry/status",{initData:tg.initData});
@@ -1857,6 +1886,7 @@
   // ── Navegación ──
   const LOADERS={canales:loadCanales,admin:loadAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
   function showView(name,fromHistory=false){
+    if(name!=="grupo")applyGroupAppearance({accent:"teal",compact:false});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
     if(!fromHistory&&history.state&&history.state.moonView!==name)history.pushState({moonView:name},"","#"+name);
@@ -1939,6 +1969,7 @@
     }
     const t=await loadTheme();
     applyTheme(t);
+    if(!uxRead("hub_tour_done",false))setTimeout(()=>startGuidedTour(),300);
   })();
 </script>
 </body>

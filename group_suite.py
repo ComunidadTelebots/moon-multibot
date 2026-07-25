@@ -32,6 +32,10 @@ class GroupSuite:
         quarantine, raid = section("quarantine"), section("raid")
         welcome, consensus = section("welcome"), section("consensus")
         media = section("media_security")
+        appearance = section("appearance")
+        accent = str(appearance.get("accent", "teal"))
+        if accent not in ("teal", "blue", "violet", "amber", "rose"):
+            accent = "teal"
         action = str(media.get("action", "notify"))
         if action not in ("notify", "delete", "ban"):
             action = "notify"
@@ -73,12 +77,16 @@ class GroupSuite:
                 "notify_admins": bool(media.get("notify_admins", True)),
                 "notify_master": bool(media.get("notify_master", True)),
             },
+            "appearance": {
+                "accent": accent,
+                "compact": bool(appearance.get("compact", False)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
