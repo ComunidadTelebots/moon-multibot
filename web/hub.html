@@ -433,6 +433,7 @@
     el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">Detectados automáticamente: donde eres propietario o administrador.</div>`+skel();
     let chs=[];
     if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
+    window._moonChannels=chs;
     if(!chs.length){
       el.innerHTML=`<div class="empty">
         <div class="big">${svg('megaphone')}</div>
@@ -448,9 +449,11 @@
       return;
     }
     const recentIds=loadRecentChats();
+    const favoriteActions=UX_ACTIONS.filter(x=>uxFavorites().includes(x.id)&&(!x.master||master));
     el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
       <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
         <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
+      ${favoriteActions.length?`<div class="sec">Acciones favoritas</div><div class="filterbar">${favoriteActions.map(x=>`<button class="filterpill" data-home-action="${x.id}">★ ${x.name}</button>`).join("")}</div>`:""}
       <div class="filterbar" id="myChannelsSort">
         <button class="filterpill active" data-sort="recent">Recientes</button>
         <button class="filterpill" data-sort="subscribers">Más grandes</button>
@@ -477,6 +480,7 @@
     };
     document.getElementById("myChannelsSearch").oninput=renderMyChannels;
     document.getElementById("myChannelsRefresh").onclick=loadCanales;
+    document.querySelectorAll("[data-home-action]").forEach(x=>x.onclick=()=>runUxAction(x.dataset.homeAction));
     document.querySelectorAll("#myChannelsSort [data-sort]").forEach(b=>b.onclick=()=>{
       activeSort=b.dataset.sort;
       document.querySelectorAll("#myChannelsSort [data-sort]").forEach(x=>x.classList.toggle("active",x===b));
@@ -1019,6 +1023,7 @@
     const el=document.getElementById("v-admin");
     el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Tus grupos y canales asociados. Toca uno para gestionarlo.</div><div id="adminList">${skel()}</div>`;
     let chs=[];
+    window._moonChannels=chs;
     if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
     const list=document.getElementById("adminList");
     if(!chs.length){ list.innerHTML=`<p class="muted">No administras ningún grupo o canal todavía. Añade @${BOT} como admin.</p>`; return; }
@@ -1796,8 +1801,22 @@
     const draw=()=>{const q=uxQuery.value.trim(),favs=uxFavorites();document.getElementById("uxFavorites").innerHTML=!q&&favs.length?`<div class="sec">Favoritos</div>${renderUxActions(UX_ACTIONS.filter(x=>favs.includes(x.id)))}`:"";uxResults.innerHTML=`<div class="sec">${q?"Resultados":"Todas las acciones"}</div>${renderUxActions(UX_ACTIONS,q)}`;bindUxActions();};
     uxQuery.oninput=draw;draw();uxQuery.focus();
   }
-  function uxNotifications(){const saved=uxRead("hub_notifications",[]);return saved.length?saved:[{id:"welcome",title:"Centro de notificaciones activo",body:"Aquí aparecerán alertas de seguridad y administración.",read:false,time:Date.now()}];}
-  function openUxNotifications(){const rows=uxNotifications();uxTitle.textContent="Notificaciones";uxSheet.hidden=false;uxBody.innerHTML=rows.map(x=>`<div class="uxresult"><div class="meta"><b>${x.title}</b><small>${x.body}</small></div></div>`).join("")||'<p class="muted">No tienes notificaciones.</p>';uxWrite("hub_notifications",rows.map(x=>({...x,read:true})));notificationDot.hidden=true;}
+  function uxNotifications(){return uxRead("hub_notifications",[]);}
+  async function syncUxNotifications(){
+    if(!tg||!tg.initData)return uxNotifications();
+    const data=await apiPost("/notifications",{initData:tg.initData});
+    if(!data||!data.ok)return uxNotifications();
+    const readIds=new Set(uxRead("hub_notification_reads",[]));
+    const rows=(data.notifications||[]).map(x=>({...x,read:readIds.has(x.id)}));
+    uxWrite("hub_notifications",rows);notificationDot.hidden=!rows.some(x=>!x.read);return rows;
+  }
+  async function openUxNotifications(){
+    uxTitle.textContent="Notificaciones";uxSheet.hidden=false;uxBody.innerHTML=skel();
+    const rows=await syncUxNotifications();
+    uxBody.innerHTML=rows.map(x=>`<div class="uxresult" data-notification-chat="${x.chat_id||""}"><div class="meta"><b>${x.title}</b><small>${x.body}</small></div></div>`).join("")||'<p class="muted">No tienes notificaciones pendientes.</p>';
+    uxWrite("hub_notification_reads",rows.map(x=>x.id));uxWrite("hub_notifications",rows.map(x=>({...x,read:true})));notificationDot.hidden=true;
+    document.querySelectorAll("[data-notification-chat]").forEach(x=>x.onclick=()=>{const cid=x.dataset.notificationChat;if(!cid)return;const channel=(window._moonChannels||[]).find(c=>String(c.chat_id)===cid);if(channel){closeUx();openGroup(cid,channel.name);}});
+  }
   function applyUxPreferences(){const p=uxRead("hub_ui_preferences",{compact:false,font:"normal"});document.body.classList.toggle("compact",!!p.compact);document.documentElement.classList.remove("font-small","font-large");if(p.font==="small"||p.font==="large")document.documentElement.classList.add("font-"+p.font);if(document.getElementById("uxCompact"))uxCompact.checked=!!p.compact;if(document.getElementById("uxFont"))uxFont.value=p.font||"normal";}
   function saveUxPreferences(){uxWrite("hub_ui_preferences",{compact:uxCompact.checked,font:uxFont.value});applyUxPreferences();showToast("Accesibilidad guardada");}
 
@@ -1837,9 +1856,10 @@
 
   // ── Navegación ──
   const LOADERS={canales:loadCanales,admin:loadAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
-  function showView(name){
+  function showView(name,fromHistory=false){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
+    if(!fromHistory&&history.state&&history.state.moonView!==name)history.pushState({moonView:name},"","#"+name);
     if(window.gtag)gtag("event","page_view",{page_path:"/hub/"+name});
     (LOADERS[name]||(()=>{}))();
   }
@@ -1852,11 +1872,13 @@
       document.getElementById("btnNotifications").onclick=openUxNotifications;
       document.getElementById("uxClose").onclick=closeUx;
       document.getElementById("uxSheet").onclick=e=>{if(e.target.id==="uxSheet")closeUx();};
+      window.addEventListener("popstate",e=>{const name=e.state&&e.state.moonView;if(name&&LOADERS[name])showView(name,true);});
       newBound=true;
     }
     applyUxPreferences();
-    notificationDot.hidden=!uxNotifications().some(x=>!x.read);
-    showView("canales");
+    syncUxNotifications();
+    if(!history.state||!history.state.moonView)history.replaceState({moonView:"canales"},"","#canales");
+    showView(history.state.moonView||"canales",true);
   }
 
   // ── Tema clásico ──

@@ -1047,6 +1047,53 @@ def public_mine():
     return jsonify({"ok": True, "channels": _channel_stats.get_user_channels(user.get("id"))})
 
 
+@bp.route("/api/public/notifications", methods=["POST", "OPTIONS"])
+def public_notifications():
+    """Alertas relevantes para los grupos que el usuario puede administrar."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    user = _verify_init_data((request.json or {}).get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    channels = (
+        _channel_stats.get_all_channels() if _is_master(user)
+        else _channel_stats.get_user_channels(user.get("id"))
+    )
+    rows = []
+    for channel in channels or []:
+        cid, name = str(channel.get("chat_id")), channel.get("name") or "Grupo"
+        reports = _db.get(f"GROUP_REPORTS_{cid}", []) if _db else []
+        for report in reports[-30:] if isinstance(reports, list) else []:
+            if report.get("status") == "pending":
+                rows.append({
+                    "id": f"report:{cid}:{report.get('id')}",
+                    "type": "report", "title": f"Reporte pendiente · {name}",
+                    "body": f"Usuario {report.get('target_id')}: {report.get('reason') or 'Sin motivo'}",
+                    "created_at": report.get("created_at"), "chat_id": cid,
+                })
+        events = _db.get(f"MEDIA_SECURITY_EVENTS_{cid}", []) if _db else []
+        for event in events[-20:] if isinstance(events, list) else []:
+            if event.get("matched"):
+                rows.append({
+                    "id": f"media:{cid}:{event.get('message_id')}:{event.get('created_at')}",
+                    "type": "security", "title": f"Alerta multimedia · {name}",
+                    "body": f"{event.get('user') or event.get('user_id')}: {event.get('reason')}",
+                    "created_at": event.get("created_at"), "chat_id": cid,
+                })
+    if _is_master(user):
+        appeals = _db.get("BAN_APPEALS", []) if _db else []
+        for appeal in appeals[-30:] if isinstance(appeals, list) else []:
+            if appeal.get("status") == "pending":
+                rows.append({
+                    "id": f"appeal:{appeal.get('id')}", "type": "appeal",
+                    "title": "Apelación pendiente",
+                    "body": f"Usuario {appeal.get('user_id')}: {appeal.get('message') or 'Revisión solicitada'}",
+                    "created_at": appeal.get("created_at"),
+                })
+    rows.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
+    return jsonify({"ok": True, "notifications": rows[:100]})
+
+
 # ─────────────────────────── Captcha de entrada (Join Request Queries) ──────────
 # Pool de iconos del captcha (los mismos nombres que join.html mapea a SVG).
 _JOIN_ICONS = ["star", "heart", "bolt", "moon", "cloud", "leaf"]

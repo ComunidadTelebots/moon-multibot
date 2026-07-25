@@ -229,9 +229,23 @@ function renderCommandPalette(query=""){
     const rows=WEB_ACTIONS.filter(x=>(x[1]+" "+x[2]).toLowerCase().includes(q));
     commandPaletteResults.innerHTML=rows.map(x=>`<div class="command-result" onclick="runWebAction('${x[0]}')"><div><b>${x[1]}</b><small>${x[2]}</small></div><button class="command-star ${favs.includes(x[0])?"on":""}" onclick="event.stopPropagation();toggleWebFavorite('${x[0]}')">★</button></div>`).join("")||"<p>Sin resultados.</p>";
 }
-function openWebNotifications(){
+async function openWebNotifications(){
     commandPalette.style.display="flex";commandPaletteTitle.textContent="Notificaciones";commandPaletteQuery.style.display="none";
-    commandPaletteResults.innerHTML='<div class="command-result"><div><b>Centro de notificaciones activo</b><small>Las alertas administrativas aparecerán aquí.</small></div></div>';
+    commandPaletteResults.innerHTML='<div class="loading-state"><p>Cargando alertas…</p></div>';
+    try {
+        const headers={"Authorization":getStoredAuthToken()};
+        const [threatResponse,auditResponse]=await Promise.all([
+            fetch("/api/security/threat-history",{headers}),fetch("/api/security/audit",{headers})
+        ]);
+        const threats=await threatResponse.json(),audit=await auditResponse.json();
+        const rows=[
+            ...(threats.history||[]).filter(x=>x.risk==="high"||x.risk==="medium"||x.malicious>0).slice(0,20).map(x=>({title:"Alerta de seguridad",body:`${x.kind||x.source}: ${x.risk||x.malicious+" detecciones"}`})),
+            ...(audit.logs||[]).slice(-20).reverse().map(x=>({title:x.type||"Actividad administrativa",body:x.message||x.action||x.reason||JSON.stringify(x).slice(0,120)}))
+        ];
+        commandPaletteResults.innerHTML=rows.map(x=>`<div class="command-result"><div><b>${escapeHtml(x.title)}</b><small>${escapeHtml(x.body)}</small></div></div>`).join("")||'<p>Sin notificaciones pendientes.</p>';
+    } catch(error) {
+        commandPaletteResults.innerHTML='<p>No se pudieron cargar las notificaciones.</p>';
+    }
 }
 function applyWebDisplayPreferences(){
     let p={compact:"off",font:"normal"};try{p={...p,...JSON.parse(localStorage.getItem("moon_display_preferences")||"{}")};}catch(e){}
@@ -247,7 +261,7 @@ function saveWebDisplayPreferences(){
 }
 
 // --- Tab Management ---
-function switchTab(tabId, btn) {
+function switchTab(tabId, btn, fromHistory = false) {
     const container = document.getElementById('tab-container');
     if(!container) return;
 
@@ -281,6 +295,9 @@ function switchTab(tabId, btn) {
     };
 
     const fileName = fileMap[tabId] || 'dashboard.html';
+    if(!fromHistory && (!history.state || history.state.moonTab !== tabId)) {
+        history.pushState({...(history.state || {}), moonTab: tabId}, "", "#" + tabId);
+    }
     fetch(fileName + '?v=' + Date.now())
     .then(r => r.text())
     .then(html => {
@@ -2219,6 +2236,10 @@ function loadModerationData() {
     });
     loadGroupSuite();
 }
+window.addEventListener("popstate", event => {
+    const tab = event.state && event.state.moonTab;
+    if(tab) switchTab(tab, null, true);
+});
 
 let currentSuiteSnapshot = null;
 const suiteHeaders = () => ({ "Authorization": authToken, "Content-Type": "application/json" });

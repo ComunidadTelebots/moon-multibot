@@ -113,9 +113,9 @@
 
 ### Experiencia web y Mini App (91–100)
 91. Buscador global de acciones y ajustes. **Implementado en v16.88.0.**
-92. Acciones favoritas en la portada. **Fase 1 implementada en v16.88.0 mediante el buscador global; pendiente mostrarlas también como widget de portada.**
-93. Navegación con historial y enlaces internos.
-94. Centro unificado de notificaciones. **Fase visual implementada en v16.88.0; pendiente conectar más eventos del servidor.**
+92. Acciones favoritas en la portada. **Implementado en v16.89.0.**
+93. Navegación con historial y enlaces internos. **Historial de pestañas implementado en v16.89.0.**
+94. Centro unificado de notificaciones. **Conectado a eventos reales en v16.89.0.**
 95. Modo compacto para administradores avanzados. **Implementado en v16.88.0.**
 96. Accesibilidad mejorada y control de tamaño de texto. **Control de tamaño implementado en v16.88.0.**
 97. Temas visuales por grupo.
@@ -126,6 +126,16 @@
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v16.89.0] - 2026-07-25
+### Portada, historial y notificaciones reales
+- Las acciones favoritas aparecen directamente en la portada de la Mini App.
+- Navegación mediante el historial del navegador en la Mini App y el panel web; el botón Atrás recupera la pestaña anterior.
+- Nuevo endpoint autenticado de notificaciones que limita los resultados a grupos administrados por el usuario.
+- Alertas reales de reportes pendientes y decisiones de seguridad multimedia por grupo.
+- El master recibe también las apelaciones pendientes; el panel web agrega amenazas y actividad administrativa.
+- Estado leído persistente y acceso directo al grupo relacionado desde una notificación.
+- Versión visible sincronizada a `v16.89.0`.
 
 ## [v16.88.0] - 2026-07-25
 ### Navegación y productividad
