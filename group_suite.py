@@ -33,6 +33,8 @@ class GroupSuite:
         welcome, consensus = section("welcome"), section("consensus")
         media = section("media_security")
         appearance = section("appearance")
+        slow = section("adaptive_slow")
+        limits = section("content_limits")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -81,12 +83,25 @@ class GroupSuite:
                 "accent": accent,
                 "compact": bool(appearance.get("compact", False)),
             },
+            "adaptive_slow": {
+                "enabled": bool(slow.get("enabled", False)),
+                "base_seconds": max(0, min(int(slow.get("base_seconds", 2)), 30)),
+                "busy_messages": max(10, min(int(slow.get("busy_messages", 40)), 300)),
+                "max_seconds": max(2, min(int(slow.get("max_seconds", 15)), 120)),
+            },
+            "content_limits": {
+                "enabled": bool(limits.get("enabled", False)),
+                "mentions": max(1, min(int(limits.get("mentions", 6)), 50)),
+                "emojis": max(3, min(int(limits.get("emojis", 20)), 200)),
+                "uppercase_percent": max(20, min(int(limits.get("uppercase_percent", 75)), 100)),
+                "action": str(limits.get("action", "delete")) if str(limits.get("action", "delete")) in ("observe", "delete", "warn") else "delete",
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
@@ -162,7 +177,38 @@ class GroupSuite:
     def message_policy(self, chat_id, user_id, text, is_admin=False):
         cid, uid, now = self._cid(chat_id), self._uid(user_id), int(time.time())
         cfg = self.config(cid)
-        result = {"delete": False, "reason": None, "quarantine": False, "rule": None}
+        result = {"delete": False, "reason": None, "quarantine": False, "rule": None, "warn": False, "signals": []}
+        if not is_admin:
+            limits = cfg["content_limits"]
+            mention_count = len(re.findall(r"@\w+|tg://user\?id=\d+", text or "", re.I))
+            emoji_count = len(re.findall(r"[\U0001F300-\U0001FAFF]", text or ""))
+            letters = [char for char in (text or "") if char.isalpha()]
+            upper_percent = round(sum(char.isupper() for char in letters) * 100 / len(letters)) if letters else 0
+            if limits["enabled"]:
+                if mention_count > limits["mentions"]:
+                    result["signals"].append(f"{mention_count} menciones")
+                if emoji_count > limits["emojis"]:
+                    result["signals"].append(f"{emoji_count} emojis")
+                if len(letters) >= 12 and upper_percent > limits["uppercase_percent"]:
+                    result["signals"].append(f"{upper_percent}% mayúsculas")
+                if result["signals"] and limits["action"] != "observe":
+                    result["delete"] = True
+                    result["warn"] = limits["action"] == "warn"
+                    result["reason"] = "límites de contenido: " + ", ".join(result["signals"])
+
+            slow = cfg["adaptive_slow"]
+            if slow["enabled"] and not result["delete"]:
+                activity = self.db.get(f"ADAPTIVE_ACTIVITY_{cid}", [])
+                activity = [float(stamp) for stamp in activity if now - float(stamp) <= 60]
+                activity.append(now)
+                self.db.set(f"ADAPTIVE_ACTIVITY_{cid}", activity[-500:])
+                pressure = min(1.0, len(activity) / slow["busy_messages"])
+                delay = round(slow["base_seconds"] + pressure * (slow["max_seconds"] - slow["base_seconds"]))
+                last_key = f"ADAPTIVE_LAST_{cid}_{uid}"
+                last = float(self.db.get(last_key, 0) or 0)
+                self.db.set(last_key, now)
+                if last and now - last < delay:
+                    result.update({"delete": True, "reason": f"modo lento adaptativo: espera {delay}s"})
         quarantine = self.db.get(f"QUARANTINE_{cid}", {})
         entry = quarantine.get(uid) if isinstance(quarantine, dict) else None
         if entry and not is_admin:
@@ -184,6 +230,21 @@ class GroupSuite:
             if rule.get("action") == "admin_only":
                 result.update({"delete": True, "reason": "regla programada: solo administradores"})
         return result
+
+    def simulate_message(self, chat_id, text):
+        """Simula límites sin alterar contadores, actividad ni sanciones."""
+        cfg = self.config(chat_id)["content_limits"]
+        mentions = len(re.findall(r"@\w+|tg://user\?id=\d+", text or "", re.I))
+        emojis = len(re.findall(r"[\U0001F300-\U0001FAFF]", text or ""))
+        letters = [char for char in (text or "") if char.isalpha()]
+        uppercase = round(sum(char.isupper() for char in letters) * 100 / len(letters)) if letters else 0
+        signals = []
+        if mentions > cfg["mentions"]: signals.append(f"{mentions} menciones")
+        if emojis > cfg["emojis"]: signals.append(f"{emojis} emojis")
+        if len(letters) >= 12 and uppercase > cfg["uppercase_percent"]: signals.append(f"{uppercase}% mayúsculas")
+        return {"would_match": bool(cfg["enabled"] and signals), "signals": signals,
+                "action": cfg["action"] if signals else "allow",
+                "metrics": {"mentions": mentions, "emojis": emojis, "uppercase_percent": uppercase}}
 
     def active_rule(self, chat_id, when=None):
         when = when or datetime.datetime.now()

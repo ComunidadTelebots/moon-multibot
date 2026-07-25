@@ -71,6 +71,24 @@
                 <label><input type="checkbox" id="sqGroupCompact"> Vista compacta</label></div>
                 <button class="btn-glow" onclick="saveGroupSuite()">Guardar tema</button>
             </details>
+            <details><summary>⏱️ Moderación adaptativa y simulador</summary>
+                <div class="suite-grid">
+                    <label><input type="checkbox" id="sqSlowEnabled"> Modo lento adaptativo</label>
+                    <label><input type="checkbox" id="sqLimitsEnabled"> Límites de contenido</label>
+                    <input id="sqSlowBase" class="input-style" type="number" min="0" max="30" placeholder="Espera base">
+                    <input id="sqSlowMax" class="input-style" type="number" min="2" max="120" placeholder="Espera máxima">
+                    <input id="sqLimitMentions" class="input-style" type="number" min="1" max="50" placeholder="Máximo menciones">
+                    <input id="sqLimitEmojis" class="input-style" type="number" min="3" max="200" placeholder="Máximo emojis">
+                    <input id="sqLimitUppercase" class="input-style" type="number" min="20" max="100" placeholder="% mayúsculas">
+                    <select id="sqLimitAction" class="input-style"><option value="observe">Observar</option><option value="delete">Eliminar</option><option value="warn">Eliminar y avisar</option></select>
+                </div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar moderación</button>
+                <textarea id="sqSimulationText" class="input-style" rows="3" placeholder="Mensaje de prueba; no ejecutará ninguna acción"></textarea>
+                <button class="btn-glow" onclick="simulateSuiteMessage()">Simular reglas</button><pre id="sqSimulationOutput" class="suite-output"></pre>
+                <button class="btn-glow" onclick="reviewSuiteSanctions()">Revisar sanciones caducadas</button>
+                <div class="suite-grid"><input id="sqTempBanUid" class="input-style" placeholder="ID usuario"><input id="sqTempBanHours" class="input-style" type="number" value="24" min="1" max="720"></div>
+                <input id="sqTempBanReason" class="input-style" placeholder="Motivo de la sanción"><button class="btn-glow" onclick="createTemporaryBan()">Crear ban temporal</button>
+            </details>
             <details><summary>⏰ Reglas programadas</summary>
                 <div class="suite-grid"><input id="sqRuleStart" class="input-style" type="time"><input id="sqRuleEnd" class="input-style" type="time"></div>
                 <button class="btn-glow" onclick="addSuiteRule()">Añadir tramo solo administradores</button>

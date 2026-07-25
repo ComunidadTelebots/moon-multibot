@@ -3754,7 +3754,8 @@ class MoonBot:
             return False
         quarantined = str(uid) in db.get(f"QUARANTINE_{cid}", {})
         active_rule = group_suite.active_rule(cid)
-        if not quarantined and not active_rule:
+        suite_cfg = group_suite.config(cid)
+        if not quarantined and not active_rule and not suite_cfg["adaptive_slow"]["enabled"] and not suite_cfg["content_limits"]["enabled"]:
             return False
         rank = self.get_user_rank(cid, uid)
         policy = group_suite.message_policy(
@@ -3763,6 +3764,10 @@ class MoonBot:
         if not policy["delete"]:
             return False
         self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+        if policy.get("warn"):
+            warns = db.get(f"WARNS_{cid}", {})
+            warns[str(uid)] = int(warns.get(str(uid), 0)) + 1
+            db.set(f"WARNS_{cid}", warns)
         self.send_msg(cid, f"🛡️ {uname}: mensaje retenido ({policy['reason']}).")
         add_audit_log(f"Group Suite eliminó mensaje de {uid} en {cid}: {policy['reason']}")
         return True

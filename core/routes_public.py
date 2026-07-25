@@ -637,6 +637,53 @@ def group_suite_summary():
     return jsonify({"ok": True, "summary": _group_suite().summary(chat_id)})
 
 
+@bp.route("/api/public/group/suite/simulate", methods=["POST", "OPTIONS"])
+def group_suite_simulate():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    return jsonify({"ok": True, "simulation": _group_suite().simulate_message(chat_id, body.get("text", ""))})
+
+
+@bp.route("/api/public/group/suite/sanctions/review", methods=["POST", "OPTIONS"])
+def group_suite_sanctions_review():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    return jsonify({"ok": True, **_ban_manager.review_local_expirations(chat_id)})
+
+
+@bp.route("/api/public/group/suite/sanctions/temporary-ban", methods=["POST", "OPTIONS"])
+def group_suite_temporary_ban():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    uid = str(body.get("user_id", "")).strip()
+    hours = _bounded_int(body.get("hours"), 24, 1, 720)
+    if not uid.isdigit():
+        return jsonify({"ok": False, "error": "ID de usuario inválido"}), 400
+    expires = datetime.datetime.now() + datetime.timedelta(hours=hours)
+    _ban_manager.ban_local_user(chat_id, uid, body.get("reason") or "Sanción temporal",
+                                "group_admin", expires.isoformat())
+    bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
+    if bot:
+        bot.api_call("banChatMember", {"chat_id": chat_id, "user_id": uid,
+                                       "until_date": int(expires.timestamp())}, silent=True)
+    return jsonify({"ok": True, "user_id": uid, "expires_at": expires.isoformat()})
+
+
 @bp.route("/api/public/group/suite/template", methods=["POST", "OPTIONS"])
 def group_suite_template():
     if request.method == "OPTIONS":

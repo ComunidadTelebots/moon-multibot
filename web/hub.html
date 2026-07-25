@@ -569,6 +569,18 @@
         <label class="setrow"><b>Vista compacta del grupo</b><input id="maCompact" type="checkbox" ${c.appearance.compact?"checked":""}></label>
         <button class="btn teal" id="maSave">Guardar tema</button>
       </div></div>
+      <div class="dropdown"><div class="dhead">Moderación adaptativa <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <label class="setrow"><b>Modo lento adaptativo</b><input id="madSlow" type="checkbox" ${c.adaptive_slow.enabled?"checked":""}></label>
+        <div class="btnrow"><input id="madSlowBase" type="number" value="${c.adaptive_slow.base_seconds}" placeholder="Espera base"><input id="madSlowMax" type="number" value="${c.adaptive_slow.max_seconds}" placeholder="Espera máxima"></div>
+        <label class="setrow"><b>Límites de contenido</b><input id="madLimits" type="checkbox" ${c.content_limits.enabled?"checked":""}></label>
+        <div class="btnrow"><input id="madMentions" type="number" value="${c.content_limits.mentions}" placeholder="Menciones"><input id="madEmojis" type="number" value="${c.content_limits.emojis}" placeholder="Emojis"></div>
+        <input id="madUpper" type="number" value="${c.content_limits.uppercase_percent}" placeholder="% mayúsculas">
+        <select id="madAction"><option value="observe">Observar</option><option value="delete">Eliminar</option><option value="warn">Eliminar y avisar</option></select>
+        <button class="btn teal" id="madSave">Guardar moderación</button>
+        <textarea id="madSimulation" rows="2" placeholder="Mensaje para simular"></textarea><button class="btn ghost" id="madSimulate">Simular sin ejecutar</button><pre id="madOutput" class="muted"></pre>
+        <button class="btn ghost" id="madReview">Revisar sanciones caducadas</button>
+        <div class="btnrow"><input id="madBanUid" inputmode="numeric" placeholder="ID usuario"><input id="madBanHours" type="number" value="24" min="1" max="720" placeholder="Horas"></div><input id="madBanReason" placeholder="Motivo"><button class="btn ghost" id="madTempBan">Crear ban temporal</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Reglas programadas (${c.rules.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <div id="msRules">${c.rules.map((r,i)=>`<div class="userchip"><span>${escHtml(r.start)}–${escHtml(r.end)} · solo admins</span><span class="minibtn red" data-rule="${i}">Quitar</span></div>`).join("")||'<p class="muted">Sin reglas.</p>'}</div>
         <div class="btnrow"><input id="msStart" type="time"><input id="msEnd" type="time"></div><button class="btn ghost" id="msAddRule">Añadir tramo</button>
@@ -594,9 +606,14 @@
     const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
     maAccent.value=c.appearance.accent;applyGroupAppearance(c.appearance);
     const saveAppearance=()=>gp("/group/suite/settings",{config:{appearance:{accent:maAccent.value,compact:maCompact.checked}}}).then(()=>{showToast("Tema del grupo guardado");loadGroupSuiteMini();});
+    madAction.value=c.content_limits.action;
+    const saveAdaptive=()=>gp("/group/suite/settings",{config:{adaptive_slow:{...c.adaptive_slow,enabled:madSlow.checked,base_seconds:+madSlowBase.value,max_seconds:+madSlowMax.value},content_limits:{enabled:madLimits.checked,mentions:+madMentions.value,emojis:+madEmojis.value,uppercase_percent:+madUpper.value,action:madAction.value}}}).then(()=>{showToast("Moderación guardada");loadGroupSuiteMini();});
     msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
     mmSave.onclick=saveMedia;
     maSave.onclick=saveAppearance;
+    madSave.onclick=saveAdaptive;madSimulate.onclick=()=>gp("/group/suite/simulate",{text:madSimulation.value}).then(x=>madOutput.textContent=JSON.stringify(x.simulation||x,null,2));
+    madReview.onclick=()=>gp("/group/suite/sanctions/review",{}).then(x=>showToast(`${x.expired||0} sanciones caducadas`));
+    madTempBan.onclick=()=>gp("/group/suite/sanctions/temporary-ban",{user_id:madBanUid.value,hours:+madBanHours.value,reason:madBanReason.value}).then(x=>showToast(x.ok?`Ban hasta ${new Date(x.expires_at).toLocaleString()}`:(x.error||"Error")));
     host.querySelectorAll("[data-rule]").forEach(x=>x.onclick=()=>{c.rules.splice(+x.dataset.rule,1);save();});
     host.querySelectorAll("[data-report]").forEach(x=>x.onclick=()=>gp("/group/suite/report/resolve",{report_id:x.dataset.report,decision:"reviewed"}).then(loadGroupSuiteMini));
     mpCreate.onclick=()=>gp("/group/suite/consensus",{target_id:mpUid.value,action:mpAction.value,reason:mpReason.value}).then(loadGroupSuiteMini);

@@ -155,7 +155,23 @@ class BanManager:
         return data
 
     def is_local_banned(self, cid, uid) -> bool:
-        return self._normalize_uid(uid) in set(self.get_local_bans(cid).get("users", []))
+        cid_str, uid_str = self._normalize_cid(cid), self._normalize_uid(uid)
+        data = self.get_local_bans(cid_str)
+        expiry = data.get("expires", {}) if isinstance(data.get("expires"), dict) else {}
+        expires_at = expiry.get(uid_str)
+        if expires_at:
+            try:
+                if datetime.datetime.fromisoformat(str(expires_at)) <= datetime.datetime.now():
+                    data["users"] = [item for item in data["users"] if item != uid_str]
+                    expiry.pop(uid_str, None)
+                    data["expires"] = expiry
+                    self.db.set(self._local_key(cid_str), data)
+                    self._record(uid_str, "Sanción local expirada", "automatic_expiry",
+                                 scope="local", cid=cid_str, action="expire")
+                    return False
+            except (TypeError, ValueError):
+                pass
+        return uid_str in set(data.get("users", []))
 
     def is_banned(self, uid, cid=None) -> bool:
         if self.is_global_banned(uid):
@@ -199,7 +215,7 @@ class BanManager:
             self._record(uid_str, reason, source, scope="global")
         return created
 
-    def ban_local_user(self, cid, uid, reason="", source="manual") -> bool:
+    def ban_local_user(self, cid, uid, reason="", source="manual", expires_at=None) -> bool:
         """Banea un usuario solo para un grupo concreto."""
         uid_str = self._normalize_uid(uid)
         cid_str = self._normalize_cid(cid)
@@ -211,6 +227,8 @@ class BanManager:
             return False
 
         data["users"].append(uid_str)
+        if expires_at:
+            data.setdefault("expires", {})[uid_str] = str(expires_at)
         self.db.set(self._local_key(cid_str), data)
         self._record(uid_str, reason, source, scope="local", cid=cid_str)
         return True
@@ -238,6 +256,14 @@ class BanManager:
         self._save_registry(records)
         self._record(uid_str, "Manual global unban", "manual", scope="global", action="unban")
         return True
+
+    def review_local_expirations(self, cid):
+        data = self.get_local_bans(cid)
+        before = set(data.get("users", []))
+        for uid in list(before):
+            self.is_local_banned(cid, uid)
+        after = set(self.get_local_bans(cid).get("users", []))
+        return {"reviewed": len(before), "expired": len(before - after), "active": len(after)}
 
     def unban_local_user(self, cid, uid) -> bool:
         uid_str = self._normalize_uid(uid)

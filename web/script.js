@@ -2285,6 +2285,8 @@ function loadGroupSuite() {
         sqMediaSensitive.checked=media.sensitive; sqMediaAction.value=media.action;
         sqMediaThreshold.value=media.threshold; sqMediaVt.value=media.vt_malicious;
         sqGroupAccent.value=c.appearance.accent;sqGroupCompact.checked=c.appearance.compact;
+        sqSlowEnabled.checked=c.adaptive_slow.enabled;sqSlowBase.value=c.adaptive_slow.base_seconds;sqSlowMax.value=c.adaptive_slow.max_seconds;
+        sqLimitsEnabled.checked=c.content_limits.enabled;sqLimitMentions.value=c.content_limits.mentions;sqLimitEmojis.value=c.content_limits.emojis;sqLimitUppercase.value=c.content_limits.uppercase_percent;sqLimitAction.value=c.content_limits.action;
         sqMediaEvents.innerHTML=(data.media_events||[]).slice(0,10).map(x=>`<div class="mod-item"><span>${suiteEsc(x.source)} · ${suiteEsc(x.user||x.user_id||"")} · ${suiteEsc(x.reason)} · ${suiteEsc(x.action_applied||x.action)}</span></div>`).join("")||"<p>Sin decisiones multimedia.</p>";
         sqRules.innerHTML=c.rules.length?c.rules.map((x,i)=>`<div class="mod-item">${suiteEsc(x.start)}–${suiteEsc(x.end)} · ${suiteEsc(x.action)} <button class="btn-mod-mini" onclick="removeSuiteRule(${i})">Quitar</button></div>`).join(""):"<p>Sin reglas.</p>";
         sqReports.innerHTML=data.reports.length?data.reports.map(x=>`<div class="mod-item"><span>${suiteEsc(x.target_id)} · ${suiteEsc(x.reason)} · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<span><button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','reviewed')">Revisado</button> <button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','dismissed')">Descartar</button></span>`:""}</div>`).join(""):"<p>Sin reportes.</p>";
@@ -2306,7 +2308,9 @@ function saveGroupSuite() {
             impersonation:sqMediaImpersonation.checked,sensitive:sqMediaSensitive.checked,
             action:sqMediaAction.value,threshold:+sqMediaThreshold.value,
             vt_malicious:+sqMediaVt.value},
-        appearance:{accent:sqGroupAccent.value,compact:sqGroupCompact.checked}
+        appearance:{accent:sqGroupAccent.value,compact:sqGroupCompact.checked},
+        adaptive_slow:{...(old.adaptive_slow||{}),enabled:sqSlowEnabled.checked,base_seconds:+sqSlowBase.value,max_seconds:+sqSlowMax.value},
+        content_limits:{enabled:sqLimitsEnabled.checked,mentions:+sqLimitMentions.value,emojis:+sqLimitEmojis.value,uppercase_percent:+sqLimitUppercase.value,action:sqLimitAction.value}
     };
     fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config})})
     .then(r=>r.json()).then(d=>{if(d.ok){showToast("✅ Suite guardada","Protección actualizada.");loadGroupSuite();}});
@@ -2323,6 +2327,9 @@ function loadSuiteSummary(){fetch(`/api/moderation/${currentModCid}/suite/summar
 function saveSuiteTemplate(){suiteAction("template_save",{name:sqTemplateName.value||"Plantilla"}).then(loadGroupSuite);}
 function applySuiteTemplate(template_id){if(confirm("¿Aplicar esta configuración al grupo?"))suiteAction("template_apply",{template_id}).then(loadGroupSuite);}
 function exportSuiteBackup(){const blob=new Blob([JSON.stringify(currentSuiteSnapshot,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`grupo-${currentModCid}-backup.json`;a.click();URL.revokeObjectURL(a.href);}
+function simulateSuiteMessage(){fetch(`/api/moderation/${currentModCid}/suite/simulate`,{method:"POST",headers:suiteHeaders(),body:JSON.stringify({text:sqSimulationText.value})}).then(r=>r.json()).then(d=>sqSimulationOutput.textContent=JSON.stringify(d.simulation||d,null,2));}
+function reviewSuiteSanctions(){fetch(`/api/moderation/${currentModCid}/suite/sanctions/review`,{method:"POST",headers:suiteHeaders()}).then(r=>r.json()).then(d=>showToast("Sanciones revisadas",`${d.expired||0} caducadas · ${d.active||0} activas`));}
+function createTemporaryBan(){fetch(`/api/moderation/${currentModCid}/suite/sanctions/temporary-ban`,{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id:sqTempBanUid.value,hours:+sqTempBanHours.value,reason:sqTempBanReason.value})}).then(r=>r.json()).then(d=>showToast(d.ok?"Ban temporal creado":"Error",d.ok?d.expires_at:(d.error||"No se pudo aplicar")));}
 
 function webUnwarn(target) {
     if (!currentModCid) return;

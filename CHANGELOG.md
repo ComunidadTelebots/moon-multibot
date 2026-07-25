@@ -4,16 +4,16 @@
 > Estas funciones son propuestas priorizables y todavía no se consideran implementadas.
 
 ### Moderación y seguridad (1–10)
-1. Modo lento adaptativo según el volumen y riesgo del chat.
+1. Modo lento adaptativo según el volumen y riesgo del chat. **Implementado en v16.91.0.**
 2. Detección coordinada de raids entre varios grupos.
 3. Cuarentena reforzada por nivel de reputación.
 4. Bloqueo de suplantaciones de administradores.
 5. Detección de enlaces acortados y redirecciones encadenadas.
 6. Análisis de archivos peligrosos por hash y tipo MIME.
-7. Límites personalizados de menciones, emojis y mayúsculas.
+7. Límites personalizados de menciones, emojis y mayúsculas. **Implementado en v16.91.0.**
 8. Reincidencia compartida entre grupos autorizados.
-9. Simulación previa de reglas antes de activarlas.
-10. Caducidad y revisión automática de sanciones.
+9. Simulación previa de reglas antes de activarlas. **Implementado en v16.91.0.**
+10. Caducidad y revisión automática de sanciones. **Implementado en v16.91.0.**
 
 ### Miembros y comunidad (11–20)
 11. Perfil comunitario con actividad, karma y roles.
@@ -126,6 +126,19 @@
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v16.91.0] - 2026-07-25
+### Moderación adaptativa
+- Modo lento dinámico por grupo, calculado según la actividad del último minuto y con espera mínima y máxima configurables.
+- Límites independientes para menciones, emojis y porcentaje de mayúsculas.
+- Acciones de observación, eliminación o eliminación con advertencia; los administradores quedan excluidos.
+- Simulador seguro que muestra métricas, señales y acción prevista sin modificar contadores ni ejecutar medidas.
+
+### Sanciones temporales
+- Los baneos locales admiten fecha de expiración y se limpian automáticamente al consultarlos.
+- Revisión manual de sanciones caducadas desde la Mini App y el panel web.
+- Historial de expiración registrado para auditoría.
+- Versión visible sincronizada a `v16.91.0`.
 
 ## [v16.90.0] - 2026-07-25
 ### Personalización y ayuda

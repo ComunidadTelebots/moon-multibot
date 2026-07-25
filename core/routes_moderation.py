@@ -1,3 +1,4 @@
+import datetime
 import time
 
 from flask import Blueprint, request, jsonify
@@ -228,3 +229,40 @@ def web_suite_summary(cid):
     if not _check_jwt(request):
         return jsonify({"ok": False}), 401
     return jsonify({"ok": True, "summary": _suite().summary(cid)})
+
+
+@bp.route("/api/moderation/<cid>/suite/simulate", methods=["POST"])
+def web_suite_simulate(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "simulation": _suite().simulate_message(cid, (request.json or {}).get("text", ""))})
+
+
+@bp.route("/api/moderation/<cid>/suite/sanctions/review", methods=["POST"])
+def web_suite_sanctions_review(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **_ban_manager.review_local_expirations(cid)})
+
+
+@bp.route("/api/moderation/<cid>/suite/sanctions/temporary-ban", methods=["POST"])
+def web_suite_temporary_ban(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    uid = str(body.get("user_id", "")).strip()
+    try:
+        hours = max(1, min(int(body.get("hours", 24)), 720))
+    except (TypeError, ValueError):
+        hours = 24
+    if not uid.isdigit():
+        return jsonify({"ok": False, "error": "ID de usuario inválido"}), 400
+    expires = time.time() + hours * 3600
+    expires_iso = datetime.datetime.fromtimestamp(expires).isoformat()
+    _ban_manager.ban_local_user(cid, uid, body.get("reason") or "Sanción temporal",
+                                "master_web", expires_iso)
+    bot = _get_bot_for_chat(cid) if _get_bot_for_chat else None
+    if bot:
+        bot.api_call("banChatMember", {"chat_id": cid, "user_id": uid,
+                                       "until_date": int(expires)}, silent=True)
+    return jsonify({"ok": True, "user_id": uid, "expires_at": expires_iso})
