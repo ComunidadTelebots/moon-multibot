@@ -944,6 +944,27 @@ function testIA() {
     });
 }
 
+async function lookupWayback() {
+    const url = document.getElementById("waybackUrl")?.value.trim();
+    const timestamp = document.getElementById("waybackTimestamp")?.value.trim();
+    const out = document.getElementById("waybackResult");
+    if (!url || !out) return showToast("Wayback", "Introduce una URL.");
+    out.innerHTML = "<i>Consultando Internet Archive...</i>";
+    try {
+        const response = await fetch("/api/security/wayback/lookup", {
+            method: "POST",
+            headers: {"Authorization": authToken, "Content-Type": "application/json"},
+            body: JSON.stringify({url, timestamp})
+        });
+        const result = await response.json();
+        if (!result.ok) out.innerHTML = `<div class="vt-card">Error: ${escapeHtml(result.error || "Consulta fallida")}</div>`;
+        else if (!result.available) out.innerHTML = `<div class="vt-card">No existe una copia accesible.</div>`;
+        else out.innerHTML = `<div class="vt-card"><b>Copia encontrada</b><br>${escapeHtml(result.snapshot_timestamp || "")} · HTTP ${escapeHtml(result.status || "—")}<br><a href="${escapeHtml(result.snapshot_url)}" target="_blank" rel="noopener noreferrer">Abrir copia archivada</a></div>`;
+    } catch (error) {
+        out.innerHTML = `<div class="vt-card">No se pudo conectar con Internet Archive.</div>`;
+    }
+}
+
 function addIAFeeder() {
     const input = document.getElementById("feederInput");
     if(!input || !input.value) return;

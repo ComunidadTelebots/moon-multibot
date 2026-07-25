@@ -648,6 +648,9 @@ from core import channel_stats
 from core import image_gen
 from core.pb_client import PBClient
 from core.config import POCKETBASE_URL, PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD
+from core.wayback import WaybackClient
+
+wayback = WaybackClient(db, add_web_log)
 
 # Directorio de canales (hub público): almacenado en PocketBase (fuente única).
 pb_channels = PBClient(POCKETBASE_URL, PB_SUPERUSER_EMAIL, PB_SUPERUSER_PASSWORD, log=add_web_log)
@@ -689,6 +692,7 @@ app.register_blueprint(_setup_security(
     vt_mgr=vt_mgr,
     add_web_log=add_web_log,
     check_cas_status=check_cas_status,
+    wayback=wayback,
 ))
 app.register_blueprint(_setup_queue(
     check_jwt=check_jwt,
@@ -4435,6 +4439,7 @@ class MoonBot:
             "listen": "Activa el aprendizaje supervisado sobre el grupo.",
             "backup_db": "Crea una copia inmediata de la base de datos.",
             "ping": "Comprueba rápidamente que el bot está funcionando.",
+            "wayback": "Busca la copia archivada más cercana de una URL en Wayback Machine. Admite una fecha opcional YYYYMMDD.",
         }
 
     @staticmethod
@@ -4562,6 +4567,7 @@ class MoonBot:
             help_text = "ðŸ“– **MANUAL DE OPERACIONES MOON**\n\n"
             help_text += "âœ¨ **General:** `/perfil`, `/top`, `/notas`, `/search`, `/ia_info`\n"
             help_text += "ðŸŒ **TraducciÃ³n:** `/traducir`, `/aprender_traduccion es en hola = hello`\n"
+            help_text += "🕰 **Archivo web:** `/wayback URL [YYYYMMDD]`\n"
             if rk in ["Admin", "Master"]:
                 help_text += "ðŸ›¡ï¸ **ModeraciÃ³n:** `/mute`, `/ban`, `/unban`, `/gban`, `/ungban`, `/warn`\n"
                 help_text += "âš™ï¸ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`, `/ia_programar`\n"
@@ -4591,6 +4597,24 @@ class MoonBot:
 
         if raw_cmd == "/ping":
             self.send_msg(cid, "ðŸ“ **PONG!** NÃºcleo Moon sincronizado.")
+            return True
+
+        if raw_cmd in ("/wayback", "/archivo", "/archive"):
+            if not args:
+                self.send_msg(cid, "Uso: `/wayback https://ejemplo.com [YYYYMMDD]`")
+                return True
+            result = wayback.lookup(args[0], args[1] if len(args) > 1 else None)
+            if not result.get("ok"):
+                self.send_msg(cid, f"❌ Wayback Machine: {result.get('error', 'consulta fallida')}")
+            elif result.get("available"):
+                self.send_msg(
+                    cid, "🕰 **Copia encontrada**\n"
+                    f"Fecha: `{result.get('snapshot_timestamp')}`\n"
+                    f"Estado: `{result.get('status')}`\n"
+                    f"{result.get('snapshot_url')}",
+                )
+            else:
+                self.send_msg(cid, "🕰 No hay una copia accesible de esa URL en Wayback Machine.")
             return True
 
         if raw_cmd in ["/games", "/juegos", "/jeux", "/spiele", "/giochi", "/jogos", "/gry", "/oyunlar"]:

@@ -16,6 +16,7 @@ _db = None
 _vt_mgr = None
 _add_web_log = None
 _check_cas_status = None
+_wayback = None
 _MAX_SCAN_BYTES = 10 * 1024 * 1024
 
 
@@ -27,14 +28,31 @@ def _append_threat_history(item):
     _db.set("THREAT_ANALYSIS_HISTORY", rows[-300:])
 
 
-def setup(check_jwt, db, vt_mgr, add_web_log, check_cas_status):
-    global _check_jwt, _db, _vt_mgr, _add_web_log, _check_cas_status
+def setup(check_jwt, db, vt_mgr, add_web_log, check_cas_status, wayback):
+    global _check_jwt, _db, _vt_mgr, _add_web_log, _check_cas_status, _wayback
     _check_jwt = check_jwt
     _db = db
     _vt_mgr = vt_mgr
     _add_web_log = add_web_log
     _check_cas_status = check_cas_status
+    _wayback = wayback
     return bp
+
+
+@bp.route("/api/security/wayback/lookup", methods=["POST"])
+def api_wayback_lookup():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    result = _wayback.lookup(body.get("url"), body.get("timestamp"))
+    return jsonify(result), 200 if result.get("ok") else 400
+
+
+@bp.route("/api/security/wayback/history")
+def api_wayback_history():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "history": _wayback.history()})
 
 
 @bp.route("/api/health/telegram")

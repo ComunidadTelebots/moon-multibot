@@ -63,6 +63,15 @@
         </div>
 
         <div class="glass-panel mt-20">
+            <h3>🕰 Wayback Machine</h3>
+            <p class="subtitle">Consulta si existe una copia histórica de una página web.</p>
+            <input id="waybackUrl" class="input-style" placeholder="https://ejemplo.com">
+            <input id="waybackTimestamp" class="input-style" inputmode="numeric" maxlength="14" placeholder="Fecha opcional: YYYYMMDD" style="margin-top:10px">
+            <button class="btn-glow-mini" onclick="lookupWayback()" style="margin-top:10px">BUSCAR COPIA</button>
+            <div id="waybackResult" class="mt-20"></div>
+        </div>
+
+        <div class="glass-panel mt-20">
             <h3 data-i18n="sec_firewall_title">🔥 Firewall de Red</h3>
             <p class="subtitle" data-i18n="sec_firewall_subtitle">Control de IPs y bloqueos automáticos.</p>
             <div id="blacklistContainer" style="margin-top: 15px;">

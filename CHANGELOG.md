@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v17.6.0 - Integración con Wayback Machine
+
+- Cliente para la Availability JSON API oficial de Internet Archive.
+- Consulta de la captura disponible más próxima, con fecha opcional `YYYYMMDDhhmmss`.
+- Validación de URL, bloqueo de direcciones locales/privadas, timeout y errores controlados.
+- Comandos `/wayback`, `/archivo` y `/archive` para todos los usuarios.
+- Consulta equivalente en el Centro de Seguridad web y en la Mini App del master.
+- Historial local limitado de consultas sin descargar ni ejecutar el contenido archivado.
+
 ## v17.5.1 - Recuperación del panel de canales
 
 - Migración completa de los campos de `tg_channels` y `tg_channel_admins` en instalaciones antiguas.

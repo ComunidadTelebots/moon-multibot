@@ -1631,6 +1631,11 @@
       <input id="masterVtValue" placeholder="Pega un hash, URL o dominio…" style="margin-top:8px">
       <input id="masterVtFile" type="file" style="margin-top:8px" hidden>
       <button class="btn teal" id="masterVtAnalyze" style="margin-top:8px">Analizar con VirusTotal</button><div id="masterVtResult"></div>
+      <div class="gsec">Wayback Machine</div>
+      <p class="muted">Busca la copia archivada más cercana; la fecha es opcional y usa YYYYMMDD.</p>
+      <input id="masterWaybackUrl" placeholder="https://ejemplo.com">
+      <div class="btnrow" style="margin-top:8px"><input id="masterWaybackDate" inputmode="numeric" maxlength="14" placeholder="Fecha opcional"><button class="btn ghost" id="masterWaybackCheck" style="width:auto">Buscar copia</button></div>
+      <div id="masterWaybackResult"></div>
       <div class="gsec">Consultar CAS</div>
       <div class="btnrow"><input id="masterCasUid" inputmode="numeric" placeholder="ID de Telegram"><button class="btn ghost" id="masterCasCheck" style="width:auto">Consultar</button></div>
       <div id="masterCasResult"></div>
@@ -1646,6 +1651,7 @@
       document.getElementById("masterVtFile").hidden=!file;document.getElementById("masterVtValue").hidden=file;
     };
     document.getElementById("masterVtAnalyze").onclick=analyzeMasterVirusTotal;
+    document.getElementById("masterWaybackCheck").onclick=checkMasterWayback;
     document.getElementById("masterCasCheck").onclick=checkMasterCas;
   }
   function renderMasterThreatResult(result){
@@ -1674,6 +1680,15 @@
     if(kind==="file"){const input=document.getElementById("masterVtFile");if(!input.files[0]){showToast("Selecciona un archivo");out.innerHTML="";return;}const form=new FormData();form.append("file",input.files[0]);result=await masterApi("/api/security/vt/file",{method:"POST",body:form});}
     else{const value=document.getElementById("masterVtValue").value.trim();if(!value){showToast("Introduce el valor que quieres analizar");out.innerHTML="";return;}result=await masterApi("/api/security/vt/analyze",{method:"POST",body:JSON.stringify({kind,value})});}
     out.innerHTML=renderMasterThreatResult(result);if(result&&result.link){const b=document.getElementById("masterVtOpen");if(b)b.onclick=()=>openLink(result.link);}
+  }
+  async function checkMasterWayback(){
+    const url=document.getElementById("masterWaybackUrl").value.trim(),timestamp=document.getElementById("masterWaybackDate").value.trim(),out=document.getElementById("masterWaybackResult");
+    if(!url){showToast("Introduce una URL");return;}
+    out.innerHTML='<p class="muted">Consultando Internet Archive…</p>';
+    const result=await masterApi("/api/security/wayback/lookup",{method:"POST",body:JSON.stringify({url,timestamp})});
+    if(!result||!result.ok){out.innerHTML=`<div class="master-error" style="margin-top:9px">${escHtml(result&&result.error||"Consulta fallida")}</div>`;return;}
+    out.innerHTML=result.available?`<div class="casbox" style="margin-top:9px"><span class="clean">Copia encontrada</span><br><b>${escHtml(result.snapshot_timestamp||"")}</b> · HTTP ${escHtml(result.status||"—")}<br><button class="minibtn" id="masterWaybackOpen" style="margin-top:8px">Abrir copia</button></div>`:`<div class="casbox" style="margin-top:9px">No hay una copia accesible de esta URL.</div>`;
+    const open=document.getElementById("masterWaybackOpen");if(open)open.onclick=()=>openLink(result.snapshot_url);
   }
   async function toggleMasterShield(){
     if(!await masterConfirm("¿Cambiar el estado del escudo neural?"))return;
