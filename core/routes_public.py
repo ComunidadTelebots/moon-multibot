@@ -23,6 +23,7 @@ from flask import Blueprint, request, jsonify
 from . import image_gen
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
+from community_members import CommunityMembers
 
 bp = Blueprint("public", __name__)
 
@@ -1102,6 +1103,7 @@ def public_notifications():
     user = _verify_init_data((request.json or {}).get("initData", ""))
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
+    preferences = CommunityMembers(_db).preferences(user.get("id"))
     channels = (
         _channel_stats.get_all_channels() if _is_master(user)
         else _channel_stats.get_user_channels(user.get("id"))
@@ -1137,8 +1139,83 @@ def public_notifications():
                     "body": f"Usuario {appeal.get('user_id')}: {appeal.get('message') or 'Revisión solicitada'}",
                     "created_at": appeal.get("created_at"),
                 })
+    rows = [row for row in rows if (
+        (row.get("type") == "security" and preferences["security"]) or
+        (row.get("type") in ("report", "appeal") and preferences["reports"]) or
+        row.get("type") not in ("security", "report", "appeal")
+    )]
     rows.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
     return jsonify({"ok": True, "notifications": rows[:100]})
+
+
+def _community_members():
+    return CommunityMembers(_db)
+
+
+@bp.route("/api/public/community/me", methods=["POST", "OPTIONS"])
+def community_me():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    manager = _community_members()
+    if body.get("profile") and isinstance(body["profile"], dict):
+        profile = manager.update_profile(user.get("id"), {**body["profile"], "name": user.get("first_name")})
+    else:
+        profile = manager.profile(user.get("id"), user.get("first_name"))
+    return jsonify({"ok": True, "profile": profile,
+                    "preferences": manager.preferences(user.get("id")),
+                    "reminders": manager.reminders(user.get("id"))})
+
+
+@bp.route("/api/public/community/role-request", methods=["POST", "OPTIONS"])
+def community_role_request():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    item = _community_members().request_role(user.get("id"), body.get("role"), body.get("reason"))
+    return jsonify({"ok": bool(item), "request": item}), 200 if item else 400
+
+
+@bp.route("/api/public/community/reminder", methods=["POST", "OPTIONS"])
+def community_reminder():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    try:
+        item = _community_members().reminder(user.get("id"), body.get("text", ""), body.get("remind_at"))
+        return jsonify({"ok": True, "reminder": item})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/public/community/preferences", methods=["POST", "OPTIONS"])
+def community_preferences():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    return jsonify({"ok": True, "preferences": _community_members().preferences(user.get("id"), body.get("preferences") or {})})
+
+
+@bp.route("/api/public/community/directory", methods=["POST", "OPTIONS"])
+def community_directory():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    user = _verify_init_data((request.json or {}).get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    return jsonify({"ok": True, "members": _community_members().directory()})
 
 
 # ─────────────────────────── Captcha de entrada (Join Request Queries) ──────────

@@ -1,6 +1,7 @@
 import time
 
 from flask import Blueprint, jsonify, request
+from community_members import CommunityMembers
 
 bp = Blueprint("users_routes", __name__)
 
@@ -181,3 +182,52 @@ def web_heatmap():
         except Exception:
             pass
     return jsonify({"ok": True, "heatmap": counts})
+
+
+@bp.route("/api/users/community")
+def web_community_members():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    manager = CommunityMembers(_db)
+    profiles = _db.get("COMMUNITY_PROFILES", {})
+    profiles = profiles if isinstance(profiles, dict) else {}
+    return jsonify({"ok": True, "profiles": [manager.profile(uid) for uid in profiles],
+                    "role_requests": manager.role_requests(request.args.get("status"))})
+
+
+@bp.route("/api/users/community/xp", methods=["POST"])
+def web_community_xp():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    return jsonify({"ok": True, "profile": CommunityMembers(_db).add_xp(
+        body.get("user_id"), body.get("amount", 0), body.get("reason", "admin")
+    )})
+
+
+@bp.route("/api/users/community/role-request/resolve", methods=["POST"])
+def web_community_role_resolve():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    if body.get("decision") not in ("approved", "rejected"):
+        return jsonify({"ok": False, "error": "decisión inválida"}), 400
+    item = CommunityMembers(_db).resolve_role(body.get("request_id"), body["decision"], "master_web")
+    return jsonify({"ok": bool(item), "request": item}), 200 if item else 404
+
+
+@bp.route("/api/users/community/recognize", methods=["POST"])
+def web_community_recognize():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **CommunityMembers(_db).weekly_recognition((request.json or {}).get("limit", 5))})
+
+
+@bp.route("/api/users/community/verify", methods=["POST"])
+def web_community_verify():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    return jsonify({"ok": True, "profile": CommunityMembers(_db).verify(
+        body.get("user_id"), body.get("verified", True)
+    )})

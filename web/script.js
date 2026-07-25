@@ -2200,7 +2200,19 @@ function loadModerationTab() {
     });
     // Cargar leaderboard
     refreshLeaderboard();
+    loadCommunityAdmin();
 }
+function loadCommunityAdmin(){
+    const host=document.getElementById("communityAdminPanel");if(!host)return;
+    fetch("/api/users/community?status=pending",{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>{
+        const profiles=d.profiles||[],requests=d.role_requests||[];
+        host.innerHTML=`<div class="suite-grid">${profiles.slice(0,30).map(p=>`<div class="mod-item"><span>${suiteEsc(p.name)} · nivel ${p.level} · ${p.xp} XP ${p.verified?"· verificado":""}</span><span><button class="btn-mod-mini" onclick="addCommunityXp('${suiteEsc(p.user_id)}')">+100 XP</button> <button class="btn-mod-mini" onclick="verifyCommunityMember('${suiteEsc(p.user_id)}',${!p.verified})">${p.verified?"Quitar verificación":"Verificar"}</button></span></div>`).join("")||"<p>Sin perfiles.</p>"}</div><h4>Solicitudes pendientes</h4>${requests.map(x=>`<div class="mod-item"><span>${suiteEsc(x.user_id)} solicita ${suiteEsc(x.role)}</span><span><button class="btn-mod-mini" onclick="resolveWebCommunityRole('${x.id}','approved')">Aprobar</button> <button class="btn-mod-mini" onclick="resolveWebCommunityRole('${x.id}','rejected')">Rechazar</button></span></div>`).join("")||"<p>Sin solicitudes.</p>"}`;
+    });
+}
+function addCommunityXp(user_id){fetch("/api/users/community/xp",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id,amount:100,reason:"reconocimiento web"})}).then(loadCommunityAdmin);}
+function resolveWebCommunityRole(request_id,decision){fetch("/api/users/community/role-request/resolve",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({request_id,decision})}).then(loadCommunityAdmin);}
+function runWeeklyRecognition(){fetch("/api/users/community/recognize",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({limit:5})}).then(r=>r.json()).then(d=>{showToast("Reconocimiento semanal",`${(d.profiles||[]).length} colaboradores`);loadCommunityAdmin();});}
+function verifyCommunityMember(user_id,verified){fetch("/api/users/community/verify",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id,verified})}).then(loadCommunityAdmin);}
 
 function loadModerationData() {
     const sel = document.getElementById("modGroupSelect");

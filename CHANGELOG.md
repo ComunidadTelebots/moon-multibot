@@ -16,16 +16,16 @@
 10. Caducidad y revisión automática de sanciones. **Implementado en v16.91.0.**
 
 ### Miembros y comunidad (11–20)
-11. Perfil comunitario con actividad, karma y roles.
-12. Solicitudes para obtener roles personalizados.
+11. Perfil comunitario con actividad, karma y roles. **Implementado en v16.92.0.**
+12. Solicitudes para obtener roles personalizados. **Implementado en v16.92.0.**
 13. Programa de mentores para nuevos miembros.
-14. Reconocimientos semanales a colaboradores.
-15. Sistema configurable de niveles y experiencia.
-16. Directorio interno de miembros verificados.
+14. Reconocimientos semanales a colaboradores. **Implementado en v16.92.0.**
+15. Sistema configurable de niveles y experiencia. **Implementado en v16.92.0.**
+16. Directorio interno de miembros verificados. **Implementado en v16.92.0.**
 17. Encuestas de satisfacción y clima del grupo.
 18. Buzón anónimo con protección antiabuso.
-19. Recordatorios personales gestionados por el bot.
-20. Panel de preferencias de notificaciones por usuario.
+19. Recordatorios personales gestionados por el bot. **Implementado en v16.92.0.**
+20. Panel de preferencias de notificaciones por usuario. **Implementado en v16.92.0.**
 
 ### Administración de grupos (21–30)
 21. Asistente inicial de configuración por tipo de comunidad.
@@ -126,6 +126,21 @@
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v16.92.0] - 2026-07-25
+### Perfiles y progresión comunitaria
+- Perfil persistente con presentación, karma, roles, insignias, experiencia y nivel calculado.
+- Experiencia automática por actividad y asignación manual de XP desde los paneles administrativos.
+- Solicitudes de roles con aprobación o rechazo por el master.
+- Reconocimiento semanal de colaboradores mediante insignias fechadas.
+- Directorio interno limitado a miembros verificados o con roles comunitarios.
+
+### Herramientas personales
+- Recordatorios personales con fecha futura y entrega automática por mensaje privado de Telegram.
+- Preferencias individuales para alertas de seguridad, reportes, eventos, recordatorios y resúmenes.
+- Las preferencias filtran el centro real de notificaciones.
+- Gestión equivalente desde la Mini App y el panel web.
+- Versión visible sincronizada a `v16.92.0`.
 
 ## [v16.91.0] - 2026-07-25
 ### Moderación adaptativa

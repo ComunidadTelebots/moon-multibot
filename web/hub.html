@@ -1238,13 +1238,13 @@
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [summary,users,registry,banStats,banHistory,banReports,banAppeals,apiKeys]=await Promise.all([
+    const [summary,users,registry,banStats,banHistory,banReports,banAppeals,apiKeys,community]=await Promise.all([
       masterApi("/api/admin/summary"),masterApi("/api/stats/users"),masterApi("/api/admin/ban-registry?status=all&limit=500"),
       masterApi("/api/users/bans/stats"),masterApi("/api/users/bans/history?limit=30"),
       masterApi("/api/admin/ban-reports?status=pending"),masterApi("/api/admin/ban-appeals?status=pending"),
-      masterApi("/api/admin/ban-api-keys")
+      masterApi("/api/admin/ban-api-keys"),masterApi("/api/users/community")
     ]);
-    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], appeals=(banAppeals&&banAppeals.appeals)||[], keys=(apiKeys&&apiKeys.keys)||[], registryStats=(registry&&registry.stats)||{};
+    const top=(users&&users.users)||[], banned=(registry&&registry.records)||[], history=(banHistory&&banHistory.history)||[], reports=(banReports&&banReports.reports)||[], appeals=(banAppeals&&banAppeals.appeals)||[], keys=(apiKeys&&apiKeys.keys)||[], profiles=(community&&community.profiles)||[], roleRequests=(community&&community.role_requests)||[], registryStats=(registry&&registry.stats)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Usuarios y seguridad <span class="rbadge">${fmt(summary&&summary.total_banned)} baneados</span></div>
       <div class="dbody">
         <div class="master-grid" style="margin-top:8px">
@@ -1281,6 +1281,11 @@
         <div class="casbox"><span class="k">Endpoint:</span> POST /api/community/v1/check<br><span class="k">Cabecera:</span> X-Community-Key · máximo 100 IDs por consulta.</div>
         <div class="gsec">Más activos</div>
         ${top.length?top.map(u=>`<div class="userchip"><span class="uid">${escHtml(u.name||u.id)}<small style="display:block;color:var(--muted)">${escHtml(u.id)}</small></span><span class="w">${fmt(u.count)} msgs</span></div>`).join(""):`<p class="muted">Sin actividad registrada.</p>`}
+        <div class="gsec">Perfiles comunitarios</div>
+        <button class="btn ghost" id="masterCommunityRecognition">Reconocer colaboradores semanales</button>
+        ${profiles.length?profiles.map(p=>`<div class="userchip"><span class="uid">${escHtml(p.name)} · nivel ${p.level}${p.verified?" · verificado":""}<small style="display:block;color:var(--muted)">${escHtml(p.user_id)} · ${p.xp} XP · ${(p.roles||[]).map(escHtml).join(", ")||"sin rol"}</small></span><span><button class="minibtn" data-community-xp="${escAttr(p.user_id)}">+100 XP</button><button class="minibtn" data-community-verify="${escAttr(p.user_id)}" data-verified="${p.verified?"0":"1"}">${p.verified?"Quitar ✓":"Verificar"}</button></span></div>`).join(""):`<p class="muted">Todavía no hay perfiles.</p>`}
+        <div class="gsec">Solicitudes de rol (${roleRequests.length})</div>
+        ${roleRequests.length?roleRequests.map(r=>`<div class="casbox"><b>${escHtml(r.user_id)}</b> solicita ${escHtml(r.role)}<br>${escHtml(r.reason)}<div class="btnrow"><button class="minibtn" data-role-approve="${r.id}">Aprobar</button><button class="minibtn red" data-role-reject="${r.id}">Rechazar</button></div></div>`).join(""):`<p class="muted">Sin solicitudes pendientes.</p>`}
         <div class="gsec">Baneos globales</div>
         <input id="masterBanSearch" type="search" placeholder="Buscar por ID o motivo…" autocomplete="off">
         <div class="btnrow" style="margin-top:8px"><button class="minibtn" id="masterBanCsv">Exportar CSV</button><button class="minibtn" id="masterBanJson">Exportar JSON</button></div>
@@ -1310,8 +1315,14 @@
     document.getElementById("masterBanCsv").onclick=()=>exportMasterBans(banned,"csv");
     document.getElementById("masterBanJson").onclick=()=>exportMasterBans(banned,"json");
     document.getElementById("masterBanSearch").oninput=renderModeration;
+    box.querySelectorAll("[data-community-xp]").forEach(b=>b.onclick=()=>masterApi("/api/users/community/xp",{method:"POST",body:JSON.stringify({user_id:b.dataset.communityXp,amount:100,reason:"reconocimiento master"})}).then(loadMasterUsers));
+    box.querySelectorAll("[data-community-verify]").forEach(b=>b.onclick=()=>masterApi("/api/users/community/verify",{method:"POST",body:JSON.stringify({user_id:b.dataset.communityVerify,verified:b.dataset.verified==="1"})}).then(loadMasterUsers));
+    document.getElementById("masterCommunityRecognition").onclick=()=>masterApi("/api/users/community/recognize",{method:"POST",body:JSON.stringify({limit:5})}).then(loadMasterUsers);
+    box.querySelectorAll("[data-role-approve]").forEach(b=>b.onclick=()=>resolveCommunityRole(b.dataset.roleApprove,"approved"));
+    box.querySelectorAll("[data-role-reject]").forEach(b=>b.onclick=()=>resolveCommunityRole(b.dataset.roleReject,"rejected"));
     renderModeration();
   }
+  function resolveCommunityRole(request_id,decision){return masterApi("/api/users/community/role-request/resolve",{method:"POST",body:JSON.stringify({request_id,decision})}).then(x=>{showToast(x.ok?"Solicitud resuelta":(x.error||"Error"));loadMasterUsers();});}
   async function banMasterUser(){
     const uid=document.getElementById("masterBanUid").value.trim();
     const reason=document.getElementById("masterBanReason").value.trim();
@@ -1851,6 +1862,25 @@
   }
   function applyUxPreferences(){const p=uxRead("hub_ui_preferences",{compact:false,font:"normal"});document.body.classList.toggle("compact",!!p.compact);document.documentElement.classList.remove("font-small","font-large");if(p.font==="small"||p.font==="large")document.documentElement.classList.add("font-"+p.font);if(document.getElementById("uxCompact"))uxCompact.checked=!!p.compact;if(document.getElementById("uxFont"))uxFont.value=p.font||"normal";}
   function saveUxPreferences(){uxWrite("hub_ui_preferences",{compact:uxCompact.checked,font:uxFont.value});applyUxPreferences();showToast("Accesibilidad guardada");}
+  async function loadCommunityMini(){
+    const host=document.getElementById("communityProfile");if(!host||!tg||!tg.initData)return;
+    const [data,directoryData]=await Promise.all([apiPost("/community/me",{initData:tg.initData}),apiPost("/community/directory",{initData:tg.initData})]);
+    if(!data||!data.ok){host.innerHTML='<p class="muted">No se pudo cargar tu perfil.</p>';return;}
+    const p=data.profile,prefs=data.preferences;
+    host.innerHTML=`<div class="card"><h3>${escHtml(p.name)}</h3><p>Nivel ${p.level} · ${p.xp} XP · Karma ${p.karma}</p><textarea id="communityBio" rows="2" placeholder="Tu presentación">${escHtml(p.bio)}</textarea><button class="btn ghost" id="communityBioSave">Guardar perfil</button></div>
+      <div class="dropdown"><div class="dhead">Solicitar rol <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><select id="communityRole"><option value="helper">Ayudante</option><option value="mentor">Mentor</option><option value="expert">Experto</option><option value="moderator">Moderador</option></select><input id="communityRoleReason" placeholder="Motivo"><button class="btn ghost" id="communityRoleSend">Enviar solicitud</button></div></div>
+      <div class="dropdown"><div class="dhead">Recordatorio personal <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="communityReminderText" placeholder="Recuérdame…"><input id="communityReminderAt" type="datetime-local"><button class="btn ghost" id="communityReminderSave">Crear recordatorio</button>${(data.reminders||[]).slice(-5).map(x=>`<div class="userchip"><span>${escHtml(x.text)} · ${new Date(x.remind_at).toLocaleString()}</span></div>`).join("")}</div></div>
+      <div class="dropdown"><div class="dhead">Notificaciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+      ${["security","reports","events","reminders"].map(k=>`<label class="setrow"><b>${{security:"Seguridad",reports:"Reportes",events:"Eventos",reminders:"Recordatorios"}[k]}</b><input data-community-pref="${k}" type="checkbox" ${prefs[k]?"checked":""}></label>`).join("")}
+      <select id="communityDigest"><option value="off">Sin resumen</option><option value="daily">Resumen diario</option><option value="weekly">Resumen semanal</option></select><button class="btn ghost" id="communityPrefsSave">Guardar avisos</button></div></div>
+      <div class="dropdown"><div class="dhead">Directorio verificado <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>${((directoryData&&directoryData.members)||[]).map(x=>`<div class="userchip"><span>${escHtml(x.name)} · nivel ${x.level}<small style="display:block;color:var(--muted)">${(x.roles||[]).map(escHtml).join(", ")}</small></span></div>`).join("")||'<p class="muted">Sin miembros verificados.</p>'}</div></div>`;
+    host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;});
+    communityDigest.value=prefs.digest;
+    communityBioSave.onclick=()=>apiPost("/community/me",{initData:tg.initData,profile:{bio:communityBio.value}}).then(()=>showToast("Perfil guardado"));
+    communityRoleSend.onclick=()=>apiPost("/community/role-request",{initData:tg.initData,role:communityRole.value,reason:communityRoleReason.value}).then(x=>showToast(x.ok?"Solicitud enviada":(x.error||"Error")));
+    communityReminderSave.onclick=()=>{const date=new Date(communityReminderAt.value);if(!communityReminderText.value.trim()||isNaN(date)){showToast("Completa texto y fecha");return;}apiPost("/community/reminder",{initData:tg.initData,text:communityReminderText.value,remind_at:date.toISOString()}).then(x=>{showToast(x.ok?"Recordatorio creado":(x.error||"Error"));if(x.ok)loadCommunityMini();});};
+    communityPrefsSave.onclick=()=>{const preferences={digest:communityDigest.value};host.querySelectorAll("[data-community-pref]").forEach(x=>preferences[x.dataset.communityPref]=x.checked);apiPost("/community/preferences",{initData:tg.initData,preferences}).then(()=>showToast("Notificaciones guardadas"));};
+  }
   const TOUR_STEPS=[
     ["Bienvenido a Moonbot","Gestiona tus canales, seguridad y automatizaciones sin salir de Telegram."],
     ["Busca cualquier acción","Usa el botón de búsqueda de la cabecera y fija tus herramientas favoritas."],
@@ -1875,11 +1905,13 @@
       <label class="setrow"><span><b>Tamaño de texto</b><span>Ajusta toda la Mini App.</span></span><select id="uxFont" style="width:130px"><option value="small">Pequeño</option><option value="normal">Normal</option><option value="large">Grande</option></select></label>
       <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
       <button class="btn ghost" id="uxTourRestart" style="margin-top:8px">Repetir recorrido guiado</button>
+      <div class="sec">Mi comunidad</div><div id="communityProfile">${skel()}</div>
       <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     reflectTheme();applyUxPreferences();
     document.getElementById("uxPreferencesSave").onclick=saveUxPreferences;
     document.getElementById("uxTourRestart").onclick=()=>startGuidedTour();
+    loadCommunityMini();
     const box=document.getElementById("myRegistryStatus");
     if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
     const d=await apiPost("/registry/status",{initData:tg.initData});

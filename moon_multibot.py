@@ -49,6 +49,7 @@ from token_manager import token_manager
 from ban_manager import BanManager
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
+from community_members import CommunityMembers
 
 load_dotenv()
 
@@ -94,6 +95,7 @@ db = DBManager()
 ban_manager = BanManager(db)  # Gestor centralizado de baneos
 spam_risk = SpamRiskEngine(db)
 group_suite = GroupSuite(db)
+community_members = CommunityMembers(db)
 
 task_queue = TaskQueue()
 start_time = time.time()
@@ -105,6 +107,20 @@ def queue_worker():
         try:
             if active_bots:
                 task_queue.process_next(active_bots[0])
+                for reminder in community_members.due_reminders():
+                    if not community_members.preferences(reminder["user_id"])["reminders"]:
+                        community_members.mark_reminder(reminder["id"], "disabled")
+                        continue
+                    reminder_bot = next(
+                        (bot for bot in active_bots if (bot.bot_username or "").lower() == HUB_BOT_USERNAME.lower()),
+                        active_bots[0],
+                    )
+                    result = reminder_bot.send_msg(
+                        reminder["user_id"], f"⏰ **Recordatorio:** {reminder['text']}"
+                    )
+                    community_members.mark_reminder(
+                        reminder["id"], "sent" if result and result.get("ok") else "failed"
+                    )
         except: pass
         time.sleep(1)
 
@@ -5002,6 +5018,8 @@ class MoonBot:
                     if uid not in global_user_stats: 
                         global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
                     global_user_stats[uid]["count"] += 1
+                    if global_user_stats[uid]["count"] % 5 == 0:
+                        community_members.add_xp(uid, 5, "actividad en grupo")
                     if sent == "positive": global_user_stats[uid]["karma"] += 1
                     elif sent == "negative": global_user_stats[uid]["karma"] -= 1
                     
