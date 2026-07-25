@@ -390,6 +390,13 @@
   async function syncOfflineQueue(){if(!navigator.onLine)return;const rows=offlineQueue(),pending=[];for(const item of rows){try{const url=item.kind==="public"?API+item.path:item.path,headers={"Content-Type":"application/json"};if(item.kind==="master")headers.Authorization=`Bearer ${masterToken}`;const r=await fetch(url,{method:"POST",headers,body:JSON.stringify(item.payload)});if(!r.ok)pending.push(item);}catch(e){pending.push(item);}}localStorage.setItem("moon_offline_queue",JSON.stringify(pending));if(rows.length&&!pending.length)showToast("Cambios offline sincronizados");}
   window.addEventListener("online",syncOfflineQueue);
   async function apiPost(p,b){try{const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return await r.json();}catch(e){return queueOffline("public",p,b);}}
+  async function apiReadPost(p,b){
+    try{
+      const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});
+      const data=await r.json();
+      return data&&typeof data==="object"?data:{ok:false,error:`Respuesta no válida (${r.status})`};
+    }catch(e){return {ok:false,error:"No se pudo conectar con la API de canales"};}
+  }
   async function masterApi(p,opts={}){
     if(!masterToken)return null;
     const headers={...(opts.headers||{}),Authorization:`Bearer ${masterToken}`};
@@ -442,8 +449,17 @@
     const el=document.getElementById("v-canales");
     el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">Detectados automáticamente: donde eres propietario o administrador.</div>`+skel();
     let chs=[];
-    if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
+    let channelError="";
+    if(tg&&tg.initData){
+      const d=await apiReadPost(master?"/admin/channels":"/stats/mine",{initData:tg.initData});
+      if(d&&d.ok)chs=d.channels||[];else channelError=(d&&d.error)||"No se pudo consultar PocketBase";
+    }
     window._moonChannels=chs;
+    if(channelError){
+      el.innerHTML=`<div class="empty"><div class="big">${svg('shield')}</div><h2>No se pudieron cargar los canales</h2><p>${escHtml(channelError)}</p><button class="btn ghost" id="channelsRetry">${svg('refresh')} Reintentar</button></div>`;
+      document.getElementById("channelsRetry").onclick=loadCanales;
+      return;
+    }
     if(!chs.length){
       el.innerHTML=`<div class="empty">
         <div class="big">${svg('megaphone')}</div>
@@ -1105,9 +1121,14 @@
     const el=document.getElementById("v-admin");
     el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Tus grupos y canales asociados. Toca uno para gestionarlo.</div><div id="adminList">${skel()}</div>`;
     let chs=[];
+    let channelError="";
+    if(tg&&tg.initData){
+      const d=await apiReadPost(master?"/admin/channels":"/stats/mine",{initData:tg.initData});
+      if(d&&d.ok)chs=d.channels||[];else channelError=(d&&d.error)||"No se pudo consultar PocketBase";
+    }
     window._moonChannels=chs;
-    if(tg&&tg.initData){const d=await apiPost("/stats/mine",{initData:tg.initData});if(d&&d.ok)chs=d.channels||[];}
     const list=document.getElementById("adminList");
+    if(channelError){list.innerHTML=`<div class="casbox banned">No se pudieron cargar los canales: ${escHtml(channelError)}</div><button class="btn ghost" id="adminRetry">${svg('refresh')} Reintentar</button>`;document.getElementById("adminRetry").onclick=loadAdmin;return;}
     if(!chs.length){ list.innerHTML=`<p class="muted">No administras ningún grupo o canal todavía. Añade @${BOT} como admin.</p>`; return; }
     const groups=chs.filter(c=>c.ctype!=="channel").length, channels=chs.length-groups, listed=chs.filter(c=>c.listed).length;
     el.innerHTML=`<div class="vtitle">Administrar</div><div class="vsub">Tus grupos y canales asociados. Toca uno para gestionarlo.</div>
@@ -1268,7 +1289,7 @@
     document.getElementById("masterBackup").onclick=()=>openMasterPage("Crear backup","Copia inmediata del sistema",loadMasterBackup);
     document.getElementById("masterMaintenance").onclick=()=>openMasterPage("Mantenimiento","Activar o desactivar el modo",loadMasterMaintenance);
     await loadMasterOverview();
-    const d=await apiPost("/admin/channels",{initData:tg.initData});
+    const d=await apiReadPost("/admin/channels",{initData:tg.initData});
     const chs=(d&&d.ok&&d.channels)||[];
     document.getElementById("masterChannelCount").textContent=`(${chs.length})`;
     const list=document.getElementById("masterChannelList");
@@ -1699,7 +1720,7 @@
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
     const [summary,status,proxies,bots,channels]=await Promise.all([
       masterApi("/api/admin/summary"),masterApi("/api/status"),masterApi("/api/proxies/stats"),
-      masterApi("/api/bots"),apiPost("/admin/channels",{initData:tg.initData})
+      masterApi("/api/bots"),apiReadPost("/admin/channels",{initData:tg.initData})
     ]);
     const report={
       generated_at:new Date().toISOString(),

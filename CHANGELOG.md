@@ -1,5 +1,15 @@
 ﻿# Changelog - Moon Multibot
 
+## v17.5.1 - Recuperación del panel de canales
+
+- Migración completa de los campos de `tg_channels` y `tg_channel_admins` en instalaciones antiguas.
+- Los registros existentes se marcan activos al crear por primera vez el campo `active`, evitando que una migración los oculte.
+- Los posts de canal registran el chat antes de salir del bucle de procesamiento.
+- El backfill combina los chats locales con los canales activos ya conocidos en PocketBase.
+- El master consulta todos los espacios del bot; los demás usuarios conservan únicamente sus grupos asociados.
+- La Mini App muestra los errores de PocketBase y conexión en vez de convertirlos silenciosamente en una lista vacía.
+- Los grupos básicos también quedan registrados al recibir cambios de membresía del bot.
+
 ## v17.5.0 - Bots administrados de Telegram
 
 - Compatibilidad completa con `managed_bot` y detección de `can_manage_bots`.

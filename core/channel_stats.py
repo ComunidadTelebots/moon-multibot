@@ -39,14 +39,37 @@ def init(pb):
         {"name": "active", "type": "bool"}, {"name": "admins_checked", "type": "date"},
         {"name": "listed", "type": "bool"},
     ], ["CREATE UNIQUE INDEX `idx_tgc_chat` ON `tg_channels` (`chat_id`)"])
-    # Migración suave: el directorio PÚBLICO es opt-in (listed). Por defecto NADA
-    # es público; el dueño decide qué publicar. "Mis canales" ignora este campo.
-    pb.ensure_field(C_CHANNELS, {"name": "listed", "type": "bool"})
+    # ensure_collection no modifica una colección existente. Comprobar todos
+    # los campos evita dejar instalaciones antiguas con un esquema incompleto.
+    for field in [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "username", "type": "text"}, {"name": "title", "type": "text"},
+        {"name": "description", "type": "text"}, {"name": "category", "type": "text"},
+        {"name": "ctype", "type": "text"}, {"name": "member_count", "type": "number"},
+        {"name": "growth30d", "type": "number"}, {"name": "posts_count", "type": "number"},
+        {"name": "posts_per_day", "type": "number"}, {"name": "last_post_id", "type": "number"},
+        {"name": "first_post_at", "type": "date"}, {"name": "last_post_at", "type": "date"},
+        {"name": "bot_token", "type": "text"}, {"name": "added_by", "type": "number"},
+        {"name": "active", "type": "bool"}, {"name": "admins_checked", "type": "date"},
+        {"name": "listed", "type": "bool"},
+    ]:
+        added = pb.ensure_field(C_CHANNELS, field)
+        # Las instalaciones anteriores no tenían `active`. PocketBase asigna
+        # False al añadir un bool, lo que ocultaría todos los registros previos.
+        if added and field["name"] == "active":
+            for record in pb.list(C_CHANNELS, per_page=500):
+                pb.update(C_CHANNELS, record["id"], {"active": True})
     pb.ensure_collection(C_ADMINS, [
         {"name": "chat_id", "type": "text", "required": True},
         {"name": "user_id", "type": "number", "required": True},
         {"name": "status", "type": "text"}, {"name": "checked", "type": "date"},
     ], ["CREATE UNIQUE INDEX `idx_tga` ON `tg_channel_admins` (`chat_id`,`user_id`)"])
+    for field in [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "user_id", "type": "number", "required": True},
+        {"name": "status", "type": "text"}, {"name": "checked", "type": "date"},
+    ]:
+        pb.ensure_field(C_ADMINS, field)
     pb.ensure_collection(C_SNAPS, [
         {"name": "chat_id", "type": "text", "required": True},
         {"name": "day", "type": "text", "required": True},

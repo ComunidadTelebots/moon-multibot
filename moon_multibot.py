@@ -803,7 +803,12 @@ def api_channels_backfill():
     def _run():
         seen = added = 0
         for bot in list(active_bots):
-            for cid in db.get(f"CHATS_{bot.token}", []) or []:
+            known = {str(cid) for cid in (db.get(f"CHATS_{bot.token}", []) or []) if cid}
+            try:
+                known.update(str(item["chat_id"]) for item in channel_stats.active_channels(bot.token))
+            except Exception as error:
+                add_web_log("ERROR", f"Backfill: no se pudo leer PocketBase para @{bot.bot_username}: {error}")
+            for cid in known:
                 seen += 1
                 try:
                     info = bot.api_call("getChat", {"chat_id": cid})
@@ -829,10 +834,23 @@ def api_channels_backfill():
                     added += 1
                 except Exception as e:
                     add_web_log("ERROR", f"backfill {cid}: {e}")
+        db.set("CHANNEL_BACKFILL_STATUS", {
+            "running": False, "seen": seen, "registered": added,
+            "finished_at": datetime.datetime.now().isoformat(),
+        })
         add_web_log("SUCCESS", f"Backfill canales: {added} registrados de {seen} chats vistos.")
 
+    db.set("CHANNEL_BACKFILL_STATUS", {
+        "running": True, "started_at": datetime.datetime.now().isoformat(),
+    })
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"ok": True, "message": "Backfill lanzado en segundo plano."})
+
+@app.route("/api/admin/channels/backfill", methods=["GET"])
+def api_channels_backfill_status():
+    if not check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **(db.get("CHANNEL_BACKFILL_STATUS", {}) or {})})
 
 @app.route("/api/public/analytics")
 def public_analytics_settings():
@@ -4820,8 +4838,8 @@ class MoonBot:
             chat_id = chat.get("id")
             ctype = chat.get("type")
             new_status = (mcm.get("new_chat_member") or {}).get("status")
-            if not chat_id or ctype not in ("channel", "supergroup"):
-                return True  # ignoramos privados/grupos normales para el directorio
+            if not chat_id or ctype not in ("channel", "supergroup", "group"):
+                return True  # ignoramos únicamente chats privados
             if new_status == "administrator":
                 info = self.api_call("getChat", {"chat_id": chat_id})
                 r = info.get("result", {}) if info.get("ok") else {}
@@ -5103,9 +5121,26 @@ class MoonBot:
                     # Directorio de canales: cuenta posts publicados (frecuencia).
                     if u.get("channel_post"):
                         try:
-                            channel_stats.record_post(msg["chat"]["id"], msg["message_id"])
-                        except Exception:
-                            pass
+                            channel_chat = msg.get("chat") or {}
+                            raw_channel_id = channel_chat.get("id")
+                            channel_id = str(raw_channel_id) if raw_channel_id is not None else ""
+                            bot_chats = db.get(f"CHATS_{self.token}", [])
+                            if channel_id and channel_id not in bot_chats:
+                                bot_chats.append(channel_id)
+                                db.set(f"CHATS_{self.token}", bot_chats)
+                            if channel_id and not channel_stats.get_channel_meta(channel_id):
+                                channel_stats.register_channel(
+                                    channel_id, username=channel_chat.get("username"),
+                                    title=channel_chat.get("title"), ctype="channel",
+                                    bot_token=self.token,
+                                )
+                                count = self.api_call("getChatMemberCount", {"chat_id": channel_id}, silent=True)
+                                if count.get("ok"):
+                                    channel_stats.record_snapshot(channel_id, count.get("result", 0))
+                                self.sync_channel_admins(channel_id)
+                            channel_stats.record_post(channel_id, msg["message_id"])
+                        except Exception as error:
+                            add_web_log("ERROR", f"No se pudo registrar channel_post: {error}")
                         # Se contabiliza para el directorio, pero no se modera,
                         # aprende ni responde a publicaciones del propio canal.
                         continue

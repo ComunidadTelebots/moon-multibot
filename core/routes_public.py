@@ -214,7 +214,10 @@ def admin_all_channels():
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     if not _is_master(user):
         return jsonify({"ok": False, "error": "solo el dueño del bot"}), 403
-    return jsonify({"ok": True, "channels": _channel_stats.get_all_channels()})
+    try:
+        return jsonify({"ok": True, "channels": _channel_stats.get_all_channels()})
+    except Exception as error:
+        return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
 
 
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
@@ -1153,7 +1156,10 @@ def public_mine():
     user = _verify_init_data(init_data)
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
-    return jsonify({"ok": True, "channels": _channel_stats.get_user_channels(user.get("id"))})
+    try:
+        return jsonify({"ok": True, "channels": _channel_stats.get_user_channels(user.get("id"))})
+    except Exception as error:
+        return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
 
 
 @bp.route("/api/public/notifications", methods=["POST", "OPTIONS"])
