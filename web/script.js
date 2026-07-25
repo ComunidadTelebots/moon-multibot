@@ -2211,6 +2211,72 @@ function loadCommunityAdmin(){
         const profiles=d.profiles||[],requests=d.role_requests||[];
         host.innerHTML=`<div class="suite-grid">${profiles.slice(0,30).map(p=>`<div class="mod-item"><span>${suiteEsc(p.name)} · nivel ${p.level} · ${p.xp} XP ${p.verified?"· verificado":""}</span><span><button class="btn-mod-mini" onclick="addCommunityXp('${suiteEsc(p.user_id)}')">+100 XP</button> <button class="btn-mod-mini" onclick="verifyCommunityMember('${suiteEsc(p.user_id)}',${!p.verified})">${p.verified?"Quitar verificación":"Verificar"}</button></span></div>`).join("")||"<p>Sin perfiles.</p>"}</div><h4>Solicitudes pendientes</h4>${requests.map(x=>`<div class="mod-item"><span>${suiteEsc(x.user_id)} solicita ${suiteEsc(x.role)}</span><span><button class="btn-mod-mini" onclick="resolveWebCommunityRole('${x.id}','approved')">Aprobar</button> <button class="btn-mod-mini" onclick="resolveWebCommunityRole('${x.id}','rejected')">Rechazar</button></span></div>`).join("")||"<p>Sin solicitudes.</p>"}`;
     });
+    fetchManagedBots();
+}
+
+let managedBotManagerUsername = "";
+async function managedBotApi(action, payload = {}) {
+    const response = await fetch("/api/managed-bots/action", {
+        method: "POST",
+        headers: {"Authorization": authToken, "Content-Type": "application/json"},
+        body: JSON.stringify({action, ...payload})
+    });
+    return response.json();
+}
+async function fetchManagedBots() {
+    const status = document.getElementById("managedBotsStatus");
+    const list = document.getElementById("managedBotList");
+    if (!status || !list || !authToken) return;
+    try {
+        const response = await fetch("/api/managed-bots", {headers: {"Authorization": authToken}});
+        const data = await response.json();
+        managedBotManagerUsername = data.manager_username || "";
+        status.innerHTML = data.capable
+            ? `<b>Gestor activo:</b> @${escapeHtml(managedBotManagerUsername)}`
+            : `<b>Permiso pendiente:</b> activa <code>can_manage_bots</code> para el bot gestor en BotFather y reinicia Moonbot.`;
+        document.getElementById("managedAutoConnect").checked = Boolean(data.auto_connect);
+        list.innerHTML = (data.bots || []).map(bot => `
+          <div class="glass-panel bot-card" style="padding:18px">
+            <h4 style="margin:0">@${escapeHtml(bot.username || bot.bot_id)}</h4>
+            <small>${escapeHtml(bot.name || "")} · ${escapeHtml(bot.status || "detectado")}</small>
+            <div class="drop-actions" style="display:grid;gap:7px;margin-top:14px">
+              ${bot.status !== "connected" ? `<button onclick="managedBotAction('connect','${escapeJsArg(bot.bot_id)}')">CONECTAR</button>` : ""}
+              <button onclick="managedBotAccess('${escapeJsArg(bot.bot_id)}',${Boolean(bot.is_access_restricted)})">${bot.is_access_restricted ? "PERMITIR ACCESO" : "RESTRINGIR ACCESO"}</button>
+              ${bot.status === "connected" ? `<button onclick="rotateManagedBot('${escapeJsArg(bot.bot_id)}')">ROTAR TOKEN</button>
+              <button class="danger" onclick="disconnectManagedBot('${escapeJsArg(bot.bot_id)}')">DESCONECTAR</button>` : ""}
+            </div>
+          </div>`).join("") || `<p class="subtitle">Los bots creados aparecerán aquí al confirmar Telegram.</p>`;
+    } catch (error) {
+        status.textContent = "No se pudo consultar la administración de bots.";
+    }
+}
+function createManagedBot() {
+    const username = (document.getElementById("managedBotUsername")?.value || "").trim().replace(/^@/, "");
+    const name = (document.getElementById("managedBotName")?.value || "").trim();
+    if (!managedBotManagerUsername) return showToast("Permiso requerido", "El bot gestor no tiene can_manage_bots.");
+    if (!/^[A-Za-z][A-Za-z0-9_]{3,30}bot$/i.test(username)) return showToast("Usuario no válido", "Debe terminar en bot y usar letras, números o guion bajo.");
+    const url = `https://t.me/newbot/${encodeURIComponent(managedBotManagerUsername)}/${encodeURIComponent(username)}?name=${encodeURIComponent(name || username)}`;
+    window.open(url, "_blank", "noopener");
+}
+async function setManagedAutoConnect(enabled) {
+    const data = await managedBotApi("set_auto_connect", {enabled});
+    showToast(data.ok ? "Configuración guardada" : "Error", data.ok ? "Autoconexión actualizada." : data.msg);
+}
+async function managedBotAction(action, bot_id, extra = {}) {
+    const data = await managedBotApi(action, {bot_id, ...extra});
+    showToast(data.ok ? "Bot actualizado" : "Error", data.msg || (data.ok ? "Acción completada." : "No se pudo completar."));
+    if (data.ok) fetchBots();
+}
+async function managedBotAccess(bot_id, restricted) {
+    return managedBotAction("access_set", bot_id, {is_access_restricted: !restricted});
+}
+async function rotateManagedBot(bot_id) {
+    if (!confirm("¿Rotar el token? El token anterior dejará de funcionar inmediatamente.")) return;
+    return managedBotAction("rotate", bot_id);
+}
+async function disconnectManagedBot(bot_id) {
+    if (!confirm("¿Desconectar este bot de Moonbot? El bot administrado seguirá existiendo en Telegram.")) return;
+    return managedBotAction("disconnect", bot_id);
 }
 function addCommunityXp(user_id){fetch("/api/users/community/xp",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id,amount:100,reason:"reconocimiento web"})}).then(loadCommunityAdmin);}
 function resolveWebCommunityRole(request_id,decision){fetch("/api/users/community/role-request/resolve",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({request_id,decision})}).then(loadCommunityAdmin);}
@@ -2240,6 +2306,7 @@ function loadModerationData() {
     const sel = document.getElementById("modGroupSelect");
     if (!sel || !sel.value) return;
     currentModCid = sel.value;
+    loadWebBotPermissions();
 
     fetch(`/api/moderation/${currentModCid}`, { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
@@ -2283,6 +2350,14 @@ function loadModerationData() {
     });
     loadGroupSuite();
 }
+function loadWebBotPermissions(){
+    const host=document.getElementById("modBotPermissions");if(!host||!currentModCid)return;
+    fetch(`/api/moderation/${currentModCid}/bot-permissions`,{headers:{"Authorization":authToken}}).then(r=>r.json()).then(data=>{
+        if(!data.ok){host.innerHTML=`<div class="mod-permission-alert"><h4>No se pudieron comprobar los permisos</h4><p>${suiteEsc(data.error||"Telegram no respondió")}</p><button class="btn-mod-mini" onclick="loadWebBotPermissions()">Comprobar de nuevo</button></div>`;return;}
+        if(data.healthy){host.innerHTML="";return;}
+        host.innerHTML=`<div class="mod-permission-alert" data-help="Muestra los permisos que el bot necesita realmente dentro del grupo."><h4>El bot no tiene permisos suficientes</h4><p>Faltan:</p><ul>${data.missing.map(x=>`<li>${suiteEsc(x.label)}</li>`).join("")}</ul><p>En Telegram abre el grupo → Administradores → @${suiteEsc(data.bot_username)}; activa esos permisos, guarda y vuelve a comprobar.</p><button class="btn-mod-mini" onclick="loadWebBotPermissions()">Comprobar de nuevo</button></div>`;
+    });
+}
 window.addEventListener("popstate", event => {
     const tab = event.state && event.state.moonTab;
     if(tab) switchTab(tab, null, true);
@@ -2312,6 +2387,13 @@ function loadGroupSuite() {
         sqQHours.value=c.quarantine.hours; sqQMessages.value=c.quarantine.messages;
         sqRaidJoins.value=c.raid.joins; sqVotes.value=c.consensus.votes_required;
         sqWelcomeText.value=c.welcome.message;
+        sqChannelBan.checked=c.channel_senders.ban_external_channels;
+        sqChannelDelete.checked=c.channel_senders.delete_messages;
+        sqChannelNotify.checked=c.channel_senders.notify;
+        sqBotEnabled.checked=c.bot_interaction.enabled;sqBotLearn.checked=c.bot_interaction.learn;
+        sqBotReply.checked=c.bot_interaction.reply;sqBotAllowed.value=c.bot_interaction.allowed_usernames.join(", ");
+        sqBotLimit.value=c.bot_interaction.max_replies_per_hour;
+        sqBotInteractions.innerHTML=(data.bot_interactions||[]).slice(0,10).map(x=>`<div class="mod-item"><span>@${suiteEsc(x.username)} · ${x.learned?"aprendido":"omitido"} · ${x.replied?"respondido":"sin respuesta"}</span></div>`).join("")||"<p>Sin interacciones.</p>";
         const media=c.media_security;
         sqMediaEnabled.checked=media.enabled; sqMediaPhotos.checked=media.scan_photos;
         sqMediaLinks.checked=media.scan_links; sqMediaFiles.checked=media.scan_files;
@@ -2336,6 +2418,8 @@ function saveGroupSuite() {
         raid:{...(old.raid||{}),enabled:sqRaid.checked,joins:+sqRaidJoins.value},
         welcome:{...(old.welcome||{}),enabled:sqWelcome.checked,message:sqWelcomeText.value},
         consensus:{...(old.consensus||{}),enabled:sqConsensus.checked,votes_required:+sqVotes.value},
+        channel_senders:{ban_external_channels:sqChannelBan.checked,delete_messages:sqChannelDelete.checked,notify:sqChannelNotify.checked},
+        bot_interaction:{enabled:sqBotEnabled.checked,learn:sqBotLearn.checked,reply:sqBotReply.checked,allowed_usernames:sqBotAllowed.value.split(",").map(x=>x.trim()).filter(Boolean),max_replies_per_hour:+sqBotLimit.value},
         media_security:{...(old.media_security||{}),enabled:sqMediaEnabled.checked,
             scan_photos:sqMediaPhotos.checked,scan_links:sqMediaLinks.checked,
             scan_files:sqMediaFiles.checked,ocr:sqMediaOcr.checked,

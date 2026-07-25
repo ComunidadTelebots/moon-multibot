@@ -1301,3 +1301,5 @@ h3 { margin-bottom: 20px; font-weight: 600; }
 .command-result small{display:block;color:var(--text-muted);font-size:11px;margin-top:3px}.command-star{border:0;background:none;color:var(--text-muted);font-size:20px;cursor:pointer}.command-star.on{color:#fbbf24}
 body.moon-compact .glass-panel{padding:14px}body.moon-compact .nav-item{padding:7px 10px}body.moon-compact .main-content{padding-top:10px}
 html.moon-font-small{font-size:14px}html.moon-font-large{font-size:18px}
+.mod-permission-alert{margin:0 0 18px;padding:16px;border:1px solid rgba(251,146,60,.65);border-radius:14px;background:linear-gradient(135deg,rgba(234,88,12,.2),rgba(245,158,11,.08));color:var(--text)}
+.mod-permission-alert h4{margin:0 0 8px;color:#fdba74}.mod-permission-alert p{margin:5px 0;font-size:13px}.mod-permission-alert ul{margin:8px 0;padding-left:22px;color:var(--text-muted)}

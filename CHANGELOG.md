@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v17.5.0 - Bots administrados de Telegram
+
+- Compatibilidad completa con `managed_bot` y detección de `can_manage_bots`.
+- Creación guiada mediante el flujo oficial de Telegram, tanto en la web como en la Mini App.
+- Conexión automática opcional de nuevos bots administrados y almacenamiento cifrado de sus tokens.
+- Consulta y cambio del acceso restringido, rotación segura de credenciales y desconexión local.
+- Registro auditable y catálogo de bots detectados sin exponer tokens al navegador ni a los registros.
+- Confirmaciones obligatorias para rotar credenciales o desconectar una instancia.
+
 ## [Unreleased] — Roadmap de 102 funciones propuestas
 > Estas funciones son propuestas priorizables y todavía no se consideran implementadas.
 
@@ -126,6 +135,78 @@
 ### Análisis multimedia y amenazas (101–102)
 101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
 102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v17.4.0] - 2026-07-25
+
+### Aprendizaje e interacción entre bots
+
+- Opción independiente por grupo, desactivada por defecto.
+- Lista explícita de usernames de bots autorizados para impedir aprendizaje de fuentes desconocidas.
+- Aprendizaje opcional de mensajes, eliminando URLs y rechazando comandos.
+- Respuesta opcional únicamente cuando el otro bot menciona a Moonbot o responde a uno de sus mensajes.
+- Límite configurable de respuestas por hora para cortar conversaciones infinitas entre bots.
+- Los mensajes de bots nunca atraviesan el procesador de comandos ni los sistemas de karma.
+- Historial de interacciones, aprendizaje y respuestas visible en web y Mini App.
+- Configuración equivalente en ambas interfaces y ayuda contextual traducible.
+- Versión visible sincronizada a `v17.4.0`.
+
+## [v17.3.0] - 2026-07-25
+
+### Diagnóstico visible de permisos
+
+- Comprobación real de los permisos del bot mediante `getChatMember` al abrir cada grupo.
+- Aviso naranja destacado inmediatamente debajo del nombre cuando faltan capacidades.
+- Lista exacta de permisos ausentes: administrar, borrar, restringir, invitar/aprobar y fijar.
+- Instrucciones paso a paso para corregir los permisos desde los administradores de Telegram.
+- Botón para comprobar de nuevo sin recargar la Mini App.
+- El aviso se oculta automáticamente cuando todos los permisos están concedidos.
+- Diagnóstico equivalente en la pantalla de moderación de la web clásica.
+- Permisos específicos de publicación cuando el espacio administrado es un canal.
+- Versión visible sincronizada a `v17.3.0`.
+
+## [v17.2.2] - 2026-07-25
+
+### Protección contra canales remitentes
+
+- Ajuste independiente por grupo para banear canales externos usados como identidad de envío.
+- Eliminación opcional del mensaje mediante `deleteMessage` y bloqueo mediante `banChatSenderChat`.
+- Aviso opcional al grupo y registro del resultado en la auditoría administrativa.
+- El canal oficialmente vinculado continúa ignorándose y nunca se banea con esta política.
+- Configuración equivalente en la web clásica y la Mini App, con explicación contextual.
+- Versión visible sincronizada a `v17.2.2`.
+
+## [v17.2.1] - 2026-07-25
+
+### Filtro de publicaciones vinculadas
+
+- Las publicaciones de canales se contabilizan para estadísticas, pero no activan moderación, karma, IA ni respuestas.
+- Los mensajes automáticos enviados por un canal a su grupo de debate se ignoran antes de procesar usuarios.
+- También se ignoran mensajes publicados con identidad de canal dentro de grupos y supergrupos.
+- Los mensajes normales de usuarios, bots administrados y administradores anónimos del propio grupo conservan su comportamiento.
+- Versión visible sincronizada a `v17.2.1`.
+
+## [v17.2.0] - 2026-07-25
+
+### Ayuda contextual
+
+- Botones `?` discretos en títulos, apartados, ajustes y acciones principales.
+- Explicaciones en una ventana accesible sin abandonar la sección actual.
+- Cobertura automática del contenido cargado dinámicamente en la web y la Mini App.
+- Descripciones específicas para seguridad, proxies, IA, comunidad, eventos, integraciones y operaciones.
+- `/help comando` explica el propósito y alcance de cada comando y traduce la respuesta al idioma del usuario.
+- Versión visible sincronizada a `v17.2.0`.
+
+## [v17.1.0] - 2026-07-25
+
+### Traducción universal
+
+- Idioma automático a partir de Telegram o del navegador y selección manual entre todos los códigos ISO disponibles.
+- Traducción bajo demanda de la web, la Mini App y el captcha, incluida la interfaz generada dinámicamente.
+- Caché persistente en servidor y navegador para evitar traducir repetidamente las mismas cadenas.
+- Respuestas de comandos traducidas al idioma del usuario con fallback seguro en español.
+- Alias latinos adicionales para comandos comunes; los comandos canónicos siguen funcionando en cualquier idioma.
+- Compatibilidad con variantes regionales y códigos históricos normalizados.
+- Versión visible sincronizada a `v17.1.0`.
 
 ## [v17.0.0] - 2026-07-25
 

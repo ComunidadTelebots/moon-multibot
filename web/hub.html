@@ -150,6 +150,11 @@
     background:rgba(11,18,32,.96);border:1px solid var(--line);color:var(--ink);font-size:13px;padding:10px 16px;
     border-radius:12px;opacity:0;transition:.25s;pointer-events:none;}
   .toast.show{opacity:1;}
+  .permission-alert{margin:12px 0 15px;padding:15px;border:1px solid rgba(251,146,60,.62);border-radius:15px;background:linear-gradient(135deg,rgba(234,88,12,.2),rgba(245,158,11,.1));box-shadow:0 10px 30px rgba(234,88,12,.12)}
+  .permission-alert.ok{border-color:rgba(45,212,191,.45);background:rgba(20,184,166,.1)}
+  .permission-alert h3{display:flex;align-items:center;gap:8px;margin:0 0 7px;font-size:15px;color:#fdba74}.permission-alert.ok h3{color:#5eead4}
+  .permission-alert p{margin:5px 0;color:var(--ink);font-size:13px;line-height:1.45}.permission-alert ul,.permission-alert ol{margin:8px 0 10px;padding-left:21px;color:var(--muted);font-size:12px;line-height:1.55}
+  .permission-alert .btn{margin-top:6px}
   .dropdown{border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:10px;overflow:hidden;}
   .dhead{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer;font-weight:600;font-size:14px;}
   .dhead .chev{color:var(--muted);transition:transform .2s;}
@@ -554,6 +559,23 @@
         <input id="mcVotes" type="number" value="${c.consensus.votes_required}" placeholder="Votos requeridos">
         <button class="btn teal" id="msSave">Guardar protección</button>
       </div></div>
+      <div class="dropdown"><div class="dhead">Mensajes enviados como canal <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">El canal vinculado al grupo siempre se ignora. Esta opción bloquea otros canales usados manualmente para publicar.</p>
+        <label class="setrow" data-help="Si se activa, Moonbot elimina el mensaje y banea el canal remitente externo mediante Telegram."><b>Banear canales externos</b><input id="mcsBan" type="checkbox" ${c.channel_senders.ban_external_channels?"checked":""}></label>
+        <label class="setrow"><b>Eliminar sus mensajes</b><input id="mcsDelete" type="checkbox" ${c.channel_senders.delete_messages?"checked":""}></label>
+        <label class="setrow"><b>Avisar en el grupo</b><input id="mcsNotify" type="checkbox" ${c.channel_senders.notify?"checked":""}></label>
+        <button class="btn teal" id="mcsSave">Guardar protección de canales</button>
+      </div></div>
+      <div class="dropdown"><div class="dhead">Interacción con otros bots <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Solo se procesan bots autorizados. Sus comandos nunca se ejecutan y las respuestas tienen límite para evitar bucles.</p>
+        <label class="setrow"><b>Permitir bots autorizados</b><input id="mbiEnabled" type="checkbox" ${c.bot_interaction.enabled?"checked":""}></label>
+        <label class="setrow"><b>Aprender de sus mensajes</b><input id="mbiLearn" type="checkbox" ${c.bot_interaction.learn?"checked":""}></label>
+        <label class="setrow"><b>Responder cuando mencionen a Moonbot</b><input id="mbiReply" type="checkbox" ${c.bot_interaction.reply?"checked":""}></label>
+        <textarea id="mbiAllowed" rows="2" placeholder="Usernames autorizados, separados por comas">${escHtml(c.bot_interaction.allowed_usernames.join(", "))}</textarea>
+        <input id="mbiLimit" type="number" min="1" max="30" value="${c.bot_interaction.max_replies_per_hour}" placeholder="Respuestas máximas por hora">
+        <button class="btn teal" id="mbiSave">Guardar interacción</button>
+        ${(d.bot_interactions||[]).slice(0,8).map(x=>`<div class="userchip"><span>@${escHtml(x.username)} · ${x.learned?"aprendido":"sin aprendizaje"} · ${x.replied?"respuesta enviada":"sin respuesta"}</span></div>`).join("")||'<p class="muted">Sin interacciones registradas.</p>'}
+      </div></div>
       <div class="dropdown"><div class="dhead">Seguridad multimedia <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <p class="muted">Política por grupo. Los administradores quedan protegidos de acciones automáticas.</p>
         <label class="setrow"><b>Activar política</b><input id="mmEnabled" type="checkbox" ${c.media_security.enabled?"checked":""}></label>
@@ -608,12 +630,16 @@
     host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;h.parentElement.classList.toggle("open",!b.hidden);});
     const save=()=>gp("/group/suite/settings",{config:{quarantine:{enabled:mqEnabled.checked,hours:+mqHours.value,messages:+mqMessages.value,block_links:true},raid:{enabled:mrEnabled.checked,joins:+mrJoins.value,window_seconds:+mrWindow.value,lock_minutes:c.raid.lock_minutes},welcome:{enabled:mwEnabled.checked,message:mwText.value,delete_after:c.welcome.delete_after},consensus:{enabled:mcEnabled.checked,votes_required:+mcVotes.value},rules:c.rules}}).then(()=>{showToast("Suite guardada");loadGroupSuiteMini();});
     const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
+    const saveChannelSenders=()=>gp("/group/suite/settings",{config:{channel_senders:{ban_external_channels:mcsBan.checked,delete_messages:mcsDelete.checked,notify:mcsNotify.checked}}}).then(()=>{showToast("Protección de canales guardada");loadGroupSuiteMini();});
+    const saveBotInteraction=()=>gp("/group/suite/settings",{config:{bot_interaction:{enabled:mbiEnabled.checked,learn:mbiLearn.checked,reply:mbiReply.checked,allowed_usernames:mbiAllowed.value.split(",").map(x=>x.trim()).filter(Boolean),max_replies_per_hour:+mbiLimit.value}}}).then(()=>{showToast("Interacción con bots guardada");loadGroupSuiteMini();});
     maAccent.value=c.appearance.accent;applyGroupAppearance(c.appearance);
     const saveAppearance=()=>gp("/group/suite/settings",{config:{appearance:{accent:maAccent.value,compact:maCompact.checked}}}).then(()=>{showToast("Tema del grupo guardado");loadGroupSuiteMini();});
     madAction.value=c.content_limits.action;
     const saveAdaptive=()=>gp("/group/suite/settings",{config:{adaptive_slow:{...c.adaptive_slow,enabled:madSlow.checked,base_seconds:+madSlowBase.value,max_seconds:+madSlowMax.value},content_limits:{enabled:madLimits.checked,mentions:+madMentions.value,emojis:+madEmojis.value,uppercase_percent:+madUpper.value,action:madAction.value}}}).then(()=>{showToast("Moderación guardada");loadGroupSuiteMini();});
     msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
     mmSave.onclick=saveMedia;
+    mcsSave.onclick=saveChannelSenders;
+    mbiSave.onclick=saveBotInteraction;
     maSave.onclick=saveAppearance;
     madSave.onclick=saveAdaptive;madSimulate.onclick=()=>gp("/group/suite/simulate",{text:madSimulation.value}).then(x=>madOutput.textContent=JSON.stringify(x.simulation||x,null,2));
     madReview.onclick=()=>gp("/group/suite/sanctions/review",{}).then(x=>showToast(`${x.expired||0} sanciones caducadas`));
@@ -641,6 +667,24 @@
     loadGroup();
   }
 
+  async function loadGroupBotPermissions(){
+    const host=document.getElementById("gPermissions");if(!host)return;
+    const result=await gp("/group/bot-permissions",{});
+    if(!result||!result.ok){
+      host.innerHTML=`<div class="permission-alert"><h3>${svg('shield')} No se pudieron comprobar los permisos</h3><p>${escHtml((result&&result.error)||"Telegram no respondió. Comprueba que el bot siga dentro del grupo.")}</p><button class="btn ghost" id="gPermissionRetry">Comprobar de nuevo</button></div>`;
+      document.getElementById("gPermissionRetry").onclick=loadGroupBotPermissions;return;
+    }
+    if(result.healthy){host.innerHTML="";return;}
+    host.innerHTML=`<div class="permission-alert" data-help="Este aviso compara los permisos reales del bot en Telegram con los necesarios para moderar correctamente.">
+      <h3>${svg('shield')} El bot no tiene permisos suficientes</h3>
+      <p>Algunas funciones de moderación no podrán ejecutarse hasta corregirlo.</p>
+      <b>Permisos que faltan:</b><ul>${result.missing.map(item=>`<li>${escHtml(item.label)}</li>`).join("")}</ul>
+      <b>Cómo arreglarlo:</b><ol>${result.instructions.map(step=>`<li>${escHtml(step)}</li>`).join("")}</ol>
+      <button class="btn cta" id="gPermissionRetry">${svg('refresh')} Comprobar de nuevo</button>
+    </div>`;
+    document.getElementById("gPermissionRetry").onclick=loadGroupBotPermissions;
+  }
+
   async function loadGroup(){
     const [d,reportData]=await Promise.all([gp("/group/get",{}),gp("/group/ban-reports",{})]);
     const el=document.getElementById("v-grupo");
@@ -657,6 +701,7 @@
       <button class="backbtn" id="gback">${svg('chevron')} Volver</button>
       <div class="vtitle">${escHtml(m.name||'Grupo')}</div>
       <div class="vsub">${t} · ${fmt(m.subscribers)} miembros</div>
+      <div id="gPermissions"></div>
       <div class="master-toolbar">
         ${m.username?`<button class="btn ghost" id="gopen">${svg('ext')} Abrir en Telegram</button>`:""}
         <button class="btn teal" id="gshare">${svg('share')} Compartir resumen</button>
@@ -717,6 +762,7 @@
       <div class="gsec">Notas de moderación</div>
       <textarea id="gnotes" rows="2" placeholder="Notas internas…">${escHtml(d.notes)}</textarea>
       <div class="btnrow"><button class="btn ghost" id="gnotesSave">Guardar notas</button></div>`;
+    loadGroupBotPermissions();
     loadGroupSuiteMini();
     document.getElementById("gback").onclick=()=>showView("canales");
     if(document.getElementById("gopen"))document.getElementById("gopen").onclick=()=>openTg(`https://t.me/${m.username}`);
@@ -1418,7 +1464,7 @@
   }
   async function loadMasterBots(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const r=await masterApi("/api/bots"), bots=(r&&r.bots)||[];
+    const [r,managed]=await Promise.all([masterApi("/api/bots"),masterApi("/api/managed-bots")]), bots=(r&&r.bots)||[], managedBots=(managed&&managed.bots)||[];
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Bots conectados <span class="rbadge">${bots.length}</span></div><div class="dbody">
       ${bots.length?bots.map(b=>`<div class="userchip">
         <span class="uid">${escHtml(b.name||"Bot")}<small style="display:block;color:var(--muted)">${escHtml(b.token_preview||"Token protegido")} · ${(b.chats||[]).length} chats</small></span>
@@ -1427,9 +1473,51 @@
       <div class="gsec">Vincular bot</div>
       <input id="masterBotToken" type="password" autocomplete="off" placeholder="Token proporcionado por BotFather">
       <button class="btn ghost" id="masterAddBot" style="margin-top:9px">${svg('plus')} Añadir instancia</button>
+    </div></div>
+    <div class="dropdown open"><div class="dhead">Bots administrados <span class="rbadge">${managedBots.length}</span></div><div class="dbody">
+      <div class="casbox">${managed&&managed.capable
+        ? `<span class="k">Gestor activo:</span> @${escHtml(managed.manager_username)}`
+        : `<span class="banned">Falta el permiso can_manage_bots.</span><br>Actívalo para el bot gestor en BotFather y reinicia Moonbot.`}</div>
+      <label style="display:flex;gap:8px;align-items:center;margin:12px 0"><input id="masterManagedAuto" type="checkbox" ${managed&&managed.auto_connect?"checked":""}> Conectar automáticamente los bots nuevos</label>
+      <div class="gsec">Crear mediante Telegram</div>
+      <input id="masterManagedUsername" placeholder="usuario_sugerido_bot">
+      <input id="masterManagedName" placeholder="Nombre visible" style="margin-top:8px">
+      <button class="btn ghost" id="masterCreateManaged" style="margin-top:9px">${svg('plus')} Crear en Telegram</button>
+      <div class="gsec">Bots detectados</div>
+      ${managedBots.length?managedBots.map(bot=>`<div class="casbox">
+        <b>@${escHtml(bot.username||bot.bot_id)}</b> <span class="rbadge">${escHtml(bot.status||"detectado")}</span><br>
+        <span class="k">${escHtml(bot.name||"")} · ID ${escHtml(bot.bot_id)}</span>
+        <div class="btnrow" style="margin-top:9px">
+          ${bot.status!=="connected"?`<button class="minibtn" data-managed-action="connect" data-managed-id="${escAttr(bot.bot_id)}">Conectar</button>`:""}
+          <button class="minibtn" data-managed-action="access_set" data-managed-id="${escAttr(bot.bot_id)}" data-managed-restricted="${bot.is_access_restricted?"1":"0"}">${bot.is_access_restricted?"Permitir acceso":"Restringir acceso"}</button>
+          ${bot.status==="connected"?`<button class="minibtn" data-managed-action="rotate" data-managed-id="${escAttr(bot.bot_id)}">Rotar token</button>
+          <button class="minibtn red" data-managed-action="disconnect" data-managed-id="${escAttr(bot.bot_id)}">Desconectar</button>`:""}
+        </div>
+      </div>`).join(""):`<p class="muted">Los bots creados aparecerán aquí al confirmar Telegram.</p>`}
     </div></div>`;
     document.getElementById("masterAddBot").onclick=addMasterBot;
+    document.getElementById("masterManagedAuto").onchange=event=>managedBotMiniAction("set_auto_connect","",{enabled:event.target.checked});
+    document.getElementById("masterCreateManaged").onclick=()=>createManagedBotMini(managed);
+    box.querySelectorAll("[data-managed-action]").forEach(button=>button.onclick=()=>managedBotMiniAction(
+      button.dataset.managedAction,button.dataset.managedId,
+      button.dataset.managedAction==="access_set"?{is_access_restricted:button.dataset.managedRestricted!=="1"}:{}
+    ));
     box.querySelectorAll("[data-delete-bot]").forEach(b=>b.onclick=()=>deleteMasterBot(b.dataset.deleteBot,b.dataset.botName));
+  }
+  function createManagedBotMini(managed){
+    const username=(document.getElementById("masterManagedUsername").value||"").trim().replace(/^@/,"");
+    const name=(document.getElementById("masterManagedName").value||"").trim();
+    if(!managed||!managed.capable){showToast("Activa can_manage_bots en BotFather");return;}
+    if(!/^[A-Za-z][A-Za-z0-9_]{3,30}bot$/i.test(username)){showToast("El usuario debe terminar en bot");return;}
+    openTg(`https://t.me/newbot/${encodeURIComponent(managed.manager_username)}/${encodeURIComponent(username)}?name=${encodeURIComponent(name||username)}`);
+  }
+  async function managedBotMiniAction(action,bot_id,extra={}){
+    if((action==="rotate"||action==="disconnect")&&!await masterConfirm(action==="rotate"
+      ?"¿Rotar el token? El anterior dejará de funcionar inmediatamente."
+      :"¿Desconectar este bot? Seguirá existiendo en Telegram."))return;
+    const result=await masterApi("/api/managed-bots/action",{method:"POST",body:JSON.stringify({action,bot_id,...extra})});
+    showToast(result&&result.ok?"Bot actualizado":(result&&result.msg)||"No se pudo completar");
+    if(result&&result.ok)loadMasterBots();
   }
   async function addMasterBot(){
     const input=document.getElementById("masterBotToken"),token=input.value.trim();
@@ -2138,5 +2226,7 @@
     if(!uxRead("hub_tour_done",false))setTimeout(()=>startGuidedTour(),300);
   })();
 </script>
+<script src="/i18n.js?v=1701"></script>
+<script src="/context-help.js?v=1710"></script>
 </body>
 </html>

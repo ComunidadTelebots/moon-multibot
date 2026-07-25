@@ -35,6 +35,8 @@ class GroupSuite:
         appearance = section("appearance")
         slow = section("adaptive_slow")
         limits = section("content_limits")
+        channel_senders = section("channel_senders")
+        bot_interaction = section("bot_interaction")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -96,12 +98,28 @@ class GroupSuite:
                 "uppercase_percent": max(20, min(int(limits.get("uppercase_percent", 75)), 100)),
                 "action": str(limits.get("action", "delete")) if str(limits.get("action", "delete")) in ("observe", "delete", "warn") else "delete",
             },
+            "channel_senders": {
+                "ban_external_channels": bool(channel_senders.get("ban_external_channels", False)),
+                "delete_messages": bool(channel_senders.get("delete_messages", True)),
+                "notify": bool(channel_senders.get("notify", True)),
+            },
+            "bot_interaction": {
+                "enabled": bool(bot_interaction.get("enabled", False)),
+                "learn": bool(bot_interaction.get("learn", True)),
+                "reply": bool(bot_interaction.get("reply", False)),
+                "allowed_usernames": [
+                    str(item).lower().lstrip("@")[:64]
+                    for item in bot_interaction.get("allowed_usernames", [])
+                    if str(item).strip()
+                ][:50],
+                "max_replies_per_hour": max(1, min(int(bot_interaction.get("max_replies_per_hour", 5)), 30)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
@@ -414,4 +432,5 @@ class GroupSuite:
             "consensus": list(reversed(consensus[-100:])) if isinstance(consensus, list) else [],
             "roles": self.roles(cid), "templates": self.templates(cid),
             "media_events": self.media_events(cid),
+            "bot_interactions": list(reversed(self.db.get(f"BOT_INTERACTION_EVENTS_{cid}", [])[-100:])),
         }

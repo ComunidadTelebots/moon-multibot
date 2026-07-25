@@ -6,6 +6,7 @@
             <option value="">— Seleccionar Grupo —</option>
         </select>
     </div>
+    <div id="modBotPermissions"></div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
         <!-- Warns -->
@@ -49,6 +50,27 @@
             <textarea id="sqWelcomeText" class="input-style" rows="2" placeholder="Bienvenida: usa {name}"></textarea>
             <button class="btn-glow" onclick="saveGroupSuite()">Guardar protección y bienvenida</button>
 
+            <details><summary>Mensajes enviados como canal</summary>
+                <p style="color:var(--text-muted);font-size:12px;">No afecta al canal vinculado: solamente a otros canales usados para escribir manualmente en el grupo.</p>
+                <div class="suite-grid">
+                    <label data-help="Banea el canal remitente externo usando banChatSenderChat."><input type="checkbox" id="sqChannelBan"> Banear canales externos</label>
+                    <label><input type="checkbox" id="sqChannelDelete"> Eliminar sus mensajes</label>
+                    <label><input type="checkbox" id="sqChannelNotify"> Avisar en el grupo</label>
+                </div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar protección de canales</button>
+            </details>
+            <details><summary>Interacción con otros bots</summary>
+                <p style="color:var(--text-muted);font-size:12px;">Solo aprende de bots incluidos en la lista. No ejecuta sus comandos y limita las respuestas para evitar bucles.</p>
+                <div class="suite-grid">
+                    <label><input type="checkbox" id="sqBotEnabled"> Permitir bots autorizados</label>
+                    <label><input type="checkbox" id="sqBotLearn"> Aprender de sus mensajes</label>
+                    <label><input type="checkbox" id="sqBotReply"> Responder a menciones</label>
+                    <input id="sqBotLimit" class="input-style" type="number" min="1" max="30" placeholder="Respuestas máximas por hora">
+                </div>
+                <textarea id="sqBotAllowed" class="input-style" rows="2" placeholder="Usernames separados por comas"></textarea>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar interacción con bots</button>
+                <div id="sqBotInteractions"></div>
+            </details>
             <details><summary>🛡️ Seguridad multimedia automática</summary>
                 <p style="color:var(--text-muted);font-size:12px;">Empieza en modo aviso. Los administradores nunca se expulsan automáticamente.</p>
                 <div class="suite-grid">

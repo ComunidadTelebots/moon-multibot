@@ -30,6 +30,7 @@ DEFAULT_ALLOWED_UPDATES = [
     "poll_answer",
     "message_reaction",
     "message_reaction_count",
+    "managed_bot",
 ]
 
 GUEST_UPDATE_FIELDS = (

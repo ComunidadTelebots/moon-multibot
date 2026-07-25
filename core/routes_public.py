@@ -483,6 +483,65 @@ def _group_suite():
     return GroupSuite(_db)
 
 
+@bp.route("/api/public/group/bot-permissions", methods=["POST", "OPTIONS"])
+def group_bot_permissions():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    bot = _get_bot_for_chat(chat_id)
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    response = bot.api_call("getChatMember", {
+        "chat_id": chat_id, "user_id": bot.bot_id,
+    }, silent=True)
+    if not isinstance(response, dict) or not response.get("ok"):
+        return jsonify({"ok": False, "error": response.get("description", "no se pudieron consultar los permisos") if isinstance(response, dict) else "sin respuesta"}), 502
+    member = response.get("result") or {}
+    status = member.get("status", "left")
+    creator = status == "creator"
+    chat_response = bot.api_call("getChat", {"chat_id": chat_id}, silent=True)
+    chat_type = ((chat_response.get("result") or {}).get("type")
+                 if isinstance(chat_response, dict) and chat_response.get("ok") else "supergroup")
+    required = ({
+        "can_post_messages": "Publicar mensajes",
+        "can_edit_messages": "Editar mensajes",
+        "can_delete_messages": "Eliminar mensajes",
+        "can_invite_users": "Invitar miembros",
+    } if chat_type == "channel" else {
+        "can_manage_chat": "Gestionar el grupo",
+        "can_delete_messages": "Eliminar mensajes",
+        "can_restrict_members": "Restringir y banear miembros",
+        "can_invite_users": "Invitar y aprobar miembros",
+        "can_pin_messages": "Fijar mensajes",
+    })
+    missing = [] if creator else [
+        {"permission": key, "label": label}
+        for key, label in required.items() if not member.get(key, False)
+    ]
+    if status not in ("administrator", "creator"):
+        missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+    return jsonify({
+        "ok": True,
+        "healthy": not missing,
+        "status": status,
+        "chat_type": chat_type,
+        "missing": missing,
+        "bot_username": getattr(bot, "bot_username", "MoonBot"),
+        "instructions": [
+            "Abre el grupo en Telegram.",
+            "Toca el nombre del grupo y entra en Administradores.",
+            f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')} o añádelo como administrador.",
+            "Activa los permisos indicados y guarda los cambios.",
+            "Vuelve a esta pantalla y pulsa Comprobar de nuevo.",
+        ],
+        "checked_at": datetime.datetime.now().isoformat(),
+    })
+
+
 @bp.route("/api/public/group/suite/get", methods=["POST", "OPTIONS"])
 def group_suite_get():
     if request.method == "OPTIONS":

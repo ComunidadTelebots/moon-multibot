@@ -14,13 +14,30 @@ class TelegramEventStore:
         managed = update.get("managed_bot")
         if not managed:
             return False
+        bot = managed.get("bot") or {}
+        owner = managed.get("user") or {}
         events = self.db.get("MANAGED_BOT_UPDATES", [])
-        events.append({
+        event = {
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "update": managed,
-        })
+            "bot_id": str(bot.get("id", "")),
+            "username": bot.get("username"),
+            "owner_id": str(owner.get("id", "")),
+        }
+        events.append(event)
         self.db.set("MANAGED_BOT_UPDATES", events[-100:])
-        self.log("INFO", "Managed bot update recibido desde Telegram Bot API.")
+        registry = self.db.get("MANAGED_BOTS", {})
+        registry = registry if isinstance(registry, dict) else {}
+        if bot.get("id") is not None:
+            current = registry.get(str(bot["id"]), {})
+            current.update({
+                "bot_id": str(bot["id"]), "username": bot.get("username"),
+                "name": bot.get("first_name"), "owner_id": str(owner.get("id", "")),
+                "status": current.get("status", "detected"), "updated_at": event["time"],
+            })
+            registry[str(bot["id"])] = current
+            self.db.set("MANAGED_BOTS", registry)
+        self.log("INFO", f"Managed bot update recibido: @{bot.get('username', 'sin_username')}.")
         return True
 
     def record_business_update(self, update):

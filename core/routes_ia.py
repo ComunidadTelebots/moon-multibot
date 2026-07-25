@@ -8,6 +8,7 @@ import threading
 
 import requests
 from flask import Blueprint, Response, jsonify, request, send_file
+from universal_i18n import UniversalI18n
 
 bp = Blueprint("ia", __name__)
 
@@ -187,6 +188,22 @@ def web_translations():
             data = json.load(f)
         return jsonify({"ok": True, "translations": data})
     return jsonify({"ok": False})
+
+
+@bp.route("/api/ia/i18n", methods=["POST"])
+def universal_translations():
+    """Traduce cualquier lote al idioma ISO solicitado y reutiliza la caché."""
+    payload = request.json or {}
+    texts = payload.get("texts") or []
+    if not isinstance(texts, list) or len(texts) > 160:
+        return jsonify({"ok": False, "error": "lote inválido"}), 400
+    clean = [str(text)[:2000] for text in texts]
+    language = UniversalI18n.normalize(payload.get("language") or payload.get("lang") or "es")
+    service = UniversalI18n(
+        _db,
+        lambda text, target: _get_ia_nativa().translate_text(text, target),
+    )
+    return jsonify({"ok": True, "language": language, "translations": service.batch(clean, language)})
 
 
 @bp.route("/api/ia/translate_all", methods=["POST"])

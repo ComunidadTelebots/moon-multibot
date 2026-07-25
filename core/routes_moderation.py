@@ -59,6 +59,33 @@ def web_mod_get(cid):
     })
 
 
+@bp.route("/api/moderation/<cid>/bot-permissions")
+def web_mod_bot_permissions(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    bot = _get_bot_for_chat(cid)
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    response = bot.api_call("getChatMember", {"chat_id": cid, "user_id": bot.bot_id}, silent=True)
+    if not isinstance(response, dict) or not response.get("ok"):
+        return jsonify({"ok": False, "error": response.get("description", "sin respuesta") if isinstance(response, dict) else "sin respuesta"}), 502
+    member, required = response.get("result") or {}, {
+        "can_manage_chat": "Gestionar el grupo",
+        "can_delete_messages": "Eliminar mensajes",
+        "can_restrict_members": "Restringir y banear miembros",
+        "can_invite_users": "Invitar y aprobar miembros",
+        "can_pin_messages": "Fijar mensajes",
+    }
+    status = member.get("status", "left")
+    missing = [] if status == "creator" else [
+        {"permission": key, "label": label} for key, label in required.items() if not member.get(key, False)
+    ]
+    if status not in ("administrator", "creator"):
+        missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+    return jsonify({"ok": True, "healthy": not missing, "status": status, "missing": missing,
+                    "bot_username": getattr(bot, "bot_username", "MoonBot")})
+
+
 @bp.route("/api/moderation/settings", methods=["POST"])
 def web_mod_settings():
     if not _check_jwt(request):
