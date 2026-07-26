@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.2.0 - Centro de control externo seguro - 2026-07-26
+
+- Nuevo endpoint interno `/api/internal/admin-overview` autenticado con una clave servidor-a-servidor.
+- Resumen sanitizado de instancias, grupos, usuarios observados, actividad reciente y tareas pendientes.
+- Métricas reales de CPU, RAM y disco para el centro de control de TodoSobreAllTech.
+- Registro `last_seen` por usuario para calcular actividad de las últimas 24 horas sin inventar estimaciones.
+- Ningún token de bot, secreto ni identificador individual se devuelve al panel central.
+
 ## v18.1.0 - Mapa lingüístico agregado - 2026-07-26
 
 - Registro persistente del `language_code` declarado por Telegram para cada usuario conocido.

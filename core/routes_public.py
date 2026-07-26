@@ -13,12 +13,18 @@ import hmac
 import hashlib
 import json
 import datetime
+import os
 import time
 import secrets
 from urllib.parse import parse_qsl
 
 import jwt
 from flask import Blueprint, request, jsonify
+
+try:
+    import psutil
+except ImportError:  # pragma: no cover - la imagen oficial incluye psutil
+    psutil = None
 
 from . import image_gen
 from spam_risk import SpamRiskEngine
@@ -40,15 +46,16 @@ _ban_manager = None
 _get_bot_for_chat = None
 _check_cas = None
 _hub_bot_username = "cintiabot"
+_get_global_user_stats = None
 _community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
-          hub_bot_username="cintiabot"):
+          hub_bot_username="cintiabot", get_global_user_stats=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
-    global _hub_bot_username
+    global _hub_bot_username, _get_global_user_stats
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -59,6 +66,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _ban_manager = ban_manager
     _get_bot_for_chat = get_bot_for_chat
     _hub_bot_username = hub_bot_username or "cintiabot"
+    _get_global_user_stats = get_global_user_stats
     return bp
 
 
@@ -120,8 +128,96 @@ def _verify_init_data(init_data, max_age=86400):
 def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Community-Key"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Community-Key, X-Moon-Admin-Key"
     return resp
+
+
+def _internal_admin_authorized():
+    """Autenticacion servidor-a-servidor; el secreto nunca llega al navegador."""
+    expected = os.getenv("MOON_ADMIN_API_KEY", "").strip()
+    supplied = request.headers.get("X-Moon-Admin-Key", "").strip()
+    return bool(expected and supplied and hmac.compare_digest(expected, supplied))
+
+
+def _safe_list(value):
+    return value if isinstance(value, list) else []
+
+
+@bp.route("/api/internal/admin-overview")
+def internal_admin_overview():
+    """Resumen real y sin secretos para el panel central de TodoSobreAllTech."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    bots = list(_get_active_bots() or []) if _get_active_bots else []
+    group_ids = set()
+    instances = []
+    for bot in bots:
+        token = getattr(bot, "token", "")
+        chats = {str(chat_id) for chat_id in _safe_list(_db.get(f"CHATS_{token}", [])) if chat_id}
+        group_ids.update(chats)
+        instances.append({
+            "id": str(getattr(bot, "bot_id", "") or getattr(bot, "user_id", "")),
+            "username": str(getattr(bot, "bot_username", "") or "Moonbot"),
+            "status": "online",
+            "groups": len(chats),
+        })
+
+    users = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
+    now = datetime.datetime.now(datetime.timezone.utc)
+    active_24h = 0
+    for stats in users.values():
+        try:
+            seen = datetime.datetime.fromisoformat(str(stats.get("last_seen", "")).replace("Z", "+00:00"))
+            if seen.tzinfo is None:
+                seen = seen.replace(tzinfo=datetime.timezone.utc)
+            active_24h += (now - seen).total_seconds() <= 86400
+        except (TypeError, ValueError):
+            continue
+
+    audit = _safe_list(_db.get("SECURITY_AUDIT_LOGS", []))[-20:]
+    timeline = [{
+        "time": row.get("time"),
+        "action": row.get("action", "Actividad administrativa"),
+    } for row in reversed(audit) if isinstance(row, dict)]
+
+    resource = {"cpu": None, "ram": None, "disk": None}
+    if psutil:
+        resource = {
+            "cpu": psutil.cpu_percent(interval=0.05),
+            "ram": psutil.virtual_memory().percent,
+            "disk": psutil.disk_usage("C:" if os.name == "nt" else "/").percent,
+        }
+
+    pending_sources = {
+        "reports": _safe_list(_db.get("REPORTS", [])),
+        "appeals": _safe_list(_db.get("BAN_APPEALS", [])),
+        "join_requests": _safe_list(_db.get("JOIN_REQUESTS", [])),
+    }
+    pending = {name: sum(
+        not isinstance(item, dict) or item.get("status", "pending") in ("pending", "open", "new")
+        for item in values
+    ) for name, values in pending_sources.items()}
+
+    return jsonify({
+        "ok": True,
+        "generated_at": now.isoformat(),
+        "summary": {
+            "instances_online": len(instances),
+            "users_observed": len(users),
+            "users_active_24h": active_24h,
+            "groups": len(group_ids),
+        },
+        "resources": resource,
+        "services": [
+            {"name": "Moonbot API", "status": "online"},
+            {"name": "Telegram", "status": "online" if instances else "degraded"},
+            {"name": "Base de datos", "status": "online" if _db else "offline"},
+        ],
+        "pending": {**pending, "total": sum(pending.values())},
+        "instances": instances,
+        "timeline": timeline,
+    })
 
 
 def _community_api_auth():

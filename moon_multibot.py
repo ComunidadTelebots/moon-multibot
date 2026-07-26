@@ -687,6 +687,7 @@ app.register_blueprint(_setup_public(
     get_bot_for_chat=get_bot_for_chat,
     check_cas=check_cas_status,
     hub_bot_username=HUB_BOT_USERNAME,
+    get_global_user_stats=lambda: global_user_stats,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,
@@ -5553,6 +5554,7 @@ class MoonBot:
                         global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
                     telegram_language = str((msg.get("from") or {}).get("language_code") or "und").lower().replace("_", "-")[:16]
                     global_user_stats[uid]["language_code"] = telegram_language
+                    global_user_stats[uid]["last_seen"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
                     user_languages = db.get("TELEGRAM_USER_LANGUAGES", {})
                     if user_languages.get(uid) != telegram_language:
                         user_languages[uid] = telegram_language
