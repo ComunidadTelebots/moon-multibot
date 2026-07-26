@@ -1,5 +1,15 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.6.0 - Centro editorial externo - 2026-07-26
+
+- API editorial protegida conectada al motor persistente `RoadmapEngine`.
+- PublicaciÃ³n inmediata multigrupo utilizando Rich Markdown con fallback seguro.
+- ProgramaciÃ³n para una fecha concreta y recurrencia diaria, semanal o mensual.
+- NormalizaciÃ³n horaria para que las fechas del navegador sean compatibles con el ejecutor del servidor.
+- Vista previa con variables, plantillas reutilizables y comparador de titulares.
+- Comunicados versionados con checksum y calendario de publicaciones pendientes.
+- Todos los destinos se validan contra grupos realmente administrados por Moonbot.
+
 ## v18.5.0 - Centro de seguridad externo - 2026-07-26
 
 - Resumen protegido de amenazas, eventos multimedia, raids activos y fuentes de baneos.

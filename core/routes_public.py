@@ -239,6 +239,13 @@ def _known_internal_group(cid):
     return None
 
 
+def _known_internal_group_ids():
+    ids = set()
+    for bot in (_get_active_bots() or []) if _get_active_bots else []:
+        ids.update(str(item) for item in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", [])))
+    return ids
+
+
 @bp.route("/api/internal/groups/<cid>", methods=["GET", "POST"])
 def internal_group_admin(cid):
     if not _internal_admin_authorized():
@@ -473,6 +480,82 @@ def internal_security_evidence():
     key = os.getenv("MOON_ADMIN_API_KEY", "").encode()
     signature = hmac.new(key, canonical.encode(), hashlib.sha256).hexdigest()
     return jsonify({"ok": True, "algorithm": "HMAC-SHA256", "payload": payload, "signature": signature})
+
+
+def _editorial_templates():
+    rows = _db.get("EDITORIAL_TEMPLATES", [])
+    return rows if isinstance(rows, list) else []
+
+
+@bp.route("/api/internal/editorial", methods=["GET", "POST"])
+def internal_editorial():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    engine = RoadmapEngine(_db)
+    if request.method == "GET":
+        content = engine.snapshot().get("content", {})
+        return jsonify({"ok": True, **content, "templates": list(reversed(_editorial_templates()))[:100],
+                        "series": list(reversed(_safe_list(_db.get("H202_EDITORIAL_SERIES", []))))[:100],
+                        "announcements": list(reversed(_safe_list(_db.get("H202_PUBLIC_ANNOUNCEMENTS", []))))[:100]})
+    body = request.json or {}
+    action = str(body.get("action", ""))
+    title = str(body.get("title") or "")[:300]
+    content = str(body.get("body") or "")[:12000]
+    known = _known_internal_group_ids()
+    targets = [str(item) for item in body.get("targets", []) if str(item) in known]
+    try:
+        if action == "preview":
+            result = {"title": title, "rendered": engine.render_template(content, body.get("variables") or {}),
+                      "characters": len(content), "targets": targets}
+        elif action == "publish_now":
+            if not content or not targets:
+                return jsonify({"ok": False, "error": "content_and_targets_required"}), 400
+            item = engine.content_create("telegram_post", title, content, "todosobrealltech")
+            deliveries = []
+            for cid in targets:
+                bot = _known_internal_group(cid)
+                response = bot.send_rich_message(cid, markdown=content, fallback_text=content)
+                deliveries.append({"group_id": cid, "ok": bool(response.get("ok"))})
+            engine.editorial_decision(item["id"], "todosobrealltech", "approved", "PublicaciÃ³n inmediata")
+            result = {"item": item, "deliveries": deliveries}
+        elif action == "schedule":
+            if not content or not targets or not body.get("execute_at"):
+                return jsonify({"ok": False, "error": "content_targets_and_date_required"}), 400
+            recurrence = body.get("recurrence") or None
+            if recurrence not in (None, "daily", "weekly", "monthly"):
+                return jsonify({"ok": False, "error": "invalid_recurrence"}), 400
+            when = datetime.datetime.fromisoformat(str(body["execute_at"]).replace("Z", "+00:00"))
+            if when.tzinfo is not None:
+                when = when.astimezone().replace(tzinfo=None)
+            expires_at = body.get("expires_at")
+            if expires_at:
+                expiry = datetime.datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+                expires_at = (expiry.astimezone().replace(tzinfo=None) if expiry.tzinfo else expiry).isoformat()
+            item = engine.content_create("telegram_post", title, content, "todosobrealltech")
+            schedule = engine.content_schedule(item["id"], targets, when.isoformat(), recurrence, expires_at)
+            result = {"item": item, "schedule": schedule}
+        elif action == "template_save":
+            if not title or not content:
+                return jsonify({"ok": False, "error": "title_and_body_required"}), 400
+            rows = _editorial_templates()
+            template = {"id": secrets.token_hex(6), "name": title, "body": content,
+                        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            rows.append(template); _db.set("EDITORIAL_TEMPLATES", rows[-200:]); result = template
+        elif action == "headline_compare":
+            result = engine.compare_headlines(body.get("headlines") or [])
+        elif action == "series":
+            result = engine.editorial_series(body.get("operation", "create"), body.get("series_id"), title,
+                                             body.get("description", ""), body.get("content_id"), body.get("position"))
+        elif action == "announcement":
+            result = engine.public_announcement_version(body.get("operation", "publish"), body.get("announcement_id"),
+                                                        title, content, body.get("correction_note", ""), "todosobrealltech")
+        else:
+            return jsonify({"ok": False, "error": "invalid_action"}), 400
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    if _add_audit_log:
+        _add_audit_log(f"TodoSobreAllTech editorial: {action}")
+    return jsonify({"ok": True, "result": result})
 
 
 def _community_api_auth():
