@@ -350,6 +350,108 @@ class RoadmapEngine:
                "status": "assigned" if host else "waiting", "created_at": self._now().isoformat()}
         self._append(f"H202_WELCOME_ROUNDS_{self._id(group_id)}", row, 1000); return row
 
+    def collaborative_mission(self, operation, group_ids=None, mission_id=None, user_id=None,
+                              title="", target=1, progress=0):
+        rows = self._list("H202_COLLABORATIVE_MISSIONS")
+        if operation == "create":
+            groups = sorted({self._id(value) for value in (group_ids or []) if self._id(value)})
+            if len(groups) < 2:
+                raise ValueError("una misión colaborativa necesita al menos dos grupos")
+            item = {"id": uuid.uuid4().hex[:12], "title": str(title)[:200], "groups": groups,
+                    "target": max(1, int(target)), "progress": 0, "participants": [],
+                    "status": "active", "created_at": self._now().isoformat()}
+            rows.append(item)
+        else:
+            item = next((row for row in rows if row.get("id") == mission_id), None)
+            if not item:
+                return None
+            if operation == "join":
+                participant = self._id(user_id)
+                if participant and participant not in item["participants"]:
+                    item["participants"].append(participant)
+            elif operation == "progress":
+                item["progress"] = min(item["target"], item["progress"] + max(0, int(progress)))
+                if item["progress"] >= item["target"]:
+                    item["status"] = "completed"
+                    item["completed_at"] = self._now().isoformat()
+            elif operation != "status":
+                raise ValueError("operación de misión inválida")
+        self.db.set("H202_COLLABORATIVE_MISSIONS", rows[-500:])
+        return item
+
+    def invisible_contributions(self, group_id, events):
+        weights = {"welcome": 3, "report": 2, "answer": 2, "mediation": 5, "resource": 3}
+        scores = defaultdict(lambda: {"score": 0, "actions": 0, "kinds": Counter()})
+        for event in (events or [])[-2000:]:
+            if not isinstance(event, dict):
+                continue
+            user = self._id(event.get("user_id"))
+            kind = str(event.get("kind", "other"))[:30]
+            if not user:
+                continue
+            scores[user]["score"] += weights.get(kind, 1)
+            scores[user]["actions"] += 1
+            scores[user]["kinds"][kind] += 1
+        ranking = [{"user_id": user, "score": value["score"], "actions": value["actions"],
+                    "kinds": dict(value["kinds"])} for user, value in scores.items()]
+        ranking.sort(key=lambda row: (-row["score"], row["user_id"]))
+        result = {"group_id": self._id(group_id), "ranking": ranking[:100],
+                  "calculated_at": self._now().isoformat()}
+        self.db.set(f"H202_INVISIBLE_CONTRIBUTIONS_{self._id(group_id)}", result)
+        return result
+
+    def social_health(self, group_id, metrics):
+        values = {"participation": float(metrics.get("participation", 0)),
+                  "retention": float(metrics.get("retention", 0)),
+                  "response_rate": float(metrics.get("response_rate", 0)),
+                  "conflict_rate": float(metrics.get("conflict_rate", 0)),
+                  "moderator_load": float(metrics.get("moderator_load", 0))}
+        positive = (values["participation"] + values["retention"] + values["response_rate"]) / 3
+        pressure = (values["conflict_rate"] + values["moderator_load"]) / 2
+        score = round(max(0, min(100, positive * 0.75 + (100 - pressure) * 0.25)), 1)
+        result = {"group_id": self._id(group_id), "score": score,
+                  "level": "healthy" if score >= 75 else "watch" if score >= 50 else "attention",
+                  "metrics": values, "privacy": "aggregate_only", "calculated_at": self._now().isoformat()}
+        self.db.set(f"H202_SOCIAL_HEALTH_{self._id(group_id)}", result)
+        return result
+
+    def admin_relay(self, group_id, operation, outgoing_id=None, incoming_id=None,
+                    starts_at=None, ends_at=None, relay_id=None):
+        key = f"H202_ADMIN_RELAYS_{self._id(group_id)}"
+        rows = self._list(key)
+        if operation == "create":
+            item = {"id": uuid.uuid4().hex[:12], "outgoing_id": self._id(outgoing_id),
+                    "incoming_id": self._id(incoming_id), "starts_at": str(starts_at or self._now().isoformat()),
+                    "ends_at": str(ends_at or ""), "status": "pending", "checklist": [],
+                    "created_at": self._now().isoformat()}
+            rows.append(item)
+        else:
+            item = next((row for row in rows if row.get("id") == relay_id), None)
+            if not item:
+                return None
+            if operation == "accept":
+                item["status"] = "scheduled"
+                item["accepted_at"] = self._now().isoformat()
+            elif operation == "complete":
+                item["status"] = "completed"
+                item["completed_at"] = self._now().isoformat()
+            elif operation != "status":
+                raise ValueError("operación de relevo inválida")
+        self.db.set(key, rows[-500:])
+        return item
+
+    def annual_memory(self, group_id, year, highlights=None, metrics=None, contributors=None):
+        year = int(year)
+        if year < 2000 or year > self._now().year:
+            raise ValueError("año fuera de rango")
+        item = {"group_id": self._id(group_id), "year": year,
+                "highlights": [str(value)[:300] for value in (highlights or [])[:50]],
+                "metrics": {str(key)[:50]: value for key, value in (metrics or {}).items()},
+                "contributors": [self._id(value) for value in (contributors or [])[:100]],
+                "privacy": "community_approved_content_only", "generated_at": self._now().isoformat()}
+        self.db.set(f"H202_ANNUAL_MEMORY_{self._id(group_id)}_{year}", item)
+        return item
+
     def impersonation_check(self, candidate, administrators):
         name = str(candidate.get("name", "")).casefold().strip()
         username = str(candidate.get("username", "")).casefold().lstrip("@")
