@@ -452,6 +452,14 @@ def _security_snapshot():
     for row in records:
         source = str(row.get("source") or "unknown").lower()
         sources[source] = sources.get(source, 0) + 1
+    local_bans = _ban_manager.get_all_local_bans() if _ban_manager else {}
+    source_summary = {
+        "cas": sum(count for source, count in sources.items() if source in ("cas", "cas_feed", "export.csv")),
+        "spamwatch": sum(count for source, count in sources.items() if "spamwatch" in source),
+        "community": sum(count for source, count in sources.items() if source in ("community", "community_api", "reported")),
+        "local": sum(len(users) for users in local_bans.values()),
+        "other": sum(count for source, count in sources.items() if source not in ("cas", "cas_feed", "export.csv", "community", "community_api", "reported") and "spamwatch" not in source),
+    }
     raids, media_events = [], 0
     for bot in (_get_active_bots() or []) if _get_active_bots else []:
         for cid in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", [])):
@@ -465,6 +473,7 @@ def _security_snapshot():
         "media_events": media_events,
         "active_raids": raids,
         "ban_sources": sources,
+        "source_summary": source_summary,
         "shield_enabled": bool(_db.get("NEURAL_SHIELD", True)),
         "history": list(reversed(recent)),
     }

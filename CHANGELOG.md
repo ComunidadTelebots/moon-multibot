@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.9.0 - Seguridad administrativa completada - 2026-07-26
+
+- AgregaciÃ³n de fuentes CAS, SpamWatch, registro comunitario, listas locales y otras fuentes.
+- Acciones protegidas de mute y unmute por grupo mediante permisos de Telegram.
+- CreaciÃ³n de casos de revisiÃ³n por pares desde TodoSobreAllTech.
+- Consulta de raids preparada para actualizaciÃ³n automÃ¡tica cada 15 segundos en la web.
+- ComprobaciÃ³n de suplantaciÃ³n por similitud de nombre y coincidencia de username.
+
 ## v18.8.0 - Horizonte 1000 en la WebApp - 2026-07-26
 
 - CatÃ¡logo local con exactamente 1.000 propuestas diferenciadas para Web, Moonbot y Telegram WebApp.
