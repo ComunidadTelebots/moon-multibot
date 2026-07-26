@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.5.0 - Centro de seguridad externo - 2026-07-26
+
+- Resumen protegido de amenazas, eventos multimedia, raids activos y fuentes de baneos.
+- AnÃ¡lisis de URL, dominios y hashes mediante el gestor existente de VirusTotal y su cachÃ©.
+- Detector local de tokens, claves privadas, API keys y JWT que no almacena ni devuelve los secretos.
+- CronologÃ­a consolidada de incidentes y resultados de anÃ¡lisis.
+- ExportaciÃ³n JSON de evidencias con firma HMAC-SHA256 verificable.
+- Los anÃ¡lisis iniciados desde TodoSobreAllTech quedan registrados en la auditorÃ­a de Moonbot.
+
 ## v18.4.0 - Usuarios y sanciones externas - 2026-07-26
 
 - API interna protegida para buscar usuarios y consultar reputaciÃ³n, actividad, idioma y notas.

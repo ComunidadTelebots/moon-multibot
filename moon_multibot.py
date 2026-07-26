@@ -690,6 +690,7 @@ app.register_blueprint(_setup_public(
     get_global_user_stats=lambda: global_user_stats,
     get_global_chat_names=lambda: global_chat_names,
     add_audit_log=add_audit_log,
+    vt_manager=vt_mgr,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,

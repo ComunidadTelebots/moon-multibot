@@ -16,6 +16,7 @@ import datetime
 import os
 import time
 import secrets
+import re
 from urllib.parse import parse_qsl
 
 import jwt
@@ -49,16 +50,17 @@ _hub_bot_username = "cintiabot"
 _get_global_user_stats = None
 _get_global_chat_names = None
 _add_audit_log = None
+_vt_manager = None
 _community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
           hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None,
-          add_audit_log=None):
+          add_audit_log=None, vt_manager=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
-    global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log
+    global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log, _vt_manager
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -72,6 +74,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _get_global_user_stats = get_global_user_stats
     _get_global_chat_names = get_global_chat_names
     _add_audit_log = add_audit_log
+    _vt_manager = vt_manager
     return bp
 
 
@@ -390,6 +393,86 @@ def internal_user_admin(uid):
     if _add_audit_log:
         _add_audit_log(f"TodoSobreAllTech: {action} para usuario {uid}" + (f" en {cid}" if cid else ""))
     return jsonify({"ok": True, "user": _user_view(uid, stats), "telegram_results": telegram_results})
+
+
+def _security_snapshot():
+    threats = _safe_list(_db.get("THREAT_ANALYSIS_HISTORY", []))
+    recent = [row for row in threats[-100:] if isinstance(row, dict)]
+    records = _ban_manager.list_ban_records(status="all", limit=2000) if _ban_manager else []
+    sources = {}
+    for row in records:
+        source = str(row.get("source") or "unknown").lower()
+        sources[source] = sources.get(source, 0) + 1
+    raids, media_events = [], 0
+    for bot in (_get_active_bots() or []) if _get_active_bots else []:
+        for cid in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", [])):
+            state = GroupSuite(_db).raid_state(cid)
+            if state.get("active"):
+                raids.append({"group_id": str(cid), **state})
+            media_events += len(GroupSuite(_db).media_events(cid, 100))
+    return {
+        "threats_total": len(threats),
+        "threats_high": sum(row.get("risk") == "high" or int(row.get("malicious", 0) or 0) > 0 for row in threats if isinstance(row, dict)),
+        "media_events": media_events,
+        "active_raids": raids,
+        "ban_sources": sources,
+        "shield_enabled": bool(_db.get("NEURAL_SHIELD", True)),
+        "history": list(reversed(recent)),
+    }
+
+
+@bp.route("/api/internal/security", methods=["GET", "POST"])
+def internal_security():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if request.method == "GET":
+        return jsonify({"ok": True, **_security_snapshot()})
+    body = request.json or {}
+    action = str(body.get("action", ""))
+    if action == "analyze":
+        kind = str(body.get("kind", "")).lower()
+        value = str(body.get("value", "")).strip()
+        if kind not in ("url", "domain", "hash") or not value or len(value) > 2048:
+            return jsonify({"ok": False, "error": "invalid_analysis"}), 400
+        if not _vt_manager:
+            return jsonify({"ok": False, "error": "virustotal_unavailable"}), 503
+        result = _vt_manager.analyze(kind, value)
+        if result.get("ok"):
+            rows = _safe_list(_db.get("THREAT_ANALYSIS_HISTORY", []))
+            rows.append({"time": int(time.time()), "source": "virustotal", "kind": kind,
+                         "value": value[:500], "risk": result.get("risk", "pending"),
+                         "malicious": result.get("malicious", 0), "suspicious": result.get("suspicious", 0)})
+            _db.set("THREAT_ANALYSIS_HISTORY", rows[-300:])
+        if _add_audit_log:
+            _add_audit_log(f"TodoSobreAllTech: analisis VirusTotal de tipo {kind}")
+        return jsonify(result), 200 if result.get("ok") else 400
+    if action == "secret_scan":
+        text = str(body.get("text", ""))[:20000]
+        patterns = {
+            "telegram_bot_token": r"\b\d{6,12}:[A-Za-z0-9_-]{30,}\b",
+            "private_key": r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+            "generic_api_key": r"(?i)\b(?:api[_-]?key|secret|token)\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{16,}",
+            "jwt": r"\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b",
+        }
+        findings = [{"type": name, "count": len(re.findall(pattern, text))}
+                    for name, pattern in patterns.items() if re.search(pattern, text)]
+        return jsonify({"ok": True, "safe": not findings, "findings": findings,
+                        "note": "El texto no se almacena y los valores detectados no se devuelven."})
+    return jsonify({"ok": False, "error": "invalid_action"}), 400
+
+
+@bp.route("/api/internal/security/evidence")
+def internal_security_evidence():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    snapshot = _security_snapshot()
+    payload = {"generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+               "summary": {key: value for key, value in snapshot.items() if key != "history"},
+               "events": snapshot["history"]}
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    key = os.getenv("MOON_ADMIN_API_KEY", "").encode()
+    signature = hmac.new(key, canonical.encode(), hashlib.sha256).hexdigest()
+    return jsonify({"ok": True, "algorithm": "HMAC-SHA256", "payload": payload, "signature": signature})
 
 
 def _community_api_auth():
