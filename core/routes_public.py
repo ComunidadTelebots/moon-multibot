@@ -1165,7 +1165,14 @@ def admin_all_channels():
     if not _is_master(user):
         return jsonify({"ok": False, "error": "solo el dueño del bot"}), 403
     try:
-        return jsonify({"ok": True, "channels": _admin_channel_union()})
+        channels = _admin_channel_union()
+        shared = sum(len(row.get("bots") or []) > 1 for row in channels)
+        instances = sorted({bot.get("username") for row in channels for bot in (row.get("bots") or []) if bot.get("username")})
+        channels.sort(key=lambda row: str(row.get("name") or row.get("chat_id") or "").casefold())
+        return jsonify({"ok": True, "channels": channels, "summary": {
+            "unique_groups": len(channels), "shared_groups": shared,
+            "instances": len(instances), "bot_usernames": instances,
+        }})
     except Exception as error:
         return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
 

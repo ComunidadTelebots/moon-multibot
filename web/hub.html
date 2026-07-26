@@ -397,6 +397,13 @@
       return data&&typeof data==="object"?data:{ok:false,error:`Respuesta no válida (${r.status})`};
     }catch(e){return {ok:false,error:"No se pudo conectar con la API de canales"};}
   }
+  async function loadManagedChannels(){
+    if(!tg||!tg.initData)return {ok:false,error:"Abre la MiniApp desde Telegram"};
+    const all=await apiReadPost("/admin/channels",{initData:tg.initData});
+    if(all&&all.ok)return all;
+    if(all&&all.error&&!String(all.error).includes("solo el dueño"))return all;
+    return apiReadPost("/stats/mine",{initData:tg.initData});
+  }
   async function masterApi(p,opts={}){
     if(!masterToken)return null;
     const headers={...(opts.headers||{}),Authorization:`Bearer ${masterToken}`};
@@ -415,6 +422,12 @@
 
   function escAttr(s){return String(s||"").replace(/"/g,"").replace(/</g,"");}
   function escHtml(s){return String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+  function channelBotNames(channel){
+    const names=(channel&&Array.isArray(channel.bots)?channel.bots:[]).map(bot=>bot&&bot.username).filter(Boolean);
+    if(!names.length&&channel&&channel.bot_username)names.push(channel.bot_username);
+    return [...new Set(names)];
+  }
+  function channelBotLabel(channel){const names=channelBotNames(channel);return names.length?` · ${names.map(name=>`bot @${escHtml(name)}`).join(" + ")}`:"";}
   function channelRow(c, tappable){
     const up=(c.growth30d||0)>=0;
     const collecting=c.collecting?`<div class="collect">recopilando…</div>`:`<div class="g ${up?'up':'down'}">${svg(up?'trendup':'trenddown')} ${gpct(c.growth30d)}</div>`;
@@ -422,7 +435,7 @@
     const tap=tappable?`row tappable" data-chat="${c.chat_id}" data-name="${escAttr(c.name)}`:"row";
     return `<div class="${tap}">
       <div class="av">${initials(c.name)}</div>
-      <div class="meta"><div class="nm">${c.name} ${role}</div><div class="un">@${c.username}${c.bot_username?` · bot @${escHtml(c.bot_username)}`:""}</div></div>
+      <div class="meta"><div class="nm">${c.name} ${role}</div><div class="un">@${c.username}${channelBotLabel(c)}</div></div>
       <div class="num"><div class="s">${fmt(c.subscribers)}</div>${collecting}</div>
     </div>`;
   }
@@ -451,7 +464,7 @@
     let chs=[];
     let channelError="";
     if(tg&&tg.initData){
-      const d=await apiReadPost(master?"/admin/channels":"/stats/mine",{initData:tg.initData});
+      const d=await loadManagedChannels();
       if(d&&d.ok)chs=d.channels||[];else channelError=(d&&d.error)||"No se pudo consultar PocketBase";
     }
     window._moonChannels=chs;
@@ -480,7 +493,7 @@
       <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
         <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
       ${favoriteActions.length?`<div class="sec">Acciones favoritas</div><div class="filterbar">${favoriteActions.map(x=>`<button class="filterpill" data-home-action="${x.id}">★ ${x.name}</button>`).join("")}</div>`:""}
-      ${[...new Set(chs.map(c=>c.bot_username).filter(Boolean))].length>1?`<div class="filterbar" id="myChannelsBots"><button class="filterpill active" data-bot="all">Todos los bots</button>${[...new Set(chs.map(c=>c.bot_username).filter(Boolean))].map(name=>`<button class="filterpill" data-bot="${escAttr(name)}">@${escHtml(name)}</button>`).join("")}</div>`:""}
+      ${[...new Set(chs.flatMap(channelBotNames))].length>1?`<div class="filterbar" id="myChannelsBots"><button class="filterpill active" data-bot="all">Todos los bots</button>${[...new Set(chs.flatMap(channelBotNames))].map(name=>`<button class="filterpill" data-bot="${escAttr(name)}">@${escHtml(name)}</button>`).join("")}</div>`:""}
       <div class="filterbar" id="myChannelsSort" ${widgetPrefs.sort?"":"hidden"}>
         <button class="filterpill active" data-sort="recent">Recientes</button>
         <button class="filterpill" data-sort="subscribers">Más grandes</button>
@@ -492,7 +505,7 @@
     let activeSort="recent",activeBot="all";
     const renderMyChannels=()=>{
       const q=document.getElementById("myChannelsSearch").value.trim().toLowerCase();
-      const filtered=chs.filter(c=>(activeBot==="all"||c.bot_username===activeBot)&&(!q||`${c.name||""} ${c.username||""} ${c.bot_username||""}`.toLowerCase().includes(q)));
+      const filtered=chs.filter(c=>(activeBot==="all"||channelBotNames(c).includes(activeBot))&&(!q||`${c.name||""} ${c.username||""} ${channelBotNames(c).join(" ")}`.toLowerCase().includes(q)));
       filtered.sort((a,b)=>{
         if(activeSort==="subscribers")return (b.subscribers||0)-(a.subscribers||0);
         if(activeSort==="growth")return (b.growth30d||0)-(a.growth30d||0);
@@ -525,7 +538,7 @@
     return `<div class="row tappable" data-chat="${c.chat_id}" data-name="${escAttr(c.name)}">
       <div class="av">${initials(c.name)}</div>
       <div class="meta"><div class="nm">${c.name} <span class="rbadge">${t}</span></div>
-        <div class="un">${uname} · ${fmt(c.subscribers)} subs${c.bot_username?` · bot @${escHtml(c.bot_username)}`:""}</div></div>
+        <div class="un">${uname} · ${fmt(c.subscribers)} subs${channelBotLabel(c)}</div></div>
       <div class="switch ${c.listed?"on":""}" data-chat="${c.chat_id}" role="switch" aria-label="Publicar en directorio"><span></span></div>
     </div>`;
   }
@@ -1135,7 +1148,7 @@
     let chs=[];
     let channelError="";
     if(tg&&tg.initData){
-      const d=await apiReadPost(master?"/admin/channels":"/stats/mine",{initData:tg.initData});
+      const d=await loadManagedChannels();
       if(d&&d.ok)chs=d.channels||[];else channelError=(d&&d.error)||"No se pudo consultar PocketBase";
     }
     window._moonChannels=chs;
@@ -1211,7 +1224,7 @@
     const uname=c.username&&!String(c.username).startsWith("-")?`@${c.username}`:"Canal privado";
     return `<div class="row tappable" data-open-channel="${escAttr(c.username||"")}">
       <div class="av">${initials(c.name)}</div>
-      <div class="meta"><div class="nm">${escHtml(c.name)}</div><div class="un">${escHtml(uname)} · ${fmt(c.subscribers)} subs${c.bot_username?` · bot @${escHtml(c.bot_username)}`:""}</div></div>
+      <div class="meta"><div class="nm">${escHtml(c.name)}</div><div class="un">${escHtml(uname)} · ${fmt(c.subscribers)} subs${channelBotLabel(c)}</div></div>
       <button class="favbtn ${favs.has(key)?"on":""}" data-favorite="${escAttr(key)}" aria-label="${favs.has(key)?"Quitar de favoritos":"Guardar en favoritos"}">${svg('star')}</button>
     </div>`;
   }
@@ -1303,9 +1316,10 @@
     document.getElementById("masterBackup").onclick=()=>openMasterPage("Crear backup","Copia inmediata del sistema",loadMasterBackup);
     document.getElementById("masterMaintenance").onclick=()=>openMasterPage("Mantenimiento","Activar o desactivar el modo",loadMasterMaintenance);
     await loadMasterOverview();
-    const d=await apiReadPost("/admin/channels",{initData:tg.initData});
+    const d=await loadManagedChannels();
     const chs=(d&&d.ok&&d.channels)||[];
-    document.getElementById("masterChannelCount").textContent=`(${chs.length})`;
+    const inv=d.summary||{};
+    document.getElementById("masterChannelCount").textContent=`(${chs.length}${inv.shared_groups?` · ${inv.shared_groups} compartidos`:""}${inv.instances?` · ${inv.instances} bots`:""})`;
     const list=document.getElementById("masterChannelList");
     list.innerHTML=chs.length?chs.map(adminRow).join(""):`<p class="muted">El bot no está en ningún canal todavía.</p>`;
     bindSwitches(list);
@@ -1502,7 +1516,7 @@
     const [r,managed]=await Promise.all([masterApi("/api/bots"),masterApi("/api/managed-bots")]), bots=(r&&r.bots)||[], managedBots=(managed&&managed.bots)||[];
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Bots conectados <span class="rbadge">${bots.length}</span></div><div class="dbody">
       ${bots.length?bots.map(b=>`<div class="userchip">
-        <span class="uid">${escHtml(b.name||"Bot")}<small style="display:block;color:var(--muted)">${escHtml(b.token_preview||"Token protegido")} · ${(b.chats||[]).length} chats</small></span>
+        <span class="uid">${escHtml(b.name||"Bot")} ${b.username?`<span class="rbadge">@${escHtml(b.username)}</span>`:""}<small style="display:block;color:var(--muted)">${escHtml(b.token_preview||"Token protegido")} · ${b.groups??(b.chats||[]).length} grupos · ${b.exclusive_groups||0} exclusivos · ${b.shared_groups||0} compartidos</small><small style="display:block;color:var(--muted)">${escHtml(b.status||"offline")} · ${b.updates_processed||0} eventos · ${b.latency_ms==null?"latencia —":b.latency_ms+" ms"} · ${b.api_errors||0} errores</small></span>
         <button class="minibtn red" data-delete-bot="${escAttr(b.id)}" data-bot-name="${escAttr(b.name)}">Desconectar</button>
       </div>`).join(""):`<p class="muted">No hay bots conectados.</p>`}
       <div class="gsec">Vincular bot</div>
@@ -1749,7 +1763,7 @@
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
     const [summary,status,proxies,bots,channels]=await Promise.all([
       masterApi("/api/admin/summary"),masterApi("/api/status"),masterApi("/api/proxies/stats"),
-      masterApi("/api/bots"),apiReadPost("/admin/channels",{initData:tg.initData})
+      masterApi("/api/bots"),loadManagedChannels()
     ]);
     const report={
       generated_at:new Date().toISOString(),

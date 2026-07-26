@@ -1170,26 +1170,54 @@ def web_bots():
     global bots_data, proxy_bot
     if request.method == 'GET':
         resolved_bots = []
+        active_by_token = {getattr(bot, "token", ""): bot for bot in active_bots}
+        chat_sets = {item.get("token", ""): {
+            str(cid) for cid in db.get(f"CHATS_{item.get('token', '')}", []) if cid
+        } for item in bots_data}
+        memberships = {}
+        for chats in chat_sets.values():
+            for cid in chats:
+                memberships[cid] = memberships.get(cid, 0) + 1
         for b in bots_data:
             tk = b["token"]
+            active = active_by_token.get(tk)
             if tk not in global_bot_names_cache:
-                temp_bot = MoonBot(tk)
-                me = temp_bot.api_call("getMe")
-                if me.get("ok"):
-                    global_bot_names_cache[tk] = "@" + me["result"].get("username", "Bot")
+                if active:
+                    global_bot_names_cache[tk] = {
+                        "name": getattr(active, "bot_display_name", "Moonbot"),
+                        "username": getattr(active, "bot_username", "Moonbot"),
+                    }
                 else:
-                    global_bot_names_cache[tk] = "Token InvÃ¡lido"
+                    me = telegram_api_call(requests.Session(), f"https://api.telegram.org/bot{tk}/", "getMe", {}, timeout=12)
+                    profile = me.get("result", {}) if me.get("ok") else {}
+                    global_bot_names_cache[tk] = {
+                        "name": profile.get("first_name") or "Token inválido",
+                        "username": profile.get("username") or "",
+                    }
+            identity = global_bot_names_cache[tk]
+            if not isinstance(identity, dict):
+                username = str(identity).lstrip("@")
+                identity = {"name": username or "Moonbot", "username": username}
             
             # Obtener chats de este bot
-            bot_chats = db.get(f"CHATS_{tk}", [])
+            bot_chats = sorted(chat_sets.get(tk, set()))
             chat_names = db.get("CHAT_NAMES", {})
             resolved_chats = [{"id": cid, "name": chat_names.get(cid, cid)} for cid in bot_chats]
             
             resolved_bots.append({
                 "id": bot_public_id(tk),
                 "token_preview": mask_bot_token(tk),
-                "name": global_bot_names_cache[tk],
-                "chats": resolved_chats
+                "name": identity["name"],
+                "username": identity["username"],
+                "chats": resolved_chats,
+                "groups": len(bot_chats),
+                "shared_groups": sum(memberships.get(cid, 0) > 1 for cid in bot_chats),
+                "exclusive_groups": sum(memberships.get(cid, 0) == 1 for cid in bot_chats),
+                "status": "online" if active and active.running else "offline",
+                "updates_processed": int(getattr(active, "runtime_updates", 0)) if active else 0,
+                "api_errors": int(getattr(active, "runtime_api_errors", 0)) if active else 0,
+                "latency_ms": getattr(active, "runtime_last_latency_ms", None) if active else None,
+                "uptime_seconds": max(0, int(time.time() - getattr(active, "runtime_started_at", time.time()))) if active else 0,
             })
         return jsonify({"ok": True, "bots": resolved_bots})
     if request.method == 'POST':

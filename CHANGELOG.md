@@ -11,6 +11,15 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.22.0 - Inventario completo en MiniApp - 2026-07-26
+
+- La MiniApp consulta primero el inventario master validado por el servidor y evita quedarse en los grupos personales.
+- El listado une todas las instancias activas, elimina duplicados y devuelve grupos únicos y compartidos.
+- La selección ya no depende de una variable de autenticación del navegador que podía llegar tarde.
+- La respuesta incluye número de instancias y usernames para mantener el panel móvil alineado con la web.
+- La sección de bots incorpora estado, eventos, latencia, errores y grupos exclusivos/compartidos, igual que la web.
+- Consultar bots ya no crea instancias temporales de Moonbot para resolver sus nombres.
+
 ## v18.21.0 - Acceso global independiente - 2026-07-26
 
 - El master puede configurar el canal obligatorio general sin entrar en ningún grupo.
