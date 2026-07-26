@@ -2,7 +2,12 @@ import time
 import requests
 
 
-TELEGRAM_BOT_API_VERSION = "10.1"
+TELEGRAM_BOT_API_VERSION = "10.2"
+
+RICH_MARKDOWN_MODES = {"richmarkdown", "rich_markdown", "rich-markdown"}
+RICH_MESSAGE_MAX_CHARS = 32768
+RICH_MESSAGE_MAX_BLOCKS = 500
+RICH_MESSAGE_MAX_MEDIA = 50
 
 DEPRECATED_METHOD_ALIASES = {
     "kickChatMember": "banChatMember",
@@ -42,6 +47,42 @@ GUEST_UPDATE_FIELDS = (
 
 def normalize_method(method):
     return DEPRECATED_METHOD_ALIASES.get(method, method)
+
+
+def is_rich_markdown_mode(parse_mode):
+    return str(parse_mode or "").strip().lower() in RICH_MARKDOWN_MODES
+
+
+def build_input_rich_message(markdown=None, html=None, blocks=None, media=None,
+                             is_rtl=False, skip_entity_detection=False):
+    """Build and validate the Bot API 10.2 InputRichMessage payload."""
+    provided = sum(value is not None for value in (markdown, html, blocks))
+    if provided != 1:
+        raise ValueError("exactly one of markdown, html or blocks is required")
+    payload = {}
+    if markdown is not None:
+        markdown = str(markdown)
+        if len(markdown) > RICH_MESSAGE_MAX_CHARS:
+            raise ValueError("rich markdown exceeds 32768 characters")
+        payload["markdown"] = markdown
+    elif html is not None:
+        html = str(html)
+        if len(html) > RICH_MESSAGE_MAX_CHARS:
+            raise ValueError("rich HTML exceeds 32768 characters")
+        payload["html"] = html
+    else:
+        if not isinstance(blocks, list) or len(blocks) > RICH_MESSAGE_MAX_BLOCKS:
+            raise ValueError("rich message blocks must be a list of at most 500 items")
+        payload["blocks"] = blocks
+    if media is not None:
+        if not isinstance(media, list) or len(media) > RICH_MESSAGE_MAX_MEDIA:
+            raise ValueError("rich message media must be a list of at most 50 items")
+        payload["media"] = media
+    if is_rtl:
+        payload["is_rtl"] = True
+    if skip_entity_detection:
+        payload["skip_entity_detection"] = True
+    return payload
 
 
 def telegram_api_call(session, base_url, method, params=None, files=None, timeout=35, _retries=3):

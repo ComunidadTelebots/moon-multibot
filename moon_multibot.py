@@ -34,7 +34,9 @@ from core.db import DBManager
 from core.telegram_api import (
     DEFAULT_ALLOWED_UPDATES,
     TELEGRAM_BOT_API_VERSION,
+    build_input_rich_message,
     build_get_updates_payload,
+    is_rich_markdown_mode,
     normalize_method,
     telegram_api_call,
 )
@@ -3214,6 +3216,13 @@ class MoonBot:
             text = self.i18n.translate(text, language)
         safe_text = _repair_mojibake(text)
 
+        if is_rich_markdown_mode(parse_mode):
+            return self.send_rich_message(
+                chat_id, markdown=safe_text,
+                business_connection_id=business_connection_id,
+                fallback_text=safe_text,
+            )
+
         # Intentar envÃ­o via TDLib si estÃ¡ listo y no es mensaje de business
         if self._tdlib and self._tdlib.is_ready and not business_connection_id:
             try:
@@ -3246,6 +3255,48 @@ class MoonBot:
                 "media": None
             })
         return result
+
+    def send_rich_message(self, chat_id, markdown=None, html=None, blocks=None, media=None,
+                          business_connection_id=None, message_thread_id=None,
+                          reply_parameters=None, reply_markup=None, is_rtl=False,
+                          skip_entity_detection=False, fallback_text=None):
+        try:
+            rich_message = build_input_rich_message(
+                markdown=markdown, html=html, blocks=blocks, media=media,
+                is_rtl=is_rtl, skip_entity_detection=skip_entity_detection,
+            )
+        except ValueError as error:
+            return {"ok": False, "error_code": 400, "description": str(error)}
+        payload = {"chat_id": chat_id, "rich_message": rich_message}
+        optional = {
+            "business_connection_id": business_connection_id,
+            "message_thread_id": message_thread_id,
+            "reply_parameters": reply_parameters,
+            "reply_markup": reply_markup,
+        }
+        payload.update({key: value for key, value in optional.items() if value is not None})
+        result = self.call_api("sendRichMessage", payload, silent=True)
+        if result.get("ok"):
+            return result
+        fallback = fallback_text
+        if fallback is None:
+            fallback = markdown if markdown is not None else html if html is not None else json.dumps(blocks, ensure_ascii=False)
+        fallback_payload = {"chat_id": chat_id, "text": str(fallback)[:4096]}
+        if business_connection_id:
+            fallback_payload["business_connection_id"] = business_connection_id
+        add_web_log("WARN", f"Rich Markdown no disponible; fallback de texto: {result.get('description')}")
+        return self.call_api("sendMessage", fallback_payload)
+
+    def send_rich_message_draft(self, chat_id, draft_id, markdown=None, html=None,
+                                blocks=None, media=None, message_thread_id=None):
+        try:
+            rich_message = build_input_rich_message(markdown=markdown, html=html, blocks=blocks, media=media)
+        except ValueError as error:
+            return {"ok": False, "error_code": 400, "description": str(error)}
+        payload = {"chat_id": chat_id, "draft_id": int(draft_id), "rich_message": rich_message}
+        if message_thread_id is not None:
+            payload["message_thread_id"] = message_thread_id
+        return self.call_api("sendRichMessageDraft", payload)
 
     def send_message_draft(self, chat_id, text, message_thread_id=None):
         payload = {"chat_id": chat_id, "text": text}
@@ -4440,6 +4491,7 @@ class MoonBot:
             "backup_db": "Crea una copia inmediata de la base de datos.",
             "ping": "Comprueba rápidamente que el bot está funcionando.",
             "wayback": "Busca la copia archivada más cercana de una URL en Wayback Machine. Admite una fecha opcional YYYYMMDD.",
+            "rich": "Publica Rich Markdown de Bot API 10.2 con títulos, listas, tablas, tareas, fórmulas y bloques plegables.",
         }
 
     @staticmethod
@@ -4568,6 +4620,7 @@ class MoonBot:
             help_text += "âœ¨ **General:** `/perfil`, `/top`, `/notas`, `/search`, `/ia_info`\n"
             help_text += "ðŸŒ **TraducciÃ³n:** `/traducir`, `/aprender_traduccion es en hola = hello`\n"
             help_text += "🕰 **Archivo web:** `/wayback URL [YYYYMMDD]`\n"
+            help_text += "📝 **Rich Markdown 10.2:** `/rich contenido`\n"
             if rk in ["Admin", "Master"]:
                 help_text += "ðŸ›¡ï¸ **ModeraciÃ³n:** `/mute`, `/ban`, `/unban`, `/gban`, `/ungban`, `/warn`\n"
                 help_text += "âš™ï¸ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`, `/ia_programar`\n"
@@ -4615,6 +4668,13 @@ class MoonBot:
                 )
             else:
                 self.send_msg(cid, "🕰 No hay una copia accesible de esa URL en Wayback Machine.")
+            return True
+
+        if raw_cmd in ("/rich", "/richmarkdown"):
+            if not arg_str.strip():
+                self.send_msg(cid, "Uso: `/rich ## Título\\n- elemento\\n- [x] tarea completada`")
+                return True
+            self.send_msg(cid, arg_str, parse_mode="RichMarkdown")
             return True
 
         if raw_cmd in ["/games", "/juegos", "/jeux", "/spiele", "/giochi", "/jogos", "/gry", "/oyunlar"]:

@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+## v17.8.0 - Rich Markdown de Telegram
+
+- Compatibilidad con `sendRichMessage` y `sendRichMessageDraft` de Bot API 10.2.
+- Rich Markdown con encabezados, listas, tareas, tablas, referencias, fórmulas, detalles y medios.
+- Validación local de límites oficiales: 32.768 caracteres, 500 bloques y 50 medios.
+- Fallback automático a texto normal cuando el endpoint aún no está disponible.
+- Nuevo comando `/rich` (`/richmarkdown`) y modo programático `parse_mode="RichMarkdown"`.
+
 ## v17.7.0 - Horizonte 202
 
 - Catálogo adicional de 100 funciones nuevas, separado del roadmap anterior y del motor operativo.

@@ -318,6 +318,31 @@ def web_roadmap_snapshot():
     return jsonify({"ok": True, **RoadmapEngine(_db).snapshot()})
 
 
+@bp.route("/api/users/rich-message", methods=["POST"])
+def web_send_rich_message():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    group_id = str(body.get("group_id") or "").strip()
+    markdown = str(body.get("markdown") or "")
+    if not group_id or not markdown:
+        return jsonify({"ok": False, "error": "group_id y markdown son obligatorios"}), 400
+    bot = next(
+        (candidate for candidate, target_id in _iter_known_group_targets()
+         if str(target_id) == group_id),
+        None,
+    )
+    if not bot:
+        return jsonify({"ok": False, "error": "no hay un bot disponible para ese grupo"}), 404
+    result = bot.send_rich_message(
+        group_id, markdown=markdown,
+        skip_entity_detection=bool(body.get("skip_entity_detection")),
+        fallback_text=markdown,
+    )
+    _add_audit_log(f"Rich Markdown enviado a {group_id}: ok={bool(result.get('ok'))}")
+    return jsonify(result), 200 if result.get("ok") else 400
+
+
 @bp.route("/api/users/roadmap/action", methods=["POST"])
 def web_roadmap_action():
     if not _check_jwt(request):
