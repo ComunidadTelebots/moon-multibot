@@ -1969,3 +1969,8 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 
 
 
+# Captcha estricto sin excepciones
+
+- Nuevo control por grupo y global para que los pendientes no puedan eludir el captcha.
+- Moonbot reaplica los permisos silenciados ante cada intento y vuelve a mostrar el desafío.
+- El control está disponible tanto en la MiniApp como en el panel web de TodoSobreAllTech.

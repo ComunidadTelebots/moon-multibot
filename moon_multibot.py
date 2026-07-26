@@ -5216,7 +5216,8 @@ class MoonBot:
             if cid is None or uid is None:
                 return True
             cfg = db.get(f"JOINCFG_{cid}", {})
-            if not cfg.get("enabled", True):
+            strict = bool(cfg.get("strict_enforcement") or db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False))
+            if not cfg.get("enabled", True) and not strict:
                 return False
             request_ttl = max(300, min(int(cfg.get("request_ttl", 86400)), 604800))
             db.set(f"JOINQ_{cid}_{uid}", {
@@ -5232,7 +5233,7 @@ class MoonBot:
                 "chat_id": cid, "user_id": uid,
                 "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"},
             })
-            if cfg.get("mute_until_verified", True):
+            if cfg.get("mute_until_verified", True) or strict:
                 admitted = self.api_call("approveChatJoinRequest", {"chat_id": cid, "user_id": uid}, silent=True)
                 if isinstance(admitted, dict) and admitted.get("ok"):
                     muted = self.restrict_user(cid, uid, can_send=False)
@@ -5428,7 +5429,8 @@ class MoonBot:
             return False
         uid = member.get("id")
         cfg = db.get(f"JOINCFG_{cid}", {}) or {}
-        if uid is None or member.get("is_bot") or not cfg.get("enabled", True) or not cfg.get("mute_until_verified", True):
+        strict = bool(cfg.get("strict_enforcement") or db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False))
+        if uid is None or member.get("is_bot") or (not cfg.get("enabled", True) and not strict) or not (cfg.get("mute_until_verified", True) or strict):
             return False
         key = f"JOINQ_{cid}_{uid}"
         if db.get(key):
@@ -5457,10 +5459,17 @@ class MoonBot:
         pending = db.get(f"JOINQ_{chat_id}_{user_id}")
         if not pending or (pending.get("captcha_passed") and not pending.get("subscription_pending")):
             return False
+        cfg = db.get(f"JOINCFG_{chat_id}", {}) or {}
+        strict = bool(cfg.get("strict_enforcement") or db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False))
         self.api_call("deleteMessage", {"chat_id": chat_id, "message_id": msg.get("message_id")}, silent=True)
+        if strict:
+            muted = self.restrict_user(chat_id, user_id, can_send=False)
+            pending["telegram_muted"] = bool(muted.get("ok")) if isinstance(muted, dict) else True
+            pending["last_blocked_attempt"] = int(time.time())
+            db.set(f"JOINQ_{chat_id}_{user_id}", pending)
         cooldown_key = f"JOINREMIND_{chat_id}_{user_id}"
         now = int(time.time())
-        if now - int(db.get(cooldown_key, 0) or 0) >= 60:
+        if now - int(db.get(cooldown_key, 0) or 0) >= (15 if strict else 60):
             db.set(cooldown_key, now)
             self.api_call("sendChatJoinRequestWebApp", {"chat_id": chat_id, "user_id": user_id,
                 "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={chat_id}"}}, silent=True)

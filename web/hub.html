@@ -1084,6 +1084,8 @@
         <div class="switch ${cfg.enabled?"on":""}" id="gjoinEnabled"><span></span></div></div>
       <div class="setrow"><div><b>Mute real hasta verificar</b><span>Telegram bloquea texto y contenido multimedia hasta completar captcha, CAS y suscripciones</span></div>
         <div class="switch ${cfg.mute_until_verified!==false?"on":""}" id="gjoinMute"><span></span></div></div>
+      <div class="setrow"><div><b>Modo estricto sin excepciones</b><span>Reaplica el mute y reenvía el captcha si un pendiente intenta escribir${d.global_strict_enforcement?" · impuesto globalmente por el master":""}</span></div>
+        <div class="switch ${(cfg.strict_enforcement||d.global_strict_enforcement)?"on":""}" id="gjoinStrict"><span></span></div></div>
       <div class="statbar" style="margin-top:10px">
         <div class="stat"><div class="v">${pending.length}</div><div class="l">Pendientes</div></div>
         <div class="stat"><div class="v">${stats.approved||0}</div><div class="l">Aprobados</div></div>
@@ -1121,7 +1123,7 @@
       const challenge_ttl=Number(document.getElementById("gjoinChallenge").value);
       const request_ttl=Number(document.getElementById("gjoinRequest").value)*3600;
       const ownChannel=document.getElementById("gjoinChannels").value.trim().replace(/^@/,"");
-      const payload={mute_until_verified:document.getElementById("gjoinMute").classList.contains("on"),max_attempts,challenge_ttl,request_ttl,required_channels:ownChannel?[ownChannel]:[]};
+      const payload={mute_until_verified:document.getElementById("gjoinMute").classList.contains("on"),strict_enforcement:d.global_strict_enforcement?!!cfg.strict_enforcement:document.getElementById("gjoinStrict").classList.contains("on"),max_attempts,challenge_ttl,request_ttl,required_channels:ownChannel?[ownChannel]:[]};
       const globalInput=document.getElementById("gjoinGlobalChannel");
       if(globalInput)payload.global_required_channel=globalInput.value.trim().replace(/^@/,"");
       const r=await gp("/group/join/settings",payload);
@@ -1148,6 +1150,7 @@
     });
     bindDropdown("dd-join");bindDropdown("dd-join-pending");
     document.getElementById("gjoinMute").onclick=function(){this.classList.toggle("on");};
+    document.getElementById("gjoinStrict").onclick=function(){if(d.global_strict_enforcement)return showToast("El master lo ha activado globalmente");this.classList.toggle("on");};
   }
 
   function bindDropdown(id){
@@ -1985,6 +1988,7 @@
     if(!data||!data.ok){box.innerHTML=`<div class="master-error">${escHtml((data&&data.error)||"No se pudo cargar la configuración")}</div>`;return;}
     box.innerHTML=`<div class="card">
       <div class="setrow"><div><b>Suscripción global obligatoria</b><span>Se aplicará al captcha de todos los grupos administrados</span></div><div class="switch ${data.enabled?"on":""}" id="globalAccessEnabled"><span></span></div></div>
+      <div class="setrow"><div><b>Captcha estricto global</b><span>Ningún pendiente podrá escribir: Moonbot reaplicará el mute y volverá a enviar el desafío</span></div><div class="switch ${data.strict_enforcement?"on":""}" id="globalStrictEnabled"><span></span></div></div>
       <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Canal general
         <input id="globalAccessChannel" value="${escHtml(data.channel?`@${data.channel}`:"")}" placeholder="@canal_general" style="width:100%;margin-top:6px">
       </label>
@@ -1992,11 +1996,14 @@
       <button class="btn teal" id="globalAccessSave" style="margin-top:14px">Guardar configuración</button>
     </div>`;
     const toggle=document.getElementById("globalAccessEnabled");
+    const strictToggle=document.getElementById("globalStrictEnabled");
     toggle.onclick=()=>toggle.classList.toggle("on");
+    strictToggle.onclick=()=>strictToggle.classList.toggle("on");
     document.getElementById("globalAccessSave").onclick=async()=>{
       const channel=document.getElementById("globalAccessChannel").value.trim().replace(/^@/,"");
       const enabled=toggle.classList.contains("on");
-      const result=await apiPost("/admin/join-global",{initData:tg&&tg.initData,channel,enabled});
+      const strict_enforcement=strictToggle.classList.contains("on");
+      const result=await apiPost("/admin/join-global",{initData:tg&&tg.initData,channel,enabled,strict_enforcement});
       if(result&&result.ok){showToast(enabled?"Acceso global activado":"Acceso global desactivado");loadMasterGlobalAccess();}
       else showToast((result&&result.error)||"No se pudo guardar");
     };

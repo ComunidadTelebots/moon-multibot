@@ -379,6 +379,7 @@ def internal_group_admin(cid):
             join_config = _join_config(cid)
             join_config["enabled"] = bool(body.get("enabled", join_config["enabled"]))
             join_config["mute_until_verified"] = bool(body.get("mute_until_verified", join_config["mute_until_verified"]))
+            join_config["strict_enforcement"] = bool(body.get("strict_enforcement", join_config["strict_enforcement"]))
             _db.set(f"JOINCFG_{cid}", join_config)
             return jsonify({"ok": True, "join_config": _join_config(cid)})
         elif action == "sync_commands":
@@ -2800,6 +2801,7 @@ def _join_config(chat_id):
     return {
         "enabled": bool(raw.get("enabled", True)),
         "mute_until_verified": bool(raw.get("mute_until_verified", True)),
+        "strict_enforcement": bool(raw.get("strict_enforcement", False)),
         "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
         "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
@@ -2818,7 +2820,8 @@ def _global_join_settings():
     value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "") if _db else ""
     channel = str(value or "").strip().lstrip("@")[:100]
     enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
-    return {"enabled": enabled, "channel": channel}
+    strict_enforcement = bool(_db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False)) if _db else False
+    return {"enabled": enabled, "channel": channel, "strict_enforcement": strict_enforcement}
 
 
 def _set_join_member_muted(bot, chat_id, user_id, muted):
@@ -2855,6 +2858,8 @@ def admin_join_global():
         if enabled and not settings["channel"]:
             return jsonify({"ok": False, "error": "configura primero un canal"}), 400
         _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", enabled)
+    if "strict_enforcement" in body:
+        _db.set("JOIN_GLOBAL_STRICT_ENFORCEMENT", bool(body.get("strict_enforcement")))
     return jsonify({"ok": True, **_global_join_settings()})
 
 
@@ -2971,6 +2976,7 @@ def group_join_get():
     pending.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
     return jsonify({"ok": True, "config": _join_config(chat_id),
                     "global_required_channel": _global_join_channel(),
+                    "global_strict_enforcement": _global_join_settings()["strict_enforcement"],
                     "can_manage_global": _is_master(res[0]),
                     "stats": _join_stats(chat_id), "pending": pending})
 
@@ -2987,7 +2993,7 @@ def group_join_settings():
     if "global_required_channel" in body and not _is_master(res[0]):
         return jsonify({"ok": False, "error": "solo el master puede cambiar el canal global"}), 403
     config = _join_config(chat_id)
-    for key in ("enabled", "mute_until_verified", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
+    for key in ("enabled", "mute_until_verified", "strict_enforcement", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
         if key in body:
             config[key] = body[key]
     required = config.get("required_channels") or []
@@ -2996,6 +3002,7 @@ def group_join_settings():
     config = {
         "enabled": bool(config["enabled"]),
         "mute_until_verified": bool(config["mute_until_verified"]),
+        "strict_enforcement": bool(config["strict_enforcement"]),
         "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
         "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
