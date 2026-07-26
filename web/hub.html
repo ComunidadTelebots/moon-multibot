@@ -1423,6 +1423,7 @@
         <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
         <button class="master-action" id="masterFaq"><span class="mai">${svg('message')}</span><b>Respuestas automáticas</b><small>Preguntas frecuentes del bot</small></button>
         <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
+        <button class="master-action" id="masterHouseAds"><span class="mai">${svg('newspaper')}</span><b>Anuncios propios</b><small>Canales y grupos cuando AdSense no llena</small></button>
         <button class="master-action" id="masterBackup"><span class="mai">${svg('download')}</span><b>Crear backup</b><small>Copia inmediata del sistema</small></button>
         <button class="master-action danger" id="masterMaintenance"><span class="mai">${svg('shield')}</span><b>Mantenimiento</b><small>Activar o desactivar el modo</small></button>
       </div>
@@ -1450,6 +1451,7 @@
     document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
     document.getElementById("masterFaq").onclick=()=>openMasterPage("Respuestas automáticas","Preguntas frecuentes del bot",loadMasterFaq);
     document.getElementById("masterBroadcast").onclick=()=>openMasterPage("Comunicado","Mensaje global a todos los chats",loadMasterBroadcast);
+    document.getElementById("masterHouseAds").onclick=()=>openMasterPage("Anuncios propios","Sustitutos configurables para espacios AdSense vacíos",loadMasterHouseAds);
     document.getElementById("masterBackup").onclick=()=>openMasterPage("Crear backup","Copia inmediata del sistema",loadMasterBackup);
     document.getElementById("masterMaintenance").onclick=()=>openMasterPage("Mantenimiento","Activar o desactivar el modo",loadMasterMaintenance);
     const d=await loadMasterOverview();
@@ -2133,6 +2135,15 @@
       if(res&&res.ok){showToast("Pregunta eliminada");loadMasterFaq();}else showToast("No se pudo eliminar");
     });
   }
+  async function loadMasterHouseAds(){
+    const box=document.getElementById("masterDetail"),call=(payload)=>apiPost("/house-ads/manage",{initData:tg&&tg.initData,...payload});
+    const data=await call({action:"list"}),ads=(data&&data.ads)||[];
+    box.innerHTML=`<div class="dropdown open"><div class="dhead">Catálogo propio <span class="rbadge">${ads.length}</span></div><div class="dbody"><input id="haTitle" placeholder="Título"><input id="haUrl" placeholder="https://t.me/canal"><input id="haDescription" placeholder="Descripción"><input id="haImage" placeholder="Imagen opcional https://..."><select id="haPlacement"><option value="all">Todos los huecos</option><option value="top">Superior</option><option value="right">Lateral</option><option value="inline">Entre noticias</option></select><input id="haPriority" type="number" min="0" max="100" value="50"><button class="btn teal" id="haSave">Añadir anuncio</button>${ads.map(ad=>`<div class="userchip"><span><b>${escHtml(ad.title)}</b><small style="display:block;color:var(--muted)">${escHtml(ad.placement)} · prioridad ${ad.priority} · ${ad.clicks||0} clics</small></span><div class="btnrow"><button class="minibtn" data-ha-toggle="${ad.id}" data-enabled="${ad.enabled!==false}">${ad.enabled!==false?'Pausar':'Activar'}</button><button class="minibtn red" data-ha-delete="${ad.id}">Eliminar</button></div></div>`).join("")||'<p class="muted">Sin anuncios propios.</p>'}</div></div>`;
+    haSave.onclick=()=>call({action:"upsert",ad:{title:haTitle.value,description:haDescription.value,url:haUrl.value,image:haImage.value,placement:haPlacement.value,priority:+haPriority.value,enabled:true}}).then(r=>{showToast(r&&r.ok?"Anuncio guardado":(r&&r.error)||"Error");if(r&&r.ok)loadMasterHouseAds();});
+    box.querySelectorAll("[data-ha-delete]").forEach(b=>b.onclick=()=>call({action:"delete",id:b.dataset.haDelete}).then(loadMasterHouseAds));
+    box.querySelectorAll("[data-ha-toggle]").forEach(b=>{const ad=ads.find(x=>String(x.id)===b.dataset.haToggle);b.onclick=()=>call({action:"upsert",ad:{...ad,enabled:b.dataset.enabled!=="true"}}).then(loadMasterHouseAds);});
+  }
+
   function loadMasterBroadcast(){
     const box=document.getElementById("masterDetail");
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Comunicado global <span class="rbadge">todos los chats</span></div><div class="dbody">

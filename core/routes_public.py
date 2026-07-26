@@ -987,7 +987,7 @@ def internal_integrations():
                   for row in reversed(_safe_list(_db.get("API_TOKENS", [])))]
         calendars = [{key: value for key, value in row.items() if key != "sync_token"}
                      for row in reversed(_safe_list(_db.get("INTEGRATION_CALENDARS", [])))]
-        return jsonify({"ok": True,
+    return jsonify({"ok": True,
                         "modules": list(reversed(_safe_list(_db.get("MODULE_MARKETPLACE", []))))[:200],
                         "tokens": tokens[:200], "sandboxes": _db.get("BOT_SANDBOXES", {}) or {},
                         "quotas": _db.get("BOT_QUOTAS", {}) or {},
@@ -1439,6 +1439,48 @@ def group_spam_get():
             "ham_samples": len(_db.get(f"HAM_SAMPLES_{chat_id}", [])),
         },
     })
+
+
+def _house_ads_payload(placement=None):
+    rows = _safe_list(_db.get("HOUSE_ADS", [])) if _db else []
+    if placement:
+        rows = [row for row in rows if row.get("enabled", True) and row.get("placement", "all") in ("all", placement)]
+    return sorted(rows, key=lambda row: (-int(row.get("priority", 0) or 0), str(row.get("title", ""))))
+
+
+def _house_ads_update(body):
+    rows = _house_ads_payload()
+    action, ad_id = body.get("action", "upsert"), str(body.get("id") or "")
+    if action == "delete": rows = [row for row in rows if str(row.get("id")) != ad_id]
+    elif action == "click":
+        for row in rows:
+            if str(row.get("id")) == ad_id: row["clicks"] = int(row.get("clicks", 0) or 0) + 1
+    elif action == "impression":
+        for row in rows:
+            if str(row.get("id")) == ad_id: row["impressions"] = int(row.get("impressions", 0) or 0) + 1
+    else:
+        raw = body.get("ad") or body
+        url = str(raw.get("url") or "").strip()
+        if not url.startswith(("https://", "tg://")): raise ValueError("enlace no válido")
+        item = {"id": str(raw.get("id") or secrets.token_hex(8)), "title": str(raw.get("title") or "")[:80],
+                "description": str(raw.get("description") or "")[:180], "url": url[:500],
+                "image": str(raw.get("image") or "")[:500], "placement": str(raw.get("placement") or "all"),
+                "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
+                "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0)}
+        if item["placement"] not in ("all", "top", "right", "inline"): raise ValueError("ubicación no válida")
+        if not item["title"]: raise ValueError("título obligatorio")
+        rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]
+    _db.set("HOUSE_ADS", rows)
+    return _house_ads_payload()
+
+
+@bp.route("/api/internal/house-ads", methods=["GET", "POST"])
+def internal_house_ads():
+    if not _internal_admin_authorized(): return jsonify({"ok": False, "error": "unauthorized"}), 401
+    try:
+        if request.method == "POST": _house_ads_update(request.json or {})
+        return jsonify({"ok": True, "ads": _house_ads_payload()})
+    except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
 
 
 @bp.route("/api/public/group/spam/settings", methods=["POST", "OPTIONS"])
@@ -3200,3 +3242,14 @@ def public_proxy():
     if not candidates:
         return jsonify({"ok": False, "error": "sin proxies activos configurados"}), 404
     return jsonify({"ok": True, "count": len(candidates[:limit]), "proxies": candidates[:limit]})
+
+
+@bp.route("/api/public/house-ads/manage", methods=["POST", "OPTIONS"])
+def public_house_ads_manage():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None or not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    try:
+        if body.get("action") and body.get("action") != "list": _house_ads_update(body)
+        return jsonify({"ok": True, "ads": _house_ads_payload()})
+    except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400

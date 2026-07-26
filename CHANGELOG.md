@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Anuncios propios configurables - 2026-07-26
+
+- Moonbot mantiene el catálogo central de promociones propias para canales y grupos.
+- El master puede añadir, pausar, activar y eliminar anuncios desde la MiniApp.
+- Cada anuncio define ubicación, prioridad, imagen y enlace, y registra impresiones y clics.
+- TodoSobreAllTech consume el mismo catálogo mediante la integración interna firmada.
+
 ### Noticias Web3 moderna en el Hub - 2026-07-26
 
 - La tarjeta Noticias Web3 solicita expresamente la versión 2026 al abrir su vista integrada.
