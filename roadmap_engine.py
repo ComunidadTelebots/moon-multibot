@@ -79,6 +79,277 @@ class RoadmapEngine:
         self._record("security", "shared_recurrence", {k: v for k, v in result.items() if k != "records"})
         return result
 
+    # Horizonte 202 · primera fase operativa
+    def conversation_escalation(self, group_id, samples, window_seconds=300):
+        rows = [x for x in (samples or []) if isinstance(x, dict)][-200:]
+        messages = len(rows)
+        users = len({self._id(x.get("user_id")) for x in rows if x.get("user_id") is not None})
+        negative = sum(float(x.get("negative", x.get("toxicity", 0)) or 0) for x in rows)
+        caps = sum(str(x.get("text", "")).isupper() and len(str(x.get("text", ""))) >= 8 for x in rows)
+        reports = sum(bool(x.get("reported")) for x in rows)
+        pace = round(messages * 60 / max(1, int(window_seconds)), 2)
+        score = min(100, round(pace * 1.5 + negative * 12 + caps * 4 + reports * 12))
+        level = "critical" if score >= 75 else "watch" if score >= 40 else "calm"
+        result = {"group_id": self._id(group_id), "score": score, "level": level,
+                  "messages": messages, "users": users, "messages_per_minute": pace,
+                  "signals": {"negative": round(negative, 2), "caps": caps, "reports": reports},
+                  "recommended_action": "activate_mediator" if score >= 75 else "notify_admins" if score >= 40 else "none",
+                  "created_at": self._now().isoformat()}
+        self._append("H202_ESCALATION_RADAR", result, 1000)
+        return result
+
+    def mediator_session(self, group_id, action, user_id=None, statement=None):
+        key = self._id(group_id)
+        sessions = self._dict("H202_MEDIATOR_SESSIONS")
+        session = sessions.get(key)
+        if action == "start":
+            session = {"group_id": key, "status": "active", "queue": [], "turns": [],
+                       "started_at": self._now().isoformat()}
+        elif not session:
+            raise ValueError("no existe una sesión de mediación activa")
+        elif action == "join":
+            uid = self._id(user_id)
+            if not uid:
+                raise ValueError("user_id requerido")
+            if uid not in session["queue"]:
+                session["queue"].append(uid)
+        elif action == "turn":
+            uid = self._id(user_id)
+            if not session["queue"] or session["queue"][0] != uid:
+                raise ValueError("no es el turno de ese usuario")
+            session["turns"].append({"user_id": uid, "statement": str(statement or "")[:2000],
+                                     "created_at": self._now().isoformat()})
+            session["queue"] = session["queue"][1:] + [uid]
+        elif action == "close":
+            session["status"] = "closed"; session["closed_at"] = self._now().isoformat()
+        else:
+            raise ValueError("acción de mediación inválida")
+        sessions[key] = session; self.db.set("H202_MEDIATOR_SESSIONS", sessions)
+        return session
+
+    def domain_quarantine(self, url, domain_age_days=None, trusted_domains=None, minimum_age_days=30):
+        parsed = urlparse(str(url or "").strip())
+        domain = (parsed.hostname or "").casefold().rstrip(".")
+        if parsed.scheme not in ("http", "https") or not domain:
+            raise ValueError("URL HTTP/HTTPS inválida")
+        trusted = {str(x).casefold().rstrip(".") for x in (trusted_domains or [])}
+        age = int(domain_age_days) if domain_age_days is not None else None
+        quarantined = domain not in trusted and (age is None or age < int(minimum_age_days))
+        result = {"url": str(url), "domain": domain, "domain_age_days": age,
+                  "minimum_age_days": int(minimum_age_days), "trusted": domain in trusted,
+                  "quarantined": quarantined,
+                  "reason": "edad desconocida" if quarantined and age is None else "dominio reciente" if quarantined else "permitido"}
+        self._record("security", "domain_quarantine", result)
+        return result
+
+    def peer_review(self, action, case_id=None, reviewer_id=None, verdict=None, payload=None, quorum=3):
+        cases = self._dict("H202_PEER_REVIEWS")
+        if action == "create":
+            case_id = uuid.uuid4().hex[:12]
+            cases[case_id] = {"id": case_id, "payload": payload or {}, "status": "review",
+                              "votes": {}, "quorum": max(2, int(quorum)), "created_at": self._now().isoformat()}
+        else:
+            case_id = self._id(case_id); case = cases.get(case_id)
+            if not case:
+                raise ValueError("caso no encontrado")
+            if action == "vote":
+                if verdict not in ("confirm", "dismiss", "abstain"):
+                    raise ValueError("veredicto inválido")
+                case["votes"][self._id(reviewer_id)] = verdict
+                decisive = [v for v in case["votes"].values() if v != "abstain"]
+                if len(decisive) >= case["quorum"]:
+                    case["status"] = "confirmed" if decisive.count("confirm") > decisive.count("dismiss") else "dismissed"
+                    case["resolved_at"] = self._now().isoformat()
+            elif action != "get":
+                raise ValueError("acción de revisión inválida")
+        self.db.set("H202_PEER_REVIEWS", cases)
+        return cases[case_id]
+
+    def rule_impact_simulation(self, group_id, rule, samples):
+        rule = rule or {}; action = str(rule.get("action", "notify"))
+        keyword = str(rule.get("keyword", "")).casefold().strip()
+        minimum_score = float(rule.get("minimum_score", 0) or 0)
+        matches = []
+        for index, sample in enumerate((samples or [])[:1000]):
+            item = sample if isinstance(sample, dict) else {"text": str(sample)}
+            text = str(item.get("text", ""))
+            if (not keyword or keyword in text.casefold()) and float(item.get("score", 0) or 0) >= minimum_score:
+                matches.append({"index": index, "preview": text[:120], "user_id": item.get("user_id")})
+        total = len(samples or [])
+        result = {"group_id": self._id(group_id), "rule": rule, "action": action,
+                  "sample_size": total, "matches": len(matches),
+                  "impact_percent": round(len(matches) * 100 / max(1, total), 1),
+                  "examples": matches[:20], "safe_to_apply": action != "ban" or len(matches) <= max(3, total * 0.1)}
+        self._append("H202_RULE_SIMULATIONS", result, 500)
+        return result
+
+    def coordinated_brigade(self, events, minimum_groups=2, minimum_users=3):
+        campaigns = defaultdict(lambda: {"groups": set(), "users": set(), "events": 0})
+        for event in (events or [])[-2000:]:
+            if not isinstance(event, dict):
+                continue
+            fingerprint = str(event.get("fingerprint") or event.get("url") or event.get("phrase") or "").casefold().strip()
+            if not fingerprint:
+                continue
+            row = campaigns[hashlib.sha256(fingerprint.encode()).hexdigest()[:12]]
+            row["groups"].add(self._id(event.get("group_id")))
+            row["users"].add(self._id(event.get("user_id")))
+            row["events"] += 1
+        matches = [{"fingerprint": key, "groups": sorted(x for x in row["groups"] if x),
+                    "users": sorted(x for x in row["users"] if x), "events": row["events"]}
+                   for key, row in campaigns.items()
+                   if len({x for x in row["groups"] if x}) >= int(minimum_groups)
+                   and len({x for x in row["users"] if x}) >= int(minimum_users)]
+        result = {"coordinated": bool(matches), "campaigns": matches,
+                  "events_analyzed": len(events or []), "created_at": self._now().isoformat()}
+        self._append("H202_BRIGADE_SCANS", result, 500)
+        return result
+
+    def reputation_passport(self, user_id, metrics, consent=False):
+        if not consent:
+            raise ValueError("se requiere consentimiento explícito del usuario")
+        safe = {key: max(0, int((metrics or {}).get(key, 0)))
+                for key in ("helpful", "verified", "participation", "sanctions")}
+        score = max(0, min(100, safe["helpful"] * 2 + safe["verified"] * 5 +
+                           safe["participation"] - safe["sanctions"] * 15))
+        payload = {"subject": self._id(user_id), "score": score, "metrics": safe,
+                   "issued_at": self._now().isoformat(), "version": 1}
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return {"passport": payload, "signature": hmac.new(self.secret, raw.encode(), hashlib.sha256).hexdigest()}
+
+    def voice_clone_risk(self, features):
+        features = features or {}
+        weights = {"synthetic_probability": 45, "speaker_mismatch": 25,
+                   "replay_probability": 15, "metadata_anomaly": 15}
+        contributions = {key: round(max(0, min(1, float(features.get(key, 0) or 0))) * weight, 2)
+                         for key, weight in weights.items()}
+        score = min(100, round(sum(contributions.values())))
+        return {"score": score, "risk": "high" if score >= 70 else "review" if score >= 35 else "low",
+                "signals": contributions, "human_review_required": score >= 35,
+                "note": "Resultado orientativo; no identifica por sí solo una clonación."}
+
+    def incident_timeline(self, group_id, action="list", event=None):
+        key = f"H202_INCIDENT_TIMELINE_{self._id(group_id)}"
+        rows = self._list(key)
+        if action == "add":
+            event = event or {}
+            row = {"id": uuid.uuid4().hex[:12], "kind": str(event.get("kind", "note"))[:50],
+                   "title": str(event.get("title", "Incidente"))[:300],
+                   "detail": str(event.get("detail", ""))[:2000],
+                   "severity": str(event.get("severity", "info"))[:20],
+                   "occurred_at": event.get("occurred_at") or self._now().isoformat()}
+            rows.append(row); self.db.set(key, rows[-1000:])
+        elif action != "list":
+            raise ValueError("acción de cronología inválida")
+        return {"group_id": self._id(group_id), "events": sorted(rows, key=lambda x: x.get("occurred_at", ""))}
+
+    def evidence_chain(self, case_id, action="append", evidence=None):
+        key = f"H202_EVIDENCE_CHAIN_{self._id(case_id)}"
+        chain = self._list(key)
+        if action == "append":
+            evidence = evidence or {}
+            previous = chain[-1]["hash"] if chain else "GENESIS"
+            payload = {"type": str(evidence.get("type", "note"))[:50],
+                       "reference": str(evidence.get("reference", ""))[:1000],
+                       "digest": str(evidence.get("digest", ""))[:200],
+                       "created_at": self._now().isoformat()}
+            digest = hashlib.sha256((previous + json.dumps(payload, sort_keys=True, separators=(",", ":"))).encode()).hexdigest()
+            chain.append({"index": len(chain), "previous_hash": previous, "hash": digest, "evidence": payload})
+            self.db.set(key, chain[-1000:])
+        elif action != "verify":
+            raise ValueError("acción de evidencia inválida")
+        valid = True; previous = "GENESIS"
+        for index, item in enumerate(chain):
+            expected = hashlib.sha256((previous + json.dumps(item["evidence"], sort_keys=True, separators=(",", ":"))).encode()).hexdigest()
+            if item.get("index") != index or item.get("previous_hash") != previous or item.get("hash") != expected:
+                valid = False; break
+            previous = item["hash"]
+        return {"case_id": self._id(case_id), "valid": valid, "entries": len(chain), "chain": chain}
+
+    # Horizonte 202 · comunidad y participación
+    def assembly(self, group_id, action, assembly_id=None, actor_id=None, data=None):
+        assemblies = self._dict("H202_ASSEMBLIES"); data = data or {}
+        if action == "create":
+            assembly_id = uuid.uuid4().hex[:12]
+            assemblies[assembly_id] = {"id": assembly_id, "group_id": self._id(group_id),
+                "title": str(data.get("title", "Asamblea"))[:300], "status": "open",
+                "proposals": [], "created_by": self._id(actor_id), "created_at": self._now().isoformat()}
+        else:
+            assembly_id = self._id(assembly_id); item = assemblies.get(assembly_id)
+            if not item or item["group_id"] != self._id(group_id): raise ValueError("asamblea no encontrada")
+            if action in ("proposal", "amendment"):
+                item["proposals"].append({"id": uuid.uuid4().hex[:10], "type": action,
+                    "parent_id": data.get("parent_id"), "text": str(data.get("text", ""))[:2000],
+                    "author_id": self._id(actor_id), "votes": {}})
+            elif action == "vote":
+                proposal = next((x for x in item["proposals"] if x["id"] == self._id(data.get("proposal_id"))), None)
+                if not proposal or data.get("vote") not in ("yes", "no", "abstain"): raise ValueError("voto o propuesta inválidos")
+                proposal["votes"][self._id(actor_id)] = data["vote"]
+            elif action == "close": item["status"] = "closed"; item["closed_at"] = self._now().isoformat()
+            elif action != "get": raise ValueError("acción de asamblea inválida")
+        self.db.set("H202_ASSEMBLIES", assemblies); return assemblies[assembly_id]
+
+    def participatory_budget(self, group_id, action, budget_id=None, user_id=None, data=None):
+        budgets = self._dict("H202_BUDGETS"); data = data or {}
+        if action == "create":
+            budget_id = uuid.uuid4().hex[:12]
+            budgets[budget_id] = {"id": budget_id, "group_id": self._id(group_id),
+                "amount": max(0, float(data.get("amount", 0))), "projects": data.get("projects") or [],
+                "allocations": {}, "status": "open"}
+        else:
+            budget_id = self._id(budget_id); budget = budgets.get(budget_id)
+            if not budget or budget["group_id"] != self._id(group_id): raise ValueError("presupuesto no encontrado")
+            if action == "allocate":
+                allocations = {str(k): max(0, float(v)) for k, v in (data.get("allocations") or {}).items()}
+                weight = max(0.1, min(5, float(data.get("weight", 1))))
+                if sum(allocations.values()) > 100: raise ValueError("la asignación supera 100 puntos")
+                budget["allocations"][self._id(user_id)] = {"points": allocations, "weight": weight}
+            elif action == "close": budget["status"] = "closed"
+            elif action != "get": raise ValueError("acción presupuestaria inválida")
+        budget = budgets[budget_id]; totals = Counter()
+        for vote in budget["allocations"].values():
+            for project, points in vote["points"].items(): totals[project] += points * vote["weight"]
+        budget["ranking"] = [{"project": k, "score": round(v, 2)} for k, v in totals.most_common()]
+        self.db.set("H202_BUDGETS", budgets); return budget
+
+    def interest_circle(self, group_id, action, circle_id=None, user_id=None, data=None):
+        circles = self._dict("H202_INTEREST_CIRCLES"); data = data or {}
+        if action == "create":
+            circle_id = uuid.uuid4().hex[:12]; expires = self._now() + datetime.timedelta(days=max(1, int(data.get("days", 30))))
+            circles[circle_id] = {"id": circle_id, "group_id": self._id(group_id),
+                "topic": str(data.get("topic", "Interés"))[:200], "members": [], "expires_at": expires.isoformat(), "status": "active"}
+        else:
+            circle_id = self._id(circle_id); circle = circles.get(circle_id)
+            if not circle or circle["group_id"] != self._id(group_id): raise ValueError("círculo no encontrado")
+            if action == "join" and self._id(user_id) not in circle["members"]: circle["members"].append(self._id(user_id))
+            elif action == "leave": circle["members"] = [x for x in circle["members"] if x != self._id(user_id)]
+            elif action == "close": circle["status"] = "closed"
+            elif action not in ("join", "get"): raise ValueError("acción de círculo inválida")
+        self.db.set("H202_INTEREST_CIRCLES", circles); return circles[circle_id]
+
+    def time_bank(self, group_id, action, user_id=None, target_id=None, hours=0, note=""):
+        key = f"H202_TIME_BANK_{self._id(group_id)}"; state = self._dict(key)
+        balances, ledger = state.get("balances", {}), state.get("ledger", [])
+        amount = round(float(hours), 2)
+        if action == "credit": balances[self._id(user_id)] = round(float(balances.get(self._id(user_id), 0)) + max(0, amount), 2)
+        elif action == "transfer":
+            source, target = self._id(user_id), self._id(target_id)
+            if amount <= 0 or float(balances.get(source, 0)) < amount: raise ValueError("saldo u horas insuficientes")
+            balances[source] = round(float(balances[source]) - amount, 2); balances[target] = round(float(balances.get(target, 0)) + amount, 2)
+        elif action != "balance": raise ValueError("acción de banco de tiempo inválida")
+        if action != "balance": ledger.append({"action": action, "from": self._id(user_id), "to": self._id(target_id), "hours": amount, "note": str(note)[:500], "created_at": self._now().isoformat()})
+        state = {"balances": balances, "ledger": ledger[-1000:]}; self.db.set(key, state); return state
+
+    def welcome_round(self, group_id, member_id, hosts, capacity=3):
+        hosts = [self._id(x) for x in hosts if self._id(x)]
+        rounds = self._list(f"H202_WELCOME_ROUNDS_{self._id(group_id)}")
+        recent = Counter(x.get("host_id") for x in rounds[-100:])
+        available = [x for x in hosts if recent[x] < max(1, int(capacity))]
+        host = min(available or hosts, key=lambda x: recent[x], default=None)
+        row = {"id": uuid.uuid4().hex[:12], "member_id": self._id(member_id), "host_id": host,
+               "status": "assigned" if host else "waiting", "created_at": self._now().isoformat()}
+        self._append(f"H202_WELCOME_ROUNDS_{self._id(group_id)}", row, 1000); return row
+
     def impersonation_check(self, candidate, administrators):
         name = str(candidate.get("name", "")).casefold().strip()
         username = str(candidate.get("username", "")).casefold().lstrip("@")
@@ -540,6 +811,11 @@ class RoadmapEngine:
     def snapshot(self):
         return {
             "security": {"raids": self._list("SECURITY_RAID_SIGNALS")[-50:]},
+            "horizon202": {"escalation": self._list("H202_ESCALATION_RADAR")[-50:],
+                           "mediators": self._dict("H202_MEDIATOR_SESSIONS"),
+                           "peer_reviews": self._dict("H202_PEER_REVIEWS"),
+                           "rule_simulations": self._list("H202_RULE_SIMULATIONS")[-20:],
+                           "brigade_scans": self._list("H202_BRIGADE_SCANS")[-20:]},
             "content": {"items": list(reversed(self._list("CONTENT_ITEMS")))[:100],
                         "schedule": list(reversed(self._list("CONTENT_SCHEDULE")))[:100],
                         "library": list(reversed(self._list("CONTENT_LIBRARY")))[:100],
