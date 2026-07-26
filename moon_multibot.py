@@ -5261,6 +5261,14 @@ class MoonBot:
             threading.Thread(target=_channel_snapshot, daemon=True).start()
 
         # Despacho de mensajes programados (cada ciclo de polling ~cada 20s).
+        if self is proxy_bot and now_s - db.get("LAST_AD_EXPIRY_CHECK", 0) > 300:
+            db.set("LAST_AD_EXPIRY_CHECK", now_s)
+            try:
+                expired_ads = channel_stats.expire_pending_ads()
+                if expired_ads:
+                    add_web_log("INFO", f"{expired_ads} solicitudes publicitarias caducadas")
+            except Exception as error:
+                add_web_log("ERROR", f"No se pudieron caducar anuncios: {error}")
         try:
             due = channel_stats.due_scheduled() if self is proxy_bot else []
         except Exception:

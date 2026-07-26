@@ -148,8 +148,10 @@ class GroupSuite:
                 "enabled": bool(ad_exchange.get("enabled", True)),
                 "cooldown_hours": max(1, min(int(ad_exchange.get("cooldown_hours", 72)), 2160)),
                 "max_daily": max(1, min(int(ad_exchange.get("max_daily", 2)), 20)),
+                "max_weekly": max(1, min(int(ad_exchange.get("max_weekly", 6)), 100)),
                 "same_category_priority": bool(ad_exchange.get("same_category_priority", True)),
                 "max_size_ratio": max(1, min(int(ad_exchange.get("max_size_ratio", 10)), 100)),
+                "pause_after_failures": max(1, min(int(ad_exchange.get("pause_after_failures", 3)), 20)),
             },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }

@@ -21,6 +21,8 @@ C_ADMINS = "tg_channel_admins"
 C_SNAPS = "tg_channel_snapshots"
 C_SCHED = "tg_scheduled"
 C_ADS = "tg_ads"
+C_AD_PREFS = "tg_ad_partner_prefs"
+C_AD_TEMPLATES = "tg_ad_templates"
 
 
 def init(pb):
@@ -105,8 +107,26 @@ def init(pb):
     for field in [
         {"name": "delivered_count", "type": "number"}, {"name": "failed_count", "type": "number"},
         {"name": "last_delivery", "type": "date"}, {"name": "last_error", "type": "text"},
+        {"name": "clicks", "type": "number"}, {"name": "from_url", "type": "url"},
+        {"name": "to_url", "type": "url"}, {"name": "variants", "type": "text"},
+        {"name": "counter_when", "type": "text"}, {"name": "counter_ad", "type": "text"},
+        {"name": "counter_image", "type": "text"}, {"name": "counter_url", "type": "url"},
+        {"name": "expires_at", "type": "date"}, {"name": "approved_by_master", "type": "bool"},
     ]:
         pb.ensure_field(C_ADS, field)
+    pb.ensure_collection(C_AD_PREFS, [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "partner_chat", "type": "text", "required": True},
+        {"name": "status", "type": "text", "required": True},
+        {"name": "updated_by", "type": "number"},
+    ], ["CREATE UNIQUE INDEX `idx_tgap` ON `tg_ad_partner_prefs` (`chat_id`,`partner_chat`)"])
+    pb.ensure_collection(C_AD_TEMPLATES, [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "name", "type": "text", "required": True},
+        {"name": "text", "type": "text", "required": True},
+        {"name": "image", "type": "url"}, {"name": "target_url", "type": "url"},
+        {"name": "created_by", "type": "number"},
+    ])
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────
@@ -412,12 +432,15 @@ def get_channel_owner(chat_id):
 
 
 # ── Anuncios mutuos (estilo InsideAds) ──────────────────────────────────────
-def create_ad_request(from_chat, from_user, from_name, to_chat, to_name, from_ad, when, from_image=None):
+def create_ad_request(from_chat, from_user, from_name, to_chat, to_name, from_ad, when, from_image=None,
+                      from_url=None, variants=None, status="pending"):
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S.000Z")
     return _pb.create(C_ADS, {
         "from_chat": str(from_chat), "from_user": from_user, "from_name": from_name,
         "to_chat": str(to_chat), "to_user": get_channel_owner(to_chat), "to_name": to_name,
         "from_ad": from_ad, "from_ad_image": from_image or "", "when": when,
-        "status": "pending", "created": _now(),
+        "from_url": from_url or "", "variants": variants or "", "status": status,
+        "created": _now(), "expires_at": expires, "clicks": 0, "delivered_count": 0, "failed_count": 0,
     })
 
 
@@ -431,6 +454,10 @@ def ads_for_channel(chat_id):
 
 def ads_outgoing(user_id):
     return _pb.list(C_ADS, filter=f"from_user={int(user_id)}", sort="-created", per_page=50)
+
+
+def ads_master_review():
+    return _pb.list(C_ADS, filter="status='master_review'", sort="-created", per_page=100)
 
 
 def ads_history(chat_id, limit=200):
@@ -450,6 +477,48 @@ def set_ad(ad_id, status, to_ad=None, to_image=None):
     if to_image is not None:
         data["to_ad_image"] = to_image
     _pb.update(C_ADS, ad_id, data)
+
+
+def update_ad(ad_id, data):
+    _pb.update(C_ADS, ad_id, data)
+
+
+def partner_preferences(chat_id):
+    rows = _pb.list(C_AD_PREFS, filter=f"chat_id='{_cid(chat_id)}'", per_page=500)
+    return {str(row.get("partner_chat")): row.get("status") for row in rows}
+
+
+def set_partner_preference(chat_id, partner_chat, status, user_id):
+    if status not in ("favorite", "blocked", "neutral"):
+        return False
+    existing = _pb.first(C_AD_PREFS, f"chat_id='{_cid(chat_id)}' && partner_chat='{_cid(partner_chat)}'")
+    if status == "neutral":
+        if existing:
+            _pb.delete(C_AD_PREFS, existing["id"])
+        return True
+    payload = {"chat_id": str(chat_id), "partner_chat": str(partner_chat), "status": status, "updated_by": user_id}
+    if existing:
+        _pb.update(C_AD_PREFS, existing["id"], payload)
+    else:
+        _pb.create(C_AD_PREFS, payload)
+    return True
+
+
+def ad_templates(chat_id):
+    return _pb.list(C_AD_TEMPLATES, filter=f"chat_id='{_cid(chat_id)}'", sort="-created", per_page=100)
+
+
+def save_ad_template(chat_id, name, text, image, target_url, user_id):
+    return _pb.create(C_AD_TEMPLATES, {"chat_id": str(chat_id), "name": name, "text": text,
+                                      "image": image or "", "target_url": target_url or "", "created_by": user_id})
+
+
+def expire_pending_ads():
+    now = _now()
+    rows = _pb.list(C_ADS, filter=f"(status='pending' || status='countered') && expires_at!='' && expires_at<'{now}'", per_page=100)
+    for row in rows:
+        _pb.update(C_ADS, row["id"], {"status": "expired"})
+    return len(rows)
 
 
 def get_global_stats():

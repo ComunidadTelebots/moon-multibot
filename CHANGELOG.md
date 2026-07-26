@@ -6,6 +6,10 @@
 - Se impiden duplicados pendientes, exceso diario, campañas demasiado próximas y fechas inseguras.
 - El programador usa una única instancia, reintenta hasta tres veces y solo confirma entregas aceptadas por Telegram.
 - Cada campaña muestra entregas, fallos y estado final en Hub; la política también se controla desde TodoSobreAllTech.
+- Se añaden vista previa, plantillas, variantes A/B, enlaces medibles, clics, cancelación, contrapropuestas y franjas recomendadas.
+- Los socios admiten favoritos, bloqueos y reputación; las solicitudes caducan y los contenidos sensibles pasan por revisión master.
+- Los enlaces se validan con VirusTotal cuando está disponible y los informes finales resumen entregas, fallos y clics.
+- La API interna ofrece al panel master de TodoSobreAllTech el mismo inventario de socios, campañas y acciones principales.
 
 ### Salud y rendimiento de plugins - 2026-07-26
 

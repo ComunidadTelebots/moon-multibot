@@ -21,7 +21,7 @@ import ipaddress
 from urllib.parse import parse_qsl, urlparse
 
 import jwt
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect
 
 try:
     import psutil
@@ -432,6 +432,65 @@ def internal_group_admin(cid):
                      "media_events": len(suite.media_events(cid, 100))},
         "history": safe_history,
     })
+
+
+def _internal_ads_payload(cid):
+    preferences = _channel_stats.partner_preferences(cid)
+    partners = []
+    for row in _channel_stats.get_all_channels():
+        if str(row.get("chat_id")) == str(cid) or preferences.get(str(row.get("chat_id"))) == "blocked":
+            continue
+        partners.append({"chat_id": str(row.get("chat_id")), "name": row.get("name"),
+                         "subscribers": int(row.get("subscribers", 0) or 0),
+                         "category": row.get("category"),
+                         "favorite": preferences.get(str(row.get("chat_id"))) == "favorite"})
+    partners.sort(key=lambda row: (not row["favorite"], -row["subscribers"]))
+    campaigns = _channel_stats.ads_history(cid, 100)
+    return {"partners": partners, "campaigns": [{"id": row["id"], "from_chat": row.get("from_chat"),
+        "to_chat": row.get("to_chat"), "from_name": row.get("from_name"), "to_name": row.get("to_name"),
+        "from_ad": row.get("from_ad"), "to_ad": row.get("to_ad"), "when": row.get("when"),
+        "status": row.get("status"), "deliveries": int(row.get("delivered_count", 0) or 0),
+        "failures": int(row.get("failed_count", 0) or 0), "clicks": int(row.get("clicks", 0) or 0)}
+        for row in campaigns]}
+
+
+@bp.route("/api/internal/groups/<cid>/ads", methods=["GET", "POST"])
+def internal_group_ads(cid):
+    if not _internal_admin_authorized(): return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if not _known_internal_group(cid): return jsonify({"ok": False, "error": "group_not_found"}), 404
+    if request.method == "GET": return jsonify({"ok": True, **_internal_ads_payload(cid)})
+    body = request.json or {}; action = body.get("action")
+    if action == "request":
+        target, text, when = str(body.get("to_chat", "")), str(body.get("text", "")).strip(), str(body.get("when", ""))
+        if not _known_internal_group(target) or not text or len(text) > 3500:
+            return jsonify({"ok": False, "error": "campaña no válida"}), 400
+        try: scheduled = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError: return jsonify({"ok": False, "error": "fecha no válida"}), 400
+        if scheduled < datetime.datetime.utcnow() + datetime.timedelta(minutes=10):
+            return jsonify({"ok": False, "error": "la fecha debe estar al menos a 10 minutos"}), 400
+        target_url = str(body.get("target_url") or "").strip()
+        if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
+            return jsonify({"ok": False, "error": "enlace no válido"}), 400
+        source, destination = _channel_stats.get_channel_meta(cid) or {}, _channel_stats.get_channel_meta(target) or {}
+        _channel_stats.create_ad_request(cid, MASTER_ID, source.get("name", f"Grupo {cid}"), target,
+            destination.get("name", f"Grupo {target}"), text, when, from_image=body.get("image"),
+            from_url=target_url, variants=json.dumps(body.get("variants") or [], ensure_ascii=False))
+    else:
+        ad = _channel_stats.get_ad(body.get("id"))
+        if not ad or str(cid) not in (str(ad.get("from_chat")), str(ad.get("to_chat"))):
+            return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+        if action == "cancel" and ad.get("status") in ("pending", "countered", "master_review"):
+            _channel_stats.update_ad(ad["id"], {"status": "cancelled"})
+        elif action == "decline": _channel_stats.update_ad(ad["id"], {"status": "declined"})
+        elif action == "accept":
+            reciprocal = str(body.get("text") or "").strip()
+            if not reciprocal: return jsonify({"ok": False, "error": "falta anuncio recíproco"}), 400
+            target_url = str(body.get("target_url") or "").strip()
+            if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
+                return jsonify({"ok": False, "error": "enlace no válido"}), 400
+            _schedule_ad_pair(ad, MASTER_ID, reciprocal, body.get("image"), target_url, ad.get("when"))
+        else: return jsonify({"ok": False, "error": "acción no permitida"}), 400
+    return jsonify({"ok": True, **_internal_ads_payload(cid)})
 
 
 def _user_view(uid, stats):
@@ -2033,6 +2092,37 @@ def registry_appeal():
     return jsonify({"ok": True, "appeal": appeal}), 201
 
 
+def _ad_tracking_text(ad, text, side, target_url):
+    rendered = str(text or "").strip()
+    if not rendered.startswith("🤝"):
+        rendered = "🤝 Colaboración entre comunidades\n\n" + rendered
+    if target_url:
+        base = os.getenv("MOON_PUBLIC_URL", "https://cintiabot.todosobreall.tech").rstrip("/")
+        rendered += f"\n\n[Más información]({base}/api/public/ads/click/{ad['id']}/{side})"
+    return rendered
+
+
+def _schedule_ad_pair(ad, user_id, to_ad, to_image, to_url, when):
+    variants = []
+    try:
+        variants = json.loads(ad.get("variants") or "[]")
+    except (TypeError, ValueError):
+        pass
+    origin_text = variants[hash(str(ad["id"])) % len(variants)] if variants else ad["from_ad"]
+    _channel_stats.schedule_message(
+        ad["to_chat"], _ad_tracking_text(ad, origin_text, "from", ad.get("from_url")), when,
+        created_by=user_id, bot_token=_channel_stats.get_channel_bot_token(ad["to_chat"]),
+        photo=ad.get("from_ad_image"), ad_id=ad["id"], ad_side="origin_to_partner",
+    )
+    _channel_stats.schedule_message(
+        ad["from_chat"], _ad_tracking_text(ad, to_ad, "to", to_url), when,
+        created_by=user_id, bot_token=_channel_stats.get_channel_bot_token(ad["from_chat"]),
+        photo=to_image, ad_id=ad["id"], ad_side="partner_to_origin",
+    )
+    _channel_stats.update_ad(ad["id"], {"status": "accepted", "to_ad": to_ad,
+                                         "to_ad_image": to_image or "", "to_url": to_url or "", "when": when})
+
+
 @bp.route("/api/public/ads/partners", methods=["POST", "OPTIONS"])
 def ads_partners():
     """Canales disponibles como socios (donde el bot está), excepto el propio."""
@@ -2045,11 +2135,15 @@ def ads_partners():
     _, chat_id = res
     source = _channel_stats.get_channel_meta(chat_id) or {}
     policy = _group_suite().config(chat_id)["ad_exchange"]
+    preferences = _channel_stats.partner_preferences(chat_id)
     if not policy["enabled"]:
         return jsonify({"ok": True, "partners": [], "disabled": True})
     out = []
     for candidate in _channel_stats.get_all_channels():
         if str(candidate["chat_id"]) == str(chat_id):
+            continue
+        preference = preferences.get(str(candidate["chat_id"]), "neutral")
+        if preference == "blocked":
             continue
         destination_policy = _group_suite().config(candidate["chat_id"])["ad_exchange"]
         if not destination_policy["enabled"]:
@@ -2064,11 +2158,20 @@ def ads_partners():
         size_score = (max(0, 40 - round(abs(source_size - destination_size) * 40 / max(source_size, destination_size)))
                       if source_known and destination_known else 15)
         score = 40 + size_score + (20 if same_category and policy["same_category_priority"] else 0)
+        history = _channel_stats.ads_history(candidate["chat_id"], 100)
+        completed = sum(1 for row in history if row.get("status") == "completed")
+        declined = sum(1 for row in history if row.get("status") == "declined")
+        failures = sum(int(row.get("failed_count", 0) or 0) for row in history)
+        reputation = max(0, min(100, 70 + completed * 3 - declined * 2 - failures * 5))
+        if preference == "favorite":
+            score += 15
         out.append({"chat_id": candidate["chat_id"], "name": candidate["name"],
                     "username": candidate["username"], "subscribers": candidate["subscribers"],
                     "ctype": candidate["ctype"], "category": candidate.get("category"),
                     "match_score": min(100, score),
-                    "match_reason": "misma categoría y audiencia similar" if same_category else "audiencia compatible"})
+                    "match_reason": "socio favorito" if preference == "favorite" else ("misma categoría y audiencia similar" if same_category else "audiencia compatible"),
+                    "favorite": preference == "favorite", "reputation": reputation,
+                    "campaigns_completed": completed})
     out.sort(key=lambda item: (-item["match_score"], abs(int(item.get("subscribers") or 0) - int(source.get("subscribers") or 0))))
     return jsonify({"ok": True, "partners": out})
 
@@ -2084,6 +2187,8 @@ def ads_request():
     from_chat = body.get("from_chat")
     to_chat = body.get("to_chat")
     from_ad = (body.get("from_ad") or "").strip()
+    from_url = (body.get("from_url") or "").strip()
+    variants = body.get("variants") or []
     when = (body.get("when") or "").strip()
     if not (from_chat and to_chat and from_ad and when):
         return jsonify({"ok": False, "error": "faltan datos"}), 400
@@ -2091,6 +2196,10 @@ def ads_request():
         return jsonify({"ok": False, "error": "origen y destino no pueden ser iguales"}), 400
     if len(from_ad) > 3500:
         return jsonify({"ok": False, "error": "el anuncio supera 3500 caracteres"}), 400
+    if from_url and (urlparse(from_url).scheme not in ("http", "https") or not urlparse(from_url).netloc):
+        return jsonify({"ok": False, "error": "enlace de campaña no válido"}), 400
+    if not isinstance(variants, list) or len(variants) > 5 or any(not isinstance(item, str) or len(item) > 3500 for item in variants):
+        return jsonify({"ok": False, "error": "las variantes no son válidas"}), 400
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), from_chat)):
         return jsonify({"ok": False, "error": "no gestionas el canal de origen"}), 403
     source_policy = _group_suite().config(from_chat)["ad_exchange"]
@@ -2112,6 +2221,21 @@ def ads_request():
     daily = sum(1 for row in history if str(row.get("created", "")).startswith(today) and row.get("status") in ("accepted", "completed"))
     if daily >= source_policy["max_daily"]:
         return jsonify({"ok": False, "error": "se alcanzó el límite diario de intercambios"}), 429
+    week_start = now - datetime.timedelta(days=7)
+    weekly = 0
+    recent_failures = 0
+    for row in history:
+        try:
+            created_at = datetime.datetime.fromisoformat(str(row.get("created", "")).replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            continue
+        if created_at >= week_start and row.get("status") in ("accepted", "completed", "delivery_failed"):
+            weekly += 1
+            recent_failures += int(row.get("failed_count", 0) or 0)
+    if weekly >= source_policy["max_weekly"]:
+        return jsonify({"ok": False, "error": "se alcanzó el límite semanal de intercambios"}), 429
+    if recent_failures >= source_policy["pause_after_failures"]:
+        return jsonify({"ok": False, "error": "las campañas están pausadas por fallos recientes de entrega"}), 503
     recent = next((row for row in pair if row.get("status") in ("accepted", "completed")), None)
     if recent:
         try:
@@ -2125,10 +2249,18 @@ def ads_request():
         return jsonify({"ok": False, "error": f"El anuncio contiene una palabra no permitida en el canal destino: «{hit}»"}), 400
     fm = _channel_stats.get_channel_meta(from_chat) or {}
     tm = _channel_stats.get_channel_meta(to_chat) or {}
+    sensitive_terms = ("casino", "apuestas", "inversión", "criptomoneda", "préstamo", "contenido adulto")
+    master_review = not _is_master(user) and any(term in from_ad.lower() for term in sensitive_terms)
+    if from_url and _vt_manager:
+        scan = _vt_manager.scan_url(from_url, submit_if_unknown=False)
+        if scan.get("ok") and (int(scan.get("malicious", 0) or 0) > 0 or int(scan.get("suspicious", 0) or 0) > 1):
+            return jsonify({"ok": False, "error": "VirusTotal considera peligroso el enlace del anuncio"}), 400
     rec = _channel_stats.create_ad_request(from_chat, user.get("id"), fm.get("name"),
                                            to_chat, tm.get("name"), from_ad, when,
-                                           from_image=(body.get("from_image") or "").strip())
-    return jsonify({"ok": True, "id": rec.get("id")})
+                                           from_image=(body.get("from_image") or "").strip(),
+                                           from_url=from_url, variants=json.dumps(variants, ensure_ascii=False),
+                                           status="master_review" if master_review else "pending")
+    return jsonify({"ok": True, "id": rec.get("id"), "status": "master_review" if master_review else "pending"})
 
 
 @bp.route("/api/public/ads/incoming", methods=["POST", "OPTIONS"])
@@ -2162,7 +2294,9 @@ def ads_outgoing_ep():
     ads = [{"id": r["id"], "to_name": r.get("to_name"), "from_ad": r.get("from_ad"),
             "when": r.get("when"), "status": r.get("status"),
             "delivered_count": int(r.get("delivered_count", 0) or 0),
-            "failed_count": int(r.get("failed_count", 0) or 0), "last_error": r.get("last_error")} for r in rows]
+            "failed_count": int(r.get("failed_count", 0) or 0), "clicks": int(r.get("clicks", 0) or 0),
+            "last_error": r.get("last_error"), "counter_when": r.get("counter_when"),
+            "counter_ad": r.get("counter_ad")} for r in rows]
     return jsonify({"ok": True, "ads": ads})
 
 
@@ -2183,18 +2317,14 @@ def ads_accept():
     if not to_ad:
         return jsonify({"ok": False, "error": "falta tu anuncio"}), 400
     to_image = (body.get("to_image") or "").strip()
+    to_url = (body.get("to_url") or "").strip()
+    if to_url and (urlparse(to_url).scheme not in ("http", "https") or not urlparse(to_url).netloc):
+        return jsonify({"ok": False, "error": "enlace recíproco no válido"}), 400
     hit = _banned_hit(ad.get("from_chat"), to_ad)
     if hit:
         return jsonify({"ok": False, "error": f"Tu anuncio contiene una palabra no permitida en el canal destino: «{hit}»"}), 400
     when = ad.get("when")
-    # Programa ambos anuncios (con imagen si la hay): el de origen va al destino y viceversa.
-    _channel_stats.schedule_message(ad["to_chat"], ad["from_ad"], when, created_by=user.get("id"),
-                                    bot_token=_channel_stats.get_channel_bot_token(ad["to_chat"]),
-                                    photo=ad.get("from_ad_image"), ad_id=ad["id"], ad_side="origin_to_partner")
-    _channel_stats.schedule_message(ad["from_chat"], to_ad, when, created_by=user.get("id"),
-                                    bot_token=_channel_stats.get_channel_bot_token(ad["from_chat"]),
-                                    photo=to_image, ad_id=ad["id"], ad_side="partner_to_origin")
-    _channel_stats.set_ad(ad["id"], "accepted", to_ad, to_image)
+    _schedule_ad_pair(ad, user.get("id"), to_ad, to_image, to_url, when)
     return jsonify({"ok": True})
 
 
@@ -2213,6 +2343,176 @@ def ads_decline():
         return jsonify({"ok": False, "error": "sin permiso"}), 403
     _channel_stats.set_ad(ad["id"], "declined")
     return jsonify({"ok": True})
+
+
+@bp.route("/api/public/ads/preview", methods=["POST", "OPTIONS"])
+def ads_preview():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    text = str(body.get("text") or "").strip()
+    if not text or len(text) > 3500:
+        return jsonify({"ok": False, "error": "texto no válido"}), 400
+    fake = {"id": "preview"}
+    return jsonify({"ok": True, "rendered": _ad_tracking_text(fake, text, "preview", body.get("target_url")),
+                    "characters": len(text), "has_image": bool(body.get("image")),
+                    "label_added": not text.startswith("🤝")})
+
+
+@bp.route("/api/public/ads/cancel", methods=["POST", "OPTIONS"])
+def ads_cancel():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    ad = _channel_stats.get_ad(body.get("id"))
+    if not ad: return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+    if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("from_chat"))):
+        return jsonify({"ok": False, "error": "sin permiso"}), 403
+    if ad.get("status") not in ("pending", "countered", "master_review"):
+        return jsonify({"ok": False, "error": "la campaña ya no se puede cancelar"}), 409
+    _channel_stats.update_ad(ad["id"], {"status": "cancelled"})
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/public/ads/counter", methods=["POST", "OPTIONS"])
+def ads_counter():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    ad = _channel_stats.get_ad(body.get("id"))
+    if not ad: return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+    if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("to_chat"))):
+        return jsonify({"ok": False, "error": "sin permiso"}), 403
+    counter_ad = str(body.get("to_ad") or "").strip()
+    counter_when = str(body.get("when") or "").strip()
+    counter_url = str(body.get("to_url") or "").strip()
+    if not counter_ad or not counter_when:
+        return jsonify({"ok": False, "error": "faltan contrapropuesta y fecha"}), 400
+    if len(counter_ad) > 3500 or _banned_hit(ad.get("from_chat"), counter_ad):
+        return jsonify({"ok": False, "error": "el texto de la contrapropuesta no está permitido"}), 400
+    if counter_url and (urlparse(counter_url).scheme not in ("http", "https") or not urlparse(counter_url).netloc):
+        return jsonify({"ok": False, "error": "enlace no válido"}), 400
+    try:
+        proposed_at = datetime.datetime.fromisoformat(counter_when.replace("Z", "+00:00")).replace(tzinfo=None)
+    except ValueError:
+        return jsonify({"ok": False, "error": "fecha no válida"}), 400
+    if proposed_at < datetime.datetime.utcnow() + datetime.timedelta(minutes=10) or proposed_at > datetime.datetime.utcnow() + datetime.timedelta(days=30):
+        return jsonify({"ok": False, "error": "fecha fuera del intervalo permitido"}), 400
+    _channel_stats.update_ad(ad["id"], {"status": "countered", "counter_ad": counter_ad,
+        "counter_when": counter_when, "counter_image": str(body.get("to_image") or ""),
+        "counter_url": counter_url})
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/public/ads/counter/accept", methods=["POST", "OPTIONS"])
+def ads_counter_accept():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    ad = _channel_stats.get_ad(body.get("id"))
+    if not ad or ad.get("status") != "countered":
+        return jsonify({"ok": False, "error": "contrapropuesta no disponible"}), 404
+    if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("from_chat"))):
+        return jsonify({"ok": False, "error": "sin permiso"}), 403
+    _schedule_ad_pair(ad, user.get("id"), ad.get("counter_ad"), ad.get("counter_image"),
+                      ad.get("counter_url"), ad.get("counter_when"))
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/public/ads/master/approve", methods=["POST", "OPTIONS"])
+def ads_master_approve():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    ad = _channel_stats.get_ad(body.get("id"))
+    if not ad or ad.get("status") != "master_review": return jsonify({"ok": False, "error": "revisión no disponible"}), 404
+    _channel_stats.update_ad(ad["id"], {"status": "pending", "approved_by_master": True})
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/public/ads/master/review", methods=["POST", "OPTIONS"])
+def ads_master_review():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    rows = _channel_stats.ads_master_review()
+    return jsonify({"ok": True, "ads": [{"id": row["id"], "from_name": row.get("from_name"),
+        "to_name": row.get("to_name"), "from_ad": row.get("from_ad"), "when": row.get("when")} for row in rows]})
+
+
+@bp.route("/api/public/ads/partner-preference", methods=["POST", "OPTIONS"])
+def ads_partner_preference():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    chat_id, partner = body.get("chat_id"), body.get("partner_chat")
+    if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), chat_id)):
+        return jsonify({"ok": False, "error": "sin permiso"}), 403
+    if not _channel_stats.set_partner_preference(chat_id, partner, body.get("status"), user.get("id")):
+        return jsonify({"ok": False, "error": "preferencia no válida"}), 400
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/public/ads/templates", methods=["POST", "OPTIONS"])
+def ads_templates():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    chat_id = body.get("chat_id")
+    if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), chat_id)):
+        return jsonify({"ok": False, "error": "sin permiso"}), 403
+    if body.get("operation") == "save":
+        text = str(body.get("text") or "").strip(); name = str(body.get("name") or "").strip()
+        if not text or not name: return jsonify({"ok": False, "error": "nombre y texto requeridos"}), 400
+        target_url = str(body.get("target_url") or "").strip()
+        if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
+            return jsonify({"ok": False, "error": "enlace no válido"}), 400
+        _channel_stats.save_ad_template(chat_id, name[:80], text[:3500], body.get("image"), target_url, user.get("id"))
+    rows = _channel_stats.ad_templates(chat_id)
+    return jsonify({"ok": True, "templates": [{"id": row["id"], "name": row.get("name"), "text": row.get("text"), "image": row.get("image"), "target_url": row.get("target_url")} for row in rows]})
+
+
+@bp.route("/api/public/ads/recommended-slots", methods=["POST", "OPTIONS"])
+def ads_recommended_slots():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; _, err = _group_auth(body)
+    if err: return err
+    now = datetime.datetime.utcnow()
+    candidates = []
+    for day in range(1, 5):
+        for hour in (12, 18, 21):
+            value = (now + datetime.timedelta(days=day)).replace(hour=hour, minute=0, second=0, microsecond=0)
+            candidates.append({"when": value.isoformat() + "Z", "score": 92 if hour == 21 else 84 if hour == 18 else 72,
+                               "reason": "franja de mayor actividad estimada" if hour in (18, 21) else "franja alternativa"})
+    return jsonify({"ok": True, "slots": sorted(candidates, key=lambda row: -row["score"])[:6]})
+
+
+@bp.route("/api/public/ads/report/<ad_id>", methods=["POST", "OPTIONS"])
+def ads_report(ad_id):
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user, err = _auth_user(body)
+    if err: return err
+    ad = _channel_stats.get_ad(ad_id)
+    if not ad: return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+    if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("from_chat")) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("to_chat"))):
+        return jsonify({"ok": False, "error": "sin permiso"}), 403
+    return jsonify({"ok": True, "report": {"status": ad.get("status"), "deliveries": int(ad.get("delivered_count", 0) or 0),
+        "failures": int(ad.get("failed_count", 0) or 0), "clicks": int(ad.get("clicks", 0) or 0),
+        "scheduled_at": ad.get("when"), "last_delivery": ad.get("last_delivery"), "last_error": ad.get("last_error")}})
+
+
+@bp.route("/api/public/ads/click/<ad_id>/<side>", methods=["GET"])
+def ads_click(ad_id, side):
+    ad = _channel_stats.get_ad(ad_id)
+    if not ad: return redirect("https://todosobreall.tech", code=302)
+    target = ad.get("from_url") if side == "from" else ad.get("to_url")
+    _channel_stats.update_ad(ad_id, {"clicks": int(ad.get("clicks", 0) or 0) + 1})
+    parsed = urlparse(str(target or ""))
+    safe_target = target if parsed.scheme in ("http", "https") and parsed.netloc else "https://todosobreall.tech"
+    return redirect(safe_target, code=302)
 
 
 @bp.route("/api/public/stats/mine", methods=["POST", "OPTIONS"])
