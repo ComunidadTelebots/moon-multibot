@@ -5,6 +5,11 @@
 - La comprobación de GitHub queda desactivada por defecto dentro del contenedor.
 - Si se habilita, `git fetch` tiene límite de tiempo y nunca bloquea el servidor web.
 
+### Corrección del inventario de grupos - 2026-07-26
+
+- La MiniApp del master une los registros de PocketBase con los chats activos de todas las instancias.
+- Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
+
 ## v18.14.0 - Experiencia web sincronizada - 2026-07-26
 
 - Preferencias persistentes para favoritos, widgets, modo compacto y recorrido guiado.

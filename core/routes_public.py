@@ -162,6 +162,30 @@ def _safe_list(value):
     return value if isinstance(value, list) else []
 
 
+def _admin_channel_union():
+    """Une PocketBase con los chats activos de todos los bots sin duplicados."""
+    try:
+        channels = list(_channel_stats.get_all_channels())
+    except Exception:
+        channels = []
+    by_id = {str(row.get("chat_id")): row for row in channels if row.get("chat_id") is not None}
+    persisted = _db.get("U_FILE", {}) or {}
+    names = {}
+    names.update((_get_global_chat_names() or {}) if _get_global_chat_names else {})
+    for cid, state in persisted.items():
+        if isinstance(state, dict) and state.get("name"):
+            names.setdefault(str(cid), state["name"])
+    for cid in _known_internal_group_ids():
+        if cid not in by_id:
+            by_id[cid] = {"chat_id": cid, "username": cid, "name": str(names.get(cid) or f"Grupo {cid}"),
+                          "description": "", "category": "sin-categoria", "subscribers": 0,
+                          "growth30d": 0, "postsPerDay": 0, "ctype": "supergroup",
+                          "listed": False, "collecting": True}
+        elif str(by_id[cid].get("name") or "") in ("", "Canal", cid):
+            by_id[cid]["name"] = str(names.get(cid) or by_id[cid].get("name") or f"Grupo {cid}")
+    return list(by_id.values())
+
+
 @bp.route("/api/internal/admin-overview")
 def internal_admin_overview():
     """Resumen real y sin secretos para el panel central de TodoSobreAllTech."""
@@ -219,6 +243,13 @@ def internal_admin_overview():
     ) for name, values in pending_sources.items()}
 
     names = (_get_global_chat_names() or {}) if _get_global_chat_names else {}
+    persisted = _db.get("U_FILE", {}) or {}
+    for cid, state in persisted.items():
+        if isinstance(state, dict) and state.get("name"):
+            names.setdefault(str(cid), state["name"])
+    for channel in _admin_channel_union():
+        if channel.get("chat_id") is not None and channel.get("name"):
+            names.setdefault(str(channel["chat_id"]), channel["name"])
     groups = [{"id": cid, "name": str(names.get(cid) or names.get(str(cid)) or f"Grupo {cid}")[:160]}
               for cid in sorted(group_ids)]
     return jsonify({
@@ -1086,7 +1117,7 @@ def admin_all_channels():
     if not _is_master(user):
         return jsonify({"ok": False, "error": "solo el dueño del bot"}), 403
     try:
-        return jsonify({"ok": True, "channels": _channel_stats.get_all_channels()})
+        return jsonify({"ok": True, "channels": _admin_channel_union()})
     except Exception as error:
         return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
 

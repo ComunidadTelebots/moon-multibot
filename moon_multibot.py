@@ -206,6 +206,11 @@ cas_feed_ids = set()
 cas_feed_lock = threading.Lock()
 cas_feed_loaded = False
 global_chat_history, global_chat_names, global_user_stats, global_media_list, global_msg_log = {}, {}, {}, [], []
+# Recuperar nombres al reiniciar; antes solo existían en memoria hasta recibir
+# un mensaje nuevo, por lo que la web mostraba "Grupo <id>".
+for _chat_id, _chat_state in (db.get("U_FILE", {}) or {}).items():
+    if isinstance(_chat_state, dict) and _chat_state.get("name"):
+        global_chat_names[str(_chat_id)] = str(_chat_state["name"])
 maintenance_mode = False
 
 _CHAT_HIST_MAX = 200  # mensajes mÃ¡ximos por chat en DB
