@@ -11,6 +11,12 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.19.0 - Rendimiento real por instancia - 2026-07-26
+
+- Cada bot expone actividad procesada, llamadas y errores de Telegram, latencia, uptime y fallos del polling.
+- El centro de control distingue el estado real de ejecución de cada instancia.
+- Las métricas se mantienen separadas por bot y no mezclan sus grupos ni su actividad.
+
 ## v18.18.0 - Idiomas de usuarios por grupo - 2026-07-26
 
 - Se registra el idioma de Telegram de cada usuario que participa o entra en un grupo.

@@ -3201,6 +3201,13 @@ class MoonBot:
         self.i18n = UniversalI18n(db, lambda text, language: ia_nativa.translate_text(text, language))
         self._command_languages = {}
         self.running = True
+        self.runtime_started_at = time.time()
+        self.runtime_api_calls = 0
+        self.runtime_api_errors = 0
+        self.runtime_last_latency_ms = None
+        self.runtime_updates = 0
+        self.runtime_last_update_at = None
+        self.runtime_poll_failures = 0
         threading.Thread(target=self.ia.deep_dream_worker, daemon=True).start()
 
         self.ia.load_brain()
@@ -3229,7 +3236,13 @@ class MoonBot:
 
     def call_api(self, m, p=None, silent=False):
         method = normalize_method(m)
+        started = time.perf_counter()
         data = telegram_api_call(self.session, self.url, method, p, timeout=35)
+        self.runtime_api_calls += 1
+        if method != "getUpdates":
+            self.runtime_last_latency_ms = round((time.perf_counter() - started) * 1000)
+        if not data.get("ok"):
+            self.runtime_api_errors += 1
         if not data.get("ok") and not silent:
             add_web_log("ERROR", f"Telegram API Fail ({method}, Bot API {TELEGRAM_BOT_API_VERSION}): {data.get('description')}")
         return data
@@ -5233,10 +5246,12 @@ class MoonBot:
                 res = self.api_call("getUpdates", build_get_updates_payload(offset, allowed_updates=DEFAULT_ALLOWED_UPDATES))
                 if not res.get("ok"):
                     _poll_failures += 1
+                    self.runtime_poll_failures = _poll_failures
                     backoff = min(300, 5 * (2 ** min(_poll_failures - 1, 5)))
                     add_web_log("ERROR", f"Error getUpdates: {res.get('description')} â€” reintentando en {backoff}s (intento {_poll_failures})")
                     time.sleep(backoff); continue
                 _poll_failures = 0
+                self.runtime_poll_failures = 0
                 
                 if not res.get("result"): 
                     # Solo logueamos cada 10 intentos vacÃ­os para no saturar
@@ -5245,6 +5260,8 @@ class MoonBot:
                     continue
                 
                 for u in res["result"]:
+                    self.runtime_updates += 1
+                    self.runtime_last_update_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
                     offset = u["update_id"]
                     if self.handle_inline_query(u):
                         continue

@@ -222,8 +222,15 @@ def internal_admin_overview():
         instances.append({
             "id": str(getattr(bot, "bot_id", "") or getattr(bot, "user_id", "")),
             "username": str(getattr(bot, "bot_username", "") or "Moonbot"),
-            "status": "online",
+            "status": "online" if getattr(bot, "running", False) else "offline",
             "groups": len(chats),
+            "uptime_seconds": max(0, int(time.time() - float(getattr(bot, "runtime_started_at", time.time())))),
+            "api_calls": int(getattr(bot, "runtime_api_calls", 0)),
+            "api_errors": int(getattr(bot, "runtime_api_errors", 0)),
+            "latency_ms": getattr(bot, "runtime_last_latency_ms", None),
+            "updates_processed": int(getattr(bot, "runtime_updates", 0)),
+            "last_update_at": getattr(bot, "runtime_last_update_at", None),
+            "poll_failures": int(getattr(bot, "runtime_poll_failures", 0)),
         })
 
     users = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
