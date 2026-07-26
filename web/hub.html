@@ -422,7 +422,7 @@
     const tap=tappable?`row tappable" data-chat="${c.chat_id}" data-name="${escAttr(c.name)}`:"row";
     return `<div class="${tap}">
       <div class="av">${initials(c.name)}</div>
-      <div class="meta"><div class="nm">${c.name} ${role}</div><div class="un">@${c.username}</div></div>
+      <div class="meta"><div class="nm">${c.name} ${role}</div><div class="un">@${c.username}${c.bot_username?` · bot @${escHtml(c.bot_username)}`:""}</div></div>
       <div class="num"><div class="s">${fmt(c.subscribers)}</div>${collecting}</div>
     </div>`;
   }
@@ -480,6 +480,7 @@
       <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
         <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
       ${favoriteActions.length?`<div class="sec">Acciones favoritas</div><div class="filterbar">${favoriteActions.map(x=>`<button class="filterpill" data-home-action="${x.id}">★ ${x.name}</button>`).join("")}</div>`:""}
+      ${[...new Set(chs.map(c=>c.bot_username).filter(Boolean))].length>1?`<div class="filterbar" id="myChannelsBots"><button class="filterpill active" data-bot="all">Todos los bots</button>${[...new Set(chs.map(c=>c.bot_username).filter(Boolean))].map(name=>`<button class="filterpill" data-bot="${escAttr(name)}">@${escHtml(name)}</button>`).join("")}</div>`:""}
       <div class="filterbar" id="myChannelsSort" ${widgetPrefs.sort?"":"hidden"}>
         <button class="filterpill active" data-sort="recent">Recientes</button>
         <button class="filterpill" data-sort="subscribers">Más grandes</button>
@@ -488,10 +489,10 @@
       </div>
       <div class="result-count" id="myChannelsCount"></div><div id="myChannelsList"></div>
       <button class="btn cta" id="ctaAdd2" style="margin-top:6px;">${svg('plus')} Añadir otro canal</button>`;
-    let activeSort="recent";
+    let activeSort="recent",activeBot="all";
     const renderMyChannels=()=>{
       const q=document.getElementById("myChannelsSearch").value.trim().toLowerCase();
-      const filtered=chs.filter(c=>!q||`${c.name||""} ${c.username||""}`.toLowerCase().includes(q));
+      const filtered=chs.filter(c=>(activeBot==="all"||c.bot_username===activeBot)&&(!q||`${c.name||""} ${c.username||""} ${c.bot_username||""}`.toLowerCase().includes(q)));
       filtered.sort((a,b)=>{
         if(activeSort==="subscribers")return (b.subscribers||0)-(a.subscribers||0);
         if(activeSort==="growth")return (b.growth30d||0)-(a.growth30d||0);
@@ -512,6 +513,7 @@
       document.querySelectorAll("#myChannelsSort [data-sort]").forEach(x=>x.classList.toggle("active",x===b));
       renderMyChannels();
     });
+    document.querySelectorAll("#myChannelsBots [data-bot]").forEach(b=>b.onclick=()=>{activeBot=b.dataset.bot;document.querySelectorAll("#myChannelsBots [data-bot]").forEach(x=>x.classList.toggle("active",x===b));renderMyChannels();});
     document.getElementById("ctaAdd2").onclick=()=>{ev("add_channel",{from:"canales_list"});openTg(ADD_LINK);};
     renderMyChannels();
   }
@@ -523,7 +525,7 @@
     return `<div class="row tappable" data-chat="${c.chat_id}" data-name="${escAttr(c.name)}">
       <div class="av">${initials(c.name)}</div>
       <div class="meta"><div class="nm">${c.name} <span class="rbadge">${t}</span></div>
-        <div class="un">${uname} · ${fmt(c.subscribers)} subs</div></div>
+        <div class="un">${uname} · ${fmt(c.subscribers)} subs${c.bot_username?` · bot @${escHtml(c.bot_username)}`:""}</div></div>
       <div class="switch ${c.listed?"on":""}" data-chat="${c.chat_id}" role="switch" aria-label="Publicar en directorio"><span></span></div>
     </div>`;
   }
@@ -1199,7 +1201,7 @@
     const uname=c.username&&!String(c.username).startsWith("-")?`@${c.username}`:"Canal privado";
     return `<div class="row tappable" data-open-channel="${escAttr(c.username||"")}">
       <div class="av">${initials(c.name)}</div>
-      <div class="meta"><div class="nm">${escHtml(c.name)}</div><div class="un">${escHtml(uname)} · ${fmt(c.subscribers)} subs</div></div>
+      <div class="meta"><div class="nm">${escHtml(c.name)}</div><div class="un">${escHtml(uname)} · ${fmt(c.subscribers)} subs${c.bot_username?` · bot @${escHtml(c.bot_username)}`:""}</div></div>
       <button class="favbtn ${favs.has(key)?"on":""}" data-favorite="${escAttr(key)}" aria-label="${favs.has(key)?"Quitar de favoritos":"Guardar en favoritos"}">${svg('star')}</button>
     </div>`;
   }

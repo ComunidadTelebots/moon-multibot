@@ -9,6 +9,7 @@
 
 - La MiniApp del master une los registros de PocketBase con los chats activos de todas las instancias.
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
+- Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
 ## v18.14.0 - Experiencia web sincronizada - 2026-07-26
 

@@ -172,6 +172,12 @@ def _admin_channel_union():
     persisted = _db.get("U_FILE", {}) or {}
     names = {}
     names.update((_get_global_chat_names() or {}) if _get_global_chat_names else {})
+    owners = {}
+    for bot in (_get_active_bots() or []) if _get_active_bots else []:
+        identity = {"id": str(getattr(bot, "bot_id", "") or getattr(bot, "user_id", "")),
+                    "username": str(getattr(bot, "bot_username", "") or "Moonbot")}
+        for chat_id in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", [])):
+            owners.setdefault(str(chat_id), []).append(identity)
     for cid, state in persisted.items():
         if isinstance(state, dict) and state.get("name"):
             names.setdefault(str(cid), state["name"])
@@ -183,6 +189,11 @@ def _admin_channel_union():
                           "listed": False, "collecting": True}
         elif str(by_id[cid].get("name") or "") in ("", "Canal", cid):
             by_id[cid]["name"] = str(names.get(cid) or by_id[cid].get("name") or f"Grupo {cid}")
+    for cid, channel in by_id.items():
+        channel["bots"] = owners.get(cid, [])
+        if channel["bots"]:
+            channel["bot_id"] = channel["bots"][0]["id"]
+            channel["bot_username"] = channel["bots"][0]["username"]
     return list(by_id.values())
 
 
@@ -250,7 +261,11 @@ def internal_admin_overview():
     for channel in _admin_channel_union():
         if channel.get("chat_id") is not None and channel.get("name"):
             names.setdefault(str(channel["chat_id"]), channel["name"])
-    groups = [{"id": cid, "name": str(names.get(cid) or names.get(str(cid)) or f"Grupo {cid}")[:160]}
+    channel_map = {str(row.get("chat_id")): row for row in _admin_channel_union()}
+    groups = [{"id": cid, "name": str(names.get(cid) or names.get(str(cid)) or f"Grupo {cid}")[:160],
+               "bots": channel_map.get(cid, {}).get("bots", []),
+               "bot_id": channel_map.get(cid, {}).get("bot_id"),
+               "bot_username": channel_map.get(cid, {}).get("bot_username")}
               for cid in sorted(group_ids)]
     return jsonify({
         "ok": True,
