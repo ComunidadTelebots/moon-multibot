@@ -11,6 +11,12 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.17.1 - Autenticación master multi-bot - 2026-07-26
+
+- La MiniApp valida `initData` con el bot activo desde el que Telegram la abrió.
+- El acceso master funciona también desde una instancia secundaria de Moonbot.
+- La cabecera avisa cuando Telegram no puede validar la sesión.
+
 ## v18.17.0 - Canales obligatorios por niveles - 2026-07-26
 
 - El dueño de cada grupo puede configurar su propio canal obligatorio.

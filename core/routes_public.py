@@ -110,7 +110,8 @@ def _verify_init_data(init_data, max_age=86400):
     """Valida el initData de la Mini App del hub. Endurecido:
       1) auth_date obligatorio: rechaza firmas de más de `max_age` s (24h por
          defecto) o con reloj en el futuro (> _AUTH_DATE_SKEW).
-      2) firma SOLO contra el token del bot del hub, no contra cualquier bot.
+      2) firma contra un token de bot activo gestionado por Moonbot. Telegram
+         usa el bot concreto desde el que se abrió la MiniApp.
     Devuelve el dict de usuario si la firma es válida y vigente, o None."""
     try:
         pairs = dict(parse_qsl(init_data, keep_blank_values=True))
@@ -128,18 +129,26 @@ def _verify_init_data(init_data, max_age=86400):
     if auth_date <= 0 or now - auth_date > max_age or auth_date - now > _AUTH_DATE_SKEW:
         return None
     # 2) Firma: únicamente el bot del hub (fail-closed si no está activo).
-    bot = _hub_bot()
-    token = getattr(bot, "token", None) if bot else None
-    if not token:
+    hub = _hub_bot()
+    candidates = ([hub] if hub else []) + [
+        bot for bot in ((_get_active_bots() or []) if _get_active_bots else []) if bot is not hub
+    ]
+    tokens = []
+    for bot in candidates:
+        token = getattr(bot, "token", None)
+        if token and token not in tokens:
+            tokens.append(token)
+    if not tokens:
         return None
     data_check = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
-    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-    calc = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
-    if hmac.compare_digest(calc, recv_hash):
-        try:
-            return json.loads(pairs.get("user", "{}"))
-        except Exception:
-            return {}
+    for token in tokens:
+        secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+        calc = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(calc, recv_hash):
+            try:
+                return json.loads(pairs.get("user", "{}"))
+            except Exception:
+                return {}
     return None
 
 

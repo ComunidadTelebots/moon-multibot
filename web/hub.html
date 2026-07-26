@@ -2310,6 +2310,10 @@
         master=true;masterToken=d.token||"";
         document.getElementById("roleBadge").hidden=false;
         document.getElementById("masterTab").hidden=false;
+      }else if(!d||!d.ok){
+        const badge=document.getElementById("roleBadge");
+        badge.textContent="sesión no validada";badge.hidden=false;
+        badge.style.borderColor="var(--red)";badge.style.color="var(--red)";
       }
     }
     const t=await loadTheme();
