@@ -7,6 +7,8 @@
 
 ### Anuncios propios configurables - 2026-07-26
 
+- El master puede aprobar, rechazar y reiniciar métricas de cada campaña directamente desde la MiniApp.
+- El catálogo incorpora estados de aprobación para impedir que una propuesta pendiente o rechazada llegue a publicarse.
 - Moonbot conserva la programación temporal de campañas y permite reiniciar sus métricas sin eliminar el anuncio.
 - La MiniApp recomienda automáticamente el hueco con menor cobertura y aprovecha la campaña con mejor CTR.
 - El catálogo conserva el diseño personalizado compartido: colores y llamada a la acción.

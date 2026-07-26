@@ -1452,6 +1452,11 @@ def _house_ads_update(body):
     rows = _house_ads_payload()
     action, ad_id = body.get("action", "upsert"), str(body.get("id") or "")
     if action == "delete": rows = [row for row in rows if str(row.get("id")) != ad_id]
+    elif action in ("approve", "reject"):
+        for row in rows:
+            if str(row.get("id")) == ad_id:
+                row["approval_status"] = "approved" if action == "approve" else "rejected"
+                row["enabled"] = action == "approve"
     elif action == "click":
         for row in rows:
             if str(row.get("id")) == ad_id:
@@ -1479,6 +1484,8 @@ def _house_ads_update(body):
                 "accent": str(raw.get("accent") or "#1982d1")[:32],
                 "starts_at": str(raw.get("starts_at") or "")[:40],
                 "ends_at": str(raw.get("ends_at") or "")[:40],
+                "approval_status": str(raw.get("approval_status") or "approved")[:16],
+                "submitted_by": str(raw.get("submitted_by") or "")[:64],
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
                 "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
                 "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {})}
