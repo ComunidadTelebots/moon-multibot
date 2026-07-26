@@ -9,6 +9,7 @@
 - Catálogo equivalente publicado en TodoSobreAllTech para mantener ambos proyectos alineados.
 - Primera fase operativa: radar de escalada, mediación por turnos, cuarentena de dominios, revisión por pares y simulación de impacto de reglas.
 - Segunda fase operativa: detección de brigadas, pasaporte de reputación consentido, riesgo de clonación de voz, cronología de incidentes y cadena de custodia verificable.
+- Tercera fase operativa: asambleas, presupuesto participativo ponderado, círculos temporales, banco de tiempo y bienvenida humana distribuida.
 
 ## v17.6.0 - Integración con Wayback Machine
 

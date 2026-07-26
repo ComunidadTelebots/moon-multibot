@@ -266,6 +266,90 @@ class RoadmapEngine:
             previous = item["hash"]
         return {"case_id": self._id(case_id), "valid": valid, "entries": len(chain), "chain": chain}
 
+    # Horizonte 202 · comunidad y participación
+    def assembly(self, group_id, action, assembly_id=None, actor_id=None, data=None):
+        assemblies = self._dict("H202_ASSEMBLIES"); data = data or {}
+        if action == "create":
+            assembly_id = uuid.uuid4().hex[:12]
+            assemblies[assembly_id] = {"id": assembly_id, "group_id": self._id(group_id),
+                "title": str(data.get("title", "Asamblea"))[:300], "status": "open",
+                "proposals": [], "created_by": self._id(actor_id), "created_at": self._now().isoformat()}
+        else:
+            assembly_id = self._id(assembly_id); item = assemblies.get(assembly_id)
+            if not item or item["group_id"] != self._id(group_id): raise ValueError("asamblea no encontrada")
+            if action in ("proposal", "amendment"):
+                item["proposals"].append({"id": uuid.uuid4().hex[:10], "type": action,
+                    "parent_id": data.get("parent_id"), "text": str(data.get("text", ""))[:2000],
+                    "author_id": self._id(actor_id), "votes": {}})
+            elif action == "vote":
+                proposal = next((x for x in item["proposals"] if x["id"] == self._id(data.get("proposal_id"))), None)
+                if not proposal or data.get("vote") not in ("yes", "no", "abstain"): raise ValueError("voto o propuesta inválidos")
+                proposal["votes"][self._id(actor_id)] = data["vote"]
+            elif action == "close": item["status"] = "closed"; item["closed_at"] = self._now().isoformat()
+            elif action != "get": raise ValueError("acción de asamblea inválida")
+        self.db.set("H202_ASSEMBLIES", assemblies); return assemblies[assembly_id]
+
+    def participatory_budget(self, group_id, action, budget_id=None, user_id=None, data=None):
+        budgets = self._dict("H202_BUDGETS"); data = data or {}
+        if action == "create":
+            budget_id = uuid.uuid4().hex[:12]
+            budgets[budget_id] = {"id": budget_id, "group_id": self._id(group_id),
+                "amount": max(0, float(data.get("amount", 0))), "projects": data.get("projects") or [],
+                "allocations": {}, "status": "open"}
+        else:
+            budget_id = self._id(budget_id); budget = budgets.get(budget_id)
+            if not budget or budget["group_id"] != self._id(group_id): raise ValueError("presupuesto no encontrado")
+            if action == "allocate":
+                allocations = {str(k): max(0, float(v)) for k, v in (data.get("allocations") or {}).items()}
+                weight = max(0.1, min(5, float(data.get("weight", 1))))
+                if sum(allocations.values()) > 100: raise ValueError("la asignación supera 100 puntos")
+                budget["allocations"][self._id(user_id)] = {"points": allocations, "weight": weight}
+            elif action == "close": budget["status"] = "closed"
+            elif action != "get": raise ValueError("acción presupuestaria inválida")
+        budget = budgets[budget_id]; totals = Counter()
+        for vote in budget["allocations"].values():
+            for project, points in vote["points"].items(): totals[project] += points * vote["weight"]
+        budget["ranking"] = [{"project": k, "score": round(v, 2)} for k, v in totals.most_common()]
+        self.db.set("H202_BUDGETS", budgets); return budget
+
+    def interest_circle(self, group_id, action, circle_id=None, user_id=None, data=None):
+        circles = self._dict("H202_INTEREST_CIRCLES"); data = data or {}
+        if action == "create":
+            circle_id = uuid.uuid4().hex[:12]; expires = self._now() + datetime.timedelta(days=max(1, int(data.get("days", 30))))
+            circles[circle_id] = {"id": circle_id, "group_id": self._id(group_id),
+                "topic": str(data.get("topic", "Interés"))[:200], "members": [], "expires_at": expires.isoformat(), "status": "active"}
+        else:
+            circle_id = self._id(circle_id); circle = circles.get(circle_id)
+            if not circle or circle["group_id"] != self._id(group_id): raise ValueError("círculo no encontrado")
+            if action == "join" and self._id(user_id) not in circle["members"]: circle["members"].append(self._id(user_id))
+            elif action == "leave": circle["members"] = [x for x in circle["members"] if x != self._id(user_id)]
+            elif action == "close": circle["status"] = "closed"
+            elif action not in ("join", "get"): raise ValueError("acción de círculo inválida")
+        self.db.set("H202_INTEREST_CIRCLES", circles); return circles[circle_id]
+
+    def time_bank(self, group_id, action, user_id=None, target_id=None, hours=0, note=""):
+        key = f"H202_TIME_BANK_{self._id(group_id)}"; state = self._dict(key)
+        balances, ledger = state.get("balances", {}), state.get("ledger", [])
+        amount = round(float(hours), 2)
+        if action == "credit": balances[self._id(user_id)] = round(float(balances.get(self._id(user_id), 0)) + max(0, amount), 2)
+        elif action == "transfer":
+            source, target = self._id(user_id), self._id(target_id)
+            if amount <= 0 or float(balances.get(source, 0)) < amount: raise ValueError("saldo u horas insuficientes")
+            balances[source] = round(float(balances[source]) - amount, 2); balances[target] = round(float(balances.get(target, 0)) + amount, 2)
+        elif action != "balance": raise ValueError("acción de banco de tiempo inválida")
+        if action != "balance": ledger.append({"action": action, "from": self._id(user_id), "to": self._id(target_id), "hours": amount, "note": str(note)[:500], "created_at": self._now().isoformat()})
+        state = {"balances": balances, "ledger": ledger[-1000:]}; self.db.set(key, state); return state
+
+    def welcome_round(self, group_id, member_id, hosts, capacity=3):
+        hosts = [self._id(x) for x in hosts if self._id(x)]
+        rounds = self._list(f"H202_WELCOME_ROUNDS_{self._id(group_id)}")
+        recent = Counter(x.get("host_id") for x in rounds[-100:])
+        available = [x for x in hosts if recent[x] < max(1, int(capacity))]
+        host = min(available or hosts, key=lambda x: recent[x], default=None)
+        row = {"id": uuid.uuid4().hex[:12], "member_id": self._id(member_id), "host_id": host,
+               "status": "assigned" if host else "waiting", "created_at": self._now().isoformat()}
+        self._append(f"H202_WELCOME_ROUNDS_{self._id(group_id)}", row, 1000); return row
+
     def impersonation_check(self, candidate, administrators):
         name = str(candidate.get("name", "")).casefold().strip()
         username = str(candidate.get("username", "")).casefold().lstrip("@")
