@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.8.0 - Horizonte 1000 en la WebApp - 2026-07-26
+
+- CatÃ¡logo local con exactamente 1.000 propuestas diferenciadas para Web, Moonbot y Telegram WebApp.
+- Nueva pantalla `/roadmap1000.html` optimizada para mÃ³vil con bÃºsqueda, filtros y paginaciÃ³n.
+- Acceso directo desde el panel de roadmap de la MiniApp.
+- Cada entrada se etiqueta como propuesta e incluye producto, categorÃ­a, prioridad, dificultad y dependencia.
+- Se conserva Horizonte 202 como conjunto operativo independiente del nuevo roadmap.
+
 ## v18.7.0 - Cierre de funciones administrativas parciales - 2026-07-26
 
 - GuÃ­a paso a paso para reparar permisos insuficientes del bot en cada grupo.
