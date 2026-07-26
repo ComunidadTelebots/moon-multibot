@@ -5182,6 +5182,23 @@ class MoonBot:
         add_web_log("IA", f"Interacción controlada con @{username} en {chat_id}")
         return True
 
+    def enforce_pending_join_captcha(self, msg):
+        chat_id = (msg.get("chat") or {}).get("id")
+        user_id = (msg.get("from") or {}).get("id")
+        if chat_id is None or user_id is None:
+            return False
+        pending = db.get(f"JOINQ_{chat_id}_{user_id}")
+        if not pending or (pending.get("captcha_passed") and not pending.get("subscription_pending")):
+            return False
+        self.api_call("deleteMessage", {"chat_id": chat_id, "message_id": msg.get("message_id")}, silent=True)
+        cooldown_key = f"JOINREMIND_{chat_id}_{user_id}"
+        now = int(time.time())
+        if now - int(db.get(cooldown_key, 0) or 0) >= 60:
+            db.set(cooldown_key, now)
+            self.api_call("sendChatJoinRequestWebApp", {"chat_id": chat_id, "user_id": user_id,
+                "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={chat_id}"}}, silent=True)
+        return True
+
     def run(self):
         global listen_mode
         offset = 0
@@ -5227,6 +5244,8 @@ class MoonBot:
                     # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
+                    if u.get("message") and self.enforce_pending_join_captcha(msg):
+                        continue
                     # Directorio de canales: cuenta posts publicados (frecuencia).
                     if u.get("channel_post"):
                         try:

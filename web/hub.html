@@ -987,6 +987,9 @@
         </label>
         <button class="btn ghost" id="gjoinSave" style="width:auto;margin-top:16px">Guardar</button>
       </div>
+      <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">Canales obligatorios (uno por línea)
+        <textarea id="gjoinChannels" rows="3" placeholder="@canal_oficial" style="width:100%;margin-top:6px">${escHtml((cfg.required_channels||[]).map(x=>`@${x}`).join("\n"))}</textarea>
+      </label>
       <div class="dropdown" id="dd-join-pending"><div class="dhead">Solicitudes pendientes (${pending.length}) <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gjoinPending" hidden></div></div>`;
     document.getElementById("gjoinEnabled").onclick=async function(){
@@ -998,7 +1001,8 @@
       const max_attempts=Number(document.getElementById("gjoinAttempts").value);
       const challenge_ttl=Number(document.getElementById("gjoinChallenge").value);
       const request_ttl=Number(document.getElementById("gjoinRequest").value)*3600;
-      const r=await gp("/group/join/settings",{max_attempts,challenge_ttl,request_ttl});
+      const required_channels=document.getElementById("gjoinChannels").value.split(/\n|,/).map(x=>x.trim().replace(/^@/,"")).filter(Boolean);
+      const r=await gp("/group/join/settings",{max_attempts,challenge_ttl,request_ttl,required_channels});
       if(r&&r.ok){showToast("Captcha configurado");loadJoinCaptcha();}else showToast((r&&r.error)||"No se pudo guardar");
     };
     const list=document.getElementById("gjoinPending");

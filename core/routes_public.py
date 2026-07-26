@@ -2269,7 +2269,23 @@ def _join_config(chat_id):
         "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
         "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
+        "required_channels": [str(value).strip().lstrip("@")[:100] for value in (raw.get("required_channels") or []) if str(value).strip()][:20],
     }
+
+
+def _missing_required_channels(bot, chat_id, user_id):
+    missing = []
+    for channel in _join_config(chat_id)["required_channels"]:
+        target = channel if channel.startswith("-100") else f"@{channel}"
+        result = bot.api_call("getChatMember", {"chat_id": target, "user_id": user_id}, silent=True)
+        member = result.get("result", {}) if isinstance(result, dict) and result.get("ok") else {}
+        status = member.get("status")
+        joined = status in ("member", "administrator", "creator") or (
+            status == "restricted" and bool(member.get("is_member"))
+        )
+        if not joined:
+            missing.append({"channel": channel, "url": f"https://t.me/{channel}" if not channel.startswith("-100") else ""})
+    return missing
 
 
 def _join_stats(chat_id):
@@ -2371,7 +2387,7 @@ def group_join_settings():
         return err
     _, chat_id = res
     config = _join_config(chat_id)
-    for key in ("enabled", "max_attempts", "challenge_ttl", "request_ttl"):
+    for key in ("enabled", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
         if key in body:
             config[key] = body[key]
     config = {
@@ -2379,6 +2395,7 @@ def group_join_settings():
         "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
         "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
+        "required_channels": [str(value).strip().lstrip("@")[:100] for value in (config.get("required_channels") or []) if str(value).strip()][:20],
     }
     _db.set(f"JOINCFG_{chat_id}", config)
     return jsonify({"ok": True, "config": config})
@@ -2408,6 +2425,14 @@ def group_join_decide():
     if not bot:
         return jsonify({"ok": False, "error": "bot no disponible"}), 503
     if action == "approve":
+        missing = _missing_required_channels(bot, chat_id, user_id)
+        if missing:
+            return jsonify({
+                "ok": False,
+                "error": "El usuario aún no está suscrito a todos los canales obligatorios",
+                "code": "subscription_required",
+                "missing_channels": missing,
+            }), 409
         result = bot.api_call("answerChatJoinRequestQuery", {"query_id": pending.get("query_id")})
         stat = "approved"
     else:
@@ -2453,6 +2478,11 @@ def join_challenge():
     config = _join_config(cid)
     if not config["enabled"]:
         return jsonify({"ok": False, "error": "captcha desactivado"}), 403
+    if pend.get("captcha_passed") and pend.get("subscription_pending"):
+        missing = _missing_required_channels(_hub_bot(), cid, uid) if _hub_bot() else []
+        if missing:
+            return jsonify({"ok": False, "subscription_required": True, "missing_channels": missing}), 423
+        return jsonify({"ok": True, "resume": True})
     target, grid, correct = _new_join_challenge()
     _db.set(f"JOINC_{cid}_{uid}", {"correct": correct, "exp": int(time.time()) + config["challenge_ttl"]})
     return jsonify({"ok": True, "target": target, "grid": grid, "expires_in": config["challenge_ttl"]})
@@ -2471,16 +2501,26 @@ def join_verify():
     if not pend or pend.get("exp", 0) < time.time():
         return jsonify({"ok": False, "expired": True, "error": "solicitud expirada"}), 410
     chal = _db.get(f"JOINC_{cid}_{uid}")
-    if not chal or chal.get("exp", 0) < time.time():
+    if not body.get("resume") and (not chal or chal.get("exp", 0) < time.time()):
         return jsonify({"ok": False, "expired": True, "error": "reto expirado"})
     try:
         sel = sorted(int(i) for i in (body.get("selected") or []))
     except (TypeError, ValueError):
         sel = []
     bot = _hub_bot()
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
     config = _join_config(cid)
     # ── ÉXITO ──
-    if sel and sel == sorted(chal.get("correct", [])):
+    resumed = bool(body.get("resume") and pend.get("captcha_passed"))
+    if resumed or (sel and sel == sorted(chal.get("correct", []))):
+        missing = _missing_required_channels(bot, cid, uid)
+        if missing:
+            pend["captcha_passed"] = True
+            pend["subscription_pending"] = True
+            _db.set(f"JOINQ_{cid}_{uid}", pend); _db.delete(f"JOINC_{cid}_{uid}")
+            return jsonify({"ok": False, "subscription_required": True, "missing_channels": missing}), 423
+        pend.pop("subscription_pending", None)
         community = _ban_manager.get_ban_record(uid) if _ban_manager else None
         if community and community.get("status", "active") == "active":
             pend["captcha_passed"] = True

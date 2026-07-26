@@ -11,6 +11,14 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.16.0 - Suscripción obligatoria y captcha persistente - 2026-07-26
+
+- Cada grupo puede exigir la suscripción a hasta 20 canales antes de aprobar una solicitud.
+- El captcha muestra los canales pendientes y permite volver a comprobarlos sin repetir el reto.
+- La aprobación manual también respeta las suscripciones obligatorias configuradas.
+- Si un usuario pendiente intenta escribir, se elimina el mensaje y se reenvía el acceso al captcha con límite anti-spam.
+- La MiniApp permite configurar los canales obligatorios desde el panel de acceso de cada grupo.
+
 ## v18.14.0 - Experiencia web sincronizada - 2026-07-26
 
 - Preferencias persistentes para favoritos, widgets, modo compacto y recorrido guiado.
