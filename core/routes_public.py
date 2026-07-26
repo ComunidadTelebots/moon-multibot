@@ -942,6 +942,58 @@ def internal_operations():
     return jsonify({"ok": True, "result": result})
 
 
+def _experience_actions():
+    return [
+        {"id": "groups", "name": "Administrar grupos", "area": "Administración"},
+        {"id": "users", "name": "Usuarios y baneos", "area": "Seguridad"},
+        {"id": "security", "name": "Centro de seguridad", "area": "Seguridad"},
+        {"id": "editorial", "name": "Centro editorial", "area": "Contenido"},
+        {"id": "ai", "name": "Centro de inteligencia artificial", "area": "IA"},
+        {"id": "automations", "name": "Automatizaciones", "area": "Operaciones"},
+        {"id": "integrations", "name": "Integraciones y API", "area": "Operaciones"},
+        {"id": "operations", "name": "Fiabilidad y mantenimiento", "area": "Operaciones"},
+    ]
+
+
+@bp.route("/api/internal/experience", methods=["GET", "POST"])
+def internal_experience():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    defaults = {"favorites": [], "compact": False, "font_scale": 100, "high_contrast": False,
+                "reduced_motion": False, "widgets": ["summary", "groups", "security", "operations"],
+                "tour_completed": False, "history": []}
+    preferences = _db.get("WEB_ADMIN_EXPERIENCE", {}) or {}
+    state = {**defaults, **preferences}
+    if request.method == "GET":
+        pending = []
+        for key, label in (("REPORTS", "Informes pendientes"), ("BAN_APPEALS", "Apelaciones pendientes"),
+                           ("JOIN_REQUESTS", "Solicitudes de acceso")):
+            count = sum(not isinstance(row, dict) or row.get("status", "pending") in ("pending", "open", "new")
+                        for row in _safe_list(_db.get(key, [])))
+            if count: pending.append({"id": key.lower(), "title": label, "count": count, "read": False})
+        themes = _db.get("WEB_GROUP_THEMES", {}) or {}
+        return jsonify({"ok": True, "preferences": state, "themes": themes,
+                        "notifications": pending, "actions": _experience_actions()})
+    body = request.json or {}; action = str(body.get("action", "")); result = None
+    if action == "preferences":
+        allowed = {"favorites", "compact", "font_scale", "high_contrast", "reduced_motion", "widgets", "tour_completed", "history"}
+        changes = {key: value for key, value in (body.get("preferences") or {}).items() if key in allowed}
+        if "font_scale" in changes: changes["font_scale"] = max(80, min(140, int(changes["font_scale"])))
+        if "favorites" in changes: changes["favorites"] = [str(x)[:50] for x in changes["favorites"]][:20]
+        if "widgets" in changes: changes["widgets"] = [str(x)[:50] for x in changes["widgets"]][:20]
+        if "history" in changes: changes["history"] = [x for x in changes["history"] if isinstance(x, dict)][-30:]
+        state.update(changes); _db.set("WEB_ADMIN_EXPERIENCE", state); result = state
+    elif action == "theme":
+        group_id = str(body.get("group_id", "")); theme = str(body.get("theme", "default"))
+        if group_id not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
+        if theme not in ("default", "moon", "ocean", "forest", "sunset", "contrast"): return jsonify({"ok": False, "error": "invalid_theme"}), 400
+        themes = _db.get("WEB_GROUP_THEMES", {}) or {}; themes[group_id] = theme; _db.set("WEB_GROUP_THEMES", themes)
+        result = {"group_id": group_id, "theme": theme}
+    else: return jsonify({"ok": False, "error": "invalid_action"}), 400
+    if _add_audit_log: _add_audit_log(f"TodoSobreAllTech experiencia: {action}")
+    return jsonify({"ok": True, "result": result})
+
+
 def _community_api_auth():
     raw_key = request.headers.get("X-Community-Key", "")
     token = _ban_manager.authenticate_api_key(raw_key) if _ban_manager else None

@@ -1,5 +1,15 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.14.0 - Experiencia web sincronizada - 2026-07-26
+
+- Preferencias persistentes para favoritos, widgets, modo compacto y recorrido guiado.
+- Catálogo unificado de acciones para el buscador global de todosobreall.tech.
+- Historial administrativo limitado y sincronizable entre sesiones.
+- Centro de notificaciones agregado desde informes, apelaciones y solicitudes.
+- Tamaño de texto, alto contraste y movimiento reducido configurables.
+- Temas visuales persistentes por grupo administrado.
+- Endpoint protegido para sincronizar cambios locales después de recuperar conexión.
+
 ## v18.13.0 - Operaciones y fiabilidad administrables - 2026-07-26
 
 - Planes de despliegue gradual con lotes y resultados de salud por instancia.
