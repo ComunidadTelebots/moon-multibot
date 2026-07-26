@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.4.0 - Usuarios y sanciones externas - 2026-07-26
+
+- API interna protegida para buscar usuarios y consultar reputaciÃ³n, actividad, idioma y notas.
+- Ficha sanitizada con motivo, fuente, Ã¡mbito y vencimiento del baneo.
+- ComprobaciÃ³n CAS contra la copia local para evitar peticiones remotas innecesarias.
+- Baneo y restauraciÃ³n global o por grupo con propagaciÃ³n real mediante Telegram Bot API.
+- Cuarentena por grupo, notas administrativas y resoluciÃ³n de apelaciones.
+- Registro de auditorÃ­a para todas las acciones iniciadas desde TodoSobreAllTech.
+
 ## v18.3.0 - Grupos y plugins operativos - 2026-07-26
 
 - AdministraciÃ³n externa segura de grupos con listado, detalle, permisos, actividad y configuraciÃ³n de `GroupSuite`.

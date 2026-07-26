@@ -48,15 +48,17 @@ _check_cas = None
 _hub_bot_username = "cintiabot"
 _get_global_user_stats = None
 _get_global_chat_names = None
+_add_audit_log = None
 _community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
-          hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None):
+          hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None,
+          add_audit_log=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
-    global _hub_bot_username, _get_global_user_stats, _get_global_chat_names
+    global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -69,6 +71,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _hub_bot_username = hub_bot_username or "cintiabot"
     _get_global_user_stats = get_global_user_stats
     _get_global_chat_names = get_global_chat_names
+    _add_audit_log = add_audit_log
     return bp
 
 
@@ -276,6 +279,117 @@ def internal_group_admin(cid):
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
     })
+
+
+def _user_view(uid, stats):
+    record = _ban_manager.get_ban_record(uid) if _ban_manager else None
+    return {
+        "id": str(uid),
+        "name": str(stats.get("name") or f"Usuario {uid}")[:160],
+        "messages": int(stats.get("count", 0) or 0),
+        "karma": int(stats.get("karma", 0) or 0),
+        "engagement": int(stats.get("engagement", 0) or 0),
+        "language": str(stats.get("language_code") or "und")[:16],
+        "last_seen": stats.get("last_seen"),
+        "notes": str(stats.get("notes") or "")[:1000],
+        "banned": bool(record and record.get("status", "active") == "active"),
+        "ban": ({key: record.get(key) for key in ("reason", "source", "scope", "status", "created_at", "expires_at")}
+                if record else None),
+    }
+
+
+@bp.route("/api/internal/users")
+def internal_users():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    users = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
+    query = str(request.args.get("q", "")).strip().lower()[:100]
+    rows = [_user_view(uid, stats if isinstance(stats, dict) else {}) for uid, stats in users.items()]
+    if query:
+        rows = [row for row in rows if query in row["id"].lower() or query in row["name"].lower()]
+    rows.sort(key=lambda row: (row["banned"], row["messages"]), reverse=True)
+    return jsonify({"ok": True, "total": len(rows), "users": rows[:500],
+                    "ban_stats": _ban_manager.get_ban_stats() if _ban_manager else {}})
+
+
+@bp.route("/api/internal/users/<uid>", methods=["GET", "POST"])
+def internal_user_admin(uid):
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    uid = str(uid).strip()
+    if not uid.isdigit():
+        return jsonify({"ok": False, "error": "invalid_user_id"}), 400
+    users = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
+    stats = users.get(uid, {}) if isinstance(users.get(uid, {}), dict) else {}
+    if request.method == "GET":
+        local_groups = []
+        for bot in (_get_active_bots() or []) if _get_active_bots else []:
+            for cid in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", [])):
+                if _ban_manager and _ban_manager.is_local_banned(cid, uid):
+                    local_groups.append(str(cid))
+        appeals = _ban_manager.list_ban_appeals(status="all", limit=100, uid=uid) if _ban_manager else []
+        try:
+            cas = _check_cas(uid, use_cache=True, local_only=True) if _check_cas else {"ok": False, "source": "disabled"}
+        except Exception:
+            cas = {"ok": False, "source": "unavailable"}
+        return jsonify({"ok": True, "user": _user_view(uid, stats), "local_bans": sorted(set(local_groups)),
+                        "appeals": appeals[-20:], "cas": {
+                            "available": bool(cas.get("ok")), "banned": bool(cas.get("banned")),
+                            "offenses": cas.get("offenses"), "source": cas.get("source"),
+                            "description": str(cas.get("description") or "")[:300],
+                        }})
+
+    body = request.json or {}
+    action = str(body.get("action", ""))
+    cid = str(body.get("group_id", ""))
+    reason = str(body.get("reason") or "Accion administrativa desde TodoSobreAllTech")[:500]
+    telegram_results = []
+    if action in ("ban_global", "ban_local"):
+        if action == "ban_local" and not _known_internal_group(cid):
+            return jsonify({"ok": False, "error": "group_not_found"}), 404
+        if action == "ban_global":
+            _ban_manager.ban_user(uid, reason=reason, source="todosobrealltech")
+            targets = [(bot, group) for bot in (_get_active_bots() or []) for group in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", []))]
+        else:
+            _ban_manager.ban_local_user(cid, uid, reason=reason, source="todosobrealltech")
+            targets = [(_known_internal_group(cid), cid)]
+        for bot, group in targets:
+            result = bot.api_call("banChatMember", {"chat_id": group, "user_id": uid}, silent=True)
+            telegram_results.append({"group_id": str(group), "ok": bool(result.get("ok"))})
+    elif action in ("unban_global", "unban_local"):
+        if action == "unban_local" and not _known_internal_group(cid):
+            return jsonify({"ok": False, "error": "group_not_found"}), 404
+        if action == "unban_global":
+            _ban_manager.unban_user(uid)
+            targets = [(bot, group) for bot in (_get_active_bots() or []) for group in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", []))]
+        else:
+            _ban_manager.unban_local_user(cid, uid)
+            targets = [(_known_internal_group(cid), cid)]
+        for bot, group in targets:
+            result = bot.api_call("unbanChatMember", {"chat_id": group, "user_id": uid, "only_if_banned": True}, silent=True)
+            telegram_results.append({"group_id": str(group), "ok": bool(result.get("ok"))})
+    elif action == "quarantine":
+        if not _known_internal_group(cid):
+            return jsonify({"ok": False, "error": "group_not_found"}), 404
+        rows = _db.get(f"QUARANTINE_{cid}", {})
+        rows = rows if isinstance(rows, dict) else {}
+        rows[uid] = {"joined_at": int(time.time()), "messages": 0, "name": stats.get("name", "")}
+        _db.set(f"QUARANTINE_{cid}", rows)
+    elif action == "save_note":
+        stats["notes"] = str(body.get("note") or "")[:1000]
+        users[uid] = stats
+    elif action == "resolve_appeal":
+        decision = str(body.get("decision", ""))
+        if decision not in ("approved", "rejected"):
+            return jsonify({"ok": False, "error": "invalid_decision"}), 400
+        appeal = _ban_manager.resolve_ban_appeal(body.get("appeal_id"), decision, "todosobrealltech")
+        if not appeal:
+            return jsonify({"ok": False, "error": "appeal_not_found"}), 404
+    else:
+        return jsonify({"ok": False, "error": "invalid_action"}), 400
+    if _add_audit_log:
+        _add_audit_log(f"TodoSobreAllTech: {action} para usuario {uid}" + (f" en {cid}" if cid else ""))
+    return jsonify({"ok": True, "user": _user_view(uid, stats), "telegram_results": telegram_results})
 
 
 def _community_api_auth():

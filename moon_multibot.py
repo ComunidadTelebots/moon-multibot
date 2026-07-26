@@ -689,6 +689,7 @@ app.register_blueprint(_setup_public(
     hub_bot_username=HUB_BOT_USERNAME,
     get_global_user_stats=lambda: global_user_stats,
     get_global_chat_names=lambda: global_chat_names,
+    add_audit_log=add_audit_log,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,
