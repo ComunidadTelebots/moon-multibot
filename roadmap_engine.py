@@ -166,6 +166,12 @@ class RoadmapEngine:
         return cases[case_id]
 
     def rule_impact_simulation(self, group_id, rule, samples):
+        if not self._id(group_id):
+            raise ValueError("group_id requerido")
+        if not isinstance(rule, dict) or not rule:
+            raise ValueError("la regla debe ser un objeto no vacío")
+        if not isinstance(samples, list) or not samples:
+            raise ValueError("se requiere al menos una muestra")
         rule = rule or {}; action = str(rule.get("action", "notify"))
         keyword = str(rule.get("keyword", "")).casefold().strip()
         minimum_score = float(rule.get("minimum_score", 0) or 0)
@@ -548,6 +554,8 @@ class RoadmapEngine:
                                     correction_note="", actor_id=None):
         rows = self._list("H202_PUBLIC_ANNOUNCEMENTS")
         if operation == "publish":
+            if not str(title).strip() or not str(body).strip():
+                raise ValueError("título y contenido son obligatorios")
             item = {"id": uuid.uuid4().hex[:12], "title": str(title)[:300], "status": "published",
                     "versions": [], "created_at": self._now().isoformat()}
             rows.append(item)
@@ -678,6 +686,8 @@ class RoadmapEngine:
         return target
 
     def library_save(self, title, body, tags=None):
+        if not str(title).strip() or not str(body).strip():
+            raise ValueError("título y contenido son obligatorios")
         item = {"id": uuid.uuid4().hex[:12], "title": str(title)[:300], "body": str(body)[:12000],
                 "tags": [str(x)[:50] for x in (tags or [])], "created_at": self._now().isoformat()}
         return self._append("CONTENT_LIBRARY", item)
@@ -690,8 +700,11 @@ class RoadmapEngine:
         return rendered
 
     def translation_job(self, content_id, languages):
+        languages = list(dict.fromkeys(str(x).strip().lower()[:10] for x in (languages or []) if str(x).strip()))
+        if not str(content_id or "").strip() or not languages:
+            raise ValueError("content_id y al menos un idioma son obligatorios")
         item = {"id": uuid.uuid4().hex[:12], "content_id": content_id,
-                "languages": [str(x)[:10] for x in languages], "status": "queued",
+                "languages": languages, "status": "queued",
                 "created_at": self._now().isoformat()}
         return self._append("CONTENT_TRANSLATIONS", item)
 
@@ -881,9 +894,18 @@ class RoadmapEngine:
                 "rows": [{key: row.get(key) for key in keys} for row in rows]}
 
     def report_schedule(self, group_id, channel, frequency, recipients):
+        if not self._id(group_id):
+            raise ValueError("group_id requerido")
+        if frequency not in ("daily", "weekly", "monthly"):
+            raise ValueError("frecuencia inválida")
+        if channel not in ("telegram", "email", "webhook"):
+            raise ValueError("canal de entrega inválido")
+        recipients = list(dict.fromkeys(str(x).strip()[:300] for x in (recipients or []) if str(x).strip()))
+        if not recipients:
+            raise ValueError("se requiere al menos un destinatario")
         item = {"id": uuid.uuid4().hex[:12], "group_id": self._id(group_id), "channel": str(channel),
-                "frequency": str(frequency), "recipients": [str(x) for x in recipients],
-                "next_run": (self._now() + datetime.timedelta(days=1 if frequency == "daily" else 7)).isoformat(),
+                "frequency": str(frequency), "recipients": recipients,
+                "next_run": (self._now() + datetime.timedelta(days={"daily": 1, "weekly": 7, "monthly": 30}[frequency])).isoformat(),
                 "active": True}
         return self._append("ANALYTICS_REPORT_SCHEDULES", item)
 

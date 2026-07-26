@@ -322,6 +322,30 @@ def internal_admin_overview():
     })
 
 
+@bp.route("/api/internal/roadmap/action", methods=["POST"])
+def internal_roadmap_action():
+    """Funciones avanzadas expuestas a TodoSobreAllTech mediante la clave servidor-a-servidor."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    body = request.json or {}
+    action, data = str(body.get("action") or ""), body.get("data") or {}
+    service = RoadmapEngine(_db)
+    handlers = {
+        "rule_impact": lambda: service.rule_impact_simulation(data.get("group_id"), data.get("rule"), data.get("samples")),
+        "library": lambda: service.library_save(data.get("title"), data.get("body"), data.get("tags")),
+        "report_schedule": lambda: service.report_schedule(data.get("group_id"), data.get("channel"), data.get("frequency"), data.get("recipients")),
+        "translation": lambda: service.translation_job(data.get("content_id"), data.get("languages")),
+        "public_announcement": lambda: service.public_announcement_version("publish", title=data.get("title"), body=data.get("body"), actor_id="master_web"),
+    }
+    if action not in handlers:
+        return jsonify({"ok": False, "error": "acción no permitida"}), 400
+    try:
+        result = handlers[action]()
+        return jsonify({"ok": True, "result": result})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
 def _known_internal_group(cid):
     for bot in (_get_active_bots() or []) if _get_active_bots else []:
         if str(cid) in {str(item) for item in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", []))}:

@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Horizonte 1000 sincronizado · bloque de moderación - 2026-07-26
+
+- Moonbot valida y persiste simulaciones de reglas, plantillas, informes programados, traducciones y comunicados versionados.
+- El Hub ofrece controles específicos para las cinco funciones y muestra la respuesta real del motor.
+- TodoSobreAllTech accede al mismo motor mediante una ruta interna limitada y protegida por la clave administrativa compartida.
+
 ### Contador master unificado - 2026-07-26
 
 - La tarjeta de grupos usa el inventario multibot completo en lugar del contador histórico de claves `ADMINS_`.
