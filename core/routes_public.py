@@ -264,6 +264,17 @@ def internal_group_admin(cid):
             if not _known_internal_group(source):
                 return jsonify({"ok": False, "error": "source_group_not_found"}), 404
             config = suite.save_config(cid, suite.config(source))
+        elif action == "compare_config":
+            source = str(body.get("source_id", ""))
+            if not _known_internal_group(source):
+                return jsonify({"ok": False, "error": "source_group_not_found"}), 404
+            left, right = suite.config(cid), suite.config(source)
+            differences = []
+            for section in sorted(set(left) | set(right)):
+                if left.get(section) != right.get(section):
+                    differences.append({"section": section, "current": left.get(section), "source": right.get(section)})
+            return jsonify({"ok": True, "comparison": {"source_id": source, "differences": differences,
+                                                         "identical": not differences}})
         else:
             return jsonify({"ok": False, "error": "invalid_action"}), 400
         return jsonify({"ok": True, "config": config})
@@ -281,13 +292,21 @@ def internal_group_admin(cid):
         {"permission": key, "label": label} for key, label in required.items() if not member.get(key)
     ]
     history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+    safe_history = [{"time": row.get("time"), "sender": str(row.get("sender") or row.get("uid") or "")[:100],
+                     "text": str(row.get("text") or "")[:500], "has_media": bool(row.get("media"))}
+                    for row in history[-50:] if isinstance(row, dict)]
+    repair_steps = (["Abre la informaciÃ³n del grupo en Telegram", "Entra en Administradores",
+                     f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')}",
+                     "Activa los permisos indicados y guarda los cambios"] if missing else [])
     return jsonify({
         "ok": True,
         "group": {"id": str(cid), "name": str((_get_global_chat_names() or {}).get(str(cid), f"Grupo {cid}"))[:160]},
         "permissions": {"healthy": not missing, "status": member.get("status", "unknown"), "missing": missing},
+        "repair_steps": repair_steps,
         "config": suite.config(cid),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
+        "history": safe_history,
     })
 
 
@@ -385,6 +404,29 @@ def internal_user_admin(uid):
         rows = rows if isinstance(rows, dict) else {}
         rows[uid] = {"joined_at": int(time.time()), "messages": 0, "name": stats.get("name", "")}
         _db.set(f"QUARANTINE_{cid}", rows)
+    elif action in ("mute", "unmute"):
+        bot = _known_internal_group(cid)
+        if not bot:
+            return jsonify({"ok": False, "error": "group_not_found"}), 404
+        if action == "mute":
+            try:
+                minutes = max(1, min(int(body.get("minutes", 30)), 10080))
+            except (TypeError, ValueError):
+                minutes = 30
+            result = bot.api_call("restrictChatMember", {"chat_id": cid, "user_id": uid,
+                "until_date": int(time.time()) + minutes * 60,
+                "permissions": {"can_send_messages": False}}, silent=True)
+        else:
+            result = bot.api_call("restrictChatMember", {"chat_id": cid, "user_id": uid,
+                "permissions": {"can_send_messages": True, "can_send_audios": True, "can_send_documents": True,
+                                "can_send_photos": True, "can_send_videos": True, "can_send_other_messages": True,
+                                "can_add_web_page_previews": True}}, silent=True)
+        telegram_results.append({"group_id": cid, "ok": bool(result.get("ok"))})
+    elif action == "peer_review":
+        result = RoadmapEngine(_db).peer_review(body.get("operation", "create"), body.get("case_id"),
+                                               "todosobrealltech", body.get("verdict"),
+                                               {"user_id": uid, "reason": reason}, body.get("quorum", 3))
+        return jsonify({"ok": bool(result), "review": result}), 200 if result else 404
     elif action == "save_note":
         stats["notes"] = str(body.get("note") or "")[:1000]
         users[uid] = stats
@@ -453,6 +495,11 @@ def internal_security():
         if _add_audit_log:
             _add_audit_log(f"TodoSobreAllTech: analisis VirusTotal de tipo {kind}")
         return jsonify(result), 200 if result.get("ok") else 400
+    if action == "impersonation":
+        candidate = body.get("candidate") if isinstance(body.get("candidate"), dict) else {}
+        administrators = body.get("administrators") if isinstance(body.get("administrators"), list) else []
+        result = RoadmapEngine(_db).impersonation_check(candidate, administrators[:100])
+        return jsonify({"ok": True, "result": result})
     if action == "secret_scan":
         text = str(body.get("text", ""))[:20000]
         patterns = {

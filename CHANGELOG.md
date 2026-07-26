@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.7.0 - Cierre de funciones administrativas parciales - 2026-07-26
+
+- GuÃ­a paso a paso para reparar permisos insuficientes del bot en cada grupo.
+- Historial reciente sanitizado y comparaciÃ³n de configuraciones entre grupos.
+- Acciones reales de silenciar/restaurar usuarios mediante `restrictChatMember`.
+- Casos de revisiÃ³n por pares para sanciones dudosas.
+- Detector de suplantaciÃ³n basado en similitud de nombre y username.
+- Los raids activos continÃºan expuestos en el centro de seguridad para actualizaciÃ³n periÃ³dica.
+
 ## v18.6.0 - Centro editorial externo - 2026-07-26
 
 - API editorial protegida conectada al motor persistente `RoadmapEngine`.
