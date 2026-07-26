@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Política de formatos por grupo - 2026-07-26
+
+- Moonbot puede bloquear por grupo fotos, vídeos, audios, notas de voz, documentos, stickers, GIF y videomensajes.
+- El filtro actúa antes de descargar el archivo, admite límite de tamaño y permite eliminar, silenciar o banear.
+- Los administradores quedan protegidos y Hub y TodoSobreAllTech comparten la configuración.
+- El anti-flood específico del grupo sustituye al control global antiguo para evitar sanciones duplicadas.
+
 ### Anti-flood configurable por grupo - 2026-07-26
 
 - Moonbot cuenta ráfagas por usuario y grupo usando límites y ventanas independientes.

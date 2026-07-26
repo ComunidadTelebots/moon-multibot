@@ -3733,6 +3733,42 @@ class MoonBot:
             except OSError:
                 pass
 
+    def enforce_media_type_policy(self, cid, uid, uname, msg):
+        """Aplica restricciones de formato antes de descargar o analizar archivos."""
+        cfg = group_suite.config(cid)["media_controls"]
+        if not cfg["enabled"] or str(uid) == str(MASTER_ID):
+            return False
+        media_type = next((kind for kind in (
+            "photo", "video", "audio", "voice", "document", "sticker", "animation", "video_note"
+        ) if msg.get(kind)), None)
+        if not media_type:
+            return False
+        payload = msg.get(media_type) or {}
+        if media_type == "photo" and isinstance(payload, list):
+            payload = payload[-1] if payload else {}
+        size = int(payload.get("file_size", 0) or 0) if isinstance(payload, dict) else 0
+        oversized = bool(size and size > cfg["max_file_mb"] * 1024 * 1024)
+        if media_type not in cfg["blocked_types"] and not oversized:
+            return False
+        member = self.api_call("getChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
+        status = ((member.get("result") or {}).get("status") if member.get("ok") else "")
+        if status in ("creator", "administrator"):
+            return False
+        reason = (
+            f"archivo superior a {cfg['max_file_mb']} MB" if oversized
+            else f"contenido {media_type} no permitido"
+        )
+        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg.get("message_id")}, silent=True)
+        action = cfg["action"]
+        if action == "mute":
+            self.restrict_user(cid, uid, until=int(time.time()) + cfg["mute_minutes"] * 60)
+        elif action == "ban":
+            self.apply_user_ban(cid, uid, uname, reason=reason, source="media_type_policy", scope="local", message_id=msg.get("message_id"), notify=True)
+        if cfg["notify"]:
+            self.send_msg(cid, f"🧩 {uname}: contenido retirado ({reason}).")
+        add_audit_log(f"Política de formatos en {cid}: {uid} · {reason} · {action}")
+        return True
+
     def send_audio(self, cid, audio, caption=""):
         return self.api_call("sendAudio", {"chat_id": cid, "audio": audio, "caption": caption})
 
@@ -5448,6 +5484,8 @@ class MoonBot:
                         continue
                     if self.enforce_group_suite(cid, text, uid, uname, msg.get("message_id")):
                         continue
+                    if self.enforce_media_type_policy(cid, uid, uname, msg):
+                        continue
                     feeder_groups = db.get("IA_FEEDERS", [])
                     if cid in [str(item) for item in feeder_groups]:
                         _learn_from_security_feeder(cid, text)
@@ -5584,7 +5622,7 @@ class MoonBot:
                         continue
 
                     # Anti-Flood Control (en memoria, sin ops SQLite)
-                    if str(uid) != str(MASTER_ID):
+                    if str(uid) != str(MASTER_ID) and not group_suite.config(cid)["flood_control"]["enabled"]:
                         flood_key = f"{cid}_{uid}"
                         now_t = time.time()
                         times = flood_cache.get(flood_key, [])

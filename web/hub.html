@@ -607,6 +607,18 @@
         <button class="btn teal" id="mbiSave">Guardar interacción</button>
         ${(d.bot_interactions||[]).slice(0,8).map(x=>`<div class="userchip"><span>@${escHtml(x.username)} · ${x.learned?"aprendido":"sin aprendizaje"} · ${x.replied?"respuesta enviada":"sin respuesta"}</span></div>`).join("")||'<p class="muted">Sin interacciones registradas.</p>'}
       </div></div>
+      <div class="dropdown"><div class="dhead">Tipos de contenido permitidos <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Bloquea formatos antes de descargarlos o analizarlos. Los administradores quedan excluidos.</p>
+        <label class="setrow"><b>Activar política de formatos</b><input id="mctEnabled" type="checkbox" ${c.media_controls.enabled?"checked":""}></label>
+        <div class="btnrow"><label><input class="mctType" value="photo" type="checkbox" ${c.media_controls.blocked_types.includes("photo")?"checked":""}> Fotos</label><label><input class="mctType" value="video" type="checkbox" ${c.media_controls.blocked_types.includes("video")?"checked":""}> Vídeos</label></div>
+        <div class="btnrow"><label><input class="mctType" value="audio" type="checkbox" ${c.media_controls.blocked_types.includes("audio")?"checked":""}> Audio</label><label><input class="mctType" value="voice" type="checkbox" ${c.media_controls.blocked_types.includes("voice")?"checked":""}> Notas de voz</label></div>
+        <div class="btnrow"><label><input class="mctType" value="document" type="checkbox" ${c.media_controls.blocked_types.includes("document")?"checked":""}> Documentos</label><label><input class="mctType" value="sticker" type="checkbox" ${c.media_controls.blocked_types.includes("sticker")?"checked":""}> Stickers</label></div>
+        <div class="btnrow"><label><input class="mctType" value="animation" type="checkbox" ${c.media_controls.blocked_types.includes("animation")?"checked":""}> GIF</label><label><input class="mctType" value="video_note" type="checkbox" ${c.media_controls.blocked_types.includes("video_note")?"checked":""}> Videomensajes</label></div>
+        <div class="btnrow"><input id="mctMaxMb" type="number" min="1" max="200" value="${c.media_controls.max_file_mb}" placeholder="Tamaño máximo MB"><input id="mctMute" type="number" min="1" max="1440" value="${c.media_controls.mute_minutes}" placeholder="Mute (min)"></div>
+        <select id="mctAction"><option value="delete">Solo eliminar</option><option value="mute">Eliminar y silenciar</option><option value="ban">Eliminar y banear</option></select>
+        <label class="setrow"><b>Avisar en el grupo</b><input id="mctNotify" type="checkbox" ${c.media_controls.notify?"checked":""}></label>
+        <button class="btn teal" id="mctSave">Guardar tipos permitidos</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Seguridad multimedia <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <p class="muted">Política por grupo. Los administradores quedan protegidos de acciones automáticas.</p>
         <label class="setrow"><b>Activar política</b><input id="mmEnabled" type="checkbox" ${c.media_security.enabled?"checked":""}></label>
@@ -667,6 +679,8 @@
     const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
     const saveChannelSenders=()=>gp("/group/suite/settings",{config:{channel_senders:{ban_external_channels:mcsBan.checked,delete_messages:mcsDelete.checked,notify:mcsNotify.checked}}}).then(()=>{showToast("Protección de canales guardada");loadGroupSuiteMini();});
     const saveBotInteraction=()=>gp("/group/suite/settings",{config:{bot_interaction:{enabled:mbiEnabled.checked,learn:mbiLearn.checked,reply:mbiReply.checked,allowed_usernames:mbiAllowed.value.split(",").map(x=>x.trim()).filter(Boolean),max_replies_per_hour:+mbiLimit.value}}}).then(()=>{showToast("Interacción con bots guardada");loadGroupSuiteMini();});
+    mctAction.value=c.media_controls.action;
+    const saveMediaControls=()=>gp("/group/suite/settings",{config:{media_controls:{enabled:mctEnabled.checked,blocked_types:[...host.querySelectorAll(".mctType:checked")].map(x=>x.value),max_file_mb:+mctMaxMb.value,action:mctAction.value,mute_minutes:+mctMute.value,notify:mctNotify.checked}}}).then(()=>{showToast("Tipos de contenido guardados");loadGroupSuiteMini();});
     maAccent.value=c.appearance.accent;applyGroupAppearance(c.appearance);
     const saveAppearance=()=>gp("/group/suite/settings",{config:{appearance:{accent:maAccent.value,compact:maCompact.checked}}}).then(()=>{showToast("Tema del grupo guardado");loadGroupSuiteMini();});
     madAction.value=c.content_limits.action;
@@ -675,6 +689,7 @@
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
     mbiSave.onclick=saveBotInteraction;
+    mctSave.onclick=saveMediaControls;
     maSave.onclick=saveAppearance;
     madSave.onclick=saveAdaptive;madSimulate.onclick=()=>gp("/group/suite/simulate",{text:madSimulation.value}).then(x=>madOutput.textContent=JSON.stringify(x.simulation||x,null,2));
     madReview.onclick=()=>gp("/group/suite/sanctions/review",{}).then(x=>showToast(`${x.expired||0} sanciones caducadas`));

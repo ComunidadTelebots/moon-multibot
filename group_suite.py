@@ -38,6 +38,7 @@ class GroupSuite:
         channel_senders = section("channel_senders")
         bot_interaction = section("bot_interaction")
         flood = section("flood_control")
+        media_controls = section("media_controls")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -123,12 +124,23 @@ class GroupSuite:
                 "strikes_before_ban": max(0, min(int(flood.get("strikes_before_ban", 3)), 20)),
                 "delete_messages": bool(flood.get("delete_messages", True)),
             },
+            "media_controls": {
+                "enabled": bool(media_controls.get("enabled", False)),
+                "blocked_types": [
+                    str(value) for value in media_controls.get("blocked_types", [])
+                    if str(value) in ("photo", "video", "audio", "voice", "document", "sticker", "animation", "video_note")
+                ],
+                "max_file_mb": max(1, min(int(media_controls.get("max_file_mb", 20)), 200)),
+                "action": str(media_controls.get("action", "delete")) if str(media_controls.get("action", "delete")) in ("delete", "mute", "ban") else "delete",
+                "mute_minutes": max(1, min(int(media_controls.get("mute_minutes", 10)), 1440)),
+                "notify": bool(media_controls.get("notify", True)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
