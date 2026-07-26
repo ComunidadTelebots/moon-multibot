@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+### Espacio personal para todos los usuarios - 2026-07-26
+
+- La MiniApp abre ahora en `Para ti`, aunque el usuario no administre grupos ni sea master.
+- El inicio reúne perfil, nivel, XP, karma, biografía, recordatorios y preferencias de avisos.
+- Incluye encuestas, eventos, retos, mentoría, concursos, preguntas, agenda y buzón anónimo.
+- Se añaden accesos rápidos al directorio, notificaciones, ajustes y proxies MTProto.
+- Un bloc privado local permite guardar notas sin enviarlas al servidor.
+- La pestaña y las acciones de administración solo aparecen al confirmar grupos administrados.
+
 ### Obtención fiable de proxies MTProto - 2026-07-26
 
 - La MiniApp usa el catálogo completo de TodoSobreAllTech cuando Moonbot no tiene proxies locales configurados.

@@ -291,6 +291,7 @@
   </div>
 
   <main>
+    <section class="view" data-view="usuario" id="v-usuario"></section>
     <section class="view" data-view="canales" id="v-canales"></section>
     <section class="view" data-view="admin" id="v-admin" hidden></section>
     <section class="view" data-view="master" id="v-master" hidden></section>
@@ -308,8 +309,9 @@
   </main>
 
   <nav class="tabbar">
-    <button class="tab active" data-tab="canales" data-ic="megaphone"><span>Mis canales</span></button>
-    <button class="tab" data-tab="admin" data-ic="shield"><span>Administrar</span></button>
+    <button class="tab active" data-tab="usuario" data-ic="users"><span>Para ti</span></button>
+    <button class="tab" data-tab="canales" data-ic="megaphone"><span>Mis canales</span></button>
+    <button class="tab" data-tab="admin" data-ic="shield" id="adminTab" hidden><span>Administrar</span></button>
     <button class="tab" data-tab="master" data-ic="bot" id="masterTab" hidden><span>Master</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
@@ -352,6 +354,7 @@
   if(tg){try{tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor("#070b14");tg.setBackgroundColor&&tg.setBackgroundColor("#070b14");}catch(e){}}
   const user=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||null;
   let master=false;
+  let canAdmin=false;
   let masterToken="";
   const BOT="CintiaBot";
   const ADD_LINK=`https://t.me/${BOT}?startchannel&admin=post_messages+edit_messages+invite_users`;
@@ -419,9 +422,11 @@
   async function loadManagedChannels(){
     if(!tg||!tg.initData)return {ok:false,error:"Abre la MiniApp desde Telegram"};
     const all=await apiReadPost("/admin/channels",{initData:tg.initData});
-    if(all&&all.ok)return all;
+    if(all&&all.ok){canAdmin=(all.channels||[]).length>0;document.getElementById("adminTab").hidden=!canAdmin&&!master;return all;}
     if(all&&all.error&&!String(all.error).includes("solo el dueño"))return all;
-    return apiReadPost("/stats/mine",{initData:tg.initData});
+    const mine=await apiReadPost("/stats/mine",{initData:tg.initData});
+    if(mine&&mine.ok){canAdmin=(mine.channels||[]).length>0;document.getElementById("adminTab").hidden=!canAdmin&&!master;}
+    return mine;
   }
   async function masterApi(p,opts={}){
     if(!masterToken)return null;
@@ -476,6 +481,32 @@
     try{localStorage.setItem("hub_recent_chats",JSON.stringify(recent.slice(0,6)));}catch(e){}
   }
 
+  // ── Inicio personal (usuarios sin permisos administrativos incluidos) ──
+  async function loadUserHome(){
+    const el=document.getElementById("v-usuario"),name=escHtml(user&&user.first_name||"usuario");
+    el.innerHTML=`<div class="vtitle">Hola, ${name}</div><div class="vsub">Tu espacio personal en Moonbot. No necesitas administrar ningún grupo.</div>
+      <div class="card master-hero"><div class="master-kicker">Cuenta de comunidad</div><h3 style="margin-top:5px">Participa, aprende y mantente al día</h3><p>Consulta tu progreso, eventos y herramientas gratuitas desde un solo lugar.</p></div>
+      <div class="master-action-grid">
+        <button class="master-action" id="userDirectory"><span class="mai">${svg('compass')}</span><b>Explorar canales</b><small>Busca y guarda tus favoritos</small></button>
+        <button class="master-action" id="userProxy"><span class="mai">${svg('globe')}</span><b>Proxy MTProto</b><small>Conecta si Telegram está bloqueado</small></button>
+        <button class="master-action" id="userNotifications"><span class="mai">${svg('message')}</span><b>Notificaciones</b><small>Avisos, eventos y recordatorios</small></button>
+        <button class="master-action" id="userSettings"><span class="mai">${svg('settings')}</span><b>Preferencias</b><small>Tema, texto y accesibilidad</small></button>
+      </div>
+      <div class="proxy-out" id="userProxyOut"></div>
+      <div class="sec">Mi perfil y comunidad</div><div id="userCommunityProfile">${skel()}</div>
+      <div class="sec">Participar</div><div id="userCommunityEngagement">${skel()}</div>
+      <div class="sec">Mi bloc privado</div><div class="card"><p class="muted">Se guarda únicamente en este dispositivo.</p><textarea id="userScratchpad" rows="4" placeholder="Ideas, enlaces o recordatorios personales…"></textarea><div class="btnrow"><button class="btn teal" id="userScratchSave">Guardar</button><button class="btn ghost" id="userScratchClear">Borrar</button></div></div>`;
+    userDirectory.onclick=()=>showView("directorio");
+    userProxy.onclick=()=>fetchProxy(false,document.getElementById("userProxyOut"));
+    userNotifications.onclick=openUxNotifications;
+    userSettings.onclick=()=>showView("ajustes");
+    userScratchpad.value=uxRead("hub_user_scratchpad","");
+    userScratchSave.onclick=()=>{uxWrite("hub_user_scratchpad",userScratchpad.value);showToast("Bloc guardado");};
+    userScratchClear.onclick=()=>{userScratchpad.value="";uxWrite("hub_user_scratchpad","");showToast("Bloc borrado");};
+    loadCommunityMini("userCommunityProfile");
+    loadEngagementMini("userCommunityEngagement");
+  }
+
   // ── Mis canales ──
   async function loadCanales(){
     const el=document.getElementById("v-canales");
@@ -507,7 +538,7 @@
       return;
     }
     const recentIds=loadRecentChats();
-    const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true}),favoriteActions=widgetPrefs.favorites?UX_ACTIONS.filter(x=>uxFavorites().includes(x.id)&&(!x.master||master)):[];
+    const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true}),favoriteActions=widgetPrefs.favorites?UX_ACTIONS.filter(x=>uxFavorites().includes(x.id)&&(!x.master||master)&&(!x.admin||canAdmin||master)):[];
     el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
       <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
         <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
@@ -2224,8 +2255,9 @@
 
   // ── Ajustes ──
   const UX_ACTIONS=[
+    {id:"usuario",name:"Para ti",desc:"Perfil, progreso y participación",view:"usuario"},
     {id:"canales",name:"Mis canales",desc:"Tus grupos y canales",view:"canales"},
-    {id:"administrar",name:"Administrar grupos",desc:"Moderación y configuración",view:"admin"},
+    {id:"administrar",name:"Administrar grupos",desc:"Moderación y configuración",view:"admin",admin:true},
     {id:"directorio",name:"Directorio",desc:"Explorar la comunidad",view:"directorio"},
     {id:"red",name:"Servicios y proxies",desc:"Herramientas de la red",view:"red"},
     {id:"ajustes",name:"Ajustes",desc:"Tema y accesibilidad",view:"ajustes"},
@@ -2235,10 +2267,10 @@
   function uxWrite(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
   function uxFavorites(){return uxRead("hub_action_favorites",[]);}
   function closeUx(){document.getElementById("uxSheet").hidden=true;}
-  function runUxAction(id){const action=UX_ACTIONS.find(x=>x.id===id);if(!action)return;closeUx();showView(action.view);}
+  function runUxAction(id){const action=UX_ACTIONS.find(x=>x.id===id);if(!action||action.admin&&!canAdmin&&!master)return;closeUx();showView(action.view);}
   function renderUxActions(rows,query=""){
     const favs=uxFavorites();
-    return rows.filter(x=>!x.master||master).filter(x=>(x.name+" "+x.desc).toLowerCase().includes(query.toLowerCase())).map(x=>`
+    return rows.filter(x=>(!x.master||master)&&(!x.admin||canAdmin||master)).filter(x=>(x.name+" "+x.desc).toLowerCase().includes(query.toLowerCase())).map(x=>`
       <div class="uxresult" data-ux-action="${x.id}"><div class="meta"><b>${x.name}</b><small>${x.desc}</small></div>
       <button class="uxstar ${favs.includes(x.id)?"on":""}" data-ux-fav="${x.id}" aria-label="Favorito">★</button></div>`).join("")||'<p class="muted">No hay resultados.</p>';
   }
@@ -2270,8 +2302,8 @@
   }
   function applyUxPreferences(){const p=uxRead("hub_ui_preferences",{compact:false,font:"normal"});document.body.classList.toggle("compact",!!p.compact);document.documentElement.classList.remove("font-small","font-large");if(p.font==="small"||p.font==="large")document.documentElement.classList.add("font-"+p.font);if(document.getElementById("uxCompact"))uxCompact.checked=!!p.compact;if(document.getElementById("uxFont"))uxFont.value=p.font||"normal";}
   function saveUxPreferences(){uxWrite("hub_ui_preferences",{compact:uxCompact.checked,font:uxFont.value});applyUxPreferences();showToast("Accesibilidad guardada");}
-  async function loadCommunityMini(){
-    const host=document.getElementById("communityProfile");if(!host||!tg||!tg.initData)return;
+  async function loadCommunityMini(hostId="communityProfile"){
+    const host=document.getElementById(hostId);if(!host||!tg||!tg.initData)return;
     const [data,directoryData]=await Promise.all([apiPost("/community/me",{initData:tg.initData}),apiPost("/community/directory",{initData:tg.initData})]);
     if(!data||!data.ok){host.innerHTML='<p class="muted">No se pudo cargar tu perfil.</p>';return;}
     const p=data.profile,prefs=data.preferences;
@@ -2286,11 +2318,11 @@
     communityDigest.value=prefs.digest;
     communityBioSave.onclick=()=>apiPost("/community/me",{initData:tg.initData,profile:{bio:communityBio.value}}).then(()=>showToast("Perfil guardado"));
     communityRoleSend.onclick=()=>apiPost("/community/role-request",{initData:tg.initData,role:communityRole.value,reason:communityRoleReason.value}).then(x=>showToast(x.ok?"Solicitud enviada":(x.error||"Error")));
-    communityReminderSave.onclick=()=>{const date=new Date(communityReminderAt.value);if(!communityReminderText.value.trim()||isNaN(date)){showToast("Completa texto y fecha");return;}apiPost("/community/reminder",{initData:tg.initData,text:communityReminderText.value,remind_at:date.toISOString()}).then(x=>{showToast(x.ok?"Recordatorio creado":(x.error||"Error"));if(x.ok)loadCommunityMini();});};
+    communityReminderSave.onclick=()=>{const date=new Date(communityReminderAt.value);if(!communityReminderText.value.trim()||isNaN(date)){showToast("Completa texto y fecha");return;}apiPost("/community/reminder",{initData:tg.initData,text:communityReminderText.value,remind_at:date.toISOString()}).then(x=>{showToast(x.ok?"Recordatorio creado":(x.error||"Error"));if(x.ok)loadCommunityMini(hostId);});};
     communityPrefsSave.onclick=()=>{const preferences={digest:communityDigest.value};host.querySelectorAll("[data-community-pref]").forEach(x=>preferences[x.dataset.communityPref]=x.checked);apiPost("/community/preferences",{initData:tg.initData,preferences}).then(()=>showToast("Notificaciones guardadas"));};
   }
-  async function loadEngagementMini(){
-    const host=document.getElementById("communityEngagement");if(!host||!tg||!tg.initData)return;
+  async function loadEngagementMini(hostId="communityEngagement"){
+    const host=document.getElementById(hostId);if(!host||!tg||!tg.initData)return;
     const data=await apiPost("/community/engagement",{initData:tg.initData});if(!data||!data.ok)return;
     const act=(action,extra={})=>apiPost("/community/engagement/action",{initData:tg.initData,action,...extra});
     host.innerHTML=`<div class="dropdown"><div class="dhead">Encuestas y clima <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>${(data.surveys||[]).map(s=>`<div class="card"><h3>${escHtml(s.title)}</h3>${s.options.map(o=>`<button class="btn ghost" data-survey="${s.id}" data-option="${o.id}">${escHtml(o.text)} · ${o.votes}</button>`).join("")}</div>`).join("")||'<p class="muted">Sin encuestas abiertas.</p>'}</div></div>
@@ -2302,16 +2334,16 @@
     participation.innerHTML=`<div class="dhead">Concursos y preguntas <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><button class="btn ghost" id="communityAgenda">Exportar agenda .ics</button>${(data.events||[]).filter(e=>e.kind==="contest"||e.kind==="qa").map(e=>`<div class="card"><h3>${escHtml(e.title)}</h3>${e.kind==="contest"?`<input data-contest-title="${e.id}" placeholder="Título de tu propuesta"><textarea data-contest-content="${e.id}" placeholder="Contenido"></textarea><button class="btn ghost" data-contest-submit="${e.id}">Enviar propuesta</button>${(e.submissions||[]).map(s=>`<div class="userchip"><span>${escHtml(s.title)} · ${s.votes.length} votos · jurado ${s.jury_average??"-"}</span><button class="minibtn" data-contest-event="${e.id}" data-contest-vote="${s.id}">Votar</button></div>`).join("")}`:`<textarea data-qa-text="${e.id}" placeholder="Haz tu pregunta"></textarea><button class="btn ghost" data-qa-submit="${e.id}">Enviar para moderación</button>${(e.questions||[]).filter(q=>q.status==="approved"||q.status==="answered").map(q=>`<div class="casbox">${escHtml(q.text)} · ${q.status}</div>`).join("")}`}</div>`).join("")||'<p class="muted">No hay concursos ni sesiones de preguntas.</p>'}</div>`;
     host.appendChild(participation);
     host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{h.nextElementSibling.hidden=!h.nextElementSibling.hidden;});
-    host.querySelectorAll("[data-survey]").forEach(x=>x.onclick=()=>act("survey_vote",{survey_id:x.dataset.survey,option_id:x.dataset.option}).then(loadEngagementMini));
-    host.querySelectorAll("[data-event-register]").forEach(x=>x.onclick=()=>act("event_register",{event_id:x.dataset.eventRegister}).then(r=>{showToast(r.result&&r.result.registration==="waitlist"?"Añadido a espera":"Inscripción confirmada");loadEngagementMini();}));
-    host.querySelectorAll("[data-event-cancel]").forEach(x=>x.onclick=()=>act("event_cancel",{event_id:x.dataset.eventCancel}).then(loadEngagementMini));
+    host.querySelectorAll("[data-survey]").forEach(x=>x.onclick=()=>act("survey_vote",{survey_id:x.dataset.survey,option_id:x.dataset.option}).then(()=>loadEngagementMini(hostId)));
+    host.querySelectorAll("[data-event-register]").forEach(x=>x.onclick=()=>act("event_register",{event_id:x.dataset.eventRegister}).then(r=>{showToast(r.result&&r.result.registration==="waitlist"?"Añadido a espera":"Inscripción confirmada");loadEngagementMini(hostId);}));
+    host.querySelectorAll("[data-event-cancel]").forEach(x=>x.onclick=()=>act("event_cancel",{event_id:x.dataset.eventCancel}).then(()=>loadEngagementMini(hostId)));
     host.querySelectorAll("[data-event-register]").forEach(x=>x.insertAdjacentHTML("afterend",`<button class="btn ghost" data-event-checkin="${x.dataset.eventRegister}">Confirmar asistencia</button>`));
     host.querySelectorAll("[data-event-checkin]").forEach(x=>x.onclick=()=>act("event_checkin",{event_id:x.dataset.eventCheckin}).then(r=>showToast(r.ok?"Asistencia confirmada":"Debes estar inscrito")));
     host.querySelectorAll("[data-certificate]").forEach(x=>x.onclick=()=>act("certificate",{event_id:x.dataset.certificate}).then(r=>showToast(r.ok?`Certificado ${r.result.certificate_id}`:"Aún no consta tu asistencia")));
-    host.querySelectorAll("[data-challenge]").forEach(x=>x.onclick=()=>act("challenge",{challenge_id:x.dataset.challenge,amount:1}).then(loadEngagementMini));
-    host.querySelectorAll("[data-contest-submit]").forEach(x=>x.onclick=()=>act("contest_submit",{event_id:x.dataset.contestSubmit,title:host.querySelector(`[data-contest-title="${x.dataset.contestSubmit}"]`).value,content:host.querySelector(`[data-contest-content="${x.dataset.contestSubmit}"]`).value}).then(loadEngagementMini));
-    host.querySelectorAll("[data-contest-vote]").forEach(x=>x.onclick=()=>act("contest_vote",{event_id:x.dataset.contestEvent,submission_id:x.dataset.contestVote}).then(loadEngagementMini));
-    host.querySelectorAll("[data-qa-submit]").forEach(x=>x.onclick=()=>act("qa_question",{event_id:x.dataset.qaSubmit,text:host.querySelector(`[data-qa-text="${x.dataset.qaSubmit}"]`).value}).then(r=>{showToast(r.ok?"Pregunta enviada a moderación":"No se pudo enviar");if(r.ok)loadEngagementMini();}));
+    host.querySelectorAll("[data-challenge]").forEach(x=>x.onclick=()=>act("challenge",{challenge_id:x.dataset.challenge,amount:1}).then(()=>loadEngagementMini(hostId)));
+    host.querySelectorAll("[data-contest-submit]").forEach(x=>x.onclick=()=>act("contest_submit",{event_id:x.dataset.contestSubmit,title:host.querySelector(`[data-contest-title="${x.dataset.contestSubmit}"]`).value,content:host.querySelector(`[data-contest-content="${x.dataset.contestSubmit}"]`).value}).then(()=>loadEngagementMini(hostId)));
+    host.querySelectorAll("[data-contest-vote]").forEach(x=>x.onclick=()=>act("contest_vote",{event_id:x.dataset.contestEvent,submission_id:x.dataset.contestVote}).then(()=>loadEngagementMini(hostId)));
+    host.querySelectorAll("[data-qa-submit]").forEach(x=>x.onclick=()=>act("qa_question",{event_id:x.dataset.qaSubmit,text:host.querySelector(`[data-qa-text="${x.dataset.qaSubmit}"]`).value}).then(r=>{showToast(r.ok?"Pregunta enviada a moderación":"No se pudo enviar");if(r.ok)loadEngagementMini(hostId);}));
     communityAgenda.onclick=()=>act("agenda").then(r=>{if(r.ok)downloadText("moonbot-agenda.ics",r.result,"text/calendar");});
     mentorOffer.onclick=()=>act("mentor_profile",{skills:mentorSkills.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(()=>showToast("Perfil de mentor guardado"));
     mentorFind.onclick=()=>act("mentor",{skills:mentorSkills.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(r=>showToast(r.ok?`Mentor asignado: ${r.result.mentor_id}`:"No hay mentor disponible"));
@@ -2345,15 +2377,12 @@
       <div class="casbox"><span id="offlineQueueCount">0</span> cambios pendientes de sincronización offline.</div>
       <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
       <button class="btn ghost" id="uxTourRestart" style="margin-top:8px">Repetir recorrido guiado</button>
-      <div class="sec">Mi comunidad</div><div id="communityProfile">${skel()}</div><div id="communityEngagement">${skel()}</div>
       <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     reflectTheme();applyUxPreferences();
     const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true});widgetFavorites.checked=widgetPrefs.favorites;widgetSort.checked=widgetPrefs.sort;offlineQueueCount.textContent=offlineQueue().length;
     document.getElementById("uxPreferencesSave").onclick=()=>{saveUxPreferences();uxWrite("hub_widgets",{favorites:widgetFavorites.checked,sort:widgetSort.checked});};
     document.getElementById("uxTourRestart").onclick=()=>startGuidedTour();
-    loadCommunityMini();
-    loadEngagementMini();
     const box=document.getElementById("myRegistryStatus");
     if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
     const d=await apiPost("/registry/status",{initData:tg.initData});
@@ -2375,7 +2404,7 @@
   function reflectTheme(){document.querySelectorAll("[data-theme-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.themeOpt===curTheme));}
 
   // ── Navegación ──
-  const LOADERS={canales:loadCanales,admin:loadAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
+  const LOADERS={usuario:loadUserHome,canales:loadCanales,admin:loadAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
   function showView(name,fromHistory=false){
     if(name!=="grupo")applyGroupAppearance({accent:"teal",compact:false});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
@@ -2398,8 +2427,8 @@
     }
     applyUxPreferences();
     syncUxNotifications();
-    if(!history.state||!history.state.moonView)history.replaceState({moonView:"canales"},"","#canales");
-    showView(history.state.moonView||"canales",true);
+    if(!history.state||!history.state.moonView)history.replaceState({moonView:"usuario"},"","#usuario");
+    showView(history.state.moonView||"usuario",true);
   }
 
   // ── Tema clásico ──
@@ -2448,14 +2477,16 @@
     if(tg&&tg.initData){
       const d=await apiPost("/tg_auth",{initData:tg.initData});
       if(d&&d.ok&&d.is_master){
-        master=true;masterToken=d.token||"";
+        master=true;canAdmin=true;masterToken=d.token||"";
         document.getElementById("roleBadge").hidden=false;
         document.getElementById("masterTab").hidden=false;
+        document.getElementById("adminTab").hidden=false;
       }else if(!d||!d.ok){
         const badge=document.getElementById("roleBadge");
         badge.textContent="sesión no validada";badge.hidden=false;
         badge.style.borderColor="var(--red)";badge.style.color="var(--red)";
       }
+      if(!master)await loadManagedChannels();
     }
     const t=await loadTheme();
     applyTheme(t);
