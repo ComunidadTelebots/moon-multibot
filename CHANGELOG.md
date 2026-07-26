@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Noticias Web3 moderna en el Hub - 2026-07-26
+
+- La tarjeta Noticias Web3 solicita expresamente la versión 2026 al abrir su vista integrada.
+- La URL embebida conserva `miniapp=1` y añade parámetros mediante la API segura de URL.
+
 ### Sitios web integrados en la MiniApp - 2026-07-26
 
 - Telegram Web, Noticias Web3, Resistencia, Gameplays, TodoSobreAllTech y Comunidad se abren en una pantalla nativa dentro del Hub.

@@ -2239,7 +2239,7 @@
   // ── Red (servicios + proxy secundario) ──
   const SERVICES=[
     {ic:"message",n:"Telegram Web",d:"Cliente web de Telegram",url:"https://chat.todosobreall.tech"},
-    {ic:"newspaper",n:"Noticias Web3",d:"Actualidad tecnológica y Web3",url:"https://noticiasweb3.todosobreall.tech"},
+    {ic:"newspaper",n:"Noticias Web3",d:"Actualidad tecnológica y Web3",url:"https://noticiasweb3.todosobreall.tech",params:{version:"2026"}},
     {ic:"shield",n:"Resistencia",d:"Privacidad y resistencia a la censura",url:"https://resistenciaalacensura.todosobreall.tech"},
     {ic:"gamepad",n:"Gameplays",d:"Comunidad y contenidos gaming",url:"https://todosobregameplays.todosobreall.tech"},
     {ic:"globe",n:"Todo Sobre All",d:"Portal principal de la red",url:"https://todosobreall.tech"},
@@ -2250,7 +2250,7 @@
     const service=SERVICES[index];if(!service)return;activeService=service;
     serviceTitle.textContent=service.n;serviceDescription.textContent=service.d;serviceLoading.hidden=false;
     serviceLoading.innerHTML=`<div>${svg(service.ic)}<p style="margin-top:10px">Cargando ${escHtml(service.n)}…</p><small>También puedes abrirlo externamente desde ↗</small></div>`;
-    const join=service.url.includes("?")?"&":"?";serviceFrame.src=`${service.url}${join}miniapp=1`;
+    const embeddedUrl=new URL(service.url);embeddedUrl.searchParams.set("miniapp","1");Object.entries(service.params||{}).forEach(([key,value])=>embeddedUrl.searchParams.set(key,value));serviceFrame.src=embeddedUrl.toString();
     document.getElementById("v-service").hidden=false;document.body.style.overflow="hidden";
     if(tg&&tg.BackButton){tg.BackButton.show();tg.BackButton.onClick(closeService);}
     ev("service_open",{service:service.n,mode:"embedded"});
