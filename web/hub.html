@@ -1076,7 +1076,7 @@
     const box=document.getElementById("gjoin");if(!box)return;
     const d=await gp("/group/join/get",{});
     if(!d||!d.ok){box.innerHTML=`<p class="muted">No se pudo cargar el control de acceso.</p>`;return;}
-    const cfg=d.config||{}, stats=d.stats||{}, pending=d.pending||[], bulk=d.bulk_job||{};
+    const cfg=d.config||{}, stats=d.stats||{}, pending=d.pending||[], bulk=d.bulk_job||{}, bulkHistory=d.bulk_history||[];
     const success=(stats.approved||0)+(stats.declined||0);
     const rate=success?Math.round((stats.approved||0)*100/success):0;
     box.innerHTML=`
@@ -1107,7 +1107,8 @@
       </div>
       <div class="casbox" style="margin-top:10px"><b>Reverificación colectiva</b><p class="muted">Silencia a todos los miembros conocidos y les envía el captcha por privado. Telegram bloqueará el privado si nunca iniciaron el bot.</p>
         ${bulk.status?`<p class="muted">${bulk.status==="running"?"En curso":"Último resultado"}: ${bulk.processed||0}/${bulk.total||0} · ${bulk.muted||0} silenciados · ${bulk.private_sent||0} privados · ${bulk.private_blocked||0} no entregados</p>`:""}
-        <button class="btn red" id="gjoinReverify" style="margin-top:8px" ${bulk.status==="running"?"disabled":""}>Obligar a todos a pasar el captcha</button></div>
+        <div class="btnrow"><button class="btn ghost" id="gjoinPreview">Vista previa</button><button class="btn red" id="gjoinReverify" ${bulk.status==="running"?"disabled":""}>Obligar a todos</button>${bulk.status==="running"?'<button class="btn ghost" id="gjoinCancel">Cancelar</button>':""}</div>
+        ${bulkHistory.length?`<details><summary>Historial (${bulkHistory.length})</summary>${bulkHistory.map(x=>`<p class="muted">${new Date((x.finished_at||x.started_at)*1000).toLocaleString()} · ${x.status} · ${x.muted||0} silenciados · ${x.private_sent||0} privados</p>`).join("")}</details>`:""}</div>
       <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">Canal obligatorio de este grupo
         <input id="gjoinChannels" placeholder="@canal_del_grupo" value="${escHtml((cfg.required_channels||[])[0]?`@${cfg.required_channels[0]}`:"")}" style="width:100%;margin-top:6px">
       </label>
@@ -2016,6 +2017,8 @@
       if(r&&r.ok){showToast(r.started?"Reverificación iniciada":"Ya hay una reverificación en curso");loadJoinCaptcha();}
       else showToast((r&&r.error)||"No se pudo iniciar");
     };
+    document.getElementById("gjoinPreview").onclick=async()=>{const r=await gp("/group/join/reverify-control",{action:"preview"});showToast(r&&r.ok?`${r.preview.observed} miembros conocidos; se comprobarán antes de actuar`:(r&&r.error)||"No disponible");};
+    const cancelBulk=document.getElementById("gjoinCancel");if(cancelBulk)cancelBulk.onclick=async()=>{const r=await gp("/group/join/reverify-control",{action:"cancel"});showToast(r&&r.ok?"Cancelación solicitada":"No se pudo cancelar");loadJoinCaptcha();};
   }
 
   async function loadMasterGroupAdministration(){

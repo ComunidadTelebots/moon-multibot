@@ -380,6 +380,10 @@ def _start_bulk_captcha(bot, cid, actor="admin"):
         ttl = _join_config(cid)["request_ttl"]
         stats = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
         for raw_uid in user_ids:
+            latest = _db.get(job_key, {}) or {}
+            if latest.get("status") == "cancel_requested":
+                job["status"] = "cancelled"
+                break
             try:
                 uid = int(raw_uid)
                 membership = bot.api_call("getChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
@@ -417,9 +421,14 @@ def _start_bulk_captcha(bot, cid, actor="admin"):
                 if job["processed"] % 10 == 0:
                     _db.set(job_key, job)
                 time.sleep(0.04)
-        job["status"] = "completed"
+        if job.get("status") != "cancelled":
+            job["status"] = "completed"
         job["finished_at"] = int(time.time())
         _db.set(job_key, job)
+        history_key = f"JOIN_BULK_HISTORY_{cid}"
+        history = _safe_list(_db.get(history_key, []))
+        history.append(dict(job))
+        _db.set(history_key, history[-20:])
 
     threading.Thread(target=run, daemon=True, name=f"captcha-bulk-{cid}").start()
     return job, True
@@ -448,6 +457,16 @@ def internal_group_admin(cid):
         elif action == "reverify_all":
             job, started = _start_bulk_captcha(bot, cid, "web-master")
             return jsonify({"ok": True, "started": started, "captcha_job": job})
+        elif action == "preview_reverify":
+            observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) or {}
+            return jsonify({"ok": True, "captcha_preview": {"observed": len(observed),
+                "note": "Se comprobará en Telegram y se excluirán administradores, bots y miembros que ya salieron."}})
+        elif action == "cancel_reverify":
+            job = _db.get(f"JOIN_BULK_JOB_{cid}", {}) or {}
+            if job.get("status") == "running":
+                job["status"] = "cancel_requested"
+                _db.set(f"JOIN_BULK_JOB_{cid}", job)
+            return jsonify({"ok": True, "captcha_job": job})
         elif action == "sync_commands":
             return jsonify({"ok": True, "command_menu": bot.sync_command_menu(cid)})
         elif action == "copy_config":
@@ -497,6 +516,7 @@ def internal_group_admin(cid):
         "config": suite.config(cid),
         "join_config": _join_config(cid),
         "captcha_job": _db.get(f"JOIN_BULK_JOB_{cid}", {}),
+        "captcha_history": list(reversed(_safe_list(_db.get(f"JOIN_BULK_HISTORY_{cid}", []))))[:10],
         "command_menu": bot.command_menu_preview(cid),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
@@ -3046,7 +3066,8 @@ def group_join_get():
                     "global_strict_enforcement": _global_join_settings()["strict_enforcement"],
                     "can_manage_global": _is_master(res[0]),
                     "stats": _join_stats(chat_id), "pending": pending,
-                    "bulk_job": _db.get(f"JOIN_BULK_JOB_{chat_id}", {})})
+                    "bulk_job": _db.get(f"JOIN_BULK_JOB_{chat_id}", {}),
+                    "bulk_history": list(reversed(_safe_list(_db.get(f"JOIN_BULK_HISTORY_{chat_id}", []))))[:10]})
 
 
 @bp.route("/api/public/group/join/reverify-all", methods=["POST", "OPTIONS"])
@@ -3063,6 +3084,30 @@ def group_join_reverify_all():
         return jsonify({"ok": False, "error": "bot no disponible"}), 503
     job, started = _start_bulk_captcha(bot, chat_id, user.get("id"))
     return jsonify({"ok": True, "started": started, "job": job})
+
+
+@bp.route("/api/public/group/join/reverify-control", methods=["POST", "OPTIONS"])
+def group_join_reverify_control():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    action = body.get("action")
+    job_key = f"JOIN_BULK_JOB_{chat_id}"
+    if action == "preview":
+        observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{chat_id}", {}) or {}
+        return jsonify({"ok": True, "preview": {"observed": len(observed),
+            "note": "Antes de silenciar se excluirán administradores, bots y usuarios que ya no pertenezcan al grupo."}})
+    if action == "cancel":
+        job = _db.get(job_key, {}) or {}
+        if job.get("status") == "running":
+            job["status"] = "cancel_requested"
+            _db.set(job_key, job)
+        return jsonify({"ok": True, "job": job})
+    return jsonify({"ok": False, "error": "acción no válida"}), 400
 
 
 @bp.route("/api/public/group/join/settings", methods=["POST", "OPTIONS"])
