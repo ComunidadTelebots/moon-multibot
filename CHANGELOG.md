@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Comandos dinámicos y plugins - 2026-07-26
+
+- Las instancias cargan realmente los plugins durante el arranque y registran cualquier fallo con su nombre.
+- Moonbot descubre los comandos instalados y crea menús separados para usuarios, administradores y master mediante `setMyCommands`.
+- Los menús se sincronizan al arrancar, al recargar plugins, al modificar un grupo o bajo demanda desde Hub y TodoSobreAllTech.
+
 ### Política de formatos por grupo - 2026-07-26
 
 - Moonbot puede bloquear por grupo fotos, vídeos, audios, notas de voz, documentos, stickers, GIF y videomensajes.

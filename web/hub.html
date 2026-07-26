@@ -607,6 +607,11 @@
         <button class="btn teal" id="mbiSave">Guardar interacción</button>
         ${(d.bot_interactions||[]).slice(0,8).map(x=>`<div class="userchip"><span>@${escHtml(x.username)} · ${x.learned?"aprendido":"sin aprendizaje"} · ${x.replied?"respuesta enviada":"sin respuesta"}</span></div>`).join("")||'<p class="muted">Sin interacciones registradas.</p>'}
       </div></div>
+      <div class="dropdown"><div class="dhead">Comandos y plugins <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Telegram mostrará menús diferentes a usuarios y administradores. Los comandos de plugins activos se descubren automáticamente.</p>
+        <div class="statrow"><span><b>${(d.command_menu?.public||[]).length}</b><small>Públicos</small></span><span><b>${(d.command_menu?.admin||[]).length}</b><small>Administración</small></span><span><b>${d.command_menu?.plugins_loaded||0}</b><small>Plugins</small></span></div>
+        <button class="btn teal" id="mcmdSync">Sincronizar menú con Telegram</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Tipos de contenido permitidos <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <p class="muted">Bloquea formatos antes de descargarlos o analizarlos. Los administradores quedan excluidos.</p>
         <label class="setrow"><b>Activar política de formatos</b><input id="mctEnabled" type="checkbox" ${c.media_controls.enabled?"checked":""}></label>
@@ -689,6 +694,7 @@
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
     mbiSave.onclick=saveBotInteraction;
+    mcmdSync.onclick=()=>gp("/group/commands/sync",{}).then(x=>{showToast(x.command_menu?.synced?"Comandos sincronizados":"Telegram rechazó algún menú");loadGroupSuiteMini();});
     mctSave.onclick=saveMediaControls;
     maSave.onclick=saveAppearance;
     madSave.onclick=saveAdaptive;madSimulate.onclick=()=>gp("/group/suite/simulate",{text:madSimulation.value}).then(x=>madOutput.textContent=JSON.stringify(x.simulation||x,null,2));

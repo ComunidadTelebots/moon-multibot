@@ -379,6 +379,8 @@ def internal_group_admin(cid):
             join_config["mute_until_verified"] = bool(body.get("mute_until_verified", join_config["mute_until_verified"]))
             _db.set(f"JOINCFG_{cid}", join_config)
             return jsonify({"ok": True, "join_config": _join_config(cid)})
+        elif action == "sync_commands":
+            return jsonify({"ok": True, "command_menu": bot.sync_command_menu(cid)})
         elif action == "copy_config":
             source = str(body.get("source_id", ""))
             if not _known_internal_group(source):
@@ -425,6 +427,7 @@ def internal_group_admin(cid):
         "repair_steps": repair_steps,
         "config": suite.config(cid),
         "join_config": _join_config(cid),
+        "command_menu": bot.command_menu_preview(),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
         "history": safe_history,
@@ -1542,7 +1545,9 @@ def group_suite_get():
     if err:
         return err
     _, chat_id = res
-    return jsonify({"ok": True, **_group_suite().snapshot(chat_id)})
+    bot = _get_bot_for_chat(chat_id)
+    command_menu = bot.command_menu_preview() if bot else None
+    return jsonify({"ok": True, **_group_suite().snapshot(chat_id), "command_menu": command_menu})
 
 
 @bp.route("/api/public/group/suite/settings", methods=["POST", "OPTIONS"])
@@ -1555,7 +1560,25 @@ def group_suite_settings():
         return err
     _, chat_id = res
     config = _group_suite().save_config(chat_id, body.get("config") or {})
+    bot = _get_bot_for_chat(chat_id)
+    if bot:
+        bot.sync_command_menu(chat_id)
     return jsonify({"ok": True, "config": config})
+
+
+@bp.route("/api/public/group/commands/sync", methods=["POST", "OPTIONS"])
+def group_commands_sync():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    bot = _get_bot_for_chat(chat_id)
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    return jsonify({"ok": True, "command_menu": bot.sync_command_menu(chat_id)})
 
 
 @bp.route("/api/public/group/suite/report", methods=["POST", "OPTIONS"])

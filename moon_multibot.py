@@ -1044,8 +1044,12 @@ def web_plugins_upload():
 @app.route("/api/plugins/reload", methods=['POST'])
 def web_plugins_reload():
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    add_web_log("INFO", "Recargando plugins...")
-    return jsonify({"ok": True, "msg": "SeÃ±al de recarga enviada."})
+    results = []
+    for bot in globals().get("active_bots", []):
+        bot.load_plugins()
+        results.append({"bot": bot.bot_username, **bot.sync_command_menu()})
+    add_web_log("INFO", f"Plugins y comandos recargados en {len(results)} bots")
+    return jsonify({"ok": True, "msg": "Plugins y comandos recargados.", "bots": results})
 
 @app.route("/api/system/update", methods=['GET', 'POST'])
 def web_system_update():
@@ -3250,6 +3254,7 @@ class MoonBot:
         self.last_msg_id = None
         self.last_media_hash = None
         if not os.path.exists("downloads"): os.makedirs("downloads")
+        self.load_plugins()
 
         # TDLib bot client (opcional) â€” autentica con bot token, sesiÃ³n propia
         self._tdlib = None
@@ -3619,7 +3624,62 @@ class MoonBot:
                     try:
                         spec = importlib.util.spec_from_file_location(f[:-3], os.path.join("plugins", f))
                         m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); self.plugins.append(m)
-                    except: pass
+                    except Exception as error:
+                        add_web_log("ERROR", f"No se pudo cargar plugin {f}: {error}")
+
+    def _plugin_command_catalog(self):
+        """Descubre comandos declarados por plugins sin confiar en metadatos manuales."""
+        catalog = {"public": {}, "admin": {}, "master": {}}
+        for plugin in self.plugins:
+            path = str(getattr(plugin, "__file__", "") or "")
+            name = os.path.basename(path).rsplit(".", 1)[0]
+            scope = "master" if name in ("admin", "backup_utils", "password_tools") else (
+                "admin" if any(word in name for word in ("moderation", "security", "incident", "rule_", "quiet_hours")) else "public"
+            )
+            try:
+                source = open(path, encoding="utf-8-sig").read()
+            except OSError:
+                continue
+            for command in re.findall(r"[\"']/([a-z][a-z0-9_]{1,31})(?:\s|[\"'])", source, re.I):
+                command = command.lower()
+                catalog[scope].setdefault(command, f"Función del plugin {name.replace('_', ' ')}"[:256])
+        return catalog
+
+    def command_menu_preview(self):
+        plugins = self._plugin_command_catalog()
+        public = {
+            "start": "Abrir el menú y la Mini App", "help": "Ver ayuda de comandos",
+            "perfil": "Consultar tu perfil", "top": "Ver miembros destacados",
+            "report": "Reportar un mensaje", "traducir": "Traducir texto",
+            "games": "Abrir minijuegos", "wayback": "Consultar Wayback Machine",
+        }
+        if (self.bot_username or "").lower() == "cintiabot":
+            public.update({"proxy": "Solicitar un proxy MTProto", "recomendar": "Proponer un proxy"})
+        public.update(plugins["public"])
+        admin = {**public, "mute": "Silenciar un miembro", "unmute": "Restaurar un miembro",
+                 "warn": "Advertir a un miembro", "ban": "Banear localmente", "unban": "Retirar ban local",
+                 "resumen": "Resumir la conversación"}
+        admin.update(plugins["admin"])
+        master = {**admin, "gban": "Aplicar ban global", "ungban": "Retirar ban global",
+                  "resync": "Forzar sincronización", "backup_db": "Crear copia de la base de datos"}
+        master.update(plugins["master"])
+        normalize = lambda rows: [{"command": key, "description": value[:256]} for key, value in list(rows.items())[:100]]
+        return {"public": normalize(public), "admin": normalize(admin), "master": normalize(master),
+                "plugins_loaded": len(self.plugins)}
+
+    def sync_command_menu(self, chat_id=None):
+        menus = self.command_menu_preview()
+        results = []
+        if chat_id is None:
+            results.append(self.api_call("setMyCommands", {"commands": menus["public"], "scope": {"type": "default"}}, silent=True))
+            results.append(self.api_call("setMyCommands", {"commands": menus["admin"], "scope": {"type": "all_chat_administrators"}}, silent=True))
+            if MASTER_ID:
+                results.append(self.api_call("setMyCommands", {"commands": menus["master"], "scope": {"type": "chat", "chat_id": MASTER_ID}}, silent=True))
+        else:
+            results.append(self.api_call("setMyCommands", {"commands": menus["admin"], "scope": {"type": "chat_administrators", "chat_id": chat_id}}, silent=True))
+        menus["synced"] = all(isinstance(item, dict) and item.get("ok") for item in results)
+        menus["errors"] = [item.get("description") for item in results if isinstance(item, dict) and not item.get("ok")]
+        return menus
     def api_call(self, m, p=None, silent=False):
         return self.call_api(m, p, silent)
 
@@ -5985,6 +6045,12 @@ if __name__ == "__main__":
                     db.set(f"CHATS_{tk}", updated)
                 
                 add_web_log("SUCCESS", f"Lanzando hilo para @{bot.bot_username}...")
+                command_sync = bot.sync_command_menu()
+                add_web_log(
+                    "SUCCESS" if command_sync.get("synced") else "WARNING",
+                    f"Menú de comandos @{bot.bot_username}: {len(command_sync['public'])} públicos, "
+                    f"{len(command_sync['admin'])} admin, {command_sync['plugins_loaded']} plugins",
+                )
                 threading.Thread(target=bot.run, daemon=True).start()
             
             def daily_report_worker():
