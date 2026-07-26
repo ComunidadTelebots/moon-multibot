@@ -1545,6 +1545,17 @@ def _house_ads_payload(placement=None):
     return sorted(rows, key=lambda row: (-int(row.get("priority", 0) or 0), str(row.get("title", ""))))
 
 
+def _official_house_ads():
+    """Catálogo versionado que se instala automáticamente con Moonbot."""
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "official_house_ads.json")
+    try:
+        with open(path, "r", encoding="utf-8") as source:
+            rows = json.load(source)
+        return [row for row in rows if isinstance(row, dict) and row.get("id") and row.get("url")]
+    except (OSError, TypeError, ValueError):
+        return []
+
+
 def _sync_master_channel_ads():
     """Mantiene campañas automáticas para los canales de Telegram del master."""
     if not _db or not _master_id:
@@ -1553,6 +1564,28 @@ def _sync_master_channel_ads():
         channels = _channel_stats.channels_for_admin(_master_id)
         rows = [row for row in _safe_list(_db.get("HOUSE_ADS", [])) if isinstance(row, dict)]
         existing = {str(row.get("source_chat_id")): row for row in rows if row.get("source") == "master_channel"}
+        existing_official = {str(row.get("id")): row for row in rows if row.get("source") == "official_channel"}
+        official_generated = []
+        official_usernames = set()
+        for seed in _official_house_ads():
+            previous = existing_official.get(str(seed["id"]), {})
+            username = str(seed.get("url", "")).rstrip("/").rsplit("/", 1)[-1].lower()
+            if username: official_usernames.add(username)
+            official_generated.append({
+                **seed, **previous, "id": str(seed["id"]), "title": str(seed.get("title") or "Canal oficial")[:80],
+                "description": str(seed.get("description") or "Canal oficial de ComunidadTelebots")[:800],
+                "url": str(seed["url"])[:500], "image": previous.get("image", seed.get("image", "")),
+                "placement": str(seed.get("placement", "all")), "cta": str(seed.get("cta", "Abrir"))[:24],
+                "background": str(seed.get("background", "#eef7ff")), "foreground": str(seed.get("foreground", "#155f9b")),
+                "accent": str(seed.get("accent", "#1982d1")), "priority": int(seed.get("priority", 50)),
+                "enabled": previous.get("enabled", True), "approval_status": "approved", "automatic": True,
+                "source": "official_channel", "source_chat_id": str(previous.get("source_chat_id") or ""),
+                "submitted_by": str(_master_id), "starts_at": "", "ends_at": "", "max_clicks": 0,
+                "goal_reached": False, "clicks": int(previous.get("clicks", 0) or 0),
+                "impressions": int(previous.get("impressions", 0) or 0),
+                "clicks_by_placement": dict(previous.get("clicks_by_placement") or {}),
+                "impressions_by_placement": dict(previous.get("impressions_by_placement") or {}),
+            })
         generated = []
         suppressed = set(str(value) for value in _safe_list(_db.get("HOUSE_ADS_SUPPRESSED_CHANNELS", [])))
         for channel in channels:
@@ -1560,6 +1593,8 @@ def _sync_master_channel_ads():
                 continue
             username = str(channel.get("username") or "").strip().lstrip("@")
             if channel.get("ctype") != "channel" or not re.fullmatch(r"[A-Za-z0-9_]{5,64}", username):
+                continue
+            if username.lower() in official_usernames:
                 continue
             chat_id = str(channel.get("chat_id"))
             if chat_id in suppressed:
@@ -1579,9 +1614,9 @@ def _sync_master_channel_ads():
                 "impressions_by_placement": dict(previous.get("impressions_by_placement") or {}),
                 "source": "master_channel", "source_chat_id": chat_id, "automatic": True,
             })
-        manual = [row for row in rows if row.get("source") != "master_channel"]
-        _db.set("HOUSE_ADS", manual + generated)
-        return {"ok": True, "channels": len(generated)}
+        manual = [row for row in rows if row.get("source") not in ("master_channel", "official_channel")]
+        _db.set("HOUSE_ADS", manual + official_generated + generated)
+        return {"ok": True, "channels": len(generated) + len(official_generated), "official": len(official_generated)}
     except Exception as error:
         return {"ok": False, "error": str(error)[:200]}
 

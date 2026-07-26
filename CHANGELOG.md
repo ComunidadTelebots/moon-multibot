@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Campañas oficiales instalables - 2026-07-26
+
+- Moonbot incluye en GitHub campañas iniciales para Todo Sobre All Tech, Comunidad Telebots, Resistencia a la Censura y Todo Sobre Gameplays.
+- Se crean activas al instalar la actualización, evitan duplicados y conservan métricas y pausas en actualizaciones posteriores.
+
 ### Corrección de «Mis canales» - 2026-07-26
 
 - La vista personal muestra únicamente grupos y canales donde coinciden el usuario administrador y un bot activo de Moonbot.
