@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.1.0 - Mapa lingüístico agregado - 2026-07-26
+
+- Registro persistente del `language_code` declarado por Telegram para cada usuario conocido.
+- Endpoint público de solo lectura `/api/public/stats/language-map` con datos exclusivamente agregados.
+- Conversión idioma/región a puntos orientativos para representación global.
+- Etiquetado expreso de la visualización como estimación lingüística, no ubicación física.
+- No se publican identificadores, nombres, mensajes, IP ni coordenadas individuales.
+
 ## v18.0.0 - Horizonte 202 completado - 2026-07-26
 
 - Las 100 funciones del catálogo Horizonte 202 disponen de una operación ejecutable, persistencia y auditoría.

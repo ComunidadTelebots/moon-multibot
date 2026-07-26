@@ -26,6 +26,7 @@ from group_suite import GroupSuite
 from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from roadmap_engine import RoadmapEngine
+from core.language_map import aggregate_language_map
 
 bp = Blueprint("public", __name__)
 
@@ -1611,6 +1612,12 @@ def join_verify():
 @bp.route("/api/public/stats/global")
 def public_global():
     return jsonify({"ok": True, **_channel_stats.get_global_stats()})
+
+
+@bp.route("/api/public/stats/language-map")
+def public_language_map():
+    data = aggregate_language_map(_db.get("TELEGRAM_USER_LANGUAGES", {}) if _db else {})
+    return jsonify({"ok": True, **data})
 
 
 @bp.route("/api/public/stats/channels")

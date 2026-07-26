@@ -5551,6 +5551,12 @@ class MoonBot:
                     sent = analyze_sentiment(text)
                     if uid not in global_user_stats: 
                         global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
+                    telegram_language = str((msg.get("from") or {}).get("language_code") or "und").lower().replace("_", "-")[:16]
+                    global_user_stats[uid]["language_code"] = telegram_language
+                    user_languages = db.get("TELEGRAM_USER_LANGUAGES", {})
+                    if user_languages.get(uid) != telegram_language:
+                        user_languages[uid] = telegram_language
+                        db.set("TELEGRAM_USER_LANGUAGES", user_languages)
                     global_user_stats[uid]["count"] += 1
                     if global_user_stats[uid]["count"] % 5 == 0:
                         community_members.add_xp(uid, 5, "actividad en grupo")
