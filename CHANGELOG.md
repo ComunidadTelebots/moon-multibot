@@ -1981,6 +1981,7 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 - El control está disponible tanto en la MiniApp como en el panel web de TodoSobreAllTech.
 # Publicidad automática de canales del master
 
+- Un canal malformado o un fallo de sincronización ya no puede convertir la respuesta JSON en una página HTML de error.
 - Control independiente para activar o detener la promoción de cada canal desde la MiniApp.
 - NoticiasWeb3 recibe campañas propias generadas desde los canales donde el master es creador o administrador.
 - Los anuncios conservan impresiones, clics y métricas por ubicación, y desaparecen si el canal deja de estar administrado.
