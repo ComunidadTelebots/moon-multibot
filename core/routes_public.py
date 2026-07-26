@@ -1454,10 +1454,14 @@ def _house_ads_update(body):
     if action == "delete": rows = [row for row in rows if str(row.get("id")) != ad_id]
     elif action == "click":
         for row in rows:
-            if str(row.get("id")) == ad_id: row["clicks"] = int(row.get("clicks", 0) or 0) + 1
+            if str(row.get("id")) == ad_id:
+                row["clicks"] = int(row.get("clicks", 0) or 0) + 1
+                place = str(body.get("placement") or "unknown"); by = dict(row.get("clicks_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["clicks_by_placement"] = by
     elif action == "impression":
         for row in rows:
-            if str(row.get("id")) == ad_id: row["impressions"] = int(row.get("impressions", 0) or 0) + 1
+            if str(row.get("id")) == ad_id:
+                row["impressions"] = int(row.get("impressions", 0) or 0) + 1
+                place = str(body.get("placement") or "unknown"); by = dict(row.get("impressions_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["impressions_by_placement"] = by
     else:
         raw = body.get("ad") or body
         url = str(raw.get("url") or "").strip()
@@ -1466,7 +1470,8 @@ def _house_ads_update(body):
                 "description": str(raw.get("description") or "")[:180], "url": url[:500],
                 "image": str(raw.get("image") or "")[:500], "placement": str(raw.get("placement") or "all"),
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
-                "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0)}
+                "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
+                "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {})}
         if item["placement"] not in ("all", "top", "right", "inline"): raise ValueError("ubicación no válida")
         if not item["title"]: raise ValueError("título obligatorio")
         rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]

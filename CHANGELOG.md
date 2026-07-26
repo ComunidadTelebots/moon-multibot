@@ -6,6 +6,7 @@
 - El master puede añadir, pausar, activar y eliminar anuncios desde la MiniApp.
 - Cada anuncio define ubicación, prioridad, imagen y enlace, y registra impresiones y clics.
 - TodoSobreAllTech consume el mismo catálogo mediante la integración interna firmada.
+- El catálogo conserva métricas por ubicación y permite copiar enlaces medidos del dominio TodoSobreAllTech.
 
 ### Noticias Web3 moderna en el Hub - 2026-07-26
 
