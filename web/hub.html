@@ -522,11 +522,13 @@
   // ── Mis canales ──
   async function loadCanales(){
     const el=document.getElementById("v-canales");
-    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">Detectados automáticamente: donde eres propietario o administrador.</div>`+skel();
+    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">Comunidades compartidas contigo: administras el espacio y Moonbot está presente.</div>`+skel();
     let chs=[];
     let channelError="";
     if(tg&&tg.initData){
-      const d=await loadManagedChannels();
+      // Esta vista es personal incluso para el master. El inventario global
+      // permanece en Administración y no debe mezclarse con "Mis canales".
+      const d=await apiReadPost("/stats/mine",{initData:tg.initData});
       if(d&&d.ok)chs=d.channels||[];else channelError=(d&&d.error)||"No se pudo consultar PocketBase";
     }
     window._moonChannels=chs;
@@ -551,7 +553,7 @@
     }
     const recentIds=loadRecentChats();
     const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true}),favoriteActions=widgetPrefs.favorites?UX_ACTIONS.filter(x=>uxFavorites().includes(x.id)&&(!x.master||master)&&(!x.admin||canAdmin||master)):[];
-    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
+    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} comunidad${chs.length!==1?'es':''} en común con tus bots · toca una para gestionarla.</div>
       <div class="assoc-tools"><input id="myChannelsSearch" type="search" placeholder="Buscar tus espacios…" autocomplete="off">
         <button class="btn ghost" id="myChannelsRefresh" aria-label="Actualizar">${svg('refresh')}</button></div>
       ${favoriteActions.length?`<div class="sec">Acciones favoritas</div><div class="filterbar">${favoriteActions.map(x=>`<button class="filterpill" data-home-action="${x.id}">★ ${x.name}</button>`).join("")}</div>`:""}

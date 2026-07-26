@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Corrección de «Mis canales» - 2026-07-26
+
+- La vista personal muestra únicamente grupos y canales donde coinciden el usuario administrador y un bot activo de Moonbot.
+- El master deja de recibir el inventario global en «Mis canales»; este continúa disponible en sus paneles de administración.
+
 ### Carga de sitios integrados - 2026-07-26
 
 - Se corrige la capa de carga que permanecía visible sobre NoticiasWeb3 aunque el iframe ya hubiese terminado.

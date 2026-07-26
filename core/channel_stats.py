@@ -406,11 +406,11 @@ def is_user_admin_of(user_id, chat_id):
 
 
 def get_user_channels(user_id):
-    """Canales donde el usuario es creator/administrator (desde la caché)."""
+    """Chats activos compartidos por el usuario administrador y Moonbot."""
     admins = _pb.list(C_ADMINS, filter=f"user_id={int(user_id)}", per_page=200)
     if not admins:
         return []
-    role_by_chat = {a["chat_id"]: a.get("status") for a in admins}
+    role_by_chat = {a["chat_id"]: a.get("status") for a in admins if a.get("status") in ("creator", "administrator")}
     channels = {r["chat_id"]: r for r in _all_active()}
     out = []
     for cid, role in role_by_chat.items():
