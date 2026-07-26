@@ -17,7 +17,8 @@ import os
 import time
 import secrets
 import re
-from urllib.parse import parse_qsl
+import ipaddress
+from urllib.parse import parse_qsl, urlparse
 
 import jwt
 from flask import Blueprint, request, jsonify
@@ -53,17 +54,20 @@ _add_audit_log = None
 _vt_manager = None
 _get_ai_runtime_config = None
 _set_ai_runtime_config = None
+_task_queue = None
+_group_administration = None
 _community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
           hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None,
-          add_audit_log=None, vt_manager=None, get_ai_runtime_config=None, set_ai_runtime_config=None):
+          add_audit_log=None, vt_manager=None, get_ai_runtime_config=None, set_ai_runtime_config=None,
+          task_queue=None, group_administration=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
     global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log, _vt_manager
-    global _get_ai_runtime_config, _set_ai_runtime_config
+    global _get_ai_runtime_config, _set_ai_runtime_config, _task_queue, _group_administration
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -80,6 +84,8 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _vt_manager = vt_manager
     _get_ai_runtime_config = get_ai_runtime_config
     _set_ai_runtime_config = set_ai_runtime_config
+    _task_queue = task_queue
+    _group_administration = group_administration
     return bp
 
 
@@ -680,6 +686,119 @@ def internal_ai_center():
     except (TypeError, ValueError) as error:
         return jsonify({"ok": False, "error": str(error)}), 400
     if _add_audit_log: _add_audit_log(f"TodoSobreAllTech IA: {action}")
+    return jsonify({"ok": True, "result": result})
+
+
+def _automation_templates():
+    return [
+        {"id": "welcome", "name": "Bienvenida automática", "description": "Responde al primer saludo del grupo.",
+         "kind": "rule", "keyword": "hola", "response": "¡Bienvenido! Consulta las normas fijadas antes de participar."},
+        {"id": "support", "name": "Derivación a soporte", "description": "Orienta las solicitudes de ayuda.",
+         "kind": "rule", "keyword": "ayuda", "response": "Cuéntanos el problema y un administrador lo revisará."},
+        {"id": "report", "name": "Formulario de incidencias", "description": "Recoge informes estructurados.",
+         "kind": "form", "title": "Informar de una incidencia", "fields": [
+             {"name": "description", "label": "Descripción", "type": "textarea", "required": True},
+             {"name": "evidence", "label": "Enlace a evidencia", "type": "url", "required": False}]},
+    ]
+
+
+def _safe_webhook_url(value):
+    raw = str(value or "").strip()[:1000]
+    parsed = urlparse(raw)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("el webhook debe usar HTTPS y no incluir credenciales")
+    host = parsed.hostname.casefold()
+    if host == "localhost" or host.endswith(".local"):
+        raise ValueError("destino de webhook no permitido")
+    try:
+        address = ipaddress.ip_address(host.strip("[]"))
+        if not address.is_global:
+            raise ValueError("destino de webhook privado no permitido")
+    except ValueError as error:
+        if "privado" in str(error):
+            raise
+    return raw
+
+
+def _public_webhook(item):
+    return {key: value for key, value in item.items() if key not in ("secret", "signature", "payload")}
+
+
+@bp.route("/api/internal/automations", methods=["GET", "POST"])
+def internal_automations():
+    """Centro de automatizaciones para todosobreall.tech, sin exponer secretos."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    engine = RoadmapEngine(_db)
+    if request.method == "GET":
+        rules = list(reversed(_safe_list(_db.get("CONTENT_KEYWORD_RULES", []))))[:200]
+        forms = list(reversed(_safe_list(_db.get("CONTENT_FORMS", []))))[:100]
+        hooks = [_public_webhook(row) for row in reversed(_safe_list(_db.get("INTEGRATION_WEBHOOKS", [])))][:100]
+        webhook_jobs = [_public_webhook(row) for row in reversed(_safe_list(_db.get("WEBHOOK_QUEUE", [])))][:100]
+        tasks = _task_queue.get_all() if _task_queue else []
+        calendar = list(reversed(_safe_list(_db.get("GROUP_ADMIN_CALENDAR", []))))[:200]
+        return jsonify({"ok": True, "rules": rules, "forms": forms, "webhooks": hooks,
+                        "queue": tasks, "webhook_queue": webhook_jobs, "calendar": calendar,
+                        "templates": _automation_templates()})
+    body = request.json or {}
+    action = str(body.get("action", ""))
+    group_id = str(body.get("group_id", ""))
+    result = None
+    try:
+        if action in ("rule_save", "form_save", "webhook_save", "calendar", "automation_install"):
+            if group_id not in _known_internal_group_ids():
+                return jsonify({"ok": False, "error": "group_not_found"}), 404
+        if action == "rule_save":
+            keyword, response = str(body.get("keyword", "")).strip(), str(body.get("response", "")).strip()
+            if not keyword or not response:
+                raise ValueError("palabra clave y respuesta son obligatorias")
+            conditions = body.get("conditions") if isinstance(body.get("conditions"), dict) else {}
+            result = engine.keyword_rule(group_id, keyword, response, conditions)
+        elif action == "rule_toggle":
+            rows = _safe_list(_db.get("CONTENT_KEYWORD_RULES", []))
+            result = next((row for row in rows if row.get("id") == body.get("rule_id")), None)
+            if not result:
+                return jsonify({"ok": False, "error": "rule_not_found"}), 404
+            result["active"] = bool(body.get("active")); _db.set("CONTENT_KEYWORD_RULES", rows)
+        elif action == "simulate":
+            if group_id not in _known_internal_group_ids():
+                return jsonify({"ok": False, "error": "group_not_found"}), 404
+            result = {"matched": engine.keyword_match(group_id, body.get("text", ""), body.get("context") or {})}
+        elif action == "form_save":
+            fields = body.get("fields") if isinstance(body.get("fields"), list) else []
+            if not str(body.get("title", "")).strip() or not fields:
+                raise ValueError("título y campos son obligatorios")
+            result = engine.form_save(body.get("title"), fields, group_id)
+        elif action == "webhook_save":
+            events = [str(value)[:80] for value in (body.get("events") or []) if str(value).strip()][:20]
+            if not events: raise ValueError("selecciona al menos un evento")
+            result = _public_webhook(engine.webhook_save(group_id, _safe_webhook_url(body.get("url")), events))
+        elif action == "calendar":
+            if not _group_administration: raise ValueError("calendario no disponible")
+            result = _group_administration.calendar_action(group_id, body.get("calendar_action", "message"),
+                                                            body.get("execute_at"), body.get("payload") or {})
+        elif action in ("queue_cancel", "queue_prioritize"):
+            if not _task_queue: raise ValueError("cola no disponible")
+            task_id = int(body.get("task_id"))
+            result = {"task_id": task_id, "action": action}
+            (_task_queue.cancel if action == "queue_cancel" else _task_queue.prioritize)(task_id)
+        elif action == "webhook_retry":
+            rows = _safe_list(_db.get("WEBHOOK_QUEUE", []))
+            result = next((row for row in rows if row.get("id") == body.get("job_id")), None)
+            if not result: return jsonify({"ok": False, "error": "job_not_found"}), 404
+            result.update({"status": "retry", "next_attempt": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+            _db.set("WEBHOOK_QUEUE", rows); result = _public_webhook(result)
+        elif action == "automation_install":
+            template = next((row for row in _automation_templates() if row["id"] == body.get("template_id")), None)
+            if not template: return jsonify({"ok": False, "error": "template_not_found"}), 404
+            result = (engine.keyword_rule(group_id, template["keyword"], template["response"], {})
+                      if template["kind"] == "rule" else engine.form_save(template["title"], template["fields"], group_id))
+        else:
+            return jsonify({"ok": False, "error": "invalid_action"}), 400
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    if action != "simulate" and _add_audit_log:
+        _add_audit_log(f"TodoSobreAllTech automatizaciones: {action}")
     return jsonify({"ok": True, "result": result})
 
 

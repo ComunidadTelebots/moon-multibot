@@ -1,5 +1,16 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.11.0 - Automatizaciones administrables - 2026-07-26
+
+- Constructor de reglas por palabra clave con condiciones y respuestas automáticas.
+- Simulador de reglas que no publica mensajes ni ejecuta acciones reales.
+- Formularios adaptables asociados a grupos administrados.
+- Webhooks HTTPS con validación de destino y secretos ocultos en todas las respuestas.
+- Calendario de acciones conectado al ejecutor existente de Moonbot.
+- Control de cola con priorización, cancelación y reintento de webhooks fallidos.
+- Biblioteca instalable de automatizaciones de bienvenida, soporte e incidencias.
+- Endpoint interno protegido y auditoría de todos los cambios administrativos.
+
 ## v18.10.0 - Centro de IA externo - 2026-07-26
 
 - ConfiguraciÃ³n segura de proveedor y modelo global sin exponer claves API.

@@ -705,6 +705,8 @@ app.register_blueprint(_setup_public(
         "OLLAMA_MODEL": cfg["OLLAMA_MODEL"],
         "DEEP_DREAM_MODE": cfg["DEEP_DREAM_MODE"],
     }),
+    task_queue=task_queue,
+    group_administration=group_administration,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,
