@@ -452,6 +452,123 @@ class RoadmapEngine:
         self.db.set(f"H202_ANNUAL_MEMORY_{self._id(group_id)}_{year}", item)
         return item
 
+    def editorial_series(self, operation, series_id=None, title="", description="",
+                         content_id=None, position=None):
+        rows = self._list("H202_EDITORIAL_SERIES")
+        if operation == "create":
+            item = {"id": uuid.uuid4().hex[:12], "title": str(title)[:200],
+                    "description": str(description)[:1000], "items": [], "status": "draft",
+                    "created_at": self._now().isoformat()}
+            rows.append(item)
+        else:
+            item = next((row for row in rows if row.get("id") == series_id), None)
+            if not item:
+                return None
+            if operation == "add":
+                entry = {"content_id": self._id(content_id), "position": int(position or len(item["items"]) + 1)}
+                item["items"] = [row for row in item["items"] if row.get("content_id") != entry["content_id"]]
+                item["items"].append(entry)
+                item["items"].sort(key=lambda row: row["position"])
+            elif operation in ("publish", "archive"):
+                item["status"] = "published" if operation == "publish" else "archived"
+                item["updated_at"] = self._now().isoformat()
+            elif operation != "status":
+                raise ValueError("operación de serie editorial inválida")
+        self.db.set("H202_EDITORIAL_SERIES", rows[-500:])
+        return item
+
+    def content_reuse_candidates(self, items, minimum_age_days=30, limit=20):
+        candidates = []
+        for item in (items or [])[-2000:]:
+            if not isinstance(item, dict):
+                continue
+            age = max(0, int(item.get("age_days", 0)))
+            if age < int(minimum_age_days):
+                continue
+            engagement = max(0, min(100, float(item.get("engagement", 0))))
+            evergreen = 20 if item.get("evergreen") else 0
+            stale_penalty = min(30, max(0, age - 365) / 30)
+            score = round(max(0, min(100, engagement * 0.7 + evergreen + 15 - stale_penalty)), 1)
+            candidates.append({"content_id": self._id(item.get("id")), "title": str(item.get("title", ""))[:200],
+                               "age_days": age, "reuse_score": score,
+                               "recommendation": "refresh" if age > 365 else "republish"})
+        candidates.sort(key=lambda row: (-row["reuse_score"], -row["age_days"]))
+        result = {"candidates": candidates[:max(1, min(100, int(limit)))],
+                  "calculated_at": self._now().isoformat()}
+        self.db.set("H202_CONTENT_REUSE_LAST", result)
+        return result
+
+    def silence_calendar(self, group_id, operation, starts_at=None, ends_at=None,
+                         reason="", window_id=None, check_at=None):
+        key = f"H202_SILENCE_CALENDAR_{self._id(group_id)}"
+        rows = self._list(key)
+        if operation == "create":
+            start = datetime.datetime.fromisoformat(str(starts_at))
+            end = datetime.datetime.fromisoformat(str(ends_at))
+            if end <= start:
+                raise ValueError("el silencio debe terminar después de comenzar")
+            item = {"id": uuid.uuid4().hex[:12], "starts_at": start.isoformat(), "ends_at": end.isoformat(),
+                    "reason": str(reason)[:300], "status": "scheduled"}
+            rows.append(item)
+            self.db.set(key, rows[-500:])
+            return item
+        if operation == "cancel":
+            item = next((row for row in rows if row.get("id") == window_id), None)
+            if not item:
+                return None
+            item["status"] = "cancelled"
+            self.db.set(key, rows[-500:])
+            return item
+        if operation != "check":
+            raise ValueError("operación de calendario de silencios inválida")
+        moment = datetime.datetime.fromisoformat(str(check_at)) if check_at else self._now()
+        active = [row for row in rows if row.get("status") == "scheduled"
+                  and datetime.datetime.fromisoformat(row["starts_at"]) <= moment
+                  < datetime.datetime.fromisoformat(row["ends_at"])]
+        return {"group_id": self._id(group_id), "can_publish": not active, "active_windows": active}
+
+    def compare_headlines(self, headlines):
+        clickbait_terms = {"increíble", "secreto", "urgente", "impactante", "no creerás", "última hora"}
+        rows = []
+        for index, headline in enumerate((headlines or [])[:20]):
+            text = str(headline).strip()[:300]
+            lower = text.casefold()
+            length_score = max(0, 100 - abs(len(text) - 65) * 2)
+            clickbait = sum(term in lower for term in clickbait_terms)
+            clarity = 100 if 25 <= len(text) <= 90 else 65
+            score = round(max(0, min(100, length_score * 0.55 + clarity * 0.45 - clickbait * 18)), 1)
+            rows.append({"index": index, "headline": text, "score": score,
+                         "clickbait_signals": clickbait, "length": len(text)})
+        rows.sort(key=lambda row: (-row["score"], row["index"]))
+        result = {"ranking": rows, "recommended": rows[0] if rows else None}
+        self._append("H202_HEADLINE_COMPARISONS", result, 500)
+        return result
+
+    def public_announcement_version(self, operation, announcement_id=None, title="", body="",
+                                    correction_note="", actor_id=None):
+        rows = self._list("H202_PUBLIC_ANNOUNCEMENTS")
+        if operation == "publish":
+            item = {"id": uuid.uuid4().hex[:12], "title": str(title)[:300], "status": "published",
+                    "versions": [], "created_at": self._now().isoformat()}
+            rows.append(item)
+        else:
+            item = next((row for row in rows if row.get("id") == announcement_id), None)
+            if not item:
+                return None
+            if operation == "history":
+                return item
+            if operation != "correct":
+                raise ValueError("operación de comunicado inválida")
+        version_number = len(item["versions"]) + 1
+        content = str(body)[:16000]
+        version = {"version": version_number, "body": content,
+                   "correction_note": str(correction_note)[:1000], "actor_id": self._id(actor_id),
+                   "checksum": hashlib.sha256(content.encode()).hexdigest(), "published_at": self._now().isoformat()}
+        item["versions"].append(version)
+        item["current_version"] = version_number
+        self.db.set("H202_PUBLIC_ANNOUNCEMENTS", rows[-1000:])
+        return item
+
     def impersonation_check(self, candidate, administrators):
         name = str(candidate.get("name", "")).casefold().strip()
         username = str(candidate.get("username", "")).casefold().lstrip("@")

@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v17.9.0 - Contenido conectado
+
+- Series editoriales ordenadas con publicación y archivado.
+- Reutilización inteligente de contenido según antigüedad, rendimiento y vigencia.
+- Calendario de silencios para evitar publicaciones durante ventanas sensibles.
+- Comparador de titulares con claridad, longitud y señales de clickbait.
+- Comunicados públicos con historial, correcciones y checksum por versión.
+- Controles equivalentes en API y MiniApp; catálogo Horizonte 202 actualizado a 25 funciones operativas.
+
 ## v17.8.0 - Rich Markdown de Telegram
 
 - Compatibilidad con `sendRichMessage` y `sendRichMessageDraft` de Bot API 10.2.
