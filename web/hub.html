@@ -1315,8 +1315,7 @@
     document.getElementById("masterBroadcast").onclick=()=>openMasterPage("Comunicado","Mensaje global a todos los chats",loadMasterBroadcast);
     document.getElementById("masterBackup").onclick=()=>openMasterPage("Crear backup","Copia inmediata del sistema",loadMasterBackup);
     document.getElementById("masterMaintenance").onclick=()=>openMasterPage("Mantenimiento","Activar o desactivar el modo",loadMasterMaintenance);
-    await loadMasterOverview();
-    const d=await loadManagedChannels();
+    const d=await loadMasterOverview();
     const chs=(d&&d.ok&&d.channels)||[];
     const inv=d.summary||{};
     document.getElementById("masterChannelCount").textContent=`(${chs.length}${inv.shared_groups?` · ${inv.shared_groups} compartidos`:""}${inv.instances?` · ${inv.instances} bots`:""})`;
@@ -1329,17 +1328,21 @@
     const metrics=document.getElementById("masterMetrics");
     if(!metrics)return;
     metrics.style.opacity=".55";
-    const [summary,status,proxies]=await Promise.all([
-      masterApi("/api/admin/summary"),masterApi("/api/status"),masterApi("/api/proxies/stats")
+    const [summary,status,proxies,inventory]=await Promise.all([
+      masterApi("/api/admin/summary"),masterApi("/api/status"),masterApi("/api/proxies/stats"),loadManagedChannels()
     ]);
     const proxyList=(proxies&&proxies.proxies)||[];
     const active=proxyList.filter(p=>p.running||p.active||p.status==="running").length;
+    const inventoryGroups=inventory&&inventory.ok
+      ? Number((inventory.summary&&inventory.summary.unique_groups)??(inventory.channels||[]).length)
+      : null;
     metrics.innerHTML=`
       <div class="master-metric good"><div class="mv">${fmt(summary&&summary.total_users)}</div><div class="ml">Usuarios</div></div>
-      <div class="master-metric"><div class="mv">${fmt(summary&&summary.total_groups)}</div><div class="ml">Grupos</div></div>
+      <div class="master-metric"><div class="mv">${fmt(inventoryGroups??(summary&&summary.total_groups))}</div><div class="ml">Grupos únicos</div></div>
       <div class="master-metric ${(status&&status.cpu)<80?'good':'warn'}"><div class="mv">${status&&status.cpu!=null?Math.round(status.cpu)+"%":"—"}</div><div class="ml">CPU · RAM ${status&&status.ram!=null?Math.round(status.ram)+"%":"—"}</div></div>
       <div class="master-metric ${active?'good':''}"><div class="mv">${active}/${proxyList.length}</div><div class="ml">Proxies activos</div></div>`;
     metrics.style.opacity="1";
+    return inventory;
   }
   async function loadMasterUsers(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();

@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Contador master unificado - 2026-07-26
+
+- La tarjeta de grupos usa el inventario multibot completo en lugar del contador histórico de claves `ADMINS_`.
+- El resumen y el listado comparten una única consulta, evitando mostrar 21 grupos mientras el inventario contiene muchos más.
+- La cifra representa grupos únicos y mantiene separados los grupos compartidos entre bots.
+
 ### Corrección del arranque en conexiones lentas - 2026-07-26
 
 - La comprobación de GitHub queda desactivada por defecto dentro del contenedor.
