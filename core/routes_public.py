@@ -215,14 +215,20 @@ def internal_admin_overview():
     bots = list(_get_active_bots() or []) if _get_active_bots else []
     group_ids = set()
     instances = []
+    chat_owners = {}
     for bot in bots:
         token = getattr(bot, "token", "")
         chats = {str(chat_id) for chat_id in _safe_list(_db.get(f"CHATS_{token}", [])) if chat_id}
         group_ids.update(chats)
-        instances.append({
+        owner = {
             "id": str(getattr(bot, "bot_id", "") or getattr(bot, "user_id", "")),
             "name": str(getattr(bot, "bot_display_name", "") or getattr(bot, "bot_username", "") or "Moonbot"),
             "username": str(getattr(bot, "bot_username", "") or "Moonbot"),
+        }
+        for chat_id in chats:
+            chat_owners.setdefault(chat_id, []).append(owner)
+        instances.append({
+            **owner,
             "status": "online" if getattr(bot, "running", False) else "offline",
             "groups": len(chats),
             "uptime_seconds": max(0, int(time.time() - float(getattr(bot, "runtime_started_at", time.time())))),
@@ -232,7 +238,13 @@ def internal_admin_overview():
             "updates_processed": int(getattr(bot, "runtime_updates", 0)),
             "last_update_at": getattr(bot, "runtime_last_update_at", None),
             "poll_failures": int(getattr(bot, "runtime_poll_failures", 0)),
+            "_chat_ids": chats,
         })
+    shared_group_ids = {chat_id for chat_id, owners in chat_owners.items() if len(owners) > 1}
+    for instance in instances:
+        chats = instance.pop("_chat_ids")
+        instance["shared_groups"] = len(chats & shared_group_ids)
+        instance["exclusive_groups"] = len(chats - shared_group_ids)
 
     users = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -280,7 +292,9 @@ def internal_admin_overview():
             names.setdefault(str(channel["chat_id"]), channel["name"])
     channel_map = {str(row.get("chat_id")): row for row in _admin_channel_union()}
     groups = [{"id": cid, "name": str(names.get(cid) or names.get(str(cid)) or f"Grupo {cid}")[:160],
-               "bots": channel_map.get(cid, {}).get("bots", []),
+               "bots": chat_owners.get(cid) or channel_map.get(cid, {}).get("bots", []),
+               "bot_count": len(chat_owners.get(cid, [])),
+               "shared": cid in shared_group_ids,
                "bot_id": channel_map.get(cid, {}).get("bot_id"),
                "bot_username": channel_map.get(cid, {}).get("bot_username")}
               for cid in sorted(group_ids)]
@@ -292,6 +306,8 @@ def internal_admin_overview():
             "users_observed": len(users),
             "users_active_24h": active_24h,
             "groups": len(group_ids),
+            "shared_groups": len(shared_group_ids),
+            "exclusive_groups": len(group_ids - shared_group_ids),
         },
         "resources": resource,
         "services": [

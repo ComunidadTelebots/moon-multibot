@@ -11,6 +11,12 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.20.0 - Grupos exclusivos y compartidos - 2026-07-26
+
+- El inventario diferencia grupos únicos, exclusivos y administrados por varias instancias.
+- Cada bot informa cuántos de sus grupos son propios y cuántos comparte con otros bots.
+- La relación grupo-bot se genera desde las instancias activas para evitar asociaciones incompletas.
+
 ## v18.19.1 - Identidad oficial de bots - 2026-07-26
 
 - El nombre visible y el username de cada instancia se obtienen directamente mediante `getMe` de Telegram.
