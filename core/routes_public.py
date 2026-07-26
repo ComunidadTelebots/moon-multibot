@@ -15,6 +15,7 @@ import json
 import datetime
 import os
 import time
+import threading
 import secrets
 import re
 import ipaddress
@@ -362,6 +363,68 @@ def _known_internal_group_ids():
     return ids
 
 
+def _start_bulk_captcha(bot, cid, actor="admin"):
+    """Reverifica en segundo plano a los miembros observados sin bloquear la API."""
+    job_key = f"JOIN_BULK_JOB_{cid}"
+    current = _db.get(job_key, {}) if _db else {}
+    if current.get("status") == "running":
+        return current, False
+    observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) if _db else {}
+    user_ids = list((observed or {}).keys()) if isinstance(observed, dict) else []
+    job = {"status": "running", "total": len(user_ids), "processed": 0, "muted": 0,
+           "private_sent": 0, "private_blocked": 0, "skipped": 0,
+           "started_at": int(time.time()), "actor": str(actor)[:80]}
+    _db.set(job_key, job)
+
+    def run():
+        ttl = _join_config(cid)["request_ttl"]
+        stats = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
+        for raw_uid in user_ids:
+            try:
+                uid = int(raw_uid)
+                membership = bot.api_call("getChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
+                member = membership.get("result", {}) if isinstance(membership, dict) and membership.get("ok") else {}
+                user = member.get("user") or {}
+                if member.get("status") not in ("member", "restricted") or user.get("is_bot"):
+                    job["skipped"] += 1
+                    continue
+                muted = bot.restrict_user(cid, uid, can_send=False)
+                if not isinstance(muted, dict) or not muted.get("ok"):
+                    job["skipped"] += 1
+                    continue
+                profile = stats.get(str(uid), {}) or stats.get(uid, {}) or {}
+                _db.set(f"JOINQ_{cid}_{uid}", {
+                    "query_id": None, "chat_id": cid, "user_id": uid,
+                    "first_name": user.get("first_name") or profile.get("name", ""),
+                    "last_name": user.get("last_name", ""), "username": user.get("username", ""),
+                    "chat_title": str((_get_global_chat_names() or {}).get(str(cid), cid)),
+                    "attempts": 0, "created_at": int(time.time()), "exp": int(time.time()) + ttl,
+                    "admitted": True, "telegram_muted": True, "bulk_reverification": True,
+                })
+                job["muted"] += 1
+                url = f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"
+                sent = bot.api_call("sendMessage", {"chat_id": uid,
+                    "text": "🔐 El grupo requiere una nueva verificación. Completa el captcha para recuperar tus permisos de envío.",
+                    "reply_markup": json.dumps({"inline_keyboard": [[{"text": "Completar captcha", "web_app": {"url": url}}]]})}, silent=True)
+                if isinstance(sent, dict) and sent.get("ok"):
+                    job["private_sent"] += 1
+                else:
+                    job["private_blocked"] += 1
+            except Exception:
+                job["skipped"] += 1
+            finally:
+                job["processed"] += 1
+                if job["processed"] % 10 == 0:
+                    _db.set(job_key, job)
+                time.sleep(0.04)
+        job["status"] = "completed"
+        job["finished_at"] = int(time.time())
+        _db.set(job_key, job)
+
+    threading.Thread(target=run, daemon=True, name=f"captcha-bulk-{cid}").start()
+    return job, True
+
+
 @bp.route("/api/internal/groups/<cid>", methods=["GET", "POST"])
 def internal_group_admin(cid):
     if not _internal_admin_authorized():
@@ -382,6 +445,9 @@ def internal_group_admin(cid):
             join_config["strict_enforcement"] = bool(body.get("strict_enforcement", join_config["strict_enforcement"]))
             _db.set(f"JOINCFG_{cid}", join_config)
             return jsonify({"ok": True, "join_config": _join_config(cid)})
+        elif action == "reverify_all":
+            job, started = _start_bulk_captcha(bot, cid, "web-master")
+            return jsonify({"ok": True, "started": started, "captcha_job": job})
         elif action == "sync_commands":
             return jsonify({"ok": True, "command_menu": bot.sync_command_menu(cid)})
         elif action == "copy_config":
@@ -430,6 +496,7 @@ def internal_group_admin(cid):
         "repair_steps": repair_steps,
         "config": suite.config(cid),
         "join_config": _join_config(cid),
+        "captcha_job": _db.get(f"JOIN_BULK_JOB_{cid}", {}),
         "command_menu": bot.command_menu_preview(cid),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
@@ -2978,7 +3045,24 @@ def group_join_get():
                     "global_required_channel": _global_join_channel(),
                     "global_strict_enforcement": _global_join_settings()["strict_enforcement"],
                     "can_manage_global": _is_master(res[0]),
-                    "stats": _join_stats(chat_id), "pending": pending})
+                    "stats": _join_stats(chat_id), "pending": pending,
+                    "bulk_job": _db.get(f"JOIN_BULK_JOB_{chat_id}", {})})
+
+
+@bp.route("/api/public/group/join/reverify-all", methods=["POST", "OPTIONS"])
+def group_join_reverify_all():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    bot = _hub_bot()
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    job, started = _start_bulk_captcha(bot, chat_id, user.get("id"))
+    return jsonify({"ok": True, "started": started, "job": job})
 
 
 @bp.route("/api/public/group/join/settings", methods=["POST", "OPTIONS"])

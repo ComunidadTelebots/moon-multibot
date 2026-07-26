@@ -1076,7 +1076,7 @@
     const box=document.getElementById("gjoin");if(!box)return;
     const d=await gp("/group/join/get",{});
     if(!d||!d.ok){box.innerHTML=`<p class="muted">No se pudo cargar el control de acceso.</p>`;return;}
-    const cfg=d.config||{}, stats=d.stats||{}, pending=d.pending||[];
+    const cfg=d.config||{}, stats=d.stats||{}, pending=d.pending||[], bulk=d.bulk_job||{};
     const success=(stats.approved||0)+(stats.declined||0);
     const rate=success?Math.round((stats.approved||0)*100/success):0;
     box.innerHTML=`
@@ -1105,6 +1105,9 @@
         </label>
         <button class="btn ghost" id="gjoinSave" style="width:auto;margin-top:16px">Guardar</button>
       </div>
+      <div class="casbox" style="margin-top:10px"><b>Reverificación colectiva</b><p class="muted">Silencia a todos los miembros conocidos y les envía el captcha por privado. Telegram bloqueará el privado si nunca iniciaron el bot.</p>
+        ${bulk.status?`<p class="muted">${bulk.status==="running"?"En curso":"Último resultado"}: ${bulk.processed||0}/${bulk.total||0} · ${bulk.muted||0} silenciados · ${bulk.private_sent||0} privados · ${bulk.private_blocked||0} no entregados</p>`:""}
+        <button class="btn red" id="gjoinReverify" style="margin-top:8px" ${bulk.status==="running"?"disabled":""}>Obligar a todos a pasar el captcha</button></div>
       <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">Canal obligatorio de este grupo
         <input id="gjoinChannels" placeholder="@canal_del_grupo" value="${escHtml((cfg.required_channels||[])[0]?`@${cfg.required_channels[0]}`:"")}" style="width:100%;margin-top:6px">
       </label>
@@ -2006,6 +2009,12 @@
       const result=await apiPost("/admin/join-global",{initData:tg&&tg.initData,channel,enabled,strict_enforcement});
       if(result&&result.ok){showToast(enabled?"Acceso global activado":"Acceso global desactivado");loadMasterGlobalAccess();}
       else showToast((result&&result.error)||"No se pudo guardar");
+    };
+    document.getElementById("gjoinReverify").onclick=async()=>{
+      if(!window.confirm("Se silenciará a todos los miembros conocidos hasta que completen el captcha. ¿Continuar?"))return;
+      const r=await gp("/group/join/reverify-all",{});
+      if(r&&r.ok){showToast(r.started?"Reverificación iniciada":"Ya hay una reverificación en curso");loadJoinCaptcha();}
+      else showToast((r&&r.error)||"No se pudo iniciar");
     };
   }
 

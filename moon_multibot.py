@@ -4728,6 +4728,7 @@ class MoonBot:
             "ping": "Comprueba rápidamente que el bot está funcionando.",
             "wayback": "Busca la copia archivada más cercana de una URL en Wayback Machine. Admite una fecha opcional YYYYMMDD.",
             "rich": "Publica Rich Markdown de Bot API 10.2 con títulos, listas, tablas, tareas, fórmulas y bloques plegables.",
+            "recaptcha_todos": "Silencia a los miembros conocidos del grupo y les exige completar de nuevo el captcha.",
         }
 
     @staticmethod
@@ -4784,6 +4785,18 @@ class MoonBot:
             return True
 
         # --- Proxies MTProto (solo CintiaBot) ---
+        if raw_cmd in ["/recaptcha_todos", "/reverificar_todos"]:
+            if rk not in ["Admin", "Master"]:
+                self.send_msg(cid, "🔒 Solo los administradores del grupo pueden iniciar una reverificación colectiva.")
+                return True
+            from core.routes_public import _start_bulk_captcha
+            job, started = _start_bulk_captcha(self, cid, uid)
+            if started:
+                self.send_msg(cid, f"🔐 Reverificación iniciada para {job.get('total', 0)} miembros conocidos. Consulta el progreso en el panel de captcha.")
+            else:
+                self.send_msg(cid, "⏳ Ya hay una reverificación colectiva en curso.")
+            return True
+
         if raw_cmd in ["/proxy", "/proxies", "/proxi"]:
             if (self.bot_username or "").lower() == "cintiabot":
                 self.handle_proxy_request(cid, uid, msg.get("from", {}))
@@ -4865,6 +4878,7 @@ class MoonBot:
             help_text += "💚 **Sobre el proyecto:** `/gratis` — servicio gratuito y sin ánimo de lucro.\n"
             if rk in ["Admin", "Master"]:
                 help_text += "ðŸ›¡ï¸ **ModeraciÃ³n:** `/mute`, `/ban`, `/unban`, `/gban`, `/ungban`, `/warn`\n"
+                help_text += "🔐 **Captcha:** `/recaptcha_todos` obliga a los miembros conocidos a verificarse de nuevo.\n"
                 help_text += "âš™ï¸ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`, `/ia_programar`\n"
             
             help_text += "\nðŸ§  **Arquitectura HÃ­brida:** Cintia combina IA Nativa con Gemini (Nube) y Ollama (Local)."
