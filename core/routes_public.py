@@ -1462,6 +1462,10 @@ def _house_ads_update(body):
             if str(row.get("id")) == ad_id:
                 row["impressions"] = int(row.get("impressions", 0) or 0) + 1
                 place = str(body.get("placement") or "unknown"); by = dict(row.get("impressions_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["impressions_by_placement"] = by
+    elif action == "reset_metrics":
+        for row in rows:
+            if str(row.get("id")) == ad_id:
+                row.update({"clicks": 0, "impressions": 0, "clicks_by_placement": {}, "impressions_by_placement": {}})
     else:
         raw = body.get("ad") or body
         url = str(raw.get("url") or "").strip()
@@ -1473,6 +1477,8 @@ def _house_ads_update(body):
                 "background": str(raw.get("background") or "#eef7ff")[:32],
                 "foreground": str(raw.get("foreground") or "#155f9b")[:32],
                 "accent": str(raw.get("accent") or "#1982d1")[:32],
+                "starts_at": str(raw.get("starts_at") or "")[:40],
+                "ends_at": str(raw.get("ends_at") or "")[:40],
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
                 "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
                 "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {})}
