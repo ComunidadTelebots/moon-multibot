@@ -221,6 +221,7 @@ def internal_admin_overview():
         group_ids.update(chats)
         instances.append({
             "id": str(getattr(bot, "bot_id", "") or getattr(bot, "user_id", "")),
+            "name": str(getattr(bot, "bot_display_name", "") or getattr(bot, "bot_username", "") or "Moonbot"),
             "username": str(getattr(bot, "bot_username", "") or "Moonbot"),
             "status": "online" if getattr(bot, "running", False) else "offline",
             "groups": len(chats),

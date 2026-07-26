@@ -11,6 +11,11 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.19.1 - Identidad oficial de bots - 2026-07-26
+
+- El nombre visible y el username de cada instancia se obtienen directamente mediante `getMe` de Telegram.
+- El panel de rendimiento ya no deduce el nombre desde registros locales.
+
 ## v18.19.0 - Rendimiento real por instancia - 2026-07-26
 
 - Cada bot expone actividad procesada, llamadas y errores de Telegram, latencia, uptime y fallos del polling.

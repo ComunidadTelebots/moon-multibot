@@ -3212,9 +3212,11 @@ class MoonBot:
 
         self.ia.load_brain()
         me = self.api_call("getMe")
-        self.bot_username = me.get("result", {}).get("username", "MoonBot")
-        self.bot_id = me.get("result", {}).get("id")
-        self.can_manage_bots = bool(me.get("result", {}).get("can_manage_bots", False))
+        bot_profile = me.get("result", {}) if me.get("ok") else {}
+        self.bot_username = bot_profile.get("username", "MoonBot")
+        self.bot_display_name = bot_profile.get("first_name") or self.bot_username
+        self.bot_id = bot_profile.get("id")
+        self.can_manage_bots = bool(bot_profile.get("can_manage_bots", False))
         self.telegram_events = TelegramEventStore(db, add_web_log)
         self.invoked_ai = InvokedAIService(ia_nativa, db, ban_manager, check_cas_status, add_web_log, self.bot_username)
         self.last_msg_id = None
