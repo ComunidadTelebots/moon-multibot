@@ -1,6 +1,6 @@
 ﻿# Changelog - Moon Multibot
 
-## v18.0.0 - Horizonte 202 completado
+## v18.0.0 - Horizonte 202 completado - 2026-07-26
 
 - Las 100 funciones del catálogo Horizonte 202 disponen de una operación ejecutable, persistencia y auditoría.
 - Completadas las áreas de contenido, IA, accesibilidad, privacidad, operaciones, integraciones, sostenibilidad y experiencia Telegram.
@@ -9,7 +9,108 @@
 - Datos sensibles redactados en auditoría y mensajes administrativos de un solo uso consumibles.
 - Catálogo público marcado como completo y sincronizado con TodoSobreAllTech.
 
-## v17.9.0 - Contenido conectado
+### Funciones incorporadas en v18.0.0 (75)
+
+#### Contenido y canales (5)
+
+- Mapa de fuentes y citas de cada publicación.
+- Detección de contenido desactualizado.
+- Paquetes de publicación multicanal.
+- Modo cobertura en directo con hitos.
+- Archivo temático navegable de conversaciones.
+
+#### IA y conocimiento (10)
+
+- Memorias separadas por proyecto y finalidad.
+- Explicaciones con nivel principiante o experto.
+- Debate interno entre agentes antes de responder.
+- Registro visible de fuentes usadas por la IA.
+- Detector de lagunas de conocimiento.
+- Entrenamiento por ejemplos aprobados y contraejemplos.
+- Modo profesor con ejercicios adaptativos.
+- Resúmenes que preservan opiniones minoritarias.
+- Comparador de respuestas entre modelos.
+- Caducidad automática del conocimiento sensible al tiempo.
+
+#### Accesibilidad e idiomas (10)
+
+- Lectura fácil automática para textos complejos.
+- Audiodescripción de imágenes relevantes.
+- Subtítulos colaborativos para mensajes de vídeo.
+- Modo alto contraste por chat.
+- Navegación completa mediante voz.
+- Transliteración entre alfabetos.
+- Glosarios locales por comunidad e idioma.
+- Traducción que conserva nombres y terminología.
+- Resúmenes en lengua de signos mediante avatar.
+- Detector de barreras de accesibilidad antes de publicar.
+
+#### Privacidad y protección (10)
+
+- Panel personal de datos almacenados.
+- Borrado selectivo con vista previa.
+- Mensajes administrativos de un solo uso.
+- Alertas por capturas de datos sensibles.
+- Anonimización automática de exportaciones.
+- Claves de recuperación divididas entre responsables.
+- Modo investigación con acceso temporal.
+- Detector de secretos pegados por accidente.
+- Etiquetas de retención por tipo de dato.
+- Informe mensual de privacidad comprensible.
+
+#### Operaciones y fiabilidad (10)
+
+- Gemelo digital para ensayar configuraciones.
+- Despliegue canario por grupos seleccionados.
+- Recuperación automática según objetivo de servicio.
+- Mapa de dependencias y puntos únicos de fallo.
+- Presupuesto de errores por función.
+- Reproducción de incidentes con eventos anonimizados.
+- Detector de configuraciones divergentes.
+- Ventanas de mantenimiento por zona horaria.
+- Capacidad predictiva de colas y almacenamiento.
+- Modo degradado que conserva funciones esenciales.
+
+#### Integraciones abiertas (10)
+
+- Conectores creados visualmente sin código.
+- Mercado comunitario de automatizaciones.
+- Puente ActivityPub para comunidades federadas.
+- Sincronización bidireccional con calendarios CalDAV.
+- Importación y exportación mediante OPML.
+- Eventos firmados con WebSub.
+- Identidad portable mediante credenciales verificables.
+- Flujos compatibles con Matrix.
+- Catálogo automático de capacidades por bot.
+- Entorno de pruebas aislado para integraciones.
+
+#### Sostenibilidad y crecimiento (10)
+
+- Calculadora transparente de costes por comunidad.
+- Objetivos de financiación con hitos verificables.
+- Patrocinios con frecuencia máxima configurable.
+- Reparto de ingresos entre creadores colaboradores.
+- Modo ahorro energético para tareas no urgentes.
+- Informe de huella operativa estimada.
+- Donaciones destinadas a funciones concretas.
+- Créditos comunitarios no transferibles.
+- Predicción de abandono con intervención respetuosa.
+- Experimentos A/B con consentimiento y límites.
+
+#### Experiencia Telegram (10)
+
+- Bandeja unificada de temas pendientes.
+- Atajos personales sincronizados con la Mini App.
+- Panel lateral contextual por mensaje.
+- Respuestas efímeras para operaciones sensibles.
+- Comunidades enlazadas con permisos heredables.
+- Consultas de entrada con formularios adaptativos.
+- Rutas guiadas para nuevos administradores.
+- Modo evento que transforma temporalmente el grupo.
+- Acciones masivas con previsualización y deshacer.
+- Centro de notificaciones priorizadas por impacto.
+
+## v17.9.0 - Contenido conectado - 2026-07-26
 
 - Series editoriales ordenadas con publicación y archivado.
 - Reutilización inteligente de contenido según antigüedad, rendimiento y vigencia.
@@ -18,15 +119,25 @@
 - Comunicados públicos con historial, correcciones y checksum por versión.
 - Controles equivalentes en API y MiniApp; catálogo Horizonte 202 actualizado a 25 funciones operativas.
 
-## v17.8.0 - Rich Markdown de Telegram
+### Funciones incorporadas en v17.9.0 (5)
+
+- Editor de series editoriales conectadas.
+- Reutilización inteligente de contenido antiguo.
+- Calendario de silencios para evitar saturación.
+- Comparador de titulares antes de publicar.
+- Versionado público de comunicados corregidos.
+
+## v17.8.0 - Rich Markdown de Telegram - 2026-07-26
 
 - Compatibilidad con `sendRichMessage` y `sendRichMessageDraft` de Bot API 10.2.
 - Rich Markdown con encabezados, listas, tareas, tablas, referencias, fórmulas, detalles y medios.
 - Validación local de límites oficiales: 32.768 caracteres, 500 bloques y 50 medios.
 - Fallback automático a texto normal cuando el endpoint aún no está disponible.
 - Nuevo comando `/rich` (`/richmarkdown`) y modo programático `parse_mode="RichMarkdown"`.
+- Editor autenticado en la Mini App para publicar Rich Markdown en grupos administrados.
+- Endpoint web `/api/users/rich-message` con comprobación del grupo de destino y auditoría.
 
-## v17.7.0 - Horizonte 202
+## v17.7.0 - Horizonte 202 - 2026-07-26
 
 - Catálogo adicional de 100 funciones nuevas, separado del roadmap anterior y del motor operativo.
 - Diez áreas: moderación, comunidad, contenido, IA, accesibilidad, privacidad, operaciones, integraciones, sostenibilidad y experiencia Telegram.
@@ -37,6 +148,29 @@
 - Segunda fase operativa: detección de brigadas, pasaporte de reputación consentido, riesgo de clonación de voz, cronología de incidentes y cadena de custodia verificable.
 - Tercera fase operativa: asambleas, presupuesto participativo ponderado, círculos temporales, banco de tiempo y bienvenida humana distribuida.
 - Cuarta fase operativa: misiones entre grupos, reconocimiento de aportes invisibles, salud social agregada, relevos administrativos y memoria anual comunitaria.
+
+### Funciones incorporadas en v17.7.0 (20)
+
+- Radar de conversaciones que están escalando.
+- Modo mediador con turnos de palabra.
+- Detección de brigadas externas coordinadas.
+- Cuarentena de enlaces recién registrados.
+- Pasaporte de reputación exportable por el usuario.
+- Revisión por pares para sanciones dudosas.
+- Simulador de impacto antes de cambiar una regla.
+- Detector de estafas por clonación de voz.
+- Mapa temporal de incidentes por tema.
+- Cadena de custodia firmada para evidencias.
+- Asambleas con propuestas y enmiendas.
+- Presupuesto comunitario con votos ponderados.
+- Círculos temporales por intereses.
+- Banco de tiempo entre miembros.
+- Rondas automáticas de bienvenida humana.
+- Misiones colaborativas entre varios grupos.
+- Reconocimiento de contribuciones invisibles.
+- Panel de salud social sin leer mensajes privados.
+- Sistema de relevos para administradores.
+- Memoria anual generada por la comunidad.
 
 ## v17.6.0 - Integración con Wayback Machine
 
