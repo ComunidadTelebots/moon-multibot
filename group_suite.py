@@ -37,6 +37,7 @@ class GroupSuite:
         limits = section("content_limits")
         channel_senders = section("channel_senders")
         bot_interaction = section("bot_interaction")
+        flood = section("flood_control")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -114,12 +115,20 @@ class GroupSuite:
                 ][:50],
                 "max_replies_per_hour": max(1, min(int(bot_interaction.get("max_replies_per_hour", 5)), 30)),
             },
+            "flood_control": {
+                "enabled": bool(flood.get("enabled", False)),
+                "messages": max(3, min(int(flood.get("messages", 8)), 50)),
+                "window_seconds": max(2, min(int(flood.get("window_seconds", 10)), 300)),
+                "mute_minutes": max(1, min(int(flood.get("mute_minutes", 10)), 1440)),
+                "strikes_before_ban": max(0, min(int(flood.get("strikes_before_ban", 3)), 20)),
+                "delete_messages": bool(flood.get("delete_messages", True)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
@@ -195,8 +204,29 @@ class GroupSuite:
     def message_policy(self, chat_id, user_id, text, is_admin=False):
         cid, uid, now = self._cid(chat_id), self._uid(user_id), int(time.time())
         cfg = self.config(cid)
-        result = {"delete": False, "reason": None, "quarantine": False, "rule": None, "warn": False, "signals": []}
+        result = {"delete": False, "reason": None, "quarantine": False, "rule": None, "warn": False, "signals": [], "mute_seconds": 0, "ban": False}
         if not is_admin:
+            flood = cfg["flood_control"]
+            if flood["enabled"]:
+                key = f"FLOOD_ACTIVITY_{cid}_{uid}"
+                activity = self.db.get(key, [])
+                activity = [float(stamp) for stamp in activity if now - float(stamp) <= flood["window_seconds"]]
+                activity.append(now)
+                self.db.set(key, activity[-flood["messages"] * 2:])
+                if len(activity) > flood["messages"]:
+                    strike_key = f"FLOOD_STRIKES_{cid}"
+                    strikes = self.db.get(strike_key, {})
+                    strikes = strikes if isinstance(strikes, dict) else {}
+                    strikes[uid] = int(strikes.get(uid, 0)) + 1
+                    self.db.set(strike_key, strikes)
+                    threshold = flood["strikes_before_ban"]
+                    result.update({
+                        "delete": flood["delete_messages"],
+                        "reason": f"flood: más de {flood['messages']} mensajes en {flood['window_seconds']}s",
+                        "mute_seconds": flood["mute_minutes"] * 60,
+                        "ban": bool(threshold and strikes[uid] >= threshold),
+                    })
+                    self.db.set(key, [])
             limits = cfg["content_limits"]
             mention_count = len(re.findall(r"@\w+|tg://user\?id=\d+", text or "", re.I))
             emoji_count = len(re.findall(r"[\U0001F300-\U0001FAFF]", text or ""))

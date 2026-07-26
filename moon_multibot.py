@@ -4163,21 +4163,27 @@ class MoonBot:
         quarantined = str(uid) in db.get(f"QUARANTINE_{cid}", {})
         active_rule = group_suite.active_rule(cid)
         suite_cfg = group_suite.config(cid)
-        if not quarantined and not active_rule and not suite_cfg["adaptive_slow"]["enabled"] and not suite_cfg["content_limits"]["enabled"]:
+        if not quarantined and not active_rule and not suite_cfg["adaptive_slow"]["enabled"] and not suite_cfg["content_limits"]["enabled"] and not suite_cfg["flood_control"]["enabled"]:
             return False
         rank = self.get_user_rank(cid, uid)
         policy = group_suite.message_policy(
             cid, uid, text, is_admin=rank in ("Admin", "Master")
         )
         if not policy["delete"]:
-            return False
-        self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+            if not policy.get("mute_seconds"):
+                return False
+        if policy["delete"]:
+            self.api_call("deleteMessage", {"chat_id": cid, "message_id": message_id}, silent=True)
+        if policy.get("ban"):
+            self.apply_user_ban(cid, uid, uname, reason=policy["reason"], source="flood_control", scope="local", message_id=message_id, notify=True)
+        elif policy.get("mute_seconds"):
+            self.restrict_user(cid, uid, until=int(time.time()) + int(policy["mute_seconds"]))
         if policy.get("warn"):
             warns = db.get(f"WARNS_{cid}", {})
             warns[str(uid)] = int(warns.get(str(uid), 0)) + 1
             db.set(f"WARNS_{cid}", warns)
         self.send_msg(cid, f"🛡️ {uname}: mensaje retenido ({policy['reason']}).")
-        add_audit_log(f"Group Suite eliminó mensaje de {uid} en {cid}: {policy['reason']}")
+        add_audit_log(f"Group Suite moderó mensaje de {uid} en {cid}: {policy['reason']}")
         return True
 
     def restrict_user(self, cid, uid, until=0, can_send=False):

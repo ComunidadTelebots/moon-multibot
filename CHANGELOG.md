@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Anti-flood configurable por grupo - 2026-07-26
+
+- Moonbot cuenta ráfagas por usuario y grupo usando límites y ventanas independientes.
+- Puede eliminar el mensaje excedente, aplicar mute temporal y escalar reincidencias a ban local.
+- Los administradores quedan excluidos y la configuración está disponible tanto en Hub como en TodoSobreAllTech.
+
 ### Mute real durante el captcha - 2026-07-26
 
 - Los usuarios admitidos quedan sin permisos de texto, audio, documentos, fotos, vídeos, notas, encuestas, stickers ni vistas previas.

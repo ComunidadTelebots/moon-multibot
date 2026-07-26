@@ -627,6 +627,10 @@
         <button class="btn teal" id="maSave">Guardar tema</button>
       </div></div>
       <div class="dropdown"><div class="dhead">Moderación adaptativa <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <label class="setrow" data-help="Cuenta mensajes por usuario dentro de una ventana independiente del modo lento."><b>Anti-flood por usuario</b><input id="madFlood" type="checkbox" ${c.flood_control.enabled?"checked":""}></label>
+        <div class="btnrow"><input id="madFloodMessages" type="number" min="3" max="50" value="${c.flood_control.messages}" placeholder="Mensajes"><input id="madFloodWindow" type="number" min="2" max="300" value="${c.flood_control.window_seconds}" placeholder="Ventana (s)"></div>
+        <div class="btnrow"><input id="madFloodMute" type="number" min="1" max="1440" value="${c.flood_control.mute_minutes}" placeholder="Mute (min)"><input id="madFloodBan" type="number" min="0" max="20" value="${c.flood_control.strikes_before_ban}" placeholder="Reincidencias para ban"></div>
+        <label class="setrow"><b>Eliminar mensaje que supera el límite</b><input id="madFloodDelete" type="checkbox" ${c.flood_control.delete_messages?"checked":""}></label>
         <label class="setrow"><b>Modo lento adaptativo</b><input id="madSlow" type="checkbox" ${c.adaptive_slow.enabled?"checked":""}></label>
         <div class="btnrow"><input id="madSlowBase" type="number" value="${c.adaptive_slow.base_seconds}" placeholder="Espera base"><input id="madSlowMax" type="number" value="${c.adaptive_slow.max_seconds}" placeholder="Espera máxima"></div>
         <label class="setrow"><b>Límites de contenido</b><input id="madLimits" type="checkbox" ${c.content_limits.enabled?"checked":""}></label>
@@ -666,7 +670,7 @@
     maAccent.value=c.appearance.accent;applyGroupAppearance(c.appearance);
     const saveAppearance=()=>gp("/group/suite/settings",{config:{appearance:{accent:maAccent.value,compact:maCompact.checked}}}).then(()=>{showToast("Tema del grupo guardado");loadGroupSuiteMini();});
     madAction.value=c.content_limits.action;
-    const saveAdaptive=()=>gp("/group/suite/settings",{config:{adaptive_slow:{...c.adaptive_slow,enabled:madSlow.checked,base_seconds:+madSlowBase.value,max_seconds:+madSlowMax.value},content_limits:{enabled:madLimits.checked,mentions:+madMentions.value,emojis:+madEmojis.value,uppercase_percent:+madUpper.value,action:madAction.value}}}).then(()=>{showToast("Moderación guardada");loadGroupSuiteMini();});
+    const saveAdaptive=()=>gp("/group/suite/settings",{config:{flood_control:{enabled:madFlood.checked,messages:+madFloodMessages.value,window_seconds:+madFloodWindow.value,mute_minutes:+madFloodMute.value,strikes_before_ban:+madFloodBan.value,delete_messages:madFloodDelete.checked},adaptive_slow:{...c.adaptive_slow,enabled:madSlow.checked,base_seconds:+madSlowBase.value,max_seconds:+madSlowMax.value},content_limits:{enabled:madLimits.checked,mentions:+madMentions.value,emojis:+madEmojis.value,uppercase_percent:+madUpper.value,action:madAction.value}}}).then(()=>{showToast("Moderación guardada");loadGroupSuiteMini();});
     msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
