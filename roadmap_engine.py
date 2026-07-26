@@ -183,6 +183,89 @@ class RoadmapEngine:
         self._append("H202_RULE_SIMULATIONS", result, 500)
         return result
 
+    def coordinated_brigade(self, events, minimum_groups=2, minimum_users=3):
+        campaigns = defaultdict(lambda: {"groups": set(), "users": set(), "events": 0})
+        for event in (events or [])[-2000:]:
+            if not isinstance(event, dict):
+                continue
+            fingerprint = str(event.get("fingerprint") or event.get("url") or event.get("phrase") or "").casefold().strip()
+            if not fingerprint:
+                continue
+            row = campaigns[hashlib.sha256(fingerprint.encode()).hexdigest()[:12]]
+            row["groups"].add(self._id(event.get("group_id")))
+            row["users"].add(self._id(event.get("user_id")))
+            row["events"] += 1
+        matches = [{"fingerprint": key, "groups": sorted(x for x in row["groups"] if x),
+                    "users": sorted(x for x in row["users"] if x), "events": row["events"]}
+                   for key, row in campaigns.items()
+                   if len({x for x in row["groups"] if x}) >= int(minimum_groups)
+                   and len({x for x in row["users"] if x}) >= int(minimum_users)]
+        result = {"coordinated": bool(matches), "campaigns": matches,
+                  "events_analyzed": len(events or []), "created_at": self._now().isoformat()}
+        self._append("H202_BRIGADE_SCANS", result, 500)
+        return result
+
+    def reputation_passport(self, user_id, metrics, consent=False):
+        if not consent:
+            raise ValueError("se requiere consentimiento explícito del usuario")
+        safe = {key: max(0, int((metrics or {}).get(key, 0)))
+                for key in ("helpful", "verified", "participation", "sanctions")}
+        score = max(0, min(100, safe["helpful"] * 2 + safe["verified"] * 5 +
+                           safe["participation"] - safe["sanctions"] * 15))
+        payload = {"subject": self._id(user_id), "score": score, "metrics": safe,
+                   "issued_at": self._now().isoformat(), "version": 1}
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return {"passport": payload, "signature": hmac.new(self.secret, raw.encode(), hashlib.sha256).hexdigest()}
+
+    def voice_clone_risk(self, features):
+        features = features or {}
+        weights = {"synthetic_probability": 45, "speaker_mismatch": 25,
+                   "replay_probability": 15, "metadata_anomaly": 15}
+        contributions = {key: round(max(0, min(1, float(features.get(key, 0) or 0))) * weight, 2)
+                         for key, weight in weights.items()}
+        score = min(100, round(sum(contributions.values())))
+        return {"score": score, "risk": "high" if score >= 70 else "review" if score >= 35 else "low",
+                "signals": contributions, "human_review_required": score >= 35,
+                "note": "Resultado orientativo; no identifica por sí solo una clonación."}
+
+    def incident_timeline(self, group_id, action="list", event=None):
+        key = f"H202_INCIDENT_TIMELINE_{self._id(group_id)}"
+        rows = self._list(key)
+        if action == "add":
+            event = event or {}
+            row = {"id": uuid.uuid4().hex[:12], "kind": str(event.get("kind", "note"))[:50],
+                   "title": str(event.get("title", "Incidente"))[:300],
+                   "detail": str(event.get("detail", ""))[:2000],
+                   "severity": str(event.get("severity", "info"))[:20],
+                   "occurred_at": event.get("occurred_at") or self._now().isoformat()}
+            rows.append(row); self.db.set(key, rows[-1000:])
+        elif action != "list":
+            raise ValueError("acción de cronología inválida")
+        return {"group_id": self._id(group_id), "events": sorted(rows, key=lambda x: x.get("occurred_at", ""))}
+
+    def evidence_chain(self, case_id, action="append", evidence=None):
+        key = f"H202_EVIDENCE_CHAIN_{self._id(case_id)}"
+        chain = self._list(key)
+        if action == "append":
+            evidence = evidence or {}
+            previous = chain[-1]["hash"] if chain else "GENESIS"
+            payload = {"type": str(evidence.get("type", "note"))[:50],
+                       "reference": str(evidence.get("reference", ""))[:1000],
+                       "digest": str(evidence.get("digest", ""))[:200],
+                       "created_at": self._now().isoformat()}
+            digest = hashlib.sha256((previous + json.dumps(payload, sort_keys=True, separators=(",", ":"))).encode()).hexdigest()
+            chain.append({"index": len(chain), "previous_hash": previous, "hash": digest, "evidence": payload})
+            self.db.set(key, chain[-1000:])
+        elif action != "verify":
+            raise ValueError("acción de evidencia inválida")
+        valid = True; previous = "GENESIS"
+        for index, item in enumerate(chain):
+            expected = hashlib.sha256((previous + json.dumps(item["evidence"], sort_keys=True, separators=(",", ":"))).encode()).hexdigest()
+            if item.get("index") != index or item.get("previous_hash") != previous or item.get("hash") != expected:
+                valid = False; break
+            previous = item["hash"]
+        return {"case_id": self._id(case_id), "valid": valid, "entries": len(chain), "chain": chain}
+
     def impersonation_check(self, candidate, administrators):
         name = str(candidate.get("name", "")).casefold().strip()
         username = str(candidate.get("username", "")).casefold().lstrip("@")
@@ -647,7 +730,8 @@ class RoadmapEngine:
             "horizon202": {"escalation": self._list("H202_ESCALATION_RADAR")[-50:],
                            "mediators": self._dict("H202_MEDIATOR_SESSIONS"),
                            "peer_reviews": self._dict("H202_PEER_REVIEWS"),
-                           "rule_simulations": self._list("H202_RULE_SIMULATIONS")[-20:]},
+                           "rule_simulations": self._list("H202_RULE_SIMULATIONS")[-20:],
+                           "brigade_scans": self._list("H202_BRIGADE_SCANS")[-20:]},
             "content": {"items": list(reversed(self._list("CONTENT_ITEMS")))[:100],
                         "schedule": list(reversed(self._list("CONTENT_SCHEDULE")))[:100],
                         "library": list(reversed(self._list("CONTENT_LIBRARY")))[:100],
