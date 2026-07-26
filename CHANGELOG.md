@@ -1,5 +1,15 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.12.0 - Integraciones y API administrables - 2026-07-26
+
+- Registro de módulos con versión, permisos y checksum verificable.
+- Tokens API con ámbitos restringidos, caducidad, rotación y revocación.
+- Aislamiento sandbox configurable por bot y cuotas por método.
+- Exportación e importación de configuraciones firmadas contra manipulaciones.
+- Enlace de incidentes y calendarios externos sin exponer tokens de sincronización.
+- Manifiesto SDK consultable con eventos y modelo de autenticación compatibles.
+- Auditoría de todas las operaciones realizadas desde TodoSobreAllTech.
+
 ## v18.11.0 - Automatizaciones administrables - 2026-07-26
 
 - Constructor de reglas por palabra clave con condiciones y respuestas automáticas.

@@ -802,6 +802,82 @@ def internal_automations():
     return jsonify({"ok": True, "result": result})
 
 
+@bp.route("/api/internal/integrations", methods=["GET", "POST"])
+def internal_integrations():
+    """Administración de extensiones y API; los tokens solo se muestran al crearlos."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    engine = RoadmapEngine(_db, _jwt_secret or "moonbot")
+    if request.method == "GET":
+        tokens = [{key: value for key, value in row.items() if key != "hash"}
+                  for row in reversed(_safe_list(_db.get("API_TOKENS", [])))]
+        calendars = [{key: value for key, value in row.items() if key != "sync_token"}
+                     for row in reversed(_safe_list(_db.get("INTEGRATION_CALENDARS", [])))]
+        return jsonify({"ok": True,
+                        "modules": list(reversed(_safe_list(_db.get("MODULE_MARKETPLACE", []))))[:200],
+                        "tokens": tokens[:200], "sandboxes": _db.get("BOT_SANDBOXES", {}) or {},
+                        "quotas": _db.get("BOT_QUOTAS", {}) or {},
+                        "incidents": list(reversed(_safe_list(_db.get("INTEGRATION_INCIDENTS", []))))[:200],
+                        "calendars": calendars[:200], "sdk": engine.sdk_manifest()})
+    body = request.json or {}; action = str(body.get("action", "")); result = None
+    allowed_scopes = {"groups:read", "groups:write", "users:read", "moderation:write",
+                      "analytics:read", "content:write", "webhooks:write"}
+    try:
+        if action == "module_register":
+            name, version, checksum = (str(body.get(key, "")).strip() for key in ("name", "version", "checksum"))
+            permissions = [str(value)[:80] for value in (body.get("permissions") or [])][:30]
+            if not name or not version or not re.fullmatch(r"[a-fA-F0-9]{32,128}", checksum):
+                raise ValueError("nombre, versión y checksum hexadecimal son obligatorios")
+            result = engine.module_register(name, version, permissions, checksum.lower(), False)
+        elif action == "token_create":
+            scopes = sorted(set(body.get("scopes") or []))
+            if not scopes or any(scope not in allowed_scopes for scope in scopes):
+                raise ValueError("ámbitos de API no válidos")
+            result = engine.api_token(body.get("name", "Integración"), scopes, body.get("expires_at") or None)
+        elif action == "token_rotate":
+            result = engine.rotate_token(body.get("token_id"))
+            if not result: return jsonify({"ok": False, "error": "token_not_found"}), 404
+        elif action == "token_revoke":
+            rows = _safe_list(_db.get("API_TOKENS", [])); result = next((row for row in rows if row.get("id") == body.get("token_id")), None)
+            if not result: return jsonify({"ok": False, "error": "token_not_found"}), 404
+            result["status"] = "revoked"; result["revoked_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(); _db.set("API_TOKENS", rows)
+            result = {key: value for key, value in result.items() if key != "hash"}
+        elif action == "sandbox":
+            bot_id = str(body.get("bot_id", "")).strip()
+            if not bot_id: raise ValueError("bot_id obligatorio")
+            result = engine.sandbox(bot_id, body.get("enabled", True))
+        elif action == "quota":
+            bot_id, method = str(body.get("bot_id", "")).strip(), str(body.get("method", "")).strip()
+            if not bot_id or not method: raise ValueError("bot y método son obligatorios")
+            result = engine.quota(bot_id, method, body.get("used", 0), body.get("limit", 1), body.get("reset_at"))
+        elif action == "config_export":
+            group_id = str(body.get("group_id", ""))
+            if group_id not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
+            result = engine.signed_config({"group_id": group_id, "config": GroupSuite(_db).config(group_id),
+                                           "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        elif action == "config_import":
+            bundle = body.get("bundle") if isinstance(body.get("bundle"), dict) else {}
+            if not engine.verify_config(bundle): raise ValueError("firma de configuración inválida")
+            payload = bundle.get("payload") or {}; group_id = str(payload.get("group_id", ""))
+            if group_id not in _known_internal_group_ids() or not isinstance(payload.get("config"), dict):
+                raise ValueError("grupo o configuración no válidos")
+            result = {"group_id": group_id, "config": GroupSuite(_db).save_config(group_id, payload["config"])}
+        elif action == "incident_link":
+            group_id = str(body.get("group_id", ""))
+            if group_id not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
+            result = engine.incident_link(body.get("provider", "custom"), body.get("external_id", ""), group_id, body.get("title", ""))
+        elif action == "calendar_link":
+            group_id = str(body.get("group_id", ""))
+            if group_id not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
+            result = engine.calendar_link(body.get("provider", "custom"), body.get("calendar_id", ""), group_id, body.get("sync_token"))
+            result = {key: value for key, value in result.items() if key != "sync_token"}
+        else: return jsonify({"ok": False, "error": "invalid_action"}), 400
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    if _add_audit_log: _add_audit_log(f"TodoSobreAllTech integraciones: {action}")
+    return jsonify({"ok": True, "result": result})
+
+
 def _community_api_auth():
     raw_key = request.headers.get("X-Community-Key", "")
     token = _ban_manager.authenticate_api_key(raw_key) if _ban_manager else None
