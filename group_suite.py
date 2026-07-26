@@ -39,6 +39,7 @@ class GroupSuite:
         bot_interaction = section("bot_interaction")
         flood = section("flood_control")
         media_controls = section("media_controls")
+        plugin_controls = section("plugin_controls")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -135,12 +136,19 @@ class GroupSuite:
                 "mute_minutes": max(1, min(int(media_controls.get("mute_minutes", 10)), 1440)),
                 "notify": bool(media_controls.get("notify", True)),
             },
+            "plugin_controls": {
+                "enabled": bool(plugin_controls.get("enabled", True)),
+                "disabled_plugins": [
+                    str(value).lower()[:80] for value in plugin_controls.get("disabled_plugins", [])
+                    if str(value).strip()
+                ][:100],
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):

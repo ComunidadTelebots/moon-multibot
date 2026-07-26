@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Aislamiento de plugins por grupo - 2026-07-26
+
+- Cada grupo mantiene su propia lista de plugins desactivados sin afectar al resto de comunidades.
+- Los plugins bloqueados no ejecutan comandos ni aparecen en el menú administrativo específico del chat.
+- Hub y TodoSobreAllTech muestran el inventario completo y permiten alternarlo con sincronización inmediata.
+
 ### Comandos dinámicos y plugins - 2026-07-26
 
 - Las instancias cargan realmente los plugins durante el arranque y registran cualquier fallo con su nombre.

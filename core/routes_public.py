@@ -399,7 +399,7 @@ def internal_group_admin(cid):
                                                          "identical": not differences}})
         else:
             return jsonify({"ok": False, "error": "invalid_action"}), 400
-        return jsonify({"ok": True, "config": config})
+        return jsonify({"ok": True, "config": config, "command_menu": bot.sync_command_menu(cid)})
 
     response = bot.api_call("getChatMember", {"chat_id": cid, "user_id": bot.bot_id}, silent=True)
     member = response.get("result", {}) if isinstance(response, dict) and response.get("ok") else {}
@@ -427,7 +427,7 @@ def internal_group_admin(cid):
         "repair_steps": repair_steps,
         "config": suite.config(cid),
         "join_config": _join_config(cid),
-        "command_menu": bot.command_menu_preview(),
+        "command_menu": bot.command_menu_preview(cid),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
         "history": safe_history,
@@ -1546,7 +1546,7 @@ def group_suite_get():
         return err
     _, chat_id = res
     bot = _get_bot_for_chat(chat_id)
-    command_menu = bot.command_menu_preview() if bot else None
+    command_menu = bot.command_menu_preview(chat_id) if bot else None
     return jsonify({"ok": True, **_group_suite().snapshot(chat_id), "command_menu": command_menu})
 
 

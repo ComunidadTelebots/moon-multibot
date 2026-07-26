@@ -137,6 +137,8 @@
   input[type=datetime-local]{color-scheme:dark;}
   .btnrow{display:flex;gap:8px;margin-top:9px;}
   .btnrow .btn{margin-top:0;}
+  .plugin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0;max-height:240px;overflow:auto;}
+  .plugin-grid label{display:flex;align-items:center;gap:7px;padding:8px;border:1px solid var(--border);border-radius:10px;font-size:12px;}
   .userchip{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;
     border:1px solid var(--line);border-radius:12px;background:var(--card);margin-bottom:8px;}
   .userchip .uid{font-family:var(--mono);font-size:13px;}
@@ -610,6 +612,9 @@
       <div class="dropdown"><div class="dhead">Comandos y plugins <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <p class="muted">Telegram mostrará menús diferentes a usuarios y administradores. Los comandos de plugins activos se descubren automáticamente.</p>
         <div class="statrow"><span><b>${(d.command_menu?.public||[]).length}</b><small>Públicos</small></span><span><b>${(d.command_menu?.admin||[]).length}</b><small>Administración</small></span><span><b>${d.command_menu?.plugins_loaded||0}</b><small>Plugins</small></span></div>
+        <label class="setrow"><b>Permitir plugins en este grupo</b><input id="mcmdEnabled" type="checkbox" ${c.plugin_controls.enabled?"checked":""}></label>
+        <div class="plugin-grid">${(d.command_menu?.plugin_names||[]).map(name=>`<label><input class="mcmdPlugin" value="${escHtml(name)}" type="checkbox" ${!c.plugin_controls.disabled_plugins.includes(name.toLowerCase())?"checked":""}> ${escHtml(name.replaceAll("_"," "))}</label>`).join("")||'<p class="muted">No hay plugins cargados.</p>'}</div>
+        <button class="btn ghost" id="mcmdSave">Guardar plugins del grupo</button>
         <button class="btn teal" id="mcmdSync">Sincronizar menú con Telegram</button>
       </div></div>
       <div class="dropdown"><div class="dhead">Tipos de contenido permitidos <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
@@ -694,6 +699,7 @@
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
     mbiSave.onclick=saveBotInteraction;
+    mcmdSave.onclick=()=>{const enabled=[...host.querySelectorAll(".mcmdPlugin:checked")].map(x=>x.value.toLowerCase());const all=d.command_menu?.plugin_names||[];gp("/group/suite/settings",{config:{plugin_controls:{enabled:mcmdEnabled.checked,disabled_plugins:all.filter(name=>!enabled.includes(name.toLowerCase()))}}}).then(()=>{showToast("Plugins del grupo guardados");loadGroupSuiteMini();});};
     mcmdSync.onclick=()=>gp("/group/commands/sync",{}).then(x=>{showToast(x.command_menu?.synced?"Comandos sincronizados":"Telegram rechazó algún menú");loadGroupSuiteMini();});
     mctSave.onclick=saveMediaControls;
     maSave.onclick=saveAppearance;

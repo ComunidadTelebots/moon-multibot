@@ -3627,12 +3627,18 @@ class MoonBot:
                     except Exception as error:
                         add_web_log("ERROR", f"No se pudo cargar plugin {f}: {error}")
 
-    def _plugin_command_catalog(self):
+    def _plugin_command_catalog(self, chat_id=None):
         """Descubre comandos declarados por plugins sin confiar en metadatos manuales."""
         catalog = {"public": {}, "admin": {}, "master": {}}
+        controls = group_suite.config(chat_id)["plugin_controls"] if chat_id is not None else {"enabled": True, "disabled_plugins": []}
+        disabled = set(controls["disabled_plugins"])
+        if not controls["enabled"]:
+            return catalog
         for plugin in self.plugins:
             path = str(getattr(plugin, "__file__", "") or "")
             name = os.path.basename(path).rsplit(".", 1)[0]
+            if name.lower() in disabled:
+                continue
             scope = "master" if name in ("admin", "backup_utils", "password_tools") else (
                 "admin" if any(word in name for word in ("moderation", "security", "incident", "rule_", "quiet_hours")) else "public"
             )
@@ -3645,8 +3651,8 @@ class MoonBot:
                 catalog[scope].setdefault(command, f"Función del plugin {name.replace('_', ' ')}"[:256])
         return catalog
 
-    def command_menu_preview(self):
-        plugins = self._plugin_command_catalog()
+    def command_menu_preview(self, chat_id=None):
+        plugins = self._plugin_command_catalog(chat_id)
         public = {
             "start": "Abrir el menú y la Mini App", "help": "Ver ayuda de comandos",
             "perfil": "Consultar tu perfil", "top": "Ver miembros destacados",
@@ -3664,11 +3670,16 @@ class MoonBot:
                   "resync": "Forzar sincronización", "backup_db": "Crear copia de la base de datos"}
         master.update(plugins["master"])
         normalize = lambda rows: [{"command": key, "description": value[:256]} for key, value in list(rows.items())[:100]]
+        controls = group_suite.config(chat_id)["plugin_controls"] if chat_id is not None else {"enabled": True, "disabled_plugins": []}
+        plugin_names = sorted(str(getattr(plugin, "__name__", "plugin")) for plugin in self.plugins)
+        disabled = set(controls["disabled_plugins"])
+        active_names = [name for name in plugin_names if controls["enabled"] and name.lower() not in disabled]
         return {"public": normalize(public), "admin": normalize(admin), "master": normalize(master),
-                "plugins_loaded": len(self.plugins)}
+                "plugins_loaded": len(self.plugins), "plugin_names": plugin_names,
+                "active_plugins": active_names, "disabled_plugins": controls["disabled_plugins"]}
 
     def sync_command_menu(self, chat_id=None):
-        menus = self.command_menu_preview()
+        menus = self.command_menu_preview(chat_id)
         results = []
         if chat_id is None:
             results.append(self.api_call("setMyCommands", {"commands": menus["public"], "scope": {"type": "default"}}, silent=True))
@@ -3676,6 +3687,7 @@ class MoonBot:
             if MASTER_ID:
                 results.append(self.api_call("setMyCommands", {"commands": menus["master"], "scope": {"type": "chat", "chat_id": MASTER_ID}}, silent=True))
         else:
+            results.append(self.api_call("setMyCommands", {"commands": menus["public"], "scope": {"type": "chat", "chat_id": chat_id}}, silent=True))
             results.append(self.api_call("setMyCommands", {"commands": menus["admin"], "scope": {"type": "chat_administrators", "chat_id": chat_id}}, silent=True))
         menus["synced"] = all(isinstance(item, dict) and item.get("ok") for item in results)
         menus["errors"] = [item.get("description") for item in results if isinstance(item, dict) and not item.get("ok")]
@@ -4433,7 +4445,13 @@ class MoonBot:
 
     def _run_plugin_command(self, cid, uid, text, rk):
         plugin_text = self._normalize_command_text(text)
+        controls = group_suite.config(cid)["plugin_controls"]
+        if not controls["enabled"]:
+            return False
+        disabled = set(controls["disabled_plugins"])
         for plugin in self.plugins:
+            if str(getattr(plugin, "__name__", "")).lower() in disabled:
+                continue
             if hasattr(plugin, "handle_command"):
                 try:
                     if plugin.handle_command(self, cid, uid, plugin_text, rk):
