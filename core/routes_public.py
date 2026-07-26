@@ -878,6 +878,70 @@ def internal_integrations():
     return jsonify({"ok": True, "result": result})
 
 
+def _operations_metrics():
+    if not psutil:
+        return {"cpu": 0, "memory": 0, "disk": 0, "latency": 0}
+    return {"cpu": psutil.cpu_percent(interval=0.05), "memory": psutil.virtual_memory().percent,
+            "disk": psutil.disk_usage("C:" if os.name == "nt" else "/").percent, "latency": 0}
+
+
+@bp.route("/api/internal/operations", methods=["GET", "POST"])
+def internal_operations():
+    """Planificación operativa; no ejecuta restauraciones ni despliegues destructivos."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    engine = RoadmapEngine(_db, _jwt_secret or "moonbot")
+    if request.method == "GET":
+        metrics = _operations_metrics(); dependencies = _db.get("OPS_DEPENDENCIES", {}) or {}
+        dependency_states = {name: row.get("status", "unknown") for name, row in dependencies.items() if isinstance(row, dict)}
+        errors = _safe_list(_db.get("SYSTEM_ERRORS", []))[-500:]
+        return jsonify({"ok": True, "metrics": metrics, "alerts": engine.resource_alerts(metrics),
+                        "diagnosis": engine.diagnose(metrics, [row.get("message", row) if isinstance(row, dict) else row for row in errors]),
+                        "error_groups": engine.group_errors([row for row in errors if isinstance(row, dict)]),
+                        "degraded": engine.degraded_mode(dependency_states),
+                        "deployments": list(reversed(_safe_list(_db.get("OPS_DEPLOYMENTS", []))))[:100],
+                        "backup_policy": _db.get("OPS_BACKUP_POLICY", {}),
+                        "restore_plans": list(reversed(_safe_list(_db.get("OPS_RESTORE_PLANS", []))))[:100],
+                        "dependencies": dependencies,
+                        "maintenance": list(reversed(_safe_list(_db.get("OPS_MAINTENANCE_WINDOWS", []))))[:100]})
+    body = request.json or {}; action = str(body.get("action", "")); result = None
+    try:
+        if action == "deployment":
+            version = str(body.get("version", "")).strip(); instances = [str(x).strip()[:100] for x in (body.get("instances") or []) if str(x).strip()]
+            if not version or not instances: raise ValueError("versión e instancias son obligatorias")
+            result = engine.deployment(version, instances, body.get("batch_size", 1))
+        elif action == "health_result":
+            result = engine.health_result(body.get("deployment_id"), str(body.get("instance", "")), bool(body.get("healthy")))
+            if not result: return jsonify({"ok": False, "error": "deployment_not_found"}), 404
+        elif action == "backup_policy":
+            result = engine.backup_policy(body.get("retention_days", 30), bool(body.get("encrypted", True)), body.get("modules") or ["all"])
+        elif action == "restore_plan":
+            if not str(body.get("backup_id", "")).strip(): raise ValueError("backup_id obligatorio")
+            result = engine.restore_plan(body.get("backup_id"), body.get("groups") or [], body.get("modules") or [])
+        elif action == "restore_cancel":
+            rows = _safe_list(_db.get("OPS_RESTORE_PLANS", [])); result = next((x for x in rows if x.get("id") == body.get("plan_id")), None)
+            if not result: return jsonify({"ok": False, "error": "restore_plan_not_found"}), 404
+            result["status"] = "cancelled"; result["cancelled_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(); _db.set("OPS_RESTORE_PLANS", rows)
+        elif action == "dependency":
+            status = str(body.get("status", "unknown"));
+            if not str(body.get("name", "")).strip(): raise ValueError("nombre de dependencia obligatorio")
+            if status not in ("ok", "healthy", "degraded", "offline", "unknown"): raise ValueError("estado de dependencia no válido")
+            result = engine.dependency_status(body.get("name", ""), status, body.get("latency_ms"), body.get("detail", ""))
+        elif action == "diagnose":
+            result = engine.diagnose(body.get("metrics") or _operations_metrics(), body.get("errors") or [])
+        elif action == "maintenance":
+            result = engine.maintenance_window(body.get("starts_at"), body.get("ends_at"), body.get("modules") or [], body.get("message", ""))
+        elif action == "maintenance_cancel":
+            rows = _safe_list(_db.get("OPS_MAINTENANCE_WINDOWS", [])); result = next((x for x in rows if x.get("id") == body.get("window_id")), None)
+            if not result: return jsonify({"ok": False, "error": "maintenance_not_found"}), 404
+            result["status"] = "cancelled"; _db.set("OPS_MAINTENANCE_WINDOWS", rows)
+        else: return jsonify({"ok": False, "error": "invalid_action"}), 400
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    if _add_audit_log: _add_audit_log(f"TodoSobreAllTech operaciones: {action}")
+    return jsonify({"ok": True, "result": result})
+
+
 def _community_api_auth():
     raw_key = request.headers.get("X-Community-Key", "")
     token = _ban_manager.authenticate_api_key(raw_key) if _ban_manager else None

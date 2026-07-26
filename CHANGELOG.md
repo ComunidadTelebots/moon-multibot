@@ -1,5 +1,16 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.13.0 - Operaciones y fiabilidad administrables - 2026-07-26
+
+- Planes de despliegue gradual con lotes y resultados de salud por instancia.
+- Política de copias cifradas con retención y selección de módulos.
+- Planes de restauración con confirmación pendiente y cancelación segura.
+- Registro de salud, latencia y estado de dependencias externas.
+- Alertas de CPU, memoria, disco y latencia basadas en umbrales.
+- Modo degradado con capacidades disponibles cuando falla una dependencia.
+- Diagnóstico automático, agrupación de errores y recomendaciones operativas.
+- Ventanas de mantenimiento programables y cancelables desde la administración.
+
 ## v18.12.0 - Integraciones y API administrables - 2026-07-26
 
 - Registro de módulos con versión, permisos y checksum verificable.
