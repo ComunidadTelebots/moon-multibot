@@ -1487,7 +1487,7 @@ def _house_ads_update(body):
         url = str(raw.get("url") or "").strip()
         if not url.startswith(("https://", "tg://")): raise ValueError("enlace no válido")
         item = {"id": str(raw.get("id") or secrets.token_hex(8)), "title": str(raw.get("title") or "")[:80],
-                "description": str(raw.get("description") or "")[:180], "url": url[:500],
+                "description": str(raw.get("description") or "")[:800], "url": url[:500],
                 "image": str(raw.get("image") or "")[:500], "placement": str(raw.get("placement") or "all"),
                 "cta": str(raw.get("cta") or "Abrir")[:24],
                 "background": str(raw.get("background") or "#eef7ff")[:32],
