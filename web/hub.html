@@ -1269,6 +1269,7 @@
         <button class="master-action" id="masterActivity"><span class="mai">${svg('clock')}</span><b>Actividad</b><small>Auditoría administrativa</small></button>
         <button class="master-action" id="masterEngagement"><span class="mai">${svg('users')}</span><b>Comunidad y eventos</b><small>Encuestas, agenda, retos y sorteos</small></button>
         <button class="master-action" id="masterGroupAdmin"><span class="mai">${svg('settings')}</span><b>Grupos avanzados</b><small>Versiones, sincronización y delegaciones</small></button>
+        <button class="master-action" id="masterGlobalAccess"><span class="mai">${svg('shield')}</span><b>Acceso global</b><small>Canal obligatorio para todos los grupos</small></button>
         <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
         <button class="master-action" id="masterFaq"><span class="mai">${svg('message')}</span><b>Respuestas automáticas</b><small>Preguntas frecuentes del bot</small></button>
         <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
@@ -1295,6 +1296,7 @@
     document.getElementById("masterActivity").onclick=()=>openMasterPage("Actividad","Auditoría administrativa",loadMasterActivity);
     document.getElementById("masterEngagement").onclick=()=>openMasterPage("Comunidad y eventos","Encuestas, agenda, retos y sorteos",loadMasterEngagement);
     document.getElementById("masterGroupAdmin").onclick=()=>openMasterPage("Grupos avanzados","Versiones, sincronización y delegaciones",loadMasterGroupAdministration);
+    document.getElementById("masterGlobalAccess").onclick=()=>openMasterPage("Acceso global","Suscripción obligatoria general para todos los grupos",loadMasterGlobalAccess);
     document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
     document.getElementById("masterFaq").onclick=()=>openMasterPage("Respuestas automáticas","Preguntas frecuentes del bot",loadMasterFaq);
     document.getElementById("masterBroadcast").onclick=()=>openMasterPage("Comunicado","Mensaje global a todos los chats",loadMasterBroadcast);
@@ -1818,6 +1820,29 @@
         row.querySelector("button").onclick=()=>action("contest_score",{event_id:e.id,submission_id:s.id,score:+row.querySelector("input").value}).then(loadMasterEngagement);box.appendChild(row);
       });
     });
+  }
+
+  async function loadMasterGlobalAccess(){
+    const box=document.getElementById("masterDetail");
+    const data=await apiPost("/admin/join-global",{initData:tg&&tg.initData});
+    if(!data||!data.ok){box.innerHTML=`<div class="master-error">${escHtml((data&&data.error)||"No se pudo cargar la configuración")}</div>`;return;}
+    box.innerHTML=`<div class="card">
+      <div class="setrow"><div><b>Suscripción global obligatoria</b><span>Se aplicará al captcha de todos los grupos administrados</span></div><div class="switch ${data.enabled?"on":""}" id="globalAccessEnabled"><span></span></div></div>
+      <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Canal general
+        <input id="globalAccessChannel" value="${escHtml(data.channel?`@${data.channel}`:"")}" placeholder="@canal_general" style="width:100%;margin-top:6px">
+      </label>
+      <p class="muted" style="margin-top:10px">Moonbot debe ser administrador del canal para comprobar las suscripciones.</p>
+      <button class="btn teal" id="globalAccessSave" style="margin-top:14px">Guardar configuración</button>
+    </div>`;
+    const toggle=document.getElementById("globalAccessEnabled");
+    toggle.onclick=()=>toggle.classList.toggle("on");
+    document.getElementById("globalAccessSave").onclick=async()=>{
+      const channel=document.getElementById("globalAccessChannel").value.trim().replace(/^@/,"");
+      const enabled=toggle.classList.contains("on");
+      const result=await apiPost("/admin/join-global",{initData:tg&&tg.initData,channel,enabled});
+      if(result&&result.ok){showToast(enabled?"Acceso global activado":"Acceso global desactivado");loadMasterGlobalAccess();}
+      else showToast((result&&result.error)||"No se pudo guardar");
+    };
   }
 
   async function loadMasterGroupAdministration(){

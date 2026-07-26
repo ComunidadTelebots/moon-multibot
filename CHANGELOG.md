@@ -11,6 +11,12 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.21.0 - Acceso global independiente - 2026-07-26
+
+- El master puede configurar el canal obligatorio general sin entrar en ningún grupo.
+- Un interruptor global permite activar o pausar el requisito conservando el canal configurado.
+- El endpoint está protegido mediante la sesión firmada de Telegram y rechaza usuarios no master.
+
 ## v18.20.0 - Grupos exclusivos y compartidos - 2026-07-26
 
 - El inventario diferencia grupos únicos, exclusivos y administrados por varias instancias.

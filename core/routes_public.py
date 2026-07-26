@@ -2311,7 +2311,38 @@ def _join_config(chat_id):
 
 def _global_join_channel():
     value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "") if _db else ""
-    return str(value or "").strip().lstrip("@")[:100]
+    channel = str(value or "").strip().lstrip("@")[:100]
+    enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
+    return channel if enabled else ""
+
+
+def _global_join_settings():
+    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "") if _db else ""
+    channel = str(value or "").strip().lstrip("@")[:100]
+    enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
+    return {"enabled": enabled, "channel": channel}
+
+
+@bp.route("/api/public/admin/join-global", methods=["POST", "OPTIONS"])
+def admin_join_global():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    if not _is_master(user):
+        return jsonify({"ok": False, "error": "solo el master puede cambiar el acceso global"}), 403
+    if "channel" in body:
+        channel = str(body.get("channel") or "").strip().lstrip("@")[:100]
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", channel)
+    settings = _global_join_settings()
+    if "enabled" in body:
+        enabled = bool(body.get("enabled"))
+        if enabled and not settings["channel"]:
+            return jsonify({"ok": False, "error": "configura primero un canal"}), 400
+        _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", enabled)
+    return jsonify({"ok": True, **_global_join_settings()})
 
 
 def _missing_required_channels(bot, chat_id, user_id):
@@ -2455,6 +2486,7 @@ def group_join_settings():
     if "global_required_channel" in body:
         global_channel = str(body.get("global_required_channel") or "").strip().lstrip("@")[:100]
         _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", global_channel)
+        _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", bool(global_channel))
     return jsonify({"ok": True, "config": config,
                     "global_required_channel": _global_join_channel()})
 
