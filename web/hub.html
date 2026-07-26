@@ -2260,21 +2260,23 @@
     {ic:"users",n:"Comunidad",d:"Canales y comunidad Telebots",url:"https://comunidadtelebots.todosobreall.tech"},
   ];
   let activeService=null;
+  let serviceLoadTimer=null;
   function openService(index){
     const service=SERVICES[index];if(!service)return;activeService=service;
     serviceTitle.textContent=service.n;serviceDescription.textContent=service.d;serviceLoading.hidden=false;
     serviceLoading.innerHTML=`<div>${svg(service.ic)}<p style="margin-top:10px">Cargando ${escHtml(service.n)}…</p><small>También puedes abrirlo externamente desde ↗</small></div>`;
     const embeddedUrl=new URL(service.url);embeddedUrl.searchParams.set("miniapp","1");Object.entries(service.params||{}).forEach(([key,value])=>embeddedUrl.searchParams.set(key,value));serviceFrame.src=embeddedUrl.toString();
+    clearTimeout(serviceLoadTimer);serviceLoadTimer=setTimeout(()=>{serviceLoading.hidden=true;showToast("La carga está tardando; puedes recargar o abrir el sitio externamente.");},12000);
     document.getElementById("v-service").hidden=false;document.body.style.overflow="hidden";
     if(tg&&tg.BackButton){tg.BackButton.show();tg.BackButton.onClick(closeService);}
     ev("service_open",{service:service.n,mode:"embedded"});
   }
   function closeService(){
-    document.getElementById("v-service").hidden=true;serviceFrame.src="about:blank";activeService=null;document.body.style.overflow="";
+    document.getElementById("v-service").hidden=true;clearTimeout(serviceLoadTimer);serviceFrame.src="about:blank";activeService=null;document.body.style.overflow="";
     if(tg&&tg.BackButton){tg.BackButton.offClick(closeService);tg.BackButton.hide();}
   }
   function reloadService(){if(!activeService)return;serviceLoading.hidden=false;const src=serviceFrame.src;serviceFrame.src="about:blank";setTimeout(()=>serviceFrame.src=src,30);}
-  serviceFrame.addEventListener("load",()=>{if(serviceFrame.src!=="about:blank")serviceLoading.hidden=true;});
+  serviceFrame.addEventListener("load",()=>{if(serviceFrame.src!=="about:blank"){clearTimeout(serviceLoadTimer);serviceLoading.hidden=true;}});
   serviceBack.onclick=closeService;serviceReload.onclick=reloadService;serviceExternal.onclick=()=>{if(activeService)openLink(activeService.url);};
   function loadRed(){
     const el=document.getElementById("v-red");

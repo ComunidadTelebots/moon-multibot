@@ -1,5 +1,9 @@
 ﻿# Changelog - Moon Multibot
 
+### Carga de sitios integrados - 2026-07-26
+
+- El Hub elimina la pantalla de carga al completar el iframe y ofrece recuperación tras doce segundos si la red es lenta.
+
 ### Anuncios propios configurables - 2026-07-26
 
 - La MiniApp recomienda automáticamente el hueco con menor cobertura y aprovecha la campaña con mejor CTR.
