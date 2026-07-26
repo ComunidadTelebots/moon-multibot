@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Corrección del arranque en conexiones lentas - 2026-07-26
+
+- La comprobación de GitHub queda desactivada por defecto dentro del contenedor.
+- Si se habilita, `git fetch` tiene límite de tiempo y nunca bloquea el servidor web.
+
 ## v18.14.0 - Experiencia web sincronizada - 2026-07-26
 
 - Preferencias persistentes para favoritos, widgets, modo compacto y recorrido guiado.
