@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Sitios web integrados en la MiniApp - 2026-07-26
+
+- Telegram Web, Noticias Web3, Resistencia, Gameplays, TodoSobreAllTech y Comunidad se abren en una pantalla nativa dentro del Hub.
+- Cada servicio dispone de cabecera, flecha para volver, recarga y apertura externa de respaldo.
+- La vista integrada ocupa el espacio disponible y respeta el botón Atrás de Telegram.
+- El iframe aplica permisos limitados a navegación, formularios, descargas, portapapeles y pantalla completa.
+
 ### Espacio personal para todos los usuarios - 2026-07-26
 
 - La MiniApp abre ahora en `Para ti`, aunque el usuario no administre grupos ni sea master.

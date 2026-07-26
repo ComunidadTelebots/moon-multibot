@@ -200,6 +200,13 @@
   .master-back svg{width:20px;height:20px}.master-subcopy{min-width:0;flex:1}
   .master-subcopy b{display:block;font-size:17px}.master-subcopy span{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
   .master-subpage .master-list{max-width:760px;margin:0 auto;}
+  .service-page{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;}
+  .service-page[hidden]{display:none;}
+  .service-head{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:1px solid var(--line);background:rgba(9,14,24,.96);}
+  .service-head .service-copy{flex:1;min-width:0}.service-head b{display:block;font-size:15px}.service-head small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .service-frame-wrap{position:relative;flex:1;min-height:0;background:#fff;}
+  .service-frame{width:100%;height:100%;border:0;background:#fff;}
+  .service-loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--muted);z-index:1;text-align:center;padding:24px;}
   .assoc-tools{display:flex;gap:8px;margin:0 0 10px}.assoc-tools input{min-width:0;flex:1;}
   .assoc-tools .btn{width:auto;margin:0;padding:10px 12px;}
   .filterbar{display:flex;gap:7px;overflow-x:auto;padding:0 0 11px;scrollbar-width:none;}
@@ -305,6 +312,10 @@
         <div class="master-subcopy"><b id="masterDetailTitle">Administración</b><span id="masterDetailSubtitle"></span></div>
       </div>
       <div id="masterDetail" class="master-list"></div>
+    </section>
+    <section class="service-page" id="v-service" hidden>
+      <div class="service-head"><button class="master-back" id="serviceBack" aria-label="Volver">←</button><div class="service-copy"><b id="serviceTitle">Servicio</b><small id="serviceDescription"></small></div><button class="topact" id="serviceReload" aria-label="Recargar" title="Recargar">↻</button><button class="topact" id="serviceExternal" aria-label="Abrir externamente" title="Abrir externamente">↗</button></div>
+      <div class="service-frame-wrap"><div class="service-loading" id="serviceLoading">Cargando servicio…</div><iframe class="service-frame" id="serviceFrame" title="Servicio TodoSobreAllTech" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>
     </section>
   </main>
 
@@ -2227,13 +2238,30 @@
 
   // ── Red (servicios + proxy secundario) ──
   const SERVICES=[
-    {ic:"message",n:"Telegram Web",url:"https://chat.todosobreall.tech"},
-    {ic:"newspaper",n:"Noticias Web3",url:"https://noticiasweb3.todosobreall.tech"},
-    {ic:"shield",n:"Resistencia",url:"https://resistenciaalacensura.todosobreall.tech"},
-    {ic:"gamepad",n:"Gameplays",url:"https://todosobregameplays.todosobreall.tech"},
-    {ic:"globe",n:"Todo Sobre All",url:"https://todosobreall.tech"},
-    {ic:"users",n:"Comunidad",url:"https://comunidadtelebots.todosobreall.tech"},
+    {ic:"message",n:"Telegram Web",d:"Cliente web de Telegram",url:"https://chat.todosobreall.tech"},
+    {ic:"newspaper",n:"Noticias Web3",d:"Actualidad tecnológica y Web3",url:"https://noticiasweb3.todosobreall.tech"},
+    {ic:"shield",n:"Resistencia",d:"Privacidad y resistencia a la censura",url:"https://resistenciaalacensura.todosobreall.tech"},
+    {ic:"gamepad",n:"Gameplays",d:"Comunidad y contenidos gaming",url:"https://todosobregameplays.todosobreall.tech"},
+    {ic:"globe",n:"Todo Sobre All",d:"Portal principal de la red",url:"https://todosobreall.tech"},
+    {ic:"users",n:"Comunidad",d:"Canales y comunidad Telebots",url:"https://comunidadtelebots.todosobreall.tech"},
   ];
+  let activeService=null;
+  function openService(index){
+    const service=SERVICES[index];if(!service)return;activeService=service;
+    serviceTitle.textContent=service.n;serviceDescription.textContent=service.d;serviceLoading.hidden=false;
+    serviceLoading.innerHTML=`<div>${svg(service.ic)}<p style="margin-top:10px">Cargando ${escHtml(service.n)}…</p><small>También puedes abrirlo externamente desde ↗</small></div>`;
+    const join=service.url.includes("?")?"&":"?";serviceFrame.src=`${service.url}${join}miniapp=1`;
+    document.getElementById("v-service").hidden=false;document.body.style.overflow="hidden";
+    if(tg&&tg.BackButton){tg.BackButton.show();tg.BackButton.onClick(closeService);}
+    ev("service_open",{service:service.n,mode:"embedded"});
+  }
+  function closeService(){
+    document.getElementById("v-service").hidden=true;serviceFrame.src="about:blank";activeService=null;document.body.style.overflow="";
+    if(tg&&tg.BackButton){tg.BackButton.offClick(closeService);tg.BackButton.hide();}
+  }
+  function reloadService(){if(!activeService)return;serviceLoading.hidden=false;const src=serviceFrame.src;serviceFrame.src="about:blank";setTimeout(()=>serviceFrame.src=src,30);}
+  serviceFrame.addEventListener("load",()=>{if(serviceFrame.src!=="about:blank")serviceLoading.hidden=true;});
+  serviceBack.onclick=closeService;serviceReload.onclick=reloadService;serviceExternal.onclick=()=>{if(activeService)openLink(activeService.url);};
   function loadRed(){
     const el=document.getElementById("v-red");
     el.innerHTML=`<div class="vtitle">Red</div><div class="vsub">Servicios y herramientas de ComunidadTelebots.</div>
@@ -2243,7 +2271,7 @@
         <div class="li-t"><b>Obtener proxy MTProto</b><span>Salta bloqueos de Telegram</span></div>
         <span class="chev">${svg('chevron')}</span></div>
       <div class="proxy-out" id="proxyOut"></div>`;
-    el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>{ev("service_open",{service:SERVICES[x.dataset.i].n});openLink(SERVICES[x.dataset.i].url);});
+    el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>openService(Number(x.dataset.i)));
     document.getElementById("proxyItem").onclick=fetchProxy;
   }
   function fetchProxy(refresh=false,target=null){
@@ -2439,7 +2467,7 @@
     apiGet("/stats/global").then(d=>{if(d&&d.ok&&d.channels>0)document.getElementById("c-chStat").textContent=`${d.channels} canales · ${fmt(d.totalSubscribers)} suscriptores`;});
     document.getElementById("c-services").innerHTML=SERVICES.map((s,i)=>`<div class="svc" data-i="${i}"><span class="si">${svg(s.ic)}</span>${s.n}</div>`).join("");
     if(classicBound)return; classicBound=true;
-    document.getElementById("c-services").querySelectorAll(".svc").forEach(x=>x.onclick=()=>openLink(SERVICES[x.dataset.i].url));
+    document.getElementById("c-services").querySelectorAll(".svc").forEach(x=>x.onclick=()=>openService(Number(x.dataset.i)));
     document.getElementById("c-btnCanales").onclick=()=>openLink("https://canales.todosobreall.tech");
     document.getElementById("c-btnMaster").onclick=()=>openLink("https://cintiabot.todosobreall.tech/panel");
     document.getElementById("c-backNew").onclick=()=>setTheme("nuevo");
