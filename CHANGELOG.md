@@ -7,6 +7,7 @@
 
 ### Anuncios propios configurables - 2026-07-26
 
+- El catálogo pausa automáticamente campañas al alcanzar su objetivo y permite duplicarlas sin heredar métricas; la MiniApp incluye la acción de duplicado.
 - El master puede aprobar, rechazar y reiniciar métricas de cada campaña directamente desde la MiniApp.
 - El catálogo incorpora estados de aprobación para impedir que una propuesta pendiente o rechazada llegue a publicarse.
 - Moonbot conserva la programación temporal de campañas y permite reiniciar sus métricas sin eliminar el anuncio.

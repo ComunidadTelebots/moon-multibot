@@ -1457,11 +1457,22 @@ def _house_ads_update(body):
             if str(row.get("id")) == ad_id:
                 row["approval_status"] = "approved" if action == "approve" else "rejected"
                 row["enabled"] = action == "approve"
+    elif action == "clone":
+        source = next((row for row in rows if str(row.get("id")) == ad_id), None)
+        if not source: raise ValueError("campaña no encontrada")
+        item = dict(source)
+        item.update({"id": secrets.token_hex(8), "title": f"{source.get('title', 'Campaña')} (copia)"[:80],
+                     "enabled": False, "approval_status": "pending", "clicks": 0, "impressions": 0,
+                     "clicks_by_placement": {}, "impressions_by_placement": {}})
+        rows.append(item)
     elif action == "click":
         for row in rows:
             if str(row.get("id")) == ad_id:
                 row["clicks"] = int(row.get("clicks", 0) or 0) + 1
                 place = str(body.get("placement") or "unknown"); by = dict(row.get("clicks_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["clicks_by_placement"] = by
+                if int(row.get("max_clicks", 0) or 0) and row["clicks"] >= int(row["max_clicks"]):
+                    row["enabled"] = False
+                    row["goal_reached"] = True
     elif action == "impression":
         for row in rows:
             if str(row.get("id")) == ad_id:
@@ -1486,6 +1497,8 @@ def _house_ads_update(body):
                 "ends_at": str(raw.get("ends_at") or "")[:40],
                 "approval_status": str(raw.get("approval_status") or "approved")[:16],
                 "submitted_by": str(raw.get("submitted_by") or "")[:64],
+                "max_clicks": max(0, int(raw.get("max_clicks", 0) or 0)),
+                "goal_reached": bool(raw.get("goal_reached", False)),
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
                 "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
                 "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {})}
