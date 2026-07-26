@@ -11,6 +11,12 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.17.0 - Canales obligatorios por niveles - 2026-07-26
+
+- El dueño de cada grupo puede configurar su propio canal obligatorio.
+- El master puede añadir un canal general obligatorio para todos los grupos.
+- El captcha distingue el requisito del grupo del requisito global y comprueba ambos antes de aprobar.
+
 ## v18.16.0 - Suscripción obligatoria y captcha persistente - 2026-07-26
 
 - Cada grupo puede exigir la suscripción a hasta 20 canales antes de aprobar una solicitud.

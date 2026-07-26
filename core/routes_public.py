@@ -2264,18 +2264,31 @@ def _bounded_int(value, default, minimum, maximum):
 
 def _join_config(chat_id):
     raw = _db.get(f"JOINCFG_{chat_id}", {}) if _db else {}
+    required = raw.get("required_channels") or []
+    if not isinstance(required, list):
+        required = [required]
     return {
         "enabled": bool(raw.get("enabled", True)),
         "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
         "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
-        "required_channels": [str(value).strip().lstrip("@")[:100] for value in (raw.get("required_channels") or []) if str(value).strip()][:20],
+        "required_channels": [str(value).strip().lstrip("@")[:100] for value in required if str(value).strip()][:1],
     }
+
+
+def _global_join_channel():
+    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "") if _db else ""
+    return str(value or "").strip().lstrip("@")[:100]
 
 
 def _missing_required_channels(bot, chat_id, user_id):
     missing = []
-    for channel in _join_config(chat_id)["required_channels"]:
+    group_channels = _join_config(chat_id)["required_channels"][:1]
+    global_channel = _global_join_channel()
+    channels = [(channel, "group") for channel in group_channels]
+    if global_channel and global_channel not in group_channels:
+        channels.append((global_channel, "global"))
+    for channel, scope in channels:
         target = channel if channel.startswith("-100") else f"@{channel}"
         result = bot.api_call("getChatMember", {"chat_id": target, "user_id": user_id}, silent=True)
         member = result.get("result", {}) if isinstance(result, dict) and result.get("ok") else {}
@@ -2284,7 +2297,8 @@ def _missing_required_channels(bot, chat_id, user_id):
             status == "restricted" and bool(member.get("is_member"))
         )
         if not joined:
-            missing.append({"channel": channel, "url": f"https://t.me/{channel}" if not channel.startswith("-100") else ""})
+            missing.append({"channel": channel, "scope": scope,
+                            "url": f"https://t.me/{channel}" if not channel.startswith("-100") else ""})
     return missing
 
 
@@ -2374,6 +2388,8 @@ def group_join_get():
         })
     pending.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
     return jsonify({"ok": True, "config": _join_config(chat_id),
+                    "global_required_channel": _global_join_channel(),
+                    "can_manage_global": _is_master(res[0]),
                     "stats": _join_stats(chat_id), "pending": pending})
 
 
@@ -2386,19 +2402,28 @@ def group_join_settings():
     if err:
         return err
     _, chat_id = res
+    if "global_required_channel" in body and not _is_master(res[0]):
+        return jsonify({"ok": False, "error": "solo el master puede cambiar el canal global"}), 403
     config = _join_config(chat_id)
     for key in ("enabled", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
         if key in body:
             config[key] = body[key]
+    required = config.get("required_channels") or []
+    if not isinstance(required, list):
+        required = [required]
     config = {
         "enabled": bool(config["enabled"]),
         "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
         "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
-        "required_channels": [str(value).strip().lstrip("@")[:100] for value in (config.get("required_channels") or []) if str(value).strip()][:20],
+        "required_channels": [str(value).strip().lstrip("@")[:100] for value in required if str(value).strip()][:1],
     }
     _db.set(f"JOINCFG_{chat_id}", config)
-    return jsonify({"ok": True, "config": config})
+    if "global_required_channel" in body:
+        global_channel = str(body.get("global_required_channel") or "").strip().lstrip("@")[:100]
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", global_channel)
+    return jsonify({"ok": True, "config": config,
+                    "global_required_channel": _global_join_channel()})
 
 
 @bp.route("/api/public/group/join/decide", methods=["POST", "OPTIONS"])
