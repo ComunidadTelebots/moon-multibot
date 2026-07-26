@@ -1,5 +1,15 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.3.0 - Grupos y plugins operativos - 2026-07-26
+
+- AdministraciÃ³n externa segura de grupos con listado, detalle, permisos, actividad y configuraciÃ³n de `GroupSuite`.
+- Copia controlada de configuraciÃ³n entre grupos conocidos, sin aceptar destinos ajenos al bot.
+- Plugin `group_health`: diagnÃ³stico inmediato de permisos esenciales de Telegram.
+- Plugin `incident_log`: registro persistente y consulta de incidentes por grupo.
+- Plugin `quiet_hours`: configuraciÃ³n validada de horarios silenciosos.
+- Plugin `group_digest`: resumen local de actividad y participantes sin servicios externos.
+- Plugin `rule_templates`: perfiles estricto, equilibrado y comunidad para moderaciÃ³n.
+
 ## v18.2.0 - Centro de control externo seguro - 2026-07-26
 
 - Nuevo endpoint interno `/api/internal/admin-overview` autenticado con una clave servidor-a-servidor.

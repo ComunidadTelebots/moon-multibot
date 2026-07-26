@@ -47,15 +47,16 @@ _get_bot_for_chat = None
 _check_cas = None
 _hub_bot_username = "cintiabot"
 _get_global_user_stats = None
+_get_global_chat_names = None
 _community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
-          hub_bot_username="cintiabot", get_global_user_stats=None):
+          hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
-    global _hub_bot_username, _get_global_user_stats
+    global _hub_bot_username, _get_global_user_stats, _get_global_chat_names
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -67,6 +68,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _get_bot_for_chat = get_bot_for_chat
     _hub_bot_username = hub_bot_username or "cintiabot"
     _get_global_user_stats = get_global_user_stats
+    _get_global_chat_names = get_global_chat_names
     return bp
 
 
@@ -199,6 +201,9 @@ def internal_admin_overview():
         for item in values
     ) for name, values in pending_sources.items()}
 
+    names = (_get_global_chat_names() or {}) if _get_global_chat_names else {}
+    groups = [{"id": cid, "name": str(names.get(cid) or names.get(str(cid)) or f"Grupo {cid}")[:160]}
+              for cid in sorted(group_ids)]
     return jsonify({
         "ok": True,
         "generated_at": now.isoformat(),
@@ -216,7 +221,60 @@ def internal_admin_overview():
         ],
         "pending": {**pending, "total": sum(pending.values())},
         "instances": instances,
+        "groups": groups,
         "timeline": timeline,
+    })
+
+
+def _known_internal_group(cid):
+    for bot in (_get_active_bots() or []) if _get_active_bots else []:
+        if str(cid) in {str(item) for item in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", []))}:
+            return bot
+    return None
+
+
+@bp.route("/api/internal/groups/<cid>", methods=["GET", "POST"])
+def internal_group_admin(cid):
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    bot = _known_internal_group(cid)
+    if not bot:
+        return jsonify({"ok": False, "error": "group_not_found"}), 404
+    suite = GroupSuite(_db)
+    if request.method == "POST":
+        body = request.json or {}
+        action = body.get("action")
+        if action == "save_config" and isinstance(body.get("config"), dict):
+            config = suite.save_config(cid, body["config"])
+        elif action == "copy_config":
+            source = str(body.get("source_id", ""))
+            if not _known_internal_group(source):
+                return jsonify({"ok": False, "error": "source_group_not_found"}), 404
+            config = suite.save_config(cid, suite.config(source))
+        else:
+            return jsonify({"ok": False, "error": "invalid_action"}), 400
+        return jsonify({"ok": True, "config": config})
+
+    response = bot.api_call("getChatMember", {"chat_id": cid, "user_id": bot.bot_id}, silent=True)
+    member = response.get("result", {}) if isinstance(response, dict) and response.get("ok") else {}
+    required = {
+        "can_manage_chat": "Gestionar el grupo",
+        "can_delete_messages": "Eliminar mensajes",
+        "can_restrict_members": "Restringir miembros",
+        "can_invite_users": "Aprobar usuarios",
+        "can_pin_messages": "Fijar mensajes",
+    }
+    missing = [] if member.get("status") == "creator" else [
+        {"permission": key, "label": label} for key, label in required.items() if not member.get(key)
+    ]
+    history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+    return jsonify({
+        "ok": True,
+        "group": {"id": str(cid), "name": str((_get_global_chat_names() or {}).get(str(cid), f"Grupo {cid}"))[:160]},
+        "permissions": {"healthy": not missing, "status": member.get("status", "unknown"), "missing": missing},
+        "config": suite.config(cid),
+        "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
+                     "media_events": len(suite.media_events(cid, 100))},
     })
 
 
