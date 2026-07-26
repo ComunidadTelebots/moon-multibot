@@ -370,11 +370,14 @@ def _start_bulk_captcha(bot, cid, actor="admin"):
     if current.get("status") == "running":
         return current, False
     observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) if _db else {}
-    user_ids = list((observed or {}).keys()) if isinstance(observed, dict) else []
+    config = _join_config(cid)
+    exempt = set(config.get("exempt_user_ids") or [])
+    user_ids = [uid for uid in (observed or {}).keys() if str(uid) not in exempt] if isinstance(observed, dict) else []
     job = {"status": "running", "total": len(user_ids), "processed": 0, "muted": 0,
            "private_sent": 0, "private_blocked": 0, "skipped": 0,
            "started_at": int(time.time()), "actor": str(actor)[:80]}
     _db.set(job_key, job)
+    _db.set(f"JOIN_BULK_LAST_{cid}", job["started_at"])
 
     def run():
         ttl = _join_config(cid)["request_ttl"]
@@ -452,6 +455,11 @@ def internal_group_admin(cid):
             join_config["enabled"] = bool(body.get("enabled", join_config["enabled"]))
             join_config["mute_until_verified"] = bool(body.get("mute_until_verified", join_config["mute_until_verified"]))
             join_config["strict_enforcement"] = bool(body.get("strict_enforcement", join_config["strict_enforcement"]))
+            if "reverify_interval_days" in body:
+                join_config["reverify_interval_days"] = _bounded_int(body.get("reverify_interval_days"), 0, 0, 90)
+            if "exempt_user_ids" in body:
+                values = body.get("exempt_user_ids") or []
+                join_config["exempt_user_ids"] = [str(value).strip() for value in values if str(value).strip().isdigit()][:100]
             _db.set(f"JOINCFG_{cid}", join_config)
             return jsonify({"ok": True, "join_config": _join_config(cid)})
         elif action == "reverify_all":
@@ -517,6 +525,7 @@ def internal_group_admin(cid):
         "join_config": _join_config(cid),
         "captcha_job": _db.get(f"JOIN_BULK_JOB_{cid}", {}),
         "captcha_history": list(reversed(_safe_list(_db.get(f"JOIN_BULK_HISTORY_{cid}", []))))[:10],
+        "captcha_schedule": {"last_run": int(_db.get(f"JOIN_BULK_LAST_{cid}", 0) or 0)},
         "command_menu": bot.command_menu_preview(cid),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
@@ -2885,6 +2894,9 @@ def _join_config(chat_id):
     required = raw.get("required_channels") or []
     if not isinstance(required, list):
         required = [required]
+    exempt = raw.get("exempt_user_ids") or []
+    if not isinstance(exempt, list):
+        exempt = [exempt]
     return {
         "enabled": bool(raw.get("enabled", True)),
         "mute_until_verified": bool(raw.get("mute_until_verified", True)),
@@ -2892,6 +2904,8 @@ def _join_config(chat_id):
         "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
         "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
+        "reverify_interval_days": _bounded_int(raw.get("reverify_interval_days"), 0, 0, 90),
+        "exempt_user_ids": [str(value).strip() for value in exempt if str(value).strip().isdigit()][:100],
         "required_channels": [str(value).strip().lstrip("@")[:100] for value in required if str(value).strip()][:1],
     }
 
@@ -3067,6 +3081,7 @@ def group_join_get():
                     "can_manage_global": _is_master(res[0]),
                     "stats": _join_stats(chat_id), "pending": pending,
                     "bulk_job": _db.get(f"JOIN_BULK_JOB_{chat_id}", {}),
+                    "bulk_last_run": int(_db.get(f"JOIN_BULK_LAST_{chat_id}", 0) or 0),
                     "bulk_history": list(reversed(_safe_list(_db.get(f"JOIN_BULK_HISTORY_{chat_id}", []))))[:10]})
 
 
@@ -3122,12 +3137,15 @@ def group_join_settings():
     if "global_required_channel" in body and not _is_master(res[0]):
         return jsonify({"ok": False, "error": "solo el master puede cambiar el canal global"}), 403
     config = _join_config(chat_id)
-    for key in ("enabled", "mute_until_verified", "strict_enforcement", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
+    for key in ("enabled", "mute_until_verified", "strict_enforcement", "max_attempts", "challenge_ttl", "request_ttl", "reverify_interval_days", "exempt_user_ids", "required_channels"):
         if key in body:
             config[key] = body[key]
     required = config.get("required_channels") or []
     if not isinstance(required, list):
         required = [required]
+    exempt = config.get("exempt_user_ids") or []
+    if not isinstance(exempt, list):
+        exempt = [exempt]
     config = {
         "enabled": bool(config["enabled"]),
         "mute_until_verified": bool(config["mute_until_verified"]),
@@ -3135,6 +3153,8 @@ def group_join_settings():
         "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
         "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
+        "reverify_interval_days": _bounded_int(config["reverify_interval_days"], 0, 0, 90),
+        "exempt_user_ids": [str(value).strip() for value in exempt if str(value).strip().isdigit()][:100],
         "required_channels": [str(value).strip().lstrip("@")[:100] for value in required if str(value).strip()][:1],
     }
     _db.set(f"JOINCFG_{chat_id}", config)

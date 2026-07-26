@@ -1974,6 +1974,7 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 - Acción colectiva para obligar a los miembros observados de un grupo a repetir el captcha.
 - Comando administrativo `/recaptcha_todos` con ejecución segura en segundo plano.
 - Vista previa, cancelación segura e historial de las campañas colectivas de captcha.
+- Reverificación periódica configurable por días y lista de hasta 100 miembros exentos por grupo.
 - Mute inmediato, envío privado del desafío y contador de entregas bloqueadas por Telegram.
 - Nuevo control por grupo y global para que los pendientes no puedan eludir el captcha.
 - Moonbot reaplica los permisos silenciados ante cada intento y vuelve a mostrar el desafío.

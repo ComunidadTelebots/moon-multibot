@@ -5262,6 +5262,23 @@ class MoonBot:
     def run_periodic_maintenance(self):
         now_s = int(time.time())
 
+        # Campañas periódicas de reverificación captcha (solo el bot guardián).
+        schedule_key = f"LAST_CAPTCHA_SCHEDULE_CHECK_{self.bot_id}"
+        if (self.bot_username or "").lower() == "cintiabot" and now_s - int(db.get(schedule_key, 0) or 0) >= 900:
+            db.set(schedule_key, now_s)
+            try:
+                from core.routes_public import _start_bulk_captcha
+                for scheduled_cid in db.get(f"CHATS_{self.token}", []) or []:
+                    scheduled_cfg = db.get(f"JOINCFG_{scheduled_cid}", {}) or {}
+                    interval_days = max(0, min(int(scheduled_cfg.get("reverify_interval_days", 0) or 0), 90))
+                    if not interval_days:
+                        continue
+                    last_run = int(db.get(f"JOIN_BULK_LAST_{scheduled_cid}", 0) or 0)
+                    if now_s - last_run >= interval_days * 86400:
+                        _start_bulk_captcha(self, scheduled_cid, "scheduled")
+            except Exception as error:
+                add_web_log("ERROR", f"Programador de captcha: {error}")
+
         # Snapshot diario de suscriptores + refresco de la caché de propiedad (Bot API).
         if now_s - db.get("LAST_CHANNEL_SNAPSHOT", 0) > 86400:
             db.set("LAST_CHANNEL_SNAPSHOT", now_s)

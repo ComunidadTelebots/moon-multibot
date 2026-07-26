@@ -1105,6 +1105,15 @@
         </label>
         <button class="btn ghost" id="gjoinSave" style="width:auto;margin-top:16px">Guardar</button>
       </div>
+      <div class="btnrow" style="align-items:center">
+        <label style="flex:1;font-size:12px;color:var(--muted)">Reverificar cada (días; 0 desactiva)
+          <input id="gjoinInterval" type="number" min="0" max="90" value="${cfg.reverify_interval_days||0}">
+        </label>
+        <label style="flex:2;font-size:12px;color:var(--muted)">Usuarios exentos (IDs separados por comas)
+          <input id="gjoinExempt" value="${escHtml((cfg.exempt_user_ids||[]).join(", "))}" placeholder="123456, 789012">
+        </label>
+      </div>
+      ${cfg.reverify_interval_days?`<p class="muted">Próxima campaña estimada: ${new Date(((d.bulk_last_run||Math.floor(Date.now()/1000))+cfg.reverify_interval_days*86400)*1000).toLocaleString()}</p>`:""}
       <div class="casbox" style="margin-top:10px"><b>Reverificación colectiva</b><p class="muted">Silencia a todos los miembros conocidos y les envía el captcha por privado. Telegram bloqueará el privado si nunca iniciaron el bot.</p>
         ${bulk.status?`<p class="muted">${bulk.status==="running"?"En curso":"Último resultado"}: ${bulk.processed||0}/${bulk.total||0} · ${bulk.muted||0} silenciados · ${bulk.private_sent||0} privados · ${bulk.private_blocked||0} no entregados</p>`:""}
         <div class="btnrow"><button class="btn ghost" id="gjoinPreview">Vista previa</button><button class="btn red" id="gjoinReverify" ${bulk.status==="running"?"disabled":""}>Obligar a todos</button>${bulk.status==="running"?'<button class="btn ghost" id="gjoinCancel">Cancelar</button>':""}</div>
@@ -1127,7 +1136,9 @@
       const challenge_ttl=Number(document.getElementById("gjoinChallenge").value);
       const request_ttl=Number(document.getElementById("gjoinRequest").value)*3600;
       const ownChannel=document.getElementById("gjoinChannels").value.trim().replace(/^@/,"");
-      const payload={mute_until_verified:document.getElementById("gjoinMute").classList.contains("on"),strict_enforcement:d.global_strict_enforcement?!!cfg.strict_enforcement:document.getElementById("gjoinStrict").classList.contains("on"),max_attempts,challenge_ttl,request_ttl,required_channels:ownChannel?[ownChannel]:[]};
+      const reverify_interval_days=Number(document.getElementById("gjoinInterval").value);
+      const exempt_user_ids=document.getElementById("gjoinExempt").value.split(",").map(x=>x.trim()).filter(x=>/^\d+$/.test(x));
+      const payload={mute_until_verified:document.getElementById("gjoinMute").classList.contains("on"),strict_enforcement:d.global_strict_enforcement?!!cfg.strict_enforcement:document.getElementById("gjoinStrict").classList.contains("on"),max_attempts,challenge_ttl,request_ttl,reverify_interval_days,exempt_user_ids,required_channels:ownChannel?[ownChannel]:[]};
       const globalInput=document.getElementById("gjoinGlobalChannel");
       if(globalInput)payload.global_required_channel=globalInput.value.trim().replace(/^@/,"");
       const r=await gp("/group/join/settings",payload);
