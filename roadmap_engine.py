@@ -79,6 +79,110 @@ class RoadmapEngine:
         self._record("security", "shared_recurrence", {k: v for k, v in result.items() if k != "records"})
         return result
 
+    # Horizonte 202 · primera fase operativa
+    def conversation_escalation(self, group_id, samples, window_seconds=300):
+        rows = [x for x in (samples or []) if isinstance(x, dict)][-200:]
+        messages = len(rows)
+        users = len({self._id(x.get("user_id")) for x in rows if x.get("user_id") is not None})
+        negative = sum(float(x.get("negative", x.get("toxicity", 0)) or 0) for x in rows)
+        caps = sum(str(x.get("text", "")).isupper() and len(str(x.get("text", ""))) >= 8 for x in rows)
+        reports = sum(bool(x.get("reported")) for x in rows)
+        pace = round(messages * 60 / max(1, int(window_seconds)), 2)
+        score = min(100, round(pace * 1.5 + negative * 12 + caps * 4 + reports * 12))
+        level = "critical" if score >= 75 else "watch" if score >= 40 else "calm"
+        result = {"group_id": self._id(group_id), "score": score, "level": level,
+                  "messages": messages, "users": users, "messages_per_minute": pace,
+                  "signals": {"negative": round(negative, 2), "caps": caps, "reports": reports},
+                  "recommended_action": "activate_mediator" if score >= 75 else "notify_admins" if score >= 40 else "none",
+                  "created_at": self._now().isoformat()}
+        self._append("H202_ESCALATION_RADAR", result, 1000)
+        return result
+
+    def mediator_session(self, group_id, action, user_id=None, statement=None):
+        key = self._id(group_id)
+        sessions = self._dict("H202_MEDIATOR_SESSIONS")
+        session = sessions.get(key)
+        if action == "start":
+            session = {"group_id": key, "status": "active", "queue": [], "turns": [],
+                       "started_at": self._now().isoformat()}
+        elif not session:
+            raise ValueError("no existe una sesión de mediación activa")
+        elif action == "join":
+            uid = self._id(user_id)
+            if not uid:
+                raise ValueError("user_id requerido")
+            if uid not in session["queue"]:
+                session["queue"].append(uid)
+        elif action == "turn":
+            uid = self._id(user_id)
+            if not session["queue"] or session["queue"][0] != uid:
+                raise ValueError("no es el turno de ese usuario")
+            session["turns"].append({"user_id": uid, "statement": str(statement or "")[:2000],
+                                     "created_at": self._now().isoformat()})
+            session["queue"] = session["queue"][1:] + [uid]
+        elif action == "close":
+            session["status"] = "closed"; session["closed_at"] = self._now().isoformat()
+        else:
+            raise ValueError("acción de mediación inválida")
+        sessions[key] = session; self.db.set("H202_MEDIATOR_SESSIONS", sessions)
+        return session
+
+    def domain_quarantine(self, url, domain_age_days=None, trusted_domains=None, minimum_age_days=30):
+        parsed = urlparse(str(url or "").strip())
+        domain = (parsed.hostname or "").casefold().rstrip(".")
+        if parsed.scheme not in ("http", "https") or not domain:
+            raise ValueError("URL HTTP/HTTPS inválida")
+        trusted = {str(x).casefold().rstrip(".") for x in (trusted_domains or [])}
+        age = int(domain_age_days) if domain_age_days is not None else None
+        quarantined = domain not in trusted and (age is None or age < int(minimum_age_days))
+        result = {"url": str(url), "domain": domain, "domain_age_days": age,
+                  "minimum_age_days": int(minimum_age_days), "trusted": domain in trusted,
+                  "quarantined": quarantined,
+                  "reason": "edad desconocida" if quarantined and age is None else "dominio reciente" if quarantined else "permitido"}
+        self._record("security", "domain_quarantine", result)
+        return result
+
+    def peer_review(self, action, case_id=None, reviewer_id=None, verdict=None, payload=None, quorum=3):
+        cases = self._dict("H202_PEER_REVIEWS")
+        if action == "create":
+            case_id = uuid.uuid4().hex[:12]
+            cases[case_id] = {"id": case_id, "payload": payload or {}, "status": "review",
+                              "votes": {}, "quorum": max(2, int(quorum)), "created_at": self._now().isoformat()}
+        else:
+            case_id = self._id(case_id); case = cases.get(case_id)
+            if not case:
+                raise ValueError("caso no encontrado")
+            if action == "vote":
+                if verdict not in ("confirm", "dismiss", "abstain"):
+                    raise ValueError("veredicto inválido")
+                case["votes"][self._id(reviewer_id)] = verdict
+                decisive = [v for v in case["votes"].values() if v != "abstain"]
+                if len(decisive) >= case["quorum"]:
+                    case["status"] = "confirmed" if decisive.count("confirm") > decisive.count("dismiss") else "dismissed"
+                    case["resolved_at"] = self._now().isoformat()
+            elif action != "get":
+                raise ValueError("acción de revisión inválida")
+        self.db.set("H202_PEER_REVIEWS", cases)
+        return cases[case_id]
+
+    def rule_impact_simulation(self, group_id, rule, samples):
+        rule = rule or {}; action = str(rule.get("action", "notify"))
+        keyword = str(rule.get("keyword", "")).casefold().strip()
+        minimum_score = float(rule.get("minimum_score", 0) or 0)
+        matches = []
+        for index, sample in enumerate((samples or [])[:1000]):
+            item = sample if isinstance(sample, dict) else {"text": str(sample)}
+            text = str(item.get("text", ""))
+            if (not keyword or keyword in text.casefold()) and float(item.get("score", 0) or 0) >= minimum_score:
+                matches.append({"index": index, "preview": text[:120], "user_id": item.get("user_id")})
+        total = len(samples or [])
+        result = {"group_id": self._id(group_id), "rule": rule, "action": action,
+                  "sample_size": total, "matches": len(matches),
+                  "impact_percent": round(len(matches) * 100 / max(1, total), 1),
+                  "examples": matches[:20], "safe_to_apply": action != "ban" or len(matches) <= max(3, total * 0.1)}
+        self._append("H202_RULE_SIMULATIONS", result, 500)
+        return result
+
     def impersonation_check(self, candidate, administrators):
         name = str(candidate.get("name", "")).casefold().strip()
         username = str(candidate.get("username", "")).casefold().lstrip("@")
@@ -540,6 +644,10 @@ class RoadmapEngine:
     def snapshot(self):
         return {
             "security": {"raids": self._list("SECURITY_RAID_SIGNALS")[-50:]},
+            "horizon202": {"escalation": self._list("H202_ESCALATION_RADAR")[-50:],
+                           "mediators": self._dict("H202_MEDIATOR_SESSIONS"),
+                           "peer_reviews": self._dict("H202_PEER_REVIEWS"),
+                           "rule_simulations": self._list("H202_RULE_SIMULATIONS")[-20:]},
             "content": {"items": list(reversed(self._list("CONTENT_ITEMS")))[:100],
                         "schedule": list(reversed(self._list("CONTENT_SCHEDULE")))[:100],
                         "library": list(reversed(self._list("CONTENT_LIBRARY")))[:100],
