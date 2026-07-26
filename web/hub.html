@@ -235,6 +235,11 @@
     display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .proxy-item .pd{font-family:var(--mono);font-size:12.5px;}
   .proxy-item small{color:var(--muted);}
+  .proxy-item{align-items:flex-start;flex-direction:column;}
+  .proxy-actions{display:flex;gap:7px;flex-wrap:wrap;width:100%;}
+  .proxy-actions button,.proxy-actions .connect{border:1px solid var(--line);border-radius:9px;padding:7px 10px;background:var(--panel);color:var(--text);font:600 11px var(--body);cursor:pointer;}
+  .proxy-actions .connect{background:var(--teal);border-color:var(--teal);color:#04121f;}
+  .proxy-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px;font:10px var(--mono);color:var(--muted);}
   .connect{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--teal);cursor:pointer;
     padding:5px 11px;border-radius:999px;border:1px solid rgba(93,202,165,.4);background:rgba(93,202,165,.06);}
 
@@ -387,6 +392,18 @@
   function gpct(n){if(n==null||isNaN(n))return"—";const s=Math.abs(n).toFixed(1).replace('.',',');return(n>=0?"+":"−")+s+"%";}
   function initials(s){return(s||"C").replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase()||"CH";}
   async function apiGet(p){try{const r=await fetch(API+p);return await r.json();}catch(e){return null;}}
+  async function copyText(value){
+    try{await navigator.clipboard.writeText(value);showToast("Proxy copiado");}
+    catch(e){try{const t=document.createElement("textarea");t.value=value;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();showToast("Proxy copiado");}catch(_){showToast("No se pudo copiar");}}
+  }
+  function proxyConnectionLink(p){return p.https_link||p.tg_link||`https://t.me/proxy?server=${encodeURIComponent(p.server)}&port=${encodeURIComponent(p.port)}&secret=${encodeURIComponent(p.secret)}`;}
+  function renderProxies(out,d){
+    if(!d||!d.ok||!d.proxies||!d.proxies.length){out.innerHTML=`<p class="muted" style="margin-top:10px;">No hay proxies disponibles ahora mismo.</p><button class="minibtn" data-retry-proxy>Reintentar</button>`;out.querySelector("[data-retry-proxy]").onclick=()=>fetchProxy(true,out);return;}
+    out.innerHTML=d.proxies.map((p,i)=>{const link=proxyConnectionLink(p),raw=`${p.server}:${p.port}:${p.secret}`;return `<div class="proxy-item"><div class="pd">${escHtml(p.server)}:${escHtml(p.port)}<div class="proxy-meta"><span>${escHtml(p.tag||p.country||'MTProto')}</span><span>${p.ping_ms!=null?escHtml(p.ping_ms)+' ms':'Disponible'}</span><span>${escHtml(p.source||'red')}</span></div></div><div class="proxy-actions"><span class="connect" data-open="${escHtml(link)}">Conectar</span><button data-copy="${escHtml(raw)}">Copiar</button>${i===0?'<button data-more>Actualizar</button>':''}</div></div>`;}).join("");
+    out.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>{ev("proxy_connect");openTg(el.dataset.open);});
+    out.querySelectorAll("[data-copy]").forEach(el=>el.onclick=()=>copyText(el.dataset.copy));
+    const more=out.querySelector("[data-more]");if(more)more.onclick=()=>fetchProxy(true,out);
+  }
   function offlineQueue(){try{return JSON.parse(localStorage.getItem("moon_offline_queue")||"[]");}catch(e){return [];}}
   function queueOffline(kind,path,payload){const rows=offlineQueue();rows.push({id:Date.now()+"-"+Math.random(),kind,path,payload,created_at:new Date().toISOString()});localStorage.setItem("moon_offline_queue",JSON.stringify(rows.slice(-200)));return {ok:false,offline:true,queued:true};}
   async function syncOfflineQueue(){if(!navigator.onLine)return;const rows=offlineQueue(),pending=[];for(const item of rows){try{const url=item.kind==="public"?API+item.path:item.path,headers={"Content-Type":"application/json"};if(item.kind==="master")headers.Authorization=`Bearer ${masterToken}`;const r=await fetch(url,{method:"POST",headers,body:JSON.stringify(item.payload)});if(!r.ok)pending.push(item);}catch(e){pending.push(item);}}localStorage.setItem("moon_offline_queue",JSON.stringify(pending));if(rows.length&&!pending.length)showToast("Cambios offline sincronizados");}
@@ -2198,14 +2215,11 @@
     el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>{ev("service_open",{service:SERVICES[x.dataset.i].n});openLink(SERVICES[x.dataset.i].url);});
     document.getElementById("proxyItem").onclick=fetchProxy;
   }
-  function fetchProxy(){
-    const out=document.getElementById("proxyOut");
+  function fetchProxy(refresh=false,target=null){
+    const out=target||document.getElementById("proxyOut")||document.getElementById("c-proxyOut");
+    if(!out)return;
     out.innerHTML=`<p class="muted" style="margin-top:10px;">Buscando proxy…</p>`;
-    apiGet("/proxy").then(d=>{
-      if(!d||!d.ok||!d.proxies||!d.proxies.length){out.innerHTML=`<p class="muted" style="margin-top:10px;">No hay proxies disponibles ahora mismo.</p>`;return;}
-      out.innerHTML=d.proxies.slice(0,3).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
-      out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ev("proxy_connect");openTg(el.dataset.l);});
-    });
+    apiGet(`/proxy?limit=5${refresh?'&refresh=1':''}`).then(d=>renderProxies(out,d));
   }
 
   // ── Ajustes ──
@@ -2401,12 +2415,7 @@
     document.getElementById("c-btnMaster").onclick=()=>openLink("https://cintiabot.todosobreall.tech/panel");
     document.getElementById("c-backNew").onclick=()=>setTheme("nuevo");
     document.getElementById("c-btnProxy").onclick=function(){
-      const out=document.getElementById("c-proxyOut");out.innerHTML=`<p class="muted">Buscando…</p>`;
-      apiGet("/proxy").then(d=>{
-        if(!d||!d.ok||!d.proxies||!d.proxies.length){out.innerHTML=`<p class="muted">No hay proxies disponibles ahora.</p>`;return;}
-        out.innerHTML=d.proxies.slice(0,3).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
-        out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ev("proxy_connect");openTg(el.dataset.l);});
-      });
+      fetchProxy(false,document.getElementById("c-proxyOut"));
     };
   }
 

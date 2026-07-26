@@ -18,6 +18,8 @@ import time
 import secrets
 import re
 import ipaddress
+import urllib.request
+import urllib.error
 from urllib.parse import parse_qsl, urlparse
 
 import jwt
@@ -3149,16 +3151,15 @@ def public_ranking():
 
 @bp.route("/api/public/proxy")
 def public_proxy():
-    """Devuelve un proxy MTProto activo listo para conectar (sin login)."""
-    if not _proxy_mgr:
-        return jsonify({"ok": False, "error": "proxy no disponible"}), 503
+    """Devuelve proxies MTProto activos, usando el catálogo de red como respaldo."""
+    limit = max(1, min(10, request.args.get("limit", 5, type=int)))
     try:
-        vps = _proxy_mgr.get_vps_config(include_secret=True) or {}
+        vps = _proxy_mgr.get_vps_config(include_secret=True) or {} if _proxy_mgr else {}
     except Exception:
         vps = {}
     host = vps.get("host")
     candidates = []
-    for p in getattr(_proxy_mgr, "proxies", []) or []:
+    for p in getattr(_proxy_mgr, "proxies", []) or [] if _proxy_mgr else []:
         port, secret = p.get("port"), p.get("secret")
         if host and port and secret:
             candidates.append({
@@ -3168,7 +3169,34 @@ def public_proxy():
                 "tg_link": f"tg://proxy?server={host}&port={port}&secret={secret}",
                 "https_link": f"https://t.me/proxy?server={host}&port={port}&secret={secret}",
                 "tag": p.get("tag", ""),
+                "source": "moonbot",
+                "status": "online",
             })
     if not candidates:
+        upstream = os.environ.get("MTPROTO_PROXY_API", "http://api:3001/mtproto-proxies")
+        try:
+            suffix = "&refresh=1" if request.args.get("refresh") == "1" and "?" in upstream else "?refresh=1" if request.args.get("refresh") == "1" else ""
+            with urllib.request.urlopen(upstream + suffix, timeout=8) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            rows = payload.get("proxies", []) if isinstance(payload, dict) else []
+            rows.sort(key=lambda p: (p.get("source") != "own", p.get("status") != "online", p.get("pingMs") is None, p.get("pingMs") or 999999))
+            for p in rows:
+                server, port, secret = p.get("server"), p.get("port"), p.get("secret")
+                if not server or not port or not secret or p.get("status") == "offline":
+                    continue
+                link = p.get("link") or f"tg://proxy?server={server}&port={port}&secret={secret}"
+                candidates.append({
+                    "server": server, "port": port, "secret": secret,
+                    "tg_link": link,
+                    "https_link": link.replace("tg://proxy", "https://t.me/proxy", 1),
+                    "tag": p.get("name") or p.get("country") or "MTProto",
+                    "source": p.get("source", "network"), "status": p.get("status", "online"),
+                    "ping_ms": p.get("pingMs"), "country": p.get("country"),
+                })
+                if len(candidates) >= limit:
+                    break
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            return jsonify({"ok": False, "error": "catálogo de proxies no disponible", "detail": str(exc)[:160]}), 502
+    if not candidates:
         return jsonify({"ok": False, "error": "sin proxies activos configurados"}), 404
-    return jsonify({"ok": True, "count": len(candidates), "proxies": candidates})
+    return jsonify({"ok": True, "count": len(candidates[:limit]), "proxies": candidates[:limit]})

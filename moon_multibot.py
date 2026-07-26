@@ -4515,12 +4515,12 @@ class MoonBot:
 
         proxies = data["proxies"]
         own = [p for p in proxies if p.get("source") == "own" and p.get("status") == "online"]
-        channel = [p for p in proxies if p.get("source") == "channel" and p.get("status") == "online" and p.get("ll")]
+        channel = [p for p in proxies if p.get("source") != "own" and p.get("status") == "online"]
 
         if uloc:
             for p in channel:
                 try:
-                    p["_dist"] = _haversine(uloc, (p["ll"][0], p["ll"][1]))
+                    p["_dist"] = _haversine(uloc, (p["ll"][0], p["ll"][1])) if p.get("ll") else 9e9
                 except Exception:
                     p["_dist"] = 9e9
             channel.sort(key=lambda p: p.get("_dist", 9e9))
@@ -4536,14 +4536,16 @@ class MoonBot:
             lines.append("*🛡 Nuestros proxies (recomendados):*")
             for p in own:
                 name = p.get("name") or p.get("server")
-                lines.append(f"{_flag(p.get('country'))} `{name}` · {p.get('pingMs','?')} ms — [▶️ Conectar]({p['link']})")
+                link = p.get("link") or f"https://t.me/proxy?server={p.get('server')}&port={p.get('port')}&secret={p.get('secret')}"
+                lines.append(f"{_flag(p.get('country'))} `{name}` · {p.get('pingMs','?')} ms — [▶️ Conectar]({link})")
             lines.append("")
 
         if nearest:
             lines.append("*🌍 Más cercanos a ti:*")
             for p in nearest:
                 dist = f" · ~{int(p['_dist'])} km" if p.get("_dist") is not None else ""
-                lines.append(f"{_flag(p.get('country'))} {p.get('country','??')} · {p.get('pingMs','?')} ms{dist} — [▶️ Conectar]({p['link']})")
+                link = p.get("link") or f"https://t.me/proxy?server={p.get('server')}&port={p.get('port')}&secret={p.get('secret')}"
+                lines.append(f"{_flag(p.get('country'))} {p.get('country','??')} · {p.get('pingMs','?')} ms{dist} — [▶️ Conectar]({link})")
             lines.append("")
 
         lines.append("_Pulsa «Conectar» y Telegram activará el proxy. Si uno falla, prueba otro._")

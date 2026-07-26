@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Obtención fiable de proxies MTProto - 2026-07-26
+
+- La MiniApp usa el catálogo completo de TodoSobreAllTech cuando Moonbot no tiene proxies locales configurados.
+- Los nodos propios y de menor latencia se priorizan y se omiten los marcados como desconectados.
+- La vista ofrece conexión directa, copia de credenciales, latencia, origen, actualización y reintento.
+- El comando `/proxy` admite fuentes comunitarias y reconstruye enlaces ausentes.
+
 ### Servicio gratuito y sin ánimo de lucro - 2026-07-26
 
 - `/start`, `/help` y el nuevo comando `/gratis` explican el carácter comunitario y gratuito del servicio.
