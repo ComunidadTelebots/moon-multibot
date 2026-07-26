@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.10.0 - Centro de IA externo - 2026-07-26
+
+- ConfiguraciÃ³n segura de proveedor y modelo global sin exponer claves API.
+- SelecciÃ³n de proveedor, modelo y finalidad por grupo administrado.
+- Alta y eliminaciÃ³n de fuentes aprobadas y borrado selectivo de memorias.
+- Registro comparable de precisiÃ³n, latencia y coste por modelo.
+- DetecciÃ³n de preguntas sin respuesta y lagunas de conocimiento.
+- Cola de revisiÃ³n humana con aprobaciÃ³n, rechazo, comentarios y auditorÃ­a.
+
 ## v18.9.0 - Seguridad administrativa completada - 2026-07-26
 
 - AgregaciÃ³n de fuentes CAS, SpamWatch, registro comunitario, listas locales y otras fuentes.

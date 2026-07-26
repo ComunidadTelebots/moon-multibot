@@ -691,6 +691,20 @@ app.register_blueprint(_setup_public(
     get_global_chat_names=lambda: global_chat_names,
     add_audit_log=add_audit_log,
     vt_manager=vt_mgr,
+    get_ai_runtime_config=lambda: {
+        "USE_EXTERNAL_LLM": USE_EXTERNAL_LLM,
+        "HYBRID_PERCENTAGE": HYBRID_PERCENTAGE,
+        "LLM_PROVIDER": LLM_PROVIDER,
+        "OLLAMA_MODEL": OLLAMA_MODEL,
+        "DEEP_DREAM_MODE": DEEP_DREAM_MODE,
+    },
+    set_ai_runtime_config=lambda cfg: globals().update({
+        "USE_EXTERNAL_LLM": cfg["USE_EXTERNAL_LLM"],
+        "HYBRID_PERCENTAGE": cfg["HYBRID_PERCENTAGE"],
+        "LLM_PROVIDER": cfg["LLM_PROVIDER"],
+        "OLLAMA_MODEL": cfg["OLLAMA_MODEL"],
+        "DEEP_DREAM_MODE": cfg["DEEP_DREAM_MODE"],
+    }),
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,

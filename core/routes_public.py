@@ -51,16 +51,19 @@ _get_global_user_stats = None
 _get_global_chat_names = None
 _add_audit_log = None
 _vt_manager = None
+_get_ai_runtime_config = None
+_set_ai_runtime_config = None
 _community_api_usage = {}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
           hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None,
-          add_audit_log=None, vt_manager=None):
+          add_audit_log=None, vt_manager=None, get_ai_runtime_config=None, set_ai_runtime_config=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
     global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log, _vt_manager
+    global _get_ai_runtime_config, _set_ai_runtime_config
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -75,6 +78,8 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _get_global_chat_names = get_global_chat_names
     _add_audit_log = add_audit_log
     _vt_manager = vt_manager
+    _get_ai_runtime_config = get_ai_runtime_config
+    _set_ai_runtime_config = set_ai_runtime_config
     return bp
 
 
@@ -611,6 +616,70 @@ def internal_editorial():
         return jsonify({"ok": False, "error": str(error)}), 400
     if _add_audit_log:
         _add_audit_log(f"TodoSobreAllTech editorial: {action}")
+    return jsonify({"ok": True, "result": result})
+
+
+@bp.route("/api/internal/ai-center", methods=["GET", "POST"])
+def internal_ai_center():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    engine = RoadmapEngine(_db)
+    if request.method == "GET":
+        runtime = _get_ai_runtime_config() if _get_ai_runtime_config else {}
+        evaluations = list(reversed(_safe_list(_db.get("AI_MODEL_EVALUATIONS", []))))[:100]
+        sources = list(reversed(_safe_list(_db.get("AI_APPROVED_SOURCES", []))))[:200]
+        reviews = list(reversed(_safe_list(_db.get("AI_HUMAN_REVIEWS", []))))[:200]
+        group_configs = {cid: _db.get(f"AI_GROUP_CONFIG_{cid}", {}) for cid in _known_internal_group_ids()}
+        memories = {cid: len(_safe_list(_db.get(f"AI_MEMORY_{cid}", []))) for cid in _known_internal_group_ids()}
+        return jsonify({"ok": True, "runtime": {
+            "use_external": bool(runtime.get("USE_EXTERNAL_LLM")), "hybrid_ratio": int(runtime.get("HYBRID_PERCENTAGE", 0)),
+            "provider": runtime.get("LLM_PROVIDER", "local"), "model": runtime.get("OLLAMA_MODEL", ""),
+            "deep_dream": bool(runtime.get("DEEP_DREAM_MODE")),
+        }, "group_configs": group_configs, "sources": sources, "evaluations": evaluations,
+            "reviews": reviews, "memories": memories})
+    body = request.json or {}; action = str(body.get("action", "")); result = None
+    try:
+        if action == "runtime":
+            provider = str(body.get("provider", "local")).lower()
+            if provider not in ("local", "ollama", "gemini"):
+                return jsonify({"ok": False, "error": "invalid_provider"}), 400
+            cfg = _get_ai_runtime_config() if _get_ai_runtime_config else {}
+            cfg.update({"USE_EXTERNAL_LLM": bool(body.get("use_external")), "HYBRID_PERCENTAGE": max(0, min(int(body.get("hybrid_ratio", 0)), 100)),
+                        "LLM_PROVIDER": provider, "OLLAMA_MODEL": str(body.get("model", ""))[:200], "DEEP_DREAM_MODE": bool(body.get("deep_dream"))})
+            if _set_ai_runtime_config: _set_ai_runtime_config(cfg)
+            result = {key: cfg[key] for key in ("USE_EXTERNAL_LLM", "HYBRID_PERCENTAGE", "LLM_PROVIDER", "OLLAMA_MODEL", "DEEP_DREAM_MODE")}
+        elif action == "group_config":
+            cid = str(body.get("group_id", ""))
+            if cid not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
+            result = {"provider": str(body.get("provider", "inherit"))[:50], "model": str(body.get("model", ""))[:200],
+                      "purpose": str(body.get("purpose", "conversation"))[:50], "updated_at": datetime.datetime.now().isoformat()}
+            _db.set(f"AI_GROUP_CONFIG_{cid}", result)
+        elif action == "source_add":
+            cid = str(body.get("group_id", ""))
+            if cid not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
+            result = engine.ai_source(cid, body.get("title", ""), body.get("content", ""), True)
+        elif action == "source_delete":
+            rows = _safe_list(_db.get("AI_APPROVED_SOURCES", [])); before = len(rows)
+            rows = [item for item in rows if str(item.get("id")) != str(body.get("source_id"))]; _db.set("AI_APPROVED_SOURCES", rows)
+            result = {"deleted": before - len(rows)}
+        elif action == "memory_delete":
+            cid = str(body.get("group_id", "")); index = int(body.get("index", -1)); rows = _safe_list(_db.get(f"AI_MEMORY_{cid}", []))
+            if index < 0 or index >= len(rows): return jsonify({"ok": False, "error": "memory_not_found"}), 404
+            rows.pop(index); _db.set(f"AI_MEMORY_{cid}", rows); result = {"remaining": len(rows)}
+        elif action == "evaluate":
+            result = engine.model_evaluation(body.get("model"), body.get("correct", 0), body.get("total", 0), body.get("latency_ms", 0), body.get("cost", 0))
+        elif action == "unanswered":
+            result = {"questions": engine.unanswered_questions(body.get("messages") or [], body.get("response_window", 10))}
+        elif action == "review_create":
+            rows = _safe_list(_db.get("AI_HUMAN_REVIEWS", [])); result = {"id": secrets.token_hex(6), "question": str(body.get("question", ""))[:1000], "answer": str(body.get("answer", ""))[:5000], "status": "pending", "created_at": datetime.datetime.now().isoformat()}; rows.append(result); _db.set("AI_HUMAN_REVIEWS", rows[-1000:])
+        elif action == "review_resolve":
+            rows = _safe_list(_db.get("AI_HUMAN_REVIEWS", [])); result = next((item for item in rows if item.get("id") == body.get("review_id")), None)
+            if not result: return jsonify({"ok": False, "error": "review_not_found"}), 404
+            result.update({"status": "approved" if body.get("approved") else "rejected", "comment": str(body.get("comment", ""))[:1000], "resolved_at": datetime.datetime.now().isoformat()}); _db.set("AI_HUMAN_REVIEWS", rows)
+        else: return jsonify({"ok": False, "error": "invalid_action"}), 400
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    if _add_audit_log: _add_audit_log(f"TodoSobreAllTech IA: {action}")
     return jsonify({"ok": True, "result": result})
 
 
