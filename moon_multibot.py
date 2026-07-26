@@ -3668,6 +3668,7 @@ class MoonBot:
         plugins = self._plugin_command_catalog(chat_id)
         public = {
             "start": "Abrir el menú y la Mini App", "help": "Ver ayuda de comandos",
+            "gratis": "Servicio gratuito y sin ánimo de lucro",
             "perfil": "Consultar tu perfil", "top": "Ver miembros destacados",
             "report": "Reportar un mensaje", "traducir": "Traducir texto",
             "games": "Abrir minijuegos", "wayback": "Consultar Wayback Machine",
@@ -4694,6 +4695,7 @@ class MoonBot:
         return {
             "start": "Abre el menú principal y muestra el acceso a la Mini App.",
             "help": "Muestra los comandos disponibles. Usa /help comando para ver una explicación concreta.",
+            "gratis": "Explica el carácter comunitario, gratuito y sin ánimo de lucro de Moonbot y TodoSobreAllTech.",
             "perfil": "Muestra nivel, experiencia, karma, actividad e insignias del usuario.",
             "top": "Muestra los miembros con más actividad registrada.",
             "search": "Busca información en las fuentes externas configuradas.",
@@ -4765,6 +4767,10 @@ class MoonBot:
         add_web_log("DEBUG", f"[CMD] Procesando '{raw_cmd}' de {uname} (Rango: {rk})")
 
         # 2. Comandos PÃºblicos / Globales
+        if raw_cmd in ["/gratis", "/gratuito", "/free", "/nonprofit", "/sinlucro"]:
+            self.send_msg(cid, "💚 **Servicio comunitario gratuito**\n\nMoonbot y TodoSobreAllTech son proyectos sin ánimo de lucro. El acceso a las funciones ofrecidas, la moderación, el captcha y las herramientas comunitarias no tiene coste. Cualquier apoyo o donación es voluntario y no desbloquea privilegios.")
+            return True
+
         if raw_cmd in ["/report", "/reportar"]:
             replied = msg.get("reply_to_message") or {}
             target = (replied.get("from") or {}).get("id")
@@ -4822,6 +4828,7 @@ class MoonBot:
             ]}
             welcome = (f"🌙 *Hola {uname}*\n\nSoy *CintiaBot*. Abre el *panel* para acceder a todas "
                        "las funciones: proxies MTProto, directorio de canales y servicios de la red.\n\n"
+                       "💚 Servicio comunitario gratuito y sin ánimo de lucro.\n\n"
                        "También puedes escribir /proxy para pedir un proxy directamente.")
             self.api_call("sendMessage", {
                 "chat_id": cid,
@@ -4832,7 +4839,7 @@ class MoonBot:
             return True
 
         if raw_cmd in ["/start", "/inicio", "/commencer", "/starten", "/inizio", "/iniciar", "/basla"]:
-            self.send_msg(cid, f"ðŸŒ™ **Moon Multibot Activo**\n\nHola {uname}, el nÃºcleo estÃ¡ operando con normalidad. Usa `/ayuda` para ver mis capacidades.")
+            self.send_msg(cid, f"ðŸŒ™ **Moon Multibot Activo**\n\nHola {uname}, el nÃºcleo estÃ¡ operando con normalidad.\n\n💚 Servicio comunitario gratuito y sin ánimo de lucro. Usa `/ayuda` para ver mis capacidades.")
             return True
         
         if raw_cmd in ["/ayuda", "/comandos", "/help", "/aide", "/hilfe", "/aiuto", "/ajuda", "/pomoc", "/yardim"]:
@@ -4853,6 +4860,7 @@ class MoonBot:
             help_text += "ðŸŒ **TraducciÃ³n:** `/traducir`, `/aprender_traduccion es en hola = hello`\n"
             help_text += "🕰 **Archivo web:** `/wayback URL [YYYYMMDD]`\n"
             help_text += "📝 **Rich Markdown 10.2:** `/rich contenido`\n"
+            help_text += "💚 **Sobre el proyecto:** `/gratis` — servicio gratuito y sin ánimo de lucro.\n"
             if rk in ["Admin", "Master"]:
                 help_text += "ðŸ›¡ï¸ **ModeraciÃ³n:** `/mute`, `/ban`, `/unban`, `/gban`, `/ungban`, `/warn`\n"
                 help_text += "âš™ï¸ **Ajustes:** `/settings`, `/ia_feed`, `/resumen`, `/ia_programar`\n"

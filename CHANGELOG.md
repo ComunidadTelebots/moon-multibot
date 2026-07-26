@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Servicio gratuito y sin ánimo de lucro - 2026-07-26
+
+- `/start`, `/help` y el nuevo comando `/gratis` explican el carácter comunitario y gratuito del servicio.
+- El menú de comandos de Telegram y el Hub muestran la misma información.
+- Se aclara que cualquier apoyo es voluntario y no concede privilegios.
+
 ### Anuncios recíprocos entre grupos - 2026-07-26
 
 - Los socios se ordenan por categoría y tamaño de audiencia, excluyendo destinos incompatibles o desactivados.
