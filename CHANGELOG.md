@@ -2,6 +2,7 @@
 
 ### Carga de sitios integrados - 2026-07-26
 
+- Se corrige la capa de carga que permanecía visible sobre NoticiasWeb3 aunque el iframe ya hubiese terminado.
 - El Hub elimina la pantalla de carga al completar el iframe y ofrece recuperación tras doce segundos si la red es lenta.
 
 ### Anuncios propios configurables - 2026-07-26
