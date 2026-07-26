@@ -2,6 +2,7 @@
 
 ### Anuncios propios configurables - 2026-07-26
 
+- La MiniApp recomienda automáticamente el hueco con menor cobertura y aprovecha la campaña con mejor CTR.
 - El catálogo conserva el diseño personalizado compartido: colores y llamada a la acción.
 - Moonbot mantiene el catálogo central de promociones propias para canales y grupos.
 - El master puede añadir, pausar, activar y eliminar anuncios desde la MiniApp.
