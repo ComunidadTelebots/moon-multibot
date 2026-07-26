@@ -1979,3 +1979,7 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 - Nuevo control por grupo y global para que los pendientes no puedan eludir el captcha.
 - Moonbot reaplica los permisos silenciados ante cada intento y vuelve a mostrar el desafío.
 - El control está disponible tanto en la MiniApp como en el panel web de TodoSobreAllTech.
+# Publicidad automática de canales del master
+
+- NoticiasWeb3 recibe campañas propias generadas desde los canales donde el master es creador o administrador.
+- Los anuncios conservan impresiones, clics y métricas por ubicación, y desaparecen si el canal deja de estar administrado.

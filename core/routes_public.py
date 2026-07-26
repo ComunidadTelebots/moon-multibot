@@ -1545,10 +1545,54 @@ def _house_ads_payload(placement=None):
     return sorted(rows, key=lambda row: (-int(row.get("priority", 0) or 0), str(row.get("title", ""))))
 
 
+def _sync_master_channel_ads():
+    """Mantiene campañas automáticas para los canales de Telegram del master."""
+    if not _db or not _master_id:
+        return
+    try:
+        channels = _channel_stats.channels_for_admin(_master_id)
+    except Exception:
+        return
+    rows = _safe_list(_db.get("HOUSE_ADS", []))
+    existing = {str(row.get("source_chat_id")): row for row in rows if row.get("source") == "master_channel"}
+    generated = []
+    suppressed = set(str(value) for value in _safe_list(_db.get("HOUSE_ADS_SUPPRESSED_CHANNELS", [])))
+    for channel in channels:
+        username = str(channel.get("username") or "").strip().lstrip("@")
+        if channel.get("ctype") != "channel" or not re.fullmatch(r"[A-Za-z0-9_]{5,64}", username):
+            continue
+        chat_id = str(channel.get("chat_id"))
+        if chat_id in suppressed:
+            continue
+        previous = existing.get(chat_id, {})
+        generated.append({
+            **previous, "id": previous.get("id") or f"master-channel-{hashlib.sha256(chat_id.encode()).hexdigest()[:16]}",
+            "title": str(channel.get("name") or f"@{username}")[:80],
+            "description": str(channel.get("description") or "Canal oficial de la red ComunidadTelebots")[:800],
+            "url": f"https://t.me/{username}", "image": previous.get("image", ""), "placement": "all",
+            "cta": "Suscribirme", "background": previous.get("background", "#edfdf8"),
+            "foreground": previous.get("foreground", "#123c35"), "accent": previous.get("accent", "#0f9f7a"),
+            "starts_at": "", "ends_at": "", "approval_status": "approved", "submitted_by": str(_master_id),
+            "max_clicks": 0, "goal_reached": False, "enabled": previous.get("enabled", True), "priority": 45,
+            "clicks": int(previous.get("clicks", 0) or 0), "impressions": int(previous.get("impressions", 0) or 0),
+            "clicks_by_placement": dict(previous.get("clicks_by_placement") or {}),
+            "impressions_by_placement": dict(previous.get("impressions_by_placement") or {}),
+            "source": "master_channel", "source_chat_id": chat_id, "automatic": True,
+        })
+    manual = [row for row in rows if row.get("source") != "master_channel"]
+    _db.set("HOUSE_ADS", manual + generated)
+
+
 def _house_ads_update(body):
     rows = _house_ads_payload()
     action, ad_id = body.get("action", "upsert"), str(body.get("id") or "")
-    if action == "delete": rows = [row for row in rows if str(row.get("id")) != ad_id]
+    if action == "delete":
+        removed = next((row for row in rows if str(row.get("id")) == ad_id), None)
+        if removed and removed.get("source") == "master_channel":
+            suppressed = set(str(value) for value in _safe_list(_db.get("HOUSE_ADS_SUPPRESSED_CHANNELS", [])))
+            suppressed.add(str(removed.get("source_chat_id")))
+            _db.set("HOUSE_ADS_SUPPRESSED_CHANNELS", sorted(suppressed))
+        rows = [row for row in rows if str(row.get("id")) != ad_id]
     elif action in ("approve", "reject"):
         for row in rows:
             if str(row.get("id")) == ad_id:
@@ -1598,7 +1642,9 @@ def _house_ads_update(body):
                 "goal_reached": bool(raw.get("goal_reached", False)),
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
                 "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
-                "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {})}
+                "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {}),
+                "source": str(raw.get("source") or "manual")[:32], "source_chat_id": str(raw.get("source_chat_id") or "")[:32],
+                "automatic": bool(raw.get("automatic", False))}
         if item["placement"] not in ("all", "top", "right", "inline"): raise ValueError("ubicación no válida")
         if not item["title"]: raise ValueError("título obligatorio")
         rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]
@@ -1610,6 +1656,7 @@ def _house_ads_update(body):
 def internal_house_ads():
     if not _internal_admin_authorized(): return jsonify({"ok": False, "error": "unauthorized"}), 401
     try:
+        _sync_master_channel_ads()
         if request.method == "POST": _house_ads_update(request.json or {})
         return jsonify({"ok": True, "ads": _house_ads_payload()})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
@@ -3441,6 +3488,7 @@ def public_house_ads_manage():
     body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
     if user is None or not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
     try:
+        _sync_master_channel_ads()
         if body.get("action") and body.get("action") != "list": _house_ads_update(body)
         return jsonify({"ok": True, "ads": _house_ads_payload()})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400

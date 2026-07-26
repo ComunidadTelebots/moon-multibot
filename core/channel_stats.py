@@ -234,6 +234,22 @@ def set_channel_admins(chat_id, admins):
         _pb.update(C_CHANNELS, rec["id"], {"admins_checked": _now()})
 
 
+def channels_for_admin(user_id):
+    """Canales activos donde el usuario figura como creador o administrador."""
+    try:
+        memberships = _pb.list(C_ADMINS, filter=f"user_id={int(user_id)}", per_page=500)
+    except (TypeError, ValueError):
+        return []
+    result = []
+    for membership in memberships:
+        if membership.get("status") not in ("creator", "administrator"):
+            continue
+        record = _pb.first(C_CHANNELS, f"chat_id='{_cid(membership.get('chat_id'))}' && active=true")
+        if record:
+            result.append(_to_dict(record, membership.get("status")))
+    return result
+
+
 # ── lectura para colector / backfill ────────────────────────────────────────
 def active_channels(bot_token=None):
     f = "active=true"
