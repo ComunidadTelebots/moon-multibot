@@ -5,6 +5,7 @@ from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from group_administration import GroupAdministration
 from roadmap_engine import RoadmapEngine
+from horizon_completion import HorizonCompletion
 
 bp = Blueprint("users_routes", __name__)
 
@@ -318,6 +319,15 @@ def web_roadmap_snapshot():
     return jsonify({"ok": True, **RoadmapEngine(_db).snapshot()})
 
 
+@bp.route("/api/users/horizon-completion")
+def web_horizon_completion_catalog():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    service = HorizonCompletion(_db)
+    return jsonify({"ok": True, "features": service.catalog(),
+                    "audit": service._list("HORIZON_COMPLETION_AUDIT")[-100:]})
+
+
 @bp.route("/api/users/rich-message", methods=["POST"])
 def web_send_rich_message():
     if not _check_jwt(request):
@@ -378,6 +388,7 @@ def web_roadmap_action():
         "silence_calendar": lambda: service.silence_calendar(data.get("group_id"), data.get("operation", "check"), data.get("starts_at"), data.get("ends_at"), data.get("reason", ""), data.get("window_id"), data.get("check_at")),
         "headline_comparison": lambda: service.compare_headlines(data.get("headlines") or []),
         "public_announcement": lambda: service.public_announcement_version(data.get("operation", "publish"), data.get("announcement_id"), data.get("title", ""), data.get("body", ""), data.get("correction_note", ""), data.get("actor_id")),
+        "horizon_feature": lambda: HorizonCompletion(_db).execute(data.get("slug"), data.get("payload") or {}),
         "impersonation": lambda: service.impersonation_check(data.get("candidate") or {}, data.get("administrators") or []),
         "link_chain": lambda: service.link_chain(data.get("url"), data.get("hops")),
         "file_risk": lambda: service.file_risk(data.get("filename"), data.get("mime"), data.get("hash"), data.get("size", 0)),

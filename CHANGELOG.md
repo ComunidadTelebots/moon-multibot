@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+## v18.0.0 - Horizonte 202 completado
+
+- Las 100 funciones del catálogo Horizonte 202 disponen de una operación ejecutable, persistencia y auditoría.
+- Completadas las áreas de contenido, IA, accesibilidad, privacidad, operaciones, integraciones, sostenibilidad y experiencia Telegram.
+- Nuevo motor `HorizonCompletion` con 75 capacidades estables y catálogo de slugs para API y MiniApp.
+- Ejecutor contextual autenticado en la MiniApp para probar cada función con parámetros JSON.
+- Datos sensibles redactados en auditoría y mensajes administrativos de un solo uso consumibles.
+- Catálogo público marcado como completo y sincronizado con TodoSobreAllTech.
+
 ## v17.9.0 - Contenido conectado
 
 - Series editoriales ordenadas con publicación y archivado.
