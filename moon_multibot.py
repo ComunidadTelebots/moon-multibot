@@ -3618,13 +3618,26 @@ class MoonBot:
         if count > 0: add_web_log("CLEANUP", f"Purga automÃ¡tica: {count} archivos eliminados.")
     def load_plugins(self):
         self.plugins = []
+        self.plugin_health = {}
         if os.path.exists("plugins"):
             for f in os.listdir("plugins"):
                 if f.endswith(".py"):
+                    name = f[:-3]
+                    started = time.perf_counter()
                     try:
-                        spec = importlib.util.spec_from_file_location(f[:-3], os.path.join("plugins", f))
+                        spec = importlib.util.spec_from_file_location(name, os.path.join("plugins", f))
                         m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); self.plugins.append(m)
+                        self.plugin_health[name] = {
+                            "status": "loaded", "load_ms": round((time.perf_counter() - started) * 1000),
+                            "checks": 0, "handled": 0, "errors": 0, "consecutive_errors": 0,
+                            "total_ms": 0, "last_error": None, "blocked_until": 0,
+                        }
                     except Exception as error:
+                        self.plugin_health[name] = {
+                            "status": "load_error", "load_ms": round((time.perf_counter() - started) * 1000),
+                            "checks": 0, "handled": 0, "errors": 1, "consecutive_errors": 1,
+                            "total_ms": 0, "last_error": str(error)[:500], "blocked_until": 0,
+                        }
                         add_web_log("ERROR", f"No se pudo cargar plugin {f}: {error}")
 
     def _plugin_command_catalog(self, chat_id=None):
@@ -3671,12 +3684,16 @@ class MoonBot:
         master.update(plugins["master"])
         normalize = lambda rows: [{"command": key, "description": value[:256]} for key, value in list(rows.items())[:100]]
         controls = group_suite.config(chat_id)["plugin_controls"] if chat_id is not None else {"enabled": True, "disabled_plugins": []}
-        plugin_names = sorted(str(getattr(plugin, "__name__", "plugin")) for plugin in self.plugins)
+        plugin_names = sorted(self.plugin_health)
         disabled = set(controls["disabled_plugins"])
-        active_names = [name for name in plugin_names if controls["enabled"] and name.lower() not in disabled]
+        active_names = [name for name in plugin_names if controls["enabled"] and name.lower() not in disabled and self.plugin_health[name]["status"] != "load_error"]
         return {"public": normalize(public), "admin": normalize(admin), "master": normalize(master),
                 "plugins_loaded": len(self.plugins), "plugin_names": plugin_names,
-                "active_plugins": active_names, "disabled_plugins": controls["disabled_plugins"]}
+                "active_plugins": active_names, "disabled_plugins": controls["disabled_plugins"],
+                "plugin_health": [{"name": name, **health,
+                    "avg_ms": round(health["total_ms"] / health["checks"], 1) if health["checks"] else 0,
+                    "circuit_open": float(health.get("blocked_until", 0)) > time.time(),
+                } for name, health in sorted(self.plugin_health.items())]}
 
     def sync_command_menu(self, chat_id=None):
         menus = self.command_menu_preview(chat_id)
@@ -4450,13 +4467,37 @@ class MoonBot:
             return False
         disabled = set(controls["disabled_plugins"])
         for plugin in self.plugins:
-            if str(getattr(plugin, "__name__", "")).lower() in disabled:
+            plugin_name = str(getattr(plugin, "__name__", "plugin"))
+            if plugin_name.lower() in disabled:
                 continue
+            health = self.plugin_health.setdefault(plugin_name, {"status": "loaded", "load_ms": 0, "checks": 0, "handled": 0, "errors": 0, "consecutive_errors": 0, "total_ms": 0, "last_error": None, "blocked_until": 0})
+            if float(health.get("blocked_until", 0)) > time.time():
+                continue
+            if health.get("status") == "circuit_open":
+                health["status"] = "loaded"
+                health["consecutive_errors"] = 0
             if hasattr(plugin, "handle_command"):
+                started = time.perf_counter()
                 try:
-                    if plugin.handle_command(self, cid, uid, plugin_text, rk):
+                    handled = bool(plugin.handle_command(self, cid, uid, plugin_text, rk))
+                    health["checks"] += 1
+                    health["total_ms"] += round((time.perf_counter() - started) * 1000, 2)
+                    if handled:
+                        health["handled"] += 1
+                        health["consecutive_errors"] = 0
+                        health["last_error"] = None
+                        health["status"] = "loaded"
                         return True
                 except Exception as _pe:
+                    health["checks"] += 1
+                    health["errors"] += 1
+                    health["consecutive_errors"] += 1
+                    health["total_ms"] += round((time.perf_counter() - started) * 1000, 2)
+                    health["last_error"] = str(_pe)[:500]
+                    if health["consecutive_errors"] >= 3:
+                        health["blocked_until"] = time.time() + 300
+                        health["status"] = "circuit_open"
+                        add_web_log("WARNING", f"Plugin {plugin_name} aislado durante 5 minutos tras errores repetidos")
                     add_web_log("ERROR", f"Plugin {getattr(plugin, '__name__', plugin)} error en handle_command: {_pe}")
         return False
 

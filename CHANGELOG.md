@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Salud y rendimiento de plugins - 2026-07-26
+
+- Moonbot mide carga, comprobaciones, ejecuciones, errores y latencia media por plugin.
+- Tres fallos consecutivos abren un cortacircuitos de cinco minutos para mantener operativo el resto del bot.
+- Los errores de importación y ejecución se exponen de forma segura en Hub y TodoSobreAllTech.
+
 ### Aislamiento de plugins por grupo - 2026-07-26
 
 - Cada grupo mantiene su propia lista de plugins desactivados sin afectar al resto de comunidades.

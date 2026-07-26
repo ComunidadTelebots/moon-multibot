@@ -614,6 +614,7 @@
         <div class="statrow"><span><b>${(d.command_menu?.public||[]).length}</b><small>Públicos</small></span><span><b>${(d.command_menu?.admin||[]).length}</b><small>Administración</small></span><span><b>${d.command_menu?.plugins_loaded||0}</b><small>Plugins</small></span></div>
         <label class="setrow"><b>Permitir plugins en este grupo</b><input id="mcmdEnabled" type="checkbox" ${c.plugin_controls.enabled?"checked":""}></label>
         <div class="plugin-grid">${(d.command_menu?.plugin_names||[]).map(name=>`<label><input class="mcmdPlugin" value="${escHtml(name)}" type="checkbox" ${!c.plugin_controls.disabled_plugins.includes(name.toLowerCase())?"checked":""}> ${escHtml(name.replaceAll("_"," "))}</label>`).join("")||'<p class="muted">No hay plugins cargados.</p>'}</div>
+        <div>${(d.command_menu?.plugin_health||[]).filter(item=>item.errors||item.handled).map(item=>`<div class="userchip"><span>${item.circuit_open?"⛔":item.errors?"⚠️":"✅"} ${escHtml(item.name)} · ${item.handled} ejecuciones · ${item.errors} errores · ${item.avg_ms} ms</span></div>`).join("")||'<p class="muted">Sin actividad ni errores registrados.</p>'}</div>
         <button class="btn ghost" id="mcmdSave">Guardar plugins del grupo</button>
         <button class="btn teal" id="mcmdSync">Sincronizar menú con Telegram</button>
       </div></div>
