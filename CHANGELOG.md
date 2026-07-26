@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Mute real durante el captcha - 2026-07-26
+
+- Los usuarios admitidos quedan sin permisos de texto, audio, documentos, fotos, vídeos, notas, encuestas, stickers ni vistas previas.
+- Los permisos solo se restauran después de superar captcha, suscripciones obligatorias y comprobaciones CAS/comunitarias.
+- Las entradas directas también quedan protegidas; los reintentos mantienen el mute y los casos rechazados o caducados se expulsan.
+- Hub y TodoSobreAllTech comparten el mismo interruptor por grupo y muestran qué solicitudes tienen el mute activo.
+
 ### Horizonte 1000 sincronizado · bloque de moderación - 2026-07-26
 
 - Moonbot valida y persiste simulaciones de reglas, plantillas, informes programados, traducciones y comunicados versionados.

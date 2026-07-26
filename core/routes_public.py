@@ -373,6 +373,12 @@ def internal_group_admin(cid):
         action = body.get("action")
         if action == "save_config" and isinstance(body.get("config"), dict):
             config = suite.save_config(cid, body["config"])
+        elif action == "save_join_config":
+            join_config = _join_config(cid)
+            join_config["enabled"] = bool(body.get("enabled", join_config["enabled"]))
+            join_config["mute_until_verified"] = bool(body.get("mute_until_verified", join_config["mute_until_verified"]))
+            _db.set(f"JOINCFG_{cid}", join_config)
+            return jsonify({"ok": True, "join_config": _join_config(cid)})
         elif action == "copy_config":
             source = str(body.get("source_id", ""))
             if not _known_internal_group(source):
@@ -418,6 +424,7 @@ def internal_group_admin(cid):
         "permissions": {"healthy": not missing, "status": member.get("status", "unknown"), "missing": missing},
         "repair_steps": repair_steps,
         "config": suite.config(cid),
+        "join_config": _join_config(cid),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
         "history": safe_history,
@@ -2333,6 +2340,7 @@ def _join_config(chat_id):
         required = [required]
     return {
         "enabled": bool(raw.get("enabled", True)),
+        "mute_until_verified": bool(raw.get("mute_until_verified", True)),
         "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
         "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
@@ -2352,6 +2360,21 @@ def _global_join_settings():
     channel = str(value or "").strip().lstrip("@")[:100]
     enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
     return {"enabled": enabled, "channel": channel}
+
+
+def _set_join_member_muted(bot, chat_id, user_id, muted):
+    """Aplica o retira el bloqueo de Telegram usando todos los permisos modernos."""
+    if hasattr(bot, "restrict_user"):
+        return bot.restrict_user(chat_id, user_id, can_send=not muted)
+    allowed = not muted
+    permissions = {name: allowed for name in (
+        "can_send_messages", "can_send_audios", "can_send_documents", "can_send_photos",
+        "can_send_videos", "can_send_video_notes", "can_send_voice_notes", "can_send_polls",
+        "can_send_other_messages", "can_add_web_page_previews",
+    )}
+    return bot.api_call("restrictChatMember", {
+        "chat_id": chat_id, "user_id": user_id, "permissions": permissions,
+    }, silent=True)
 
 
 @bp.route("/api/public/admin/join-global", methods=["POST", "OPTIONS"])
@@ -2464,6 +2487,10 @@ def group_join_get():
     for key in (_db.keys(prefix) if _db else []):
         item = _db.get(key, {})
         if item.get("exp", 0) < now:
+            if item.get("admitted"):
+                bot = _hub_bot()
+                if bot:
+                    bot.api_call("banChatMember", {"chat_id": chat_id, "user_id": item.get("user_id")}, silent=True)
             _db.delete(key)
             _bump_join_stat(chat_id, "expired")
             continue
@@ -2476,6 +2503,7 @@ def group_join_get():
             "created_at": item.get("created_at"),
             "expires_at": item.get("exp"),
             "captcha_passed": bool(item.get("captcha_passed")),
+            "telegram_muted": bool(item.get("telegram_muted")),
             "cas_flagged": bool(item.get("cas_flagged")),
             "cas_offenses": item.get("cas_offenses"),
             "community_flagged": bool(item.get("community_flagged")),
@@ -2500,7 +2528,7 @@ def group_join_settings():
     if "global_required_channel" in body and not _is_master(res[0]):
         return jsonify({"ok": False, "error": "solo el master puede cambiar el canal global"}), 403
     config = _join_config(chat_id)
-    for key in ("enabled", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
+    for key in ("enabled", "mute_until_verified", "max_attempts", "challenge_ttl", "request_ttl", "required_channels"):
         if key in body:
             config[key] = body[key]
     required = config.get("required_channels") or []
@@ -2508,6 +2536,7 @@ def group_join_settings():
         required = [required]
     config = {
         "enabled": bool(config["enabled"]),
+        "mute_until_verified": bool(config["mute_until_verified"]),
         "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
         "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
@@ -2554,10 +2583,12 @@ def group_join_decide():
                 "code": "subscription_required",
                 "missing_channels": missing,
             }), 409
-        result = bot.api_call("answerChatJoinRequestQuery", {"query_id": pending.get("query_id")})
+        result = (_set_join_member_muted(bot, chat_id, user_id, False) if pending.get("admitted")
+                  else bot.api_call("answerChatJoinRequestQuery", {"query_id": pending.get("query_id")}))
         stat = "approved"
     else:
-        result = bot.api_call("declineChatJoinRequest", {"chat_id": chat_id, "user_id": user_id})
+        result = (bot.api_call("banChatMember", {"chat_id": chat_id, "user_id": user_id}) if pending.get("admitted")
+                  else bot.api_call("declineChatJoinRequest", {"chat_id": chat_id, "user_id": user_id}))
         stat = "declined"
     if isinstance(result, dict) and not result.get("ok", False):
         return jsonify({"ok": False, "error": result.get("description", "Telegram rechazó la acción")}), 502
@@ -2666,7 +2697,12 @@ def join_verify():
             notified = _notify_join_review(bot, cid, pend, "cas", result) if bot else 0
             return jsonify({"ok": True, "under_review": True, "notified": notified})
         if bot:
-            bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")})
+            result = (_set_join_member_muted(bot, cid, uid, False) if pend.get("admitted")
+                      else bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")}))
+            if isinstance(result, dict) and not result.get("ok", False):
+                pend["permission_restore_error"] = result.get("description", "Telegram rechazó la restauración")
+                _db.set(f"JOINQ_{cid}_{uid}", pend)
+                return jsonify({"ok": False, "error": "captcha superado, pero no se pudieron restaurar los permisos"}), 502
         _db.delete(f"JOINC_{cid}_{uid}"); _db.delete(f"JOINQ_{cid}_{uid}")  # query_id de un solo uso
         _bump_join_stat(cid, "approved")
         return jsonify({"ok": True, "approved": True})
@@ -2675,7 +2711,10 @@ def join_verify():
     _db.delete(f"JOINC_{cid}_{uid}")  # fuerza reto nuevo (no resetea intentos)
     if attempts >= config["max_attempts"]:
         if bot:
-            bot.api_call("declineChatJoinRequest", {"chat_id": cid, "user_id": uid})
+            if pend.get("admitted"):
+                bot.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
+            else:
+                bot.api_call("declineChatJoinRequest", {"chat_id": cid, "user_id": uid})
         _db.delete(f"JOINQ_{cid}_{uid}")
         _bump_join_stat(cid, "declined")
         return jsonify({"ok": False, "declined": True, "attempts_left": 0})

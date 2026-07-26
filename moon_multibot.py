@@ -4182,8 +4182,11 @@ class MoonBot:
 
     def restrict_user(self, cid, uid, until=0, can_send=False):
         permissions = {
-            "can_send_messages": can_send, "can_send_media_messages": can_send,
-            "can_send_polls": can_send, "can_send_other_messages": can_send,
+            "can_send_messages": can_send, "can_send_audios": can_send,
+            "can_send_documents": can_send, "can_send_photos": can_send,
+            "can_send_videos": can_send, "can_send_video_notes": can_send,
+            "can_send_voice_notes": can_send, "can_send_polls": can_send,
+            "can_send_other_messages": can_send,
             "can_add_web_page_previews": can_send, "can_change_info": False,
             "can_invite_users": False, "can_pin_messages": False
         }
@@ -5058,6 +5061,13 @@ class MoonBot:
                 "chat_id": cid, "user_id": uid,
                 "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"},
             })
+            if cfg.get("mute_until_verified", True):
+                admitted = self.api_call("approveChatJoinRequest", {"chat_id": cid, "user_id": uid}, silent=True)
+                if isinstance(admitted, dict) and admitted.get("ok"):
+                    muted = self.restrict_user(cid, uid, can_send=False)
+                    pending = db.get(f"JOINQ_{cid}_{uid}", {})
+                    pending.update({"admitted": True, "telegram_muted": bool(muted.get("ok")) if isinstance(muted, dict) else True})
+                    db.set(f"JOINQ_{cid}_{uid}", pending)
             add_web_log("SECURITY", f"Captcha de entrada enviado a {uid} en {cid}")
         except Exception as e:
             add_web_log("ERROR", f"handle_join_request: {e}")
@@ -5223,6 +5233,33 @@ class MoonBot:
         rows.append(event)
         db.set(f"BOT_INTERACTION_EVENTS_{chat_id}", rows[-300:])
         add_web_log("IA", f"Interacción controlada con @{username} en {chat_id}")
+        return True
+
+    def begin_member_captcha(self, cid, member, chat_title=""):
+        """Retira permisos reales a una alta directa hasta completar la verificación."""
+        if (self.bot_username or "").lower() != "cintiabot" or not isinstance(member, dict):
+            return False
+        uid = member.get("id")
+        cfg = db.get(f"JOINCFG_{cid}", {}) or {}
+        if uid is None or member.get("is_bot") or not cfg.get("enabled", True) or not cfg.get("mute_until_verified", True):
+            return False
+        key = f"JOINQ_{cid}_{uid}"
+        if db.get(key):
+            return True
+        ttl = max(300, min(int(cfg.get("request_ttl", 86400)), 604800))
+        muted = self.restrict_user(cid, uid, can_send=False)
+        db.set(key, {
+            "query_id": None, "chat_id": cid, "user_id": uid,
+            "first_name": member.get("first_name", ""), "last_name": member.get("last_name", ""),
+            "username": member.get("username", ""), "chat_title": chat_title,
+            "attempts": 0, "created_at": int(time.time()), "exp": int(time.time()) + ttl,
+            "admitted": True, "telegram_muted": bool(muted.get("ok")) if isinstance(muted, dict) else True,
+        })
+        self.api_call("sendChatJoinRequestWebApp", {
+            "chat_id": cid, "user_id": uid,
+            "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"},
+        }, silent=True)
+        add_web_log("SECURITY", f"Permisos retirados a {uid} en {cid} hasta superar captcha")
         return True
 
     def enforce_pending_join_captcha(self, msg):
@@ -5492,6 +5529,8 @@ class MoonBot:
                                 continue
                             if member_uid and self.enforce_cas_ban(cid, member_uid, member_name, msg.get("message_id")):
                                 join_security_hit = True
+                                continue
+                            if self.begin_member_captcha(cid, member, global_chat_names.get(cid, "")):
                                 continue
                             suite_join = group_suite.register_join(cid, member_uid, member_name)
                             if suite_join.get("raid_activated"):

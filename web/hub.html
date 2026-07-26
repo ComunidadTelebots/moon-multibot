@@ -981,6 +981,8 @@
     box.innerHTML=`
       <div class="setrow"><div><b>Captcha automático</b><span>Verifica al usuario antes de admitirlo</span></div>
         <div class="switch ${cfg.enabled?"on":""}" id="gjoinEnabled"><span></span></div></div>
+      <div class="setrow"><div><b>Mute real hasta verificar</b><span>Telegram bloquea texto y contenido multimedia hasta completar captcha, CAS y suscripciones</span></div>
+        <div class="switch ${cfg.mute_until_verified!==false?"on":""}" id="gjoinMute"><span></span></div></div>
       <div class="statbar" style="margin-top:10px">
         <div class="stat"><div class="v">${pending.length}</div><div class="l">Pendientes</div></div>
         <div class="stat"><div class="v">${stats.approved||0}</div><div class="l">Aprobados</div></div>
@@ -1018,7 +1020,7 @@
       const challenge_ttl=Number(document.getElementById("gjoinChallenge").value);
       const request_ttl=Number(document.getElementById("gjoinRequest").value)*3600;
       const ownChannel=document.getElementById("gjoinChannels").value.trim().replace(/^@/,"");
-      const payload={max_attempts,challenge_ttl,request_ttl,required_channels:ownChannel?[ownChannel]:[]};
+      const payload={mute_until_verified:document.getElementById("gjoinMute").classList.contains("on"),max_attempts,challenge_ttl,request_ttl,required_channels:ownChannel?[ownChannel]:[]};
       const globalInput=document.getElementById("gjoinGlobalChannel");
       if(globalInput)payload.global_required_channel=globalInput.value.trim().replace(/^@/,"");
       const r=await gp("/group/join/settings",payload);
@@ -1030,7 +1032,7 @@
       const uname=item.username?`@${item.username}`:`ID ${item.user_id}`;
       return `<div class="userchip" style="align-items:flex-start;${item.cas_flagged?"border-color:var(--red)":""}">
         <div><div class="uid">${escHtml(name)} ${item.cas_flagged?'<span class="rbadge" style="color:var(--red)">CAS</span>':""}</div>
-          <div class="w">${escHtml(uname)} · ${item.attempts||0} intentos${item.captcha_passed?" · captcha superado":""}${item.cas_offenses!=null?` · ${item.cas_offenses} ofensas`:""}</div></div>
+          <div class="w">${escHtml(uname)} · ${item.attempts||0} intentos${item.telegram_muted?" · mute Telegram activo":""}${item.captcha_passed?" · captcha superado":""}${item.cas_offenses!=null?` · ${item.cas_offenses} ofensas`:""}</div></div>
         <span style="display:flex;gap:6px"><span class="minibtn" data-join-ok="${item.user_id}">Aprobar</span><span class="minibtn red" data-join-no="${item.user_id}">Rechazar</span></span>
       </div>`;
     }).join(""):`<p class="muted">No hay solicitudes esperando verificación.</p>`;
@@ -1044,6 +1046,7 @@
       if(r&&r.ok){showToast("Solicitud rechazada");loadJoinCaptcha();}else showToast((r&&r.error)||"No se pudo rechazar");
     });
     bindDropdown("dd-join");bindDropdown("dd-join-pending");
+    document.getElementById("gjoinMute").onclick=function(){this.classList.toggle("on");};
   }
 
   function bindDropdown(id){
