@@ -1469,6 +1469,10 @@ def _house_ads_update(body):
         item = {"id": str(raw.get("id") or secrets.token_hex(8)), "title": str(raw.get("title") or "")[:80],
                 "description": str(raw.get("description") or "")[:180], "url": url[:500],
                 "image": str(raw.get("image") or "")[:500], "placement": str(raw.get("placement") or "all"),
+                "cta": str(raw.get("cta") or "Abrir")[:24],
+                "background": str(raw.get("background") or "#eef7ff")[:32],
+                "foreground": str(raw.get("foreground") or "#155f9b")[:32],
+                "accent": str(raw.get("accent") or "#1982d1")[:32],
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
                 "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
                 "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {})}
