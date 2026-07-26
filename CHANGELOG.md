@@ -11,6 +11,13 @@
 - Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
 - Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
 
+## v18.18.0 - Idiomas de usuarios por grupo - 2026-07-26
+
+- Se registra el idioma de Telegram de cada usuario que participa o entra en un grupo.
+- Si Telegram no aporta idioma, se intenta detectar a partir del texto del mensaje.
+- La captura ocurre antes de los filtros de moderación para no perder usuarios bloqueados o mensajes eliminados.
+- El mapa ofrece distribución global o por grupo sin exponer identidades ni tratar el idioma como ubicación real.
+
 ## v18.17.1 - Autenticación master multi-bot - 2026-07-26
 
 - La MiniApp valida `initData` con el bot activo desde el que Telegram la abrió.

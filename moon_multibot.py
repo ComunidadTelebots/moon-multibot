@@ -5199,6 +5199,31 @@ class MoonBot:
                 "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={chat_id}"}}, silent=True)
         return True
 
+    def record_group_user_language(self, chat_id, user, text=""):
+        """Registra el idioma de un usuario observado en un grupo, sin ubicación real."""
+        if not isinstance(user, dict) or user.get("is_bot") or user.get("id") is None:
+            return
+        uid = str(user["id"])
+        telegram_code = str(user.get("language_code") or "").lower().replace("_", "-")[:16]
+        detected_code = str(detect_language_code(text) or "").lower().replace("_", "-")[:16]
+        code = telegram_code or detected_code or "und"
+        global_languages = db.get("TELEGRAM_USER_LANGUAGES", {})
+        previous = str(global_languages.get(uid) or "")
+        if code != "und" or not previous:
+            global_languages[uid] = code
+            db.set("TELEGRAM_USER_LANGUAGES", global_languages)
+        group_languages = db.get(f"TELEGRAM_GROUP_LANGUAGES_{chat_id}", {})
+        if code != "und" or uid not in group_languages:
+            group_languages[uid] = code
+            db.set(f"TELEGRAM_GROUP_LANGUAGES_{chat_id}", group_languages)
+        stats = global_user_stats.setdefault(uid, {
+            "name": user.get("first_name", "Usuario"), "count": 0, "karma": 0,
+            "engagement": 0, "notes": "",
+        })
+        stats["language_code"] = global_languages.get(uid, code)
+        stats["language_source"] = "telegram" if telegram_code else ("message" if detected_code else "unknown")
+        stats["last_seen"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
     def run(self):
         global listen_mode
         offset = 0
@@ -5322,6 +5347,7 @@ class MoonBot:
                         continue
                     uid, uname = str(user.get("id", cid)), user.get("first_name", "Chat")
                     add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | Verificando Permisos...")
+                    self.record_group_user_language(cid, user, text)
 
                     # Cortafuegos temprano: no dar karma, aprendizaje ni proceso a usuarios baneados.
                     if self.enforce_existing_ban(cid, uid, uname, msg.get("message_id")):
@@ -5413,6 +5439,7 @@ class MoonBot:
                                 continue
                             member_uid = str(member.get("id", ""))
                             member_name = member.get("first_name", member_uid)
+                            self.record_group_user_language(cid, member)
                             if member_uid and self.enforce_existing_ban(cid, member_uid, member_name, msg.get("message_id")):
                                 join_security_hit = True
                                 continue
@@ -5595,13 +5622,6 @@ class MoonBot:
                     sent = analyze_sentiment(text)
                     if uid not in global_user_stats: 
                         global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
-                    telegram_language = str((msg.get("from") or {}).get("language_code") or "und").lower().replace("_", "-")[:16]
-                    global_user_stats[uid]["language_code"] = telegram_language
-                    global_user_stats[uid]["last_seen"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                    user_languages = db.get("TELEGRAM_USER_LANGUAGES", {})
-                    if user_languages.get(uid) != telegram_language:
-                        user_languages[uid] = telegram_language
-                        db.set("TELEGRAM_USER_LANGUAGES", user_languages)
                     global_user_stats[uid]["count"] += 1
                     if global_user_stats[uid]["count"] % 5 == 0:
                         community_members.add_xp(uid, 5, "actividad en grupo")

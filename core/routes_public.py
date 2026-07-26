@@ -2606,7 +2606,12 @@ def public_global():
 
 @bp.route("/api/public/stats/language-map")
 def public_language_map():
-    data = aggregate_language_map(_db.get("TELEGRAM_USER_LANGUAGES", {}) if _db else {})
+    chat_id = str(request.args.get("chat_id") or "").strip()
+    key = f"TELEGRAM_GROUP_LANGUAGES_{chat_id}" if chat_id else "TELEGRAM_USER_LANGUAGES"
+    data = aggregate_language_map(_db.get(key, {}) if _db else {})
+    data["scope"] = "group" if chat_id else "all_groups"
+    if chat_id:
+        data["chat_id"] = chat_id
     return jsonify({"ok": True, **data})
 
 
