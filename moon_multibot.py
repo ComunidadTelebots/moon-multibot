@@ -5262,7 +5262,7 @@ class MoonBot:
 
         # Despacho de mensajes programados (cada ciclo de polling ~cada 20s).
         try:
-            due = channel_stats.due_scheduled()
+            due = channel_stats.due_scheduled() if self is proxy_bot else []
         except Exception:
             due = []
         for m in due:
@@ -5272,16 +5272,24 @@ class MoonBot:
                 photo = m.get("photo")
                 data = image_gen.fetch_bytes(photo) if photo else None
                 if data:
-                    requests.post(
+                    response = requests.post(
                         f"https://api.telegram.org/bot{bot.token}/sendPhoto",
                         data={"chat_id": str(cid), "caption": (m.get("text") or "")[:1024]},
                         files={"photo": ("imagen.jpg", data)}, timeout=45,
                     )
+                    result = response.json() if response.ok else {"ok": False, "description": f"HTTP {response.status_code}"}
                 else:
-                    bot.send_msg(cid, m.get("text", ""))
-                channel_stats.mark_sent(m["id"])
+                    result = bot.send_msg(cid, m.get("text", ""))
+                if not isinstance(result, dict) or not result.get("ok"):
+                    raise RuntimeError((result or {}).get("description", "Telegram no confirmó el envío"))
+                message_id = ((result.get("result") or {}).get("message_id"))
+                channel_stats.mark_delivery(m["id"], True, message_id=message_id)
                 add_web_log("SUCCESS", f"Programado enviado a {cid}" + (" (imagen)" if data else ""))
             except Exception as e:
+                try:
+                    channel_stats.mark_delivery(m["id"], False, error=str(e))
+                except Exception:
+                    pass
                 add_web_log("ERROR", f"envío programado {m.get('id')}: {e}")
 
         # Refresco de la caché de propiedad (getChatAdministrators) cada 6h.

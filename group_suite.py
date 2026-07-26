@@ -40,6 +40,7 @@ class GroupSuite:
         flood = section("flood_control")
         media_controls = section("media_controls")
         plugin_controls = section("plugin_controls")
+        ad_exchange = section("ad_exchange")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -143,12 +144,19 @@ class GroupSuite:
                     if str(value).strip()
                 ][:100],
             },
+            "ad_exchange": {
+                "enabled": bool(ad_exchange.get("enabled", True)),
+                "cooldown_hours": max(1, min(int(ad_exchange.get("cooldown_hours", 72)), 2160)),
+                "max_daily": max(1, min(int(ad_exchange.get("max_daily", 2)), 20)),
+                "same_category_priority": bool(ad_exchange.get("same_category_priority", True)),
+                "max_size_ratio": max(1, min(int(ad_exchange.get("max_size_ratio", 10)), 100)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls", "ad_exchange"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):

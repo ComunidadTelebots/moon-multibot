@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Anuncios recíprocos entre grupos - 2026-07-26
+
+- Los socios se ordenan por categoría y tamaño de audiencia, excluyendo destinos incompatibles o desactivados.
+- Se impiden duplicados pendientes, exceso diario, campañas demasiado próximas y fechas inseguras.
+- El programador usa una única instancia, reintenta hasta tres veces y solo confirma entregas aceptadas por Telegram.
+- Cada campaña muestra entregas, fallos y estado final en Hub; la política también se controla desde TodoSobreAllTech.
+
 ### Salud y rendimiento de plugins - 2026-07-26
 
 - Moonbot mide carga, comprobaciones, ejecuciones, errores y latencia media por plugin.

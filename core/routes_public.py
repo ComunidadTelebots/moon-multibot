@@ -2043,9 +2043,33 @@ def ads_partners():
     if err:
         return err
     _, chat_id = res
-    out = [{"chat_id": c["chat_id"], "name": c["name"], "username": c["username"],
-            "subscribers": c["subscribers"], "ctype": c["ctype"]}
-           for c in _channel_stats.get_all_channels() if str(c["chat_id"]) != str(chat_id)]
+    source = _channel_stats.get_channel_meta(chat_id) or {}
+    policy = _group_suite().config(chat_id)["ad_exchange"]
+    if not policy["enabled"]:
+        return jsonify({"ok": True, "partners": [], "disabled": True})
+    out = []
+    for candidate in _channel_stats.get_all_channels():
+        if str(candidate["chat_id"]) == str(chat_id):
+            continue
+        destination_policy = _group_suite().config(candidate["chat_id"])["ad_exchange"]
+        if not destination_policy["enabled"]:
+            continue
+        source_known = int(source.get("subscribers", 0) or 0)
+        destination_known = int(candidate.get("subscribers", 0) or 0)
+        source_size, destination_size = max(1, source_known), max(1, destination_known)
+        ratio = max(source_size, destination_size) / min(source_size, destination_size)
+        if source_known and destination_known and ratio > policy["max_size_ratio"]:
+            continue
+        same_category = bool(source.get("category") and source.get("category") == candidate.get("category"))
+        size_score = (max(0, 40 - round(abs(source_size - destination_size) * 40 / max(source_size, destination_size)))
+                      if source_known and destination_known else 15)
+        score = 40 + size_score + (20 if same_category and policy["same_category_priority"] else 0)
+        out.append({"chat_id": candidate["chat_id"], "name": candidate["name"],
+                    "username": candidate["username"], "subscribers": candidate["subscribers"],
+                    "ctype": candidate["ctype"], "category": candidate.get("category"),
+                    "match_score": min(100, score),
+                    "match_reason": "misma categoría y audiencia similar" if same_category else "audiencia compatible"})
+    out.sort(key=lambda item: (-item["match_score"], abs(int(item.get("subscribers") or 0) - int(source.get("subscribers") or 0))))
     return jsonify({"ok": True, "partners": out})
 
 
@@ -2063,8 +2087,39 @@ def ads_request():
     when = (body.get("when") or "").strip()
     if not (from_chat and to_chat and from_ad and when):
         return jsonify({"ok": False, "error": "faltan datos"}), 400
+    if str(from_chat) == str(to_chat):
+        return jsonify({"ok": False, "error": "origen y destino no pueden ser iguales"}), 400
+    if len(from_ad) > 3500:
+        return jsonify({"ok": False, "error": "el anuncio supera 3500 caracteres"}), 400
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), from_chat)):
         return jsonify({"ok": False, "error": "no gestionas el canal de origen"}), 403
+    source_policy = _group_suite().config(from_chat)["ad_exchange"]
+    destination_policy = _group_suite().config(to_chat)["ad_exchange"]
+    if not source_policy["enabled"] or not destination_policy["enabled"]:
+        return jsonify({"ok": False, "error": "el intercambio de anuncios está desactivado en uno de los destinos"}), 409
+    try:
+        scheduled_at = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).replace(tzinfo=None)
+    except ValueError:
+        return jsonify({"ok": False, "error": "fecha no válida"}), 400
+    now = datetime.datetime.utcnow()
+    if scheduled_at < now + datetime.timedelta(minutes=10) or scheduled_at > now + datetime.timedelta(days=30):
+        return jsonify({"ok": False, "error": "programa el intercambio entre 10 minutos y 30 días"}), 400
+    history = _channel_stats.ads_history(from_chat)
+    pair = [row for row in history if {str(row.get("from_chat")), str(row.get("to_chat"))} == {str(from_chat), str(to_chat)}]
+    if any(row.get("status") == "pending" for row in pair):
+        return jsonify({"ok": False, "error": "ya existe una solicitud pendiente entre estos grupos"}), 409
+    today = now.strftime("%Y-%m-%d")
+    daily = sum(1 for row in history if str(row.get("created", "")).startswith(today) and row.get("status") in ("accepted", "completed"))
+    if daily >= source_policy["max_daily"]:
+        return jsonify({"ok": False, "error": "se alcanzó el límite diario de intercambios"}), 429
+    recent = next((row for row in pair if row.get("status") in ("accepted", "completed")), None)
+    if recent:
+        try:
+            created = datetime.datetime.fromisoformat(str(recent.get("created", "")).replace("Z", "+00:00")).replace(tzinfo=None)
+            if now - created < datetime.timedelta(hours=source_policy["cooldown_hours"]):
+                return jsonify({"ok": False, "error": "estos grupos siguen dentro del periodo de descanso"}), 429
+        except ValueError:
+            pass
     hit = _banned_hit(to_chat, from_ad)
     if hit:
         return jsonify({"ok": False, "error": f"El anuncio contiene una palabra no permitida en el canal destino: «{hit}»"}), 400
@@ -2105,7 +2160,9 @@ def ads_outgoing_ep():
         return err
     rows = _channel_stats.ads_outgoing(user.get("id"))
     ads = [{"id": r["id"], "to_name": r.get("to_name"), "from_ad": r.get("from_ad"),
-            "when": r.get("when"), "status": r.get("status")} for r in rows]
+            "when": r.get("when"), "status": r.get("status"),
+            "delivered_count": int(r.get("delivered_count", 0) or 0),
+            "failed_count": int(r.get("failed_count", 0) or 0), "last_error": r.get("last_error")} for r in rows]
     return jsonify({"ok": True, "ads": ads})
 
 
@@ -2133,10 +2190,10 @@ def ads_accept():
     # Programa ambos anuncios (con imagen si la hay): el de origen va al destino y viceversa.
     _channel_stats.schedule_message(ad["to_chat"], ad["from_ad"], when, created_by=user.get("id"),
                                     bot_token=_channel_stats.get_channel_bot_token(ad["to_chat"]),
-                                    photo=ad.get("from_ad_image"))
+                                    photo=ad.get("from_ad_image"), ad_id=ad["id"], ad_side="origin_to_partner")
     _channel_stats.schedule_message(ad["from_chat"], to_ad, when, created_by=user.get("id"),
                                     bot_token=_channel_stats.get_channel_bot_token(ad["from_chat"]),
-                                    photo=to_image)
+                                    photo=to_image, ad_id=ad["id"], ad_side="partner_to_origin")
     _channel_stats.set_ad(ad["id"], "accepted", to_ad, to_image)
     return jsonify({"ok": True})
 

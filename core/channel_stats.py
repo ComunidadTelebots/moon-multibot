@@ -94,8 +94,19 @@ def init(pb):
     ])
     # Migración suave de campos nuevos (las colecciones ya existían).
     pb.ensure_field(C_SCHED, {"name": "photo", "type": "text"})
+    for field in [
+        {"name": "ad_id", "type": "text"}, {"name": "ad_side", "type": "text"},
+        {"name": "attempts", "type": "number"}, {"name": "last_error", "type": "text"},
+        {"name": "sent_at", "type": "date"}, {"name": "message_id", "type": "number"},
+    ]:
+        pb.ensure_field(C_SCHED, field)
     pb.ensure_field(C_ADS, {"name": "from_ad_image", "type": "text"})
     pb.ensure_field(C_ADS, {"name": "to_ad_image", "type": "text"})
+    for field in [
+        {"name": "delivered_count", "type": "number"}, {"name": "failed_count", "type": "number"},
+        {"name": "last_delivery", "type": "date"}, {"name": "last_error", "type": "text"},
+    ]:
+        pb.ensure_field(C_ADS, field)
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────
@@ -302,14 +313,16 @@ def get_channel_meta(chat_id):
         return None
     return {"chat_id": r.get("chat_id"), "name": r.get("title") or r.get("username") or "Canal",
             "username": r.get("username"), "ctype": r.get("ctype") or "channel",
-            "subscribers": r.get("member_count") or 0, "listed": bool(r.get("listed"))}
+            "subscribers": r.get("member_count") or 0, "category": r.get("category") or "",
+            "listed": bool(r.get("listed"))}
 
 
 # ── Mensajes programados ────────────────────────────────────────────────────
-def schedule_message(chat_id, text, send_at, created_by=None, bot_token=None, photo=None):
+def schedule_message(chat_id, text, send_at, created_by=None, bot_token=None, photo=None, ad_id=None, ad_side=None):
     return _pb.create(C_SCHED, {"chat_id": str(chat_id), "text": text, "send_at": send_at,
                                 "sent": False, "created_by": created_by, "bot_token": bot_token,
-                                "photo": photo or ""})
+                                "photo": photo or "", "ad_id": ad_id or "", "ad_side": ad_side or "",
+                                "attempts": 0, "last_error": ""})
 
 
 def list_scheduled(chat_id):
@@ -329,8 +342,26 @@ def due_scheduled():
     return _pb.list(C_SCHED, filter=f"sent=false && send_at<='{now}'", per_page=50)
 
 
-def mark_sent(rec_id):
-    _pb.update(C_SCHED, rec_id, {"sent": True})
+def mark_delivery(rec_id, success, message_id=None, error=None):
+    rec = _pb.first(C_SCHED, f"id='{_pb.esc(rec_id)}'")
+    if not rec:
+        return
+    attempts = int(rec.get("attempts", 0) or 0) + 1
+    finished = bool(success or attempts >= 3)
+    _pb.update(C_SCHED, rec_id, {
+        "sent": finished, "attempts": attempts, "last_error": "" if success else str(error or "error")[:500],
+        "sent_at": _now() if success else "", "message_id": int(message_id or 0),
+    })
+    ad_id = rec.get("ad_id")
+    if ad_id:
+        ad = get_ad(ad_id)
+        if ad:
+            delivered = int(ad.get("delivered_count", 0) or 0) + (1 if success else 0)
+            failed = int(ad.get("failed_count", 0) or 0) + (0 if success else 1)
+            status = "completed" if delivered >= 2 else ("delivery_failed" if finished and not success else "accepted")
+            _pb.update(C_ADS, ad_id, {"delivered_count": delivered, "failed_count": failed,
+                                      "last_delivery": _now(), "last_error": "" if success else str(error or "error")[:500],
+                                      "status": status})
 
 
 def is_user_admin_of(user_id, chat_id):
@@ -400,6 +431,12 @@ def ads_for_channel(chat_id):
 
 def ads_outgoing(user_id):
     return _pb.list(C_ADS, filter=f"from_user={int(user_id)}", sort="-created", per_page=50)
+
+
+def ads_history(chat_id, limit=200):
+    cid = _cid(chat_id)
+    rows = _pb.list(C_ADS, filter=f"from_chat='{cid}' || to_chat='{cid}'", sort="-created", per_page=limit)
+    return rows
 
 
 def get_ad(ad_id):

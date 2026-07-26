@@ -609,6 +609,13 @@
         <button class="btn teal" id="mbiSave">Guardar interacción</button>
         ${(d.bot_interactions||[]).slice(0,8).map(x=>`<div class="userchip"><span>@${escHtml(x.username)} · ${x.learned?"aprendido":"sin aprendizaje"} · ${x.replied?"respuesta enviada":"sin respuesta"}</span></div>`).join("")||'<p class="muted">Sin interacciones registradas.</p>'}
       </div></div>
+      <div class="dropdown"><div class="dhead">Intercambio de anuncios <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <label class="setrow"><b>Permitir anuncios mutuos</b><input id="maeEnabled" type="checkbox" ${c.ad_exchange.enabled?"checked":""}></label>
+        <label class="setrow"><b>Priorizar misma categoría</b><input id="maeCategory" type="checkbox" ${c.ad_exchange.same_category_priority?"checked":""}></label>
+        <div class="btnrow"><input id="maeCooldown" type="number" min="1" max="2160" value="${c.ad_exchange.cooldown_hours}" placeholder="Descanso (h)"><input id="maeDaily" type="number" min="1" max="20" value="${c.ad_exchange.max_daily}" placeholder="Máximo diario"></div>
+        <input id="maeRatio" type="number" min="1" max="100" value="${c.ad_exchange.max_size_ratio}" placeholder="Diferencia máxima de audiencia">
+        <button class="btn teal" id="maeSave">Guardar política publicitaria</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Comandos y plugins <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <p class="muted">Telegram mostrará menús diferentes a usuarios y administradores. Los comandos de plugins activos se descubren automáticamente.</p>
         <div class="statrow"><span><b>${(d.command_menu?.public||[]).length}</b><small>Públicos</small></span><span><b>${(d.command_menu?.admin||[]).length}</b><small>Administración</small></span><span><b>${d.command_menu?.plugins_loaded||0}</b><small>Plugins</small></span></div>
@@ -700,6 +707,7 @@
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
     mbiSave.onclick=saveBotInteraction;
+    maeSave.onclick=()=>gp("/group/suite/settings",{config:{ad_exchange:{enabled:maeEnabled.checked,cooldown_hours:+maeCooldown.value,max_daily:+maeDaily.value,same_category_priority:maeCategory.checked,max_size_ratio:+maeRatio.value}}}).then(()=>{showToast("Política publicitaria guardada");loadGroupSuiteMini();});
     mcmdSave.onclick=()=>{const enabled=[...host.querySelectorAll(".mcmdPlugin:checked")].map(x=>x.value.toLowerCase());const all=d.command_menu?.plugin_names||[];gp("/group/suite/settings",{config:{plugin_controls:{enabled:mcmdEnabled.checked,disabled_plugins:all.filter(name=>!enabled.includes(name.toLowerCase()))}}}).then(()=>{showToast("Plugins del grupo guardados");loadGroupSuiteMini();});};
     mcmdSync.onclick=()=>gp("/group/commands/sync",{}).then(x=>{showToast(x.command_menu?.synced?"Comandos sincronizados":"Telegram rechazó algún menú");loadGroupSuiteMini();});
     mctSave.onclick=saveMediaControls;
@@ -1140,19 +1148,23 @@
     const box=document.getElementById("gads"); if(!box) return;
     const inc=await gp("/ads/incoming",{}); const ads=(inc&&inc.ads)||[];
     const p=await gp("/ads/partners",{}); const partners=(p&&p.partners)||[];
+    const outgoingResponse=await gp("/ads/outgoing",{}); const outgoing=(outgoingResponse&&outgoingResponse.ads)||[];
     box.innerHTML=`<div class="gsec">Anuncios mutuos</div>
       <div class="dropdown" id="dd-adnew"><div class="dhead">Solicitar anuncio <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" hidden>
           <p class="muted" style="margin:2px 0 10px">Tu anuncio se publica en el canal socio y el suyo en el tuyo, a la hora acordada.</p>
-          <select id="adpartner">${partners.length?partners.map(x=>`<option value="${x.chat_id}">${escHtml(x.name)} · ${fmt(x.subscribers)}</option>`).join(""):`<option value="">(no hay otros canales)</option>`}</select>
+          ${p&&p.disabled?'<div class="casbox">El intercambio está desactivado en la política de este grupo.</div>':""}
+          <select id="adpartner">${partners.length?partners.map(x=>`<option value="${x.chat_id}">${escHtml(x.name)} · ${fmt(x.subscribers)} · ${x.match_score}% ${escHtml(x.match_reason)}</option>`).join(""):`<option value="">(no hay socios compatibles)</option>`}</select>
           <textarea id="admsg" rows="3" placeholder="Diseña el texto del anuncio…" style="margin-top:9px"></textarea>
           <div style="font-size:12px;color:var(--muted);margin:10px 2px 0">Imagen del anuncio (opcional)</div>
           ${imgGenHTML("adimg","Describe la imagen del anuncio…")}
           <div class="btnrow" style="align-items:center"><input type="datetime-local" id="adwhen" style="flex:1"><button class="btn ghost" id="adsend" style="width:auto;padding:13px 16px">Enviar</button></div>
         </div></div>
       <div class="dropdown" id="dd-adinc"><div class="dhead">Solicitudes recibidas (${ads.length}) <span class="chev">${svg('chevron')}</span></div>
-        <div class="dbody" hidden id="adinclist"></div></div>`;
-    bindDropdown("dd-adnew"); bindDropdown("dd-adinc");
+        <div class="dbody" hidden id="adinclist"></div></div>
+      <div class="dropdown" id="dd-adstatus"><div class="dhead">Estado de campañas (${outgoing.length}) <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" hidden>${outgoing.slice(0,20).map(a=>`<div class="userchip"><span>${escHtml(a.to_name||"Socio")} · ${escHtml(a.status||"pending")} · ${a.delivered_count||0}/2 envíos${a.failed_count?` · ${a.failed_count} fallos`:""}</span></div>`).join("")||'<p class="muted">Sin campañas enviadas.</p>'}</div></div>`;
+    bindDropdown("dd-adnew"); bindDropdown("dd-adinc"); bindDropdown("dd-adstatus");
     let adImg=null; bindImgGen("adimg", u=>{ adImg=u; });
     document.getElementById("adsend").onclick=async()=>{
       const to=document.getElementById("adpartner").value, txt=document.getElementById("admsg").value.trim(), when=toUTC(document.getElementById("adwhen").value);
