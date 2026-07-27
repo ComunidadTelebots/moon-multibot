@@ -1,3 +1,4 @@
+import re
 import time
 import requests
 
@@ -77,7 +78,23 @@ def build_input_rich_message(markdown=None, html=None, blocks=None, media=None,
     if media is not None:
         if not isinstance(media, list) or len(media) > RICH_MESSAGE_MAX_MEDIA:
             raise ValueError("rich message media must be a list of at most 50 items")
-        payload["media"] = media
+        clean_media = []
+        for item in media:
+            if not isinstance(item, dict):
+                raise ValueError("each rich message media item must be an object")
+            media_id = str(item.get("id") or "")
+            media_value = item.get("media")
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", media_id):
+                raise ValueError("rich message media id must contain 1-64 letters, numbers, _ or -")
+            if not isinstance(media_value, dict):
+                raise ValueError("rich message media payload must be an object")
+            media_type = str(media_value.get("type") or "")
+            if media_type not in {"animation", "audio", "photo", "video", "voice_note"}:
+                raise ValueError("unsupported rich message media type")
+            if not str(media_value.get("media") or "").strip():
+                raise ValueError("rich message media file or URL is required")
+            clean_media.append({"id": media_id, "media": media_value})
+        payload["media"] = clean_media
     if is_rtl:
         payload["is_rtl"] = True
     if skip_entity_detection:

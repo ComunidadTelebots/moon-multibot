@@ -559,6 +559,33 @@ def internal_group_admin(cid):
                             "message_id": (result.get("result") or {}).get("message_id"),
                             "bot": {"id": str(getattr(bot, "bot_id", "")),
                                     "username": str(getattr(bot, "bot_username", "Moonbot"))}})
+        elif action == "send_rich_message":
+            text = str(body.get("text") or "").strip()
+            rich_format = str(body.get("format") or "markdown").lower()
+            if not text or len(text) > 32768 or rich_format not in {"markdown", "html"}:
+                return jsonify({"ok": False, "error": "invalid_rich_message"}), 400
+            media = None
+            media_url = str(body.get("media_url") or "").strip()
+            if media_url:
+                media = [{"id": str(body.get("media_id") or "media_1"), "media": {
+                    "type": str(body.get("media_type") or "photo").lower(), "media": media_url}}]
+            kwargs = {rich_format: text, "media": media, "is_rtl": bool(body.get("is_rtl")),
+                      "skip_entity_detection": bool(body.get("skip_entity_detection")),
+                      "fallback_text": str(body.get("fallback_text") or text)[:4096]}
+            result = bot.send_rich_message(cid, **kwargs)
+            if not isinstance(result, dict) or not result.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_rich_send_failed",
+                                "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+            history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+            history.append({"time": datetime.datetime.now().strftime("%H:%M"), "sender": "Bot",
+                            "uid": str(getattr(bot, "bot_username", "Moonbot")), "text": text[:1000],
+                            "media": None, "format": f"rich_{rich_format}"})
+            _db.set(f"CHAT_HIST_{cid}", history[-200:])
+            if _add_audit_log:
+                _add_audit_log(f"TodoSobreAllTech: mensaje Rich 10.2 enviado a {cid}")
+            return jsonify({"ok": True, "sent": {"time": datetime.datetime.now().strftime("%H:%M"),
+                            "sender": "Bot", "text": text[:1000], "format": f"rich_{rich_format}"},
+                            "message_id": (result.get("result") or {}).get("message_id")})
         elif action == "refresh_telegram":
             chat_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
             if not isinstance(chat_response, dict) or not chat_response.get("ok"):

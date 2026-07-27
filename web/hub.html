@@ -1727,10 +1727,11 @@
     document.getElementById("masterDetailSubtitle").textContent=masterChatBotLabel(group);
     document.getElementById("masterDetailBack").onclick=loadMasterChatGroups;
     const box=document.getElementById("masterDetail"),bots=group.bots||[];
-    box.innerHTML=`<div class="bot-chat-shell"><div class="tg-chat-head"><span class="tg-chat-avatar">${initials(group.name||"G")}</span><span class="meta"><b>${escHtml(group.name||`Grupo ${group.id}`)}</b><small id="masterChatMemberCount">consultando miembros reales…</small></span><select id="masterChatBot" aria-label="Responder como">${bots.map(b=>`<option value="${escAttr(b.id||b.username)}">@${escHtml(b.username||b.id||"Moonbot")}</option>`).join("")||'<option value="">Moonbot</option>'}</select></div><div class="bot-chat-messages" id="masterChatMessages">${skel()}</div><div class="bot-chat-compose"><textarea id="masterChatText" rows="1" maxlength="4096" placeholder="Mensaje"></textarea><button class="sendround" id="masterChatSend" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button><div class="bot-chat-options"><label class="muted"><input id="masterChatMarkdown" type="checkbox" checked style="width:auto"> Markdown</label><span><button class="minibtn" id="masterChatRefresh">Actualizar</button> <button class="minibtn" id="masterChatOpenGroup">Abrir ↗</button></span></div></div></div>`;
+    box.innerHTML=`<div class="bot-chat-shell"><div class="tg-chat-head"><span class="tg-chat-avatar">${initials(group.name||"G")}</span><span class="meta"><b>${escHtml(group.name||`Grupo ${group.id}`)}</b><small id="masterChatMemberCount">consultando miembros reales…</small></span><select id="masterChatBot" aria-label="Responder como">${bots.map(b=>`<option value="${escAttr(b.id||b.username)}">@${escHtml(b.username||b.id||"Moonbot")}</option>`).join("")||'<option value="">Moonbot</option>'}</select></div><div class="bot-chat-messages" id="masterChatMessages">${skel()}</div><div class="bot-chat-compose"><div class="btnrow"><select id="masterChatFormat"><option value="normal">Mensaje normal</option><option value="markdown">Rich Markdown 10.2</option><option value="html">Rich HTML 10.2</option></select><select id="masterChatPreset"><option value="">Plantilla 10.2…</option><option value="details">Detalles desplegables</option><option value="list">Lista</option><option value="quote">Cita destacada</option><option value="math">Fórmula</option></select></div><textarea id="masterChatText" rows="1" maxlength="32768" placeholder="Mensaje"></textarea><button class="sendround" id="masterChatSend" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button><details><summary class="muted">Multimedia 10.2</summary><div class="btnrow"><select id="masterChatMediaType"><option value="photo">Foto</option><option value="video">Vídeo</option><option value="audio">Audio</option><option value="voice_note">Nota de voz</option><option value="animation">Animación</option></select><input id="masterChatMediaUrl" type="text" placeholder="URL o file_id de Telegram"></div></details><div class="bot-chat-options"><label class="muted"><input id="masterChatRtl" type="checkbox" style="width:auto"> RTL</label><span><button class="minibtn" id="masterChatRefresh">Actualizar</button> <button class="minibtn" id="masterChatOpenGroup">Abrir ↗</button></span></div></div></div>`;
     document.getElementById("masterChatRefresh").onclick=()=>refreshMasterChat(false);
     document.getElementById("masterChatOpenGroup").onclick=()=>openTg(`https://t.me/c/${String(group.id).replace("-100","")}`);
     document.getElementById("masterChatSend").onclick=sendMasterChatMessage;
+    document.getElementById("masterChatPreset").onchange=e=>applyMasterChatPreset(e.target.value);
     document.getElementById("masterChatText").onkeydown=e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();sendMasterChatMessage();}};
     const fresh=await masterApi(`/api/internal/groups/${encodeURIComponent(group.id)}`,{method:"POST",body:JSON.stringify({action:"refresh_telegram",bot_id:document.getElementById("masterChatBot").value})});
     if(fresh&&fresh.ok&&fresh.group){group.subscribers=Number(fresh.group.subscribers)||0;group.name=fresh.group.name||group.name;}
@@ -1738,6 +1739,11 @@
     await refreshMasterChat(true);
     if(masterChatTimer)clearInterval(masterChatTimer);
     masterChatTimer=setInterval(()=>{if(masterChatCurrent)refreshMasterChat(true);},7000);
+  }
+  function applyMasterChatPreset(kind){
+    const input=document.getElementById("masterChatText"),format=document.getElementById("masterChatFormat");if(!input||!kind)return;
+    const presets={details:"<details open><summary>Resumen</summary><p>Contenido ampliado</p></details>",list:"<ul><li>Primera tarea</li><li>Segunda tarea</li></ul>",quote:"<aside>Mensaje destacado<cite>Moonbot</cite></aside>",math:"<tg-math-block>E = mc^2</tg-math-block>"};
+    format.value="html";input.value=presets[kind]||input.value;input.focus();
   }
   async function refreshMasterChat(quiet=false){
     if(!masterChatCurrent)return;const target=document.getElementById("masterChatMessages");if(!target)return;
@@ -1752,7 +1758,10 @@
   }
   async function sendMasterChatMessage(){
     const input=document.getElementById("masterChatText"),button=document.getElementById("masterChatSend"),text=input.value.trim();if(!text)return;
-    button.disabled=true;const result=await masterApi(`/api/internal/groups/${encodeURIComponent(masterChatCurrent.id)}`,{method:"POST",body:JSON.stringify({action:"send_message",text,markdown:document.getElementById("masterChatMarkdown").checked,bot_id:document.getElementById("masterChatBot").value})});button.disabled=false;
+    const format=document.getElementById("masterChatFormat").value,mediaUrl=document.getElementById("masterChatMediaUrl").value.trim();
+    const body={action:format==="normal"?"send_message":"send_rich_message",text,format,markdown:true,bot_id:document.getElementById("masterChatBot").value,is_rtl:document.getElementById("masterChatRtl").checked};
+    if(mediaUrl){body.media_url=mediaUrl;body.media_type=document.getElementById("masterChatMediaType").value;body.media_id="hub_media";}
+    button.disabled=true;const result=await masterApi(`/api/internal/groups/${encodeURIComponent(masterChatCurrent.id)}`,{method:"POST",body:JSON.stringify(body)});button.disabled=false;
     if(result&&result.ok){input.value="";showToast("Mensaje enviado");await refreshMasterChat(true);}else showToast((result&&result.detail)||"No se pudo enviar");
   }
   async function moderateMasterChatUser(uid,action){

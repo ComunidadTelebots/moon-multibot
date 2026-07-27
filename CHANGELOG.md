@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Bot API 10.2 en el chat del Hub - 2026-07-27
+
+- El chat master envía mensajes normales, Rich Markdown y Rich HTML sin abandonar la conversación.
+- Incluye plantillas para detalles desplegables, listas, citas y expresiones matemáticas, además de escritura RTL.
+- Los mensajes enriquecidos pueden referenciar foto, vídeo, audio, animación o la nueva nota de voz de Bot API 10.2.
+- El servidor valida identificadores, tipos y archivos multimedia antes de entregar el payload a Telegram y conserva fallback de texto.
+
 ### Chat MiniApp con diseño Telegram - 2026-07-27
 
 - La lista de conversaciones, cabecera, burbujas, horas, acciones y compositor adoptan una presentación compacta inspirada en Telegram.
