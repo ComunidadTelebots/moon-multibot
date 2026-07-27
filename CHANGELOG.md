@@ -5,6 +5,7 @@
 - El panel master puede actualizar bajo demanda el nombre, alias, descripción, tipo, miembros y administradores de un grupo o canal directamente desde Telegram.
 - El inventario administrativo informa de la última sincronización conocida y conserva la fecha de la última comprobación de administradores.
 - Las fotos de grupos y canales se entregan mediante un proxy autenticado que nunca expone el token del bot.
+- Se conserva y expone el equipo administrador de cada comunidad con ID, rol, nombre, alias y fecha de comprobación.
 
 ### Grupos y canales paginados - 2026-07-27
 

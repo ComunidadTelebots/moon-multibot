@@ -534,7 +534,9 @@ def internal_group_admin(cid):
                 _channel_stats.record_snapshot(cid, int(count_response.get("result") or 0))
             admins_response = bot.api_call("getChatAdministrators", {"chat_id": cid}, silent=True)
             if isinstance(admins_response, dict) and admins_response.get("ok"):
-                admins = [{"user_id": row.get("user", {}).get("id"), "status": row.get("status")}
+                admins = [{"user_id": row.get("user", {}).get("id"), "status": row.get("status"),
+                           "name": row.get("user", {}).get("first_name"),
+                           "username": row.get("user", {}).get("username")}
                           for row in (admins_response.get("result") or []) if row.get("user", {}).get("id")]
                 _channel_stats.set_channel_admins(cid, admins)
             return jsonify({"ok": True, "refreshed": True, "group": {
@@ -593,6 +595,8 @@ def internal_group_admin(cid):
         "captcha_history": list(reversed(_safe_list(_db.get(f"JOIN_BULK_HISTORY_{cid}", []))))[:10],
         "captcha_schedule": {"last_run": int(_db.get(f"JOIN_BULK_LAST_{cid}", 0) or 0)},
         "command_menu": bot.command_menu_preview(cid),
+        "administrators": _channel_stats.admins_for_chat(cid),
+        "administrators_checked_at": (_channel_stats.get_stats_by_chat(cid) or {}).get("admins_checked_at"),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
         "history": safe_history,

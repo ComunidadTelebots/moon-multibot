@@ -858,7 +858,9 @@ def api_channels_backfill():
                     )
                     if members:
                         channel_stats.record_snapshot(cid, members)
-                    admins = [{"user_id": (m.get("user") or {}).get("id"), "status": m.get("status")}
+                    admins = [{"user_id": (m.get("user") or {}).get("id"), "status": m.get("status"),
+                               "name": (m.get("user") or {}).get("first_name"),
+                               "username": (m.get("user") or {}).get("username")}
                               for m in adm.get("result", [])
                               if not (m.get("user") or {}).get("is_bot") and m.get("status") in ("creator", "administrator")]
                     channel_stats.set_channel_admins(cid, admins)
@@ -5161,7 +5163,8 @@ class MoonBot:
                     continue
                 status = m.get("status")
                 if status in ("creator", "administrator"):
-                    admins.append({"user_id": usr.get("id"), "status": status})
+                    admins.append({"user_id": usr.get("id"), "status": status,
+                                   "name": usr.get("first_name"), "username": usr.get("username")})
             channel_stats.set_channel_admins(chat_id, admins)
             return len(admins)
         except Exception as e:

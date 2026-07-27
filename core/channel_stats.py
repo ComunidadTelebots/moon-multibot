@@ -65,11 +65,13 @@ def init(pb):
         {"name": "chat_id", "type": "text", "required": True},
         {"name": "user_id", "type": "number", "required": True},
         {"name": "status", "type": "text"}, {"name": "checked", "type": "date"},
+        {"name": "name", "type": "text"}, {"name": "username", "type": "text"},
     ], ["CREATE UNIQUE INDEX `idx_tga` ON `tg_channel_admins` (`chat_id`,`user_id`)"])
     for field in [
         {"name": "chat_id", "type": "text", "required": True},
         {"name": "user_id", "type": "number", "required": True},
         {"name": "status", "type": "text"}, {"name": "checked", "type": "date"},
+        {"name": "name", "type": "text"}, {"name": "username", "type": "text"},
     ]:
         pb.ensure_field(C_ADMINS, field)
     pb.ensure_collection(C_SNAPS, [
@@ -225,6 +227,7 @@ def set_channel_admins(chat_id, admins):
         keep.add(uid)
         _pb.upsert(C_ADMINS, f"chat_id='{_cid(chat_id)}' && user_id={uid}",
                    {"chat_id": str(chat_id), "user_id": uid, "status": a.get("status", "administrator"),
+                    "name": str(a.get("name") or "")[:160], "username": str(a.get("username") or "")[:80],
                     "checked": _now()})
     for e in existing:
         if e.get("user_id") not in keep:
@@ -248,6 +251,14 @@ def channels_for_admin(user_id):
         if record:
             result.append(_to_dict(record, membership.get("status")))
     return result
+
+
+def admins_for_chat(chat_id):
+    """Administradores cacheados, sin campos internos de PocketBase."""
+    rows = _pb.list(C_ADMINS, filter=f"chat_id='{_cid(chat_id)}'", sort="status,name", per_page=200)
+    return [{"user_id": row.get("user_id"), "status": row.get("status") or "administrator",
+             "name": row.get("name") or "", "username": row.get("username") or "",
+             "checked": row.get("checked") or None} for row in rows]
 
 
 # ── lectura para colector / backfill ────────────────────────────────────────
