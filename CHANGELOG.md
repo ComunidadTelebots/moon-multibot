@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Horizonte completo y ejecutable - 2026-07-27
+- Nuevo motor `Horizon1000Engine` para las 1.000 funciones multiplataforma, con comportamiento específico para 21 categorías.
+- Todas ofrecen ejecución, configuración persistente, consulta de estado, reversión y auditoría.
+- `FullHorizonSuite` expone ahora las 1.100 funciones mediante la misma API usada por Hub y TodoSobreAllTech.
+
 ### Horizonte unificado - 2026-07-27
 - Horizonte 202 y Horizonte 1000 se presentan como un solo catálogo de 1.100 funciones.
 - El Hub conserva el ejecutor de las 100 funciones operativas e integra el roadmap por estado.

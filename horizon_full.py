@@ -1,6 +1,7 @@
 """Executable core of the unified Horizonte catalog."""
 
 from horizon_completion import FEATURES, HorizonCompletion
+from horizon_1000 import Horizon1000Engine
 from roadmap_engine import RoadmapEngine
 
 
@@ -38,21 +39,24 @@ class FullHorizonSuite:
         self.db = db
         self.roadmap = RoadmapEngine(db)
         self.completion = HorizonCompletion(db)
+        self.future = Horizon1000Engine(db)
 
     def catalog(self):
         core = [{"slug": slug, "title": title, "category": category, "engine": "roadmap"}
                 for slug, (title, category) in CORE_FEATURES.items()]
         completion = [{**row, "engine": "completion"} for row in self.completion.catalog()]
-        return core + completion
+        return core + completion + self.future.catalog()
 
     def audit(self):
         return (self.completion._list("HORIZON_COMPLETION_AUDIT") +
-                self.completion._list("ROADMAP_AUDIT"))[-250:]
+                self.completion._list("ROADMAP_AUDIT") + self.future.audit())[-250:]
 
     def execute(self, slug, data=None):
         data = data if isinstance(data, dict) else {}
         if slug in FEATURES:
             return self.completion.execute(slug, data)
+        if str(slug).startswith("future-"):
+            return self.future.execute(slug, data)
         handlers = {
             "conversation_escalation": lambda: self.roadmap.conversation_escalation(data.get("group_id"), data.get("samples") or [], data.get("window_seconds", 300)),
             "mediator": lambda: self.roadmap.mediator_session(data.get("group_id"), data.get("operation"), data.get("user_id"), data.get("statement")),

@@ -2192,7 +2192,7 @@
       <div class="dropdown"><div class="dhead">API e integraciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmTokenName" placeholder="Nombre del token"><input id="rmScopes" placeholder="Permisos separados por comas"><button class="btn teal" data-rm-action="api_token">Crear token granular</button><input id="rmWebhookGroup" placeholder="ID grupo"><input id="rmWebhookUrl" placeholder="URL webhook"><input id="rmWebhookEvents" placeholder="Eventos separados por comas"><button class="btn ghost" data-rm-action="webhook">Registrar webhook</button></div></div>
       <div class="dropdown"><div class="dhead">Operaciones y fiabilidad <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmVersion" placeholder="Versión"><input id="rmInstances" placeholder="Instancias separadas por comas"><input id="rmBatch" type="number" value="1"><button class="btn teal" data-rm-action="deployment">Crear despliegue gradual</button><div class="btnrow"><input id="rmRetention" type="number" value="30"><button class="btn ghost" data-rm-action="backup_policy">Guardar política de backup cifrado</button></div></div></div>
       <div class="dropdown"><div class="dhead">Horizonte unificado · 1.100 funciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
-        <p class="muted">Un solo horizonte para la web, Moonbot y la Mini App: 100 funciones ejecutables y 1.000 iniciativas con su estado real.</p>
+        <p class="muted">Un solo horizonte para la web, Moonbot y la Mini App: las 1.100 funciones son ejecutables, configurables y auditables.</p>
         <a class="btn teal" href="/roadmap1000.html">Explorar el catálogo unificado</a>
         <div class="gsec">Primera fase operativa</div>
         <input id="h202Group" placeholder="ID del grupo">
@@ -2212,7 +2212,7 @@
         <div class="gsec">Contenido conectado</div>
         <div class="btnrow"><button class="minibtn" data-h202-action="editorial_series">Crear serie</button><button class="minibtn" data-h202-action="content_reuse">Buscar contenido reutilizable</button><button class="minibtn" data-h202-action="silence_calendar">Comprobar silencio</button></div>
         <div class="btnrow"><button class="minibtn" data-h202-action="headline_comparison">Comparar titulares</button><button class="minibtn" data-h202-action="public_announcement">Publicar comunicado versionado</button></div>
-        <div class="gsec">Ejecutor de las funciones restantes</div>
+        <div class="gsec">Ejecutor universal del Horizonte</div>
         <select id="h202CompletionFeature">${(completion.features||[]).map(item=>`<option value="${escAttr(item.slug)}">${escHtml(item.title)}</option>`).join("")}</select>
         <textarea id="h202CompletionPayload" rows="5" placeholder='Parámetros JSON opcionales, por ejemplo: {"group_id":"-100..."}'>{}</textarea>
         <button class="btn teal" id="h202CompletionRun">Ejecutar función seleccionada</button>
