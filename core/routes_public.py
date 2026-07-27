@@ -37,6 +37,7 @@ from group_suite import GroupSuite
 from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from roadmap_engine import RoadmapEngine
+from horizon_full import FullHorizonSuite
 from core.language_map import aggregate_language_map
 
 bp = Blueprint("public", __name__)
@@ -370,6 +371,28 @@ def internal_roadmap_action():
         result = handlers[action]()
         return jsonify({"ok": True, "result": result})
     except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/internal/horizon", methods=["GET", "POST"])
+def internal_horizon():
+    """Catálogo único y ejecutor de las 100 funciones de Horizonte 202."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    service = FullHorizonSuite(_db)
+    if request.method == "GET":
+        catalog = service.catalog()
+        return jsonify({"ok": True, "features": catalog, "total": len(catalog),
+                        "categories": sorted({row["category"] for row in catalog}),
+                        "audit": list(reversed(service.audit()))[:100]})
+    body = request.json or {}
+    slug = str(body.get("slug") or "").strip()
+    try:
+        result = service.execute(slug, body.get("payload") or {})
+        if _add_audit_log:
+            _add_audit_log(f"Horizonte 202 ejecutado desde TodoSobreAllTech: {slug}")
+        return jsonify({"ok": True, "slug": slug, "result": result})
+    except (TypeError, ValueError, KeyError) as error:
         return jsonify({"ok": False, "error": str(error)}), 400
 
 

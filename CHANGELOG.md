@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Horizonte 202 unificado de extremo a extremo - 2026-07-27
+
+- Las 25 funciones originales de `RoadmapEngine` y las 75 de `HorizonCompletion` forman ahora un catálogo único de exactamente 100 operaciones.
+- Un único ejecutor protegido permite usar cualquiera de las 100 desde la MiniApp o TodoSobreAllTech, conservando persistencia y auditoría.
+- El endpoint interno publica total, categorías, motor responsable e historial reciente sin exponer claves ni datos privados.
+- El Hub deja de limitar su selector a las últimas 75 funciones y muestra también las 25 primeras.
+
 ### Edición, distribución y encuestas desde el chat - 2026-07-27
 
 - Se conectan a las interfaces los métodos ya existentes para editar, copiar, reenviar y limpiar todas las reacciones de un mensaje.
