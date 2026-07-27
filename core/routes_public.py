@@ -612,7 +612,11 @@ def internal_group_admin(cid):
     history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
     safe_history = [{"time": row.get("time"), "sender": str(row.get("sender") or row.get("uid") or "")[:100],
                      "uid": str(row.get("uid") or "")[:40], "text": str(row.get("text") or "")[:1000],
-                     "has_media": bool(row.get("media"))}
+                     "has_media": bool(row.get("media")),
+                     "media": ({"type": str(row["media"].get("type") or "document")[:20],
+                                "file_id": str(row["media"].get("file_id") or "")[:300],
+                                "name": str(row["media"].get("name") or "")[:160]}
+                               if isinstance(row.get("media"), dict) and row["media"].get("file_id") else None)}
                     for row in history[-50:] if isinstance(row, dict)]
     repair_steps = (["Abre la informaciÃ³n del grupo en Telegram", "Entra en Administradores",
                      f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')}",
@@ -663,6 +667,46 @@ def internal_group_photo(cid):
         return Response(content, mimetype=content_type, headers={"Cache-Control": "private, max-age=3600"})
     except (OSError, urllib.error.URLError):
         return jsonify({"ok": False, "error": "photo_download_failed"}), 502
+
+
+@bp.route("/api/internal/groups/<cid>/media/<file_id>")
+def internal_group_media(cid, file_id):
+    """Proxy autenticado para medios que pertenecen al historial del chat."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if not file_id or len(file_id) > 300 or "/" in file_id or ".." in file_id:
+        return jsonify({"ok": False, "error": "invalid_file_id"}), 400
+    history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+    media = next((row.get("media") for row in reversed(history[-200:])
+                  if isinstance(row, dict) and isinstance(row.get("media"), dict)
+                  and str(row["media"].get("file_id")) == file_id), None)
+    if not media:
+        return jsonify({"ok": False, "error": "media_not_in_history"}), 404
+    bots = []
+    for candidate in (_get_active_bots() or []) if _get_active_bots else []:
+        if str(cid) in {str(item) for item in _safe_list(_db.get(f"CHATS_{getattr(candidate, 'token', '')}", []))}:
+            bots.append(candidate)
+    for bot in bots:
+        file_response = bot.api_call("getFile", {"file_id": file_id}, silent=True)
+        file_path = (file_response.get("result") or {}).get("file_path") if isinstance(file_response, dict) and file_response.get("ok") else None
+        if not file_path or ".." in file_path:
+            continue
+        try:
+            url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+            with urllib.request.urlopen(url, timeout=12) as upstream:
+                content = upstream.read(20 * 1024 * 1024 + 1)
+                content_type = upstream.headers.get_content_type()
+            if len(content) > 20 * 1024 * 1024:
+                return jsonify({"ok": False, "error": "media_too_large"}), 413
+            filename = re.sub(r"[^A-Za-z0-9._-]", "_", str(media.get("name") or file_path.rsplit("/", 1)[-1]))[:160]
+            disposition = "inline" if str(content_type).startswith(("image/", "video/", "audio/")) else "attachment"
+            return Response(content, mimetype=content_type, headers={
+                "Cache-Control": "private, max-age=1800",
+                "Content-Disposition": f'{disposition}; filename="{filename or "telegram-file"}"',
+            })
+        except (OSError, urllib.error.URLError):
+            continue
+    return jsonify({"ok": False, "error": "media_download_failed"}), 502
 
 
 def _internal_ads_payload(cid):

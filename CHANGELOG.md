@@ -6,6 +6,7 @@
 - Los envíos validan pertenencia, longitud y resultado de Telegram, se guardan en el historial y dejan registro de auditoría.
 - El master puede filtrar el inventario por cualquiera de sus bots y elegir qué instancia escribe en los grupos compartidos.
 - Cada mensaje admite ban local, mute temporal, advertencias acumulables, karma, cuarentena y acciones de restauración; tres advertencias activan el baneo local automático.
+- Fotos, vídeos, audios, stickers y documentos del historial pueden recuperarse bajo demanda mediante un proxy autenticado, sin revelar tokens y con límite de 20 MB.
 
 ### Sincronización manual de comunidades - 2026-07-27
 
