@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Usuarios paginados desde servidor - 2026-07-27
+
+- La API administrativa pagina el inventario completo de usuarios y mantiene la búsqueda global por nombre o ID.
+- Se limita cada respuesta a un máximo de 100 registros e informa de página, total y número de páginas.
+
 ### Campañas oficiales instalables - 2026-07-26
 
 - Moonbot incluye en GitHub campañas iniciales para Todo Sobre All Tech, Comunidad Telebots, Resistencia a la Censura y Todo Sobre Gameplays.

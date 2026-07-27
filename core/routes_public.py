@@ -615,11 +615,21 @@ def internal_users():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     users = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
     query = str(request.args.get("q", "")).strip().lower()[:100]
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+        per_page = max(10, min(100, int(request.args.get("per_page", 50))))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "invalid_pagination"}), 400
     rows = [_user_view(uid, stats if isinstance(stats, dict) else {}) for uid, stats in users.items()]
     if query:
         rows = [row for row in rows if query in row["id"].lower() or query in row["name"].lower()]
     rows.sort(key=lambda row: (row["banned"], row["messages"]), reverse=True)
-    return jsonify({"ok": True, "total": len(rows), "users": rows[:500],
+    total = len(rows)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, total_pages)
+    start = (page - 1) * per_page
+    return jsonify({"ok": True, "total": total, "page": page, "per_page": per_page,
+                    "total_pages": total_pages, "users": rows[start:start + per_page],
                     "ban_stats": _ban_manager.get_ban_stats() if _ban_manager else {}})
 
 
