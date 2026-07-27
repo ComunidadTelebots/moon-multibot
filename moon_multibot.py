@@ -3284,7 +3284,10 @@ class MoonBot:
             add_web_log("ERROR", f"Telegram API Fail ({method}, Bot API {TELEGRAM_BOT_API_VERSION}): {data.get('description')}")
         return data
 
-    def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None):
+    def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None,
+                 receiver_user_id=None, callback_query_id=None, message_thread_id=None,
+                 direct_messages_topic_id=None, disable_notification=False,
+                 protect_content=False, reply_parameters=None, reply_markup=None):
         result = None
         language = self._command_languages.get(str(chat_id))
         if language and not str(language).lower().startswith("es"):
@@ -3299,7 +3302,7 @@ class MoonBot:
             )
 
         # Intentar envÃ­o via TDLib si estÃ¡ listo y no es mensaje de business
-        if self._tdlib and self._tdlib.is_ready and not business_connection_id:
+        if self._tdlib and self._tdlib.is_ready and not business_connection_id and not receiver_user_id:
             try:
                 tdlib_result = self._tdlib.send_message(
                     int(chat_id), safe_text, parse_mode=parse_mode
@@ -3314,6 +3317,19 @@ class MoonBot:
             payload = {"chat_id": chat_id, "text": safe_text, "parse_mode": parse_mode}
             if business_connection_id:
                 payload["business_connection_id"] = business_connection_id
+            optional = {
+                "receiver_user_id": receiver_user_id,
+                "callback_query_id": callback_query_id,
+                "message_thread_id": message_thread_id,
+                "direct_messages_topic_id": direct_messages_topic_id,
+                "reply_parameters": reply_parameters,
+                "reply_markup": reply_markup,
+            }
+            payload.update({key: value for key, value in optional.items() if value is not None})
+            if disable_notification:
+                payload["disable_notification"] = True
+            if protect_content:
+                payload["protect_content"] = True
             result = self.call_api("sendMessage", payload)
             # Si Telegram rechaza las entidades Markdown, reintenta sin parse_mode
             if result and not result.get("ok") and "parse entities" in str(result.get("description", "")).lower():
@@ -3321,7 +3337,7 @@ class MoonBot:
                 result = self.call_api("sendMessage", payload)
 
         cid_str = str(chat_id)
-        if cid_str in global_chat_history:
+        if cid_str in global_chat_history and receiver_user_id is None:
             _append_chat_hist(cid_str, {
                 "time": datetime.datetime.now().strftime("%H:%M"),
                 "sender": "Bot",
@@ -3333,8 +3349,11 @@ class MoonBot:
 
     def send_rich_message(self, chat_id, markdown=None, html=None, blocks=None, media=None,
                           business_connection_id=None, message_thread_id=None,
-                          reply_parameters=None, reply_markup=None, is_rtl=False,
-                          skip_entity_detection=False, fallback_text=None):
+                          direct_messages_topic_id=None, reply_parameters=None, reply_markup=None,
+                          is_rtl=False, skip_entity_detection=False, fallback_text=None,
+                          disable_notification=False, protect_content=False,
+                          allow_paid_broadcast=False, message_effect_id=None,
+                          suggested_post_parameters=None):
         try:
             rich_message = build_input_rich_message(
                 markdown=markdown, html=html, blocks=blocks, media=media,
@@ -3346,10 +3365,19 @@ class MoonBot:
         optional = {
             "business_connection_id": business_connection_id,
             "message_thread_id": message_thread_id,
+            "direct_messages_topic_id": direct_messages_topic_id,
             "reply_parameters": reply_parameters,
             "reply_markup": reply_markup,
+            "message_effect_id": message_effect_id,
+            "suggested_post_parameters": suggested_post_parameters,
         }
         payload.update({key: value for key, value in optional.items() if value is not None})
+        if disable_notification:
+            payload["disable_notification"] = True
+        if protect_content:
+            payload["protect_content"] = True
+        if allow_paid_broadcast:
+            payload["allow_paid_broadcast"] = True
         result = self.call_api("sendRichMessage", payload, silent=True)
         if result.get("ok"):
             return result
@@ -3378,6 +3406,48 @@ class MoonBot:
         if message_thread_id is not None:
             payload["message_thread_id"] = message_thread_id
         return self.api_call("sendMessageDraft", payload)
+
+    # Bot API 10.2: mensajes visibles únicamente para un usuario del grupo.
+    def edit_ephemeral_message_text(self, chat_id, receiver_user_id, ephemeral_message_id,
+                                    text, parse_mode="Markdown", reply_markup=None):
+        payload = {"chat_id": chat_id, "receiver_user_id": int(receiver_user_id),
+                   "ephemeral_message_id": int(ephemeral_message_id), "text": str(text)[:4096]}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        return self.api_call("editEphemeralMessageText", payload)
+
+    def edit_ephemeral_message_media(self, chat_id, receiver_user_id, ephemeral_message_id,
+                                     media, reply_markup=None):
+        payload = {"chat_id": chat_id, "receiver_user_id": int(receiver_user_id),
+                   "ephemeral_message_id": int(ephemeral_message_id), "media": media}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        return self.api_call("editEphemeralMessageMedia", payload)
+
+    def edit_ephemeral_message_caption(self, chat_id, receiver_user_id, ephemeral_message_id,
+                                       caption="", parse_mode="Markdown", reply_markup=None):
+        payload = {"chat_id": chat_id, "receiver_user_id": int(receiver_user_id),
+                   "ephemeral_message_id": int(ephemeral_message_id), "caption": str(caption)[:1024]}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        return self.api_call("editEphemeralMessageCaption", payload)
+
+    def edit_ephemeral_message_reply_markup(self, chat_id, receiver_user_id,
+                                            ephemeral_message_id, reply_markup=None):
+        return self.api_call("editEphemeralMessageReplyMarkup", {
+            "chat_id": chat_id, "receiver_user_id": int(receiver_user_id),
+            "ephemeral_message_id": int(ephemeral_message_id), "reply_markup": reply_markup or {},
+        })
+
+    def delete_ephemeral_message(self, chat_id, receiver_user_id, ephemeral_message_id):
+        return self.api_call("deleteEphemeralMessage", {
+            "chat_id": chat_id, "receiver_user_id": int(receiver_user_id),
+            "ephemeral_message_id": int(ephemeral_message_id),
+        })
 
     def answer_inline_query(self, inline_query_id, results, cache_time=2, is_personal=True):
         return self.api_call("answerInlineQuery", {
@@ -5591,6 +5661,8 @@ class MoonBot:
                         continue
                     if self.record_managed_bot_update(u):
                         continue
+                    if self.telegram_events.record_subscription_update(u):
+                        continue
                     if self.record_business_update(u):
                         continue
                     if self.handle_guest_update(u):
@@ -5602,6 +5674,8 @@ class MoonBot:
                     # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
+                    if self.telegram_events.record_community_message(msg):
+                        continue
                     if u.get("message") and self.enforce_pending_join_captcha(msg):
                         continue
                     # Directorio de canales: cuenta posts publicados (frecuencia).

@@ -559,6 +559,46 @@ def internal_group_admin(cid):
                             "message_id": (result.get("result") or {}).get("message_id"),
                             "bot": {"id": str(getattr(bot, "bot_id", "")),
                                     "username": str(getattr(bot, "bot_username", "Moonbot"))}})
+        elif action == "send_ephemeral_message":
+            text = str(body.get("text") or "").strip()
+            receiver_user_id = str(body.get("receiver_user_id") or "").strip()
+            if not text or len(text) > 4096 or not receiver_user_id.isdigit():
+                return jsonify({"ok": False, "error": "invalid_ephemeral_message"}), 400
+            result = bot.send_msg(cid, text, parse_mode="Markdown" if body.get("markdown", True) else None,
+                                  receiver_user_id=int(receiver_user_id),
+                                  callback_query_id=body.get("callback_query_id"),
+                                  disable_notification=bool(body.get("disable_notification")),
+                                  protect_content=bool(body.get("protect_content")))
+            if not isinstance(result, dict) or not result.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_ephemeral_send_failed",
+                                "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+            sent = result.get("result") or {}
+            ephemeral_id = sent.get("ephemeral_message_id")
+            events = _safe_list(_db.get(f"EPHEMERAL_HIST_{cid}", []))
+            events.append({"time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                           "receiver_user_id": receiver_user_id, "ephemeral_message_id": ephemeral_id,
+                           "text": text[:300], "bot_id": str(getattr(bot, "bot_id", ""))})
+            _db.set(f"EPHEMERAL_HIST_{cid}", events[-100:])
+            if _add_audit_log:
+                _add_audit_log(f"Mensaje efímero 10.2 enviado a {receiver_user_id} en {cid}")
+            return jsonify({"ok": True, "ephemeral": True, "receiver_user_id": receiver_user_id,
+                            "ephemeral_message_id": ephemeral_id})
+        elif action in {"edit_ephemeral_message", "delete_ephemeral_message"}:
+            receiver_user_id = str(body.get("receiver_user_id") or "").strip()
+            ephemeral_id = str(body.get("ephemeral_message_id") or "").strip()
+            if not receiver_user_id.isdigit() or not ephemeral_id.isdigit():
+                return jsonify({"ok": False, "error": "invalid_ephemeral_target"}), 400
+            if action == "delete_ephemeral_message":
+                result = bot.delete_ephemeral_message(cid, receiver_user_id, ephemeral_id)
+            else:
+                text = str(body.get("text") or "").strip()
+                if not text or len(text) > 4096:
+                    return jsonify({"ok": False, "error": "invalid_message"}), 400
+                result = bot.edit_ephemeral_message_text(cid, receiver_user_id, ephemeral_id, text)
+            if not isinstance(result, dict) or not result.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_ephemeral_action_failed",
+                                "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+            return jsonify({"ok": True, "action": action})
         elif action == "send_rich_message":
             text = str(body.get("text") or "").strip()
             rich_format = str(body.get("format") or "markdown").lower()
@@ -675,6 +715,8 @@ def internal_group_admin(cid):
         "administrators_checked_at": (_channel_stats.get_stats_by_chat(cid) or {}).get("admins_checked_at"),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
+        "community": (_db.get("TELEGRAM_COMMUNITIES", {}) or {}).get(str(cid)),
+        "ephemeral_history": list(reversed(_safe_list(_db.get(f"EPHEMERAL_HIST_{cid}", []))))[:20],
         "history": safe_history,
     })
 

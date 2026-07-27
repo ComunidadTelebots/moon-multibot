@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Mensajes efímeros y Comunidades de Bot API 10.2 - 2026-07-27
+
+- Moonbot puede enviar mensajes de grupo visibles únicamente para el usuario indicado y nunca los copia al historial público del chat.
+- Se incorporan edición de texto, multimedia, pie y teclado, además del borrado de mensajes efímeros.
+- El bot registra altas y bajas de chats en Comunidades Telegram y conserva los cambios de suscripciones de pago.
+- `sendMessage` y `sendRichMessage` admiten los parámetros modernos de temas, privacidad, notificación, respuestas, efectos y publicaciones sugeridas.
+
 ### Bot API 10.2 en el chat del Hub - 2026-07-27
 
 - El chat master envía mensajes normales, Rich Markdown y Rich HTML sin abandonar la conversación.

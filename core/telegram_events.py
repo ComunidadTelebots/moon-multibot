@@ -50,3 +50,47 @@ class TelegramEventStore:
             self.db.set("BUSINESS_CONNECTIONS", self.business_connections)
         self.log("INFO", f"Business connection actualizada: {conn_id or 'sin id'}")
         return True
+
+    def record_subscription_update(self, update):
+        subscription = update.get("subscription")
+        if not subscription:
+            return False
+        user = subscription.get("user") or {}
+        event = {
+            "time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "user_id": str(user.get("id", "")),
+            "username": user.get("username"),
+            "name": " ".join(filter(None, [user.get("first_name"), user.get("last_name")])),
+            "state": subscription.get("state"),
+            "invoice_payload": subscription.get("invoice_payload"),
+        }
+        events = self.db.get("BOT_SUBSCRIPTION_UPDATES", []) or []
+        events.append(event)
+        self.db.set("BOT_SUBSCRIPTION_UPDATES", events[-500:])
+        self.log("INFO", f"Suscripción Telegram 10.2: {event['user_id']} -> {event['state']}")
+        return True
+
+    def record_community_message(self, message):
+        added = message.get("community_chat_added")
+        removed = message.get("community_chat_removed")
+        if not added and removed is None:
+            return False
+        chat = message.get("chat") or {}
+        chat_id = str(chat.get("id", ""))
+        registry = self.db.get("TELEGRAM_COMMUNITIES", {}) or {}
+        if added:
+            community = added.get("community") or {}
+            registry[chat_id] = {
+                "chat_id": chat_id, "chat_title": chat.get("title"),
+                "community": community,
+                "community_id": str(community.get("id", "")),
+                "active": True,
+                "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        else:
+            current = registry.get(chat_id, {"chat_id": chat_id, "chat_title": chat.get("title")})
+            current.update({"active": False, "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+            registry[chat_id] = current
+        self.db.set("TELEGRAM_COMMUNITIES", registry)
+        self.log("INFO", f"Comunidad Telegram 10.2 actualizada para chat {chat_id}")
+        return True

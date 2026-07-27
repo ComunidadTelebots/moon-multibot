@@ -37,6 +37,7 @@ DEFAULT_ALLOWED_UPDATES = [
     "message_reaction",
     "message_reaction_count",
     "managed_bot",
+    "subscription",
 ]
 
 GUEST_UPDATE_FIELDS = (
