@@ -6085,6 +6085,8 @@ class MoonBot:
                         "time": datetime.datetime.now().strftime("%H:%M"),
                         "sender": uname,
                         "uid": uid,
+                        "message_id": msg.get("message_id"),
+                        "reply_to_message_id": (msg.get("reply_to_message") or {}).get("message_id"),
                         "text": text,
                         "media": media_info
                     })

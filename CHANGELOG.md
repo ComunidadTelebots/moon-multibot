@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Controles completos del chat master - 2026-07-27
+
+- Se auditaron las funciones existentes y se reutilizaron los métodos Telegram ya incorporados, evitando duplicarlos.
+- Hub y API permiten responder por `message_id`, borrar, fijar, desfijar y reaccionar desde la conversación.
+- Los envíos normales y Rich admiten entrega silenciosa, protección contra reenvío y respuesta contextual.
+- El historial conserva identificadores y relaciones de respuesta; al borrar en Telegram se retira también la copia local.
+
 ### Mensajes efímeros y Comunidades de Bot API 10.2 - 2026-07-27
 
 - Moonbot puede enviar mensajes de grupo visibles únicamente para el usuario indicado y nunca los copia al historial público del chat.

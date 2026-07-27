@@ -542,7 +542,11 @@ def internal_group_admin(cid):
             if not text or len(text) > 4096:
                 return jsonify({"ok": False, "error": "invalid_message"}), 400
             parse_mode = "Markdown" if body.get("markdown", True) else None
-            result = bot.send_msg(cid, text, parse_mode=parse_mode)
+            reply_to = str(body.get("reply_to_message_id") or "").strip()
+            reply_parameters = {"message_id": int(reply_to)} if reply_to.isdigit() else None
+            result = bot.send_msg(cid, text, parse_mode=parse_mode, reply_parameters=reply_parameters,
+                                  disable_notification=bool(body.get("disable_notification")),
+                                  protect_content=bool(body.get("protect_content")))
             if not isinstance(result, dict) or not result.get("ok"):
                 return jsonify({"ok": False, "error": "telegram_send_failed",
                                 "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
@@ -550,6 +554,8 @@ def internal_group_admin(cid):
             if not history or history[-1].get("sender") != "Bot" or history[-1].get("text") != text[:1000]:
                 history.append({"time": datetime.datetime.now().strftime("%H:%M"), "sender": "Bot",
                                 "uid": str(getattr(bot, "bot_username", "Moonbot")),
+                                "message_id": (result.get("result") or {}).get("message_id"),
+                                "reply_to_message_id": int(reply_to) if reply_to.isdigit() else None,
                                 "text": text[:1000], "media": None})
                 _db.set(f"CHAT_HIST_{cid}", history[-200:])
             if _add_audit_log:
@@ -559,6 +565,31 @@ def internal_group_admin(cid):
                             "message_id": (result.get("result") or {}).get("message_id"),
                             "bot": {"id": str(getattr(bot, "bot_id", "")),
                                     "username": str(getattr(bot, "bot_username", "Moonbot"))}})
+        elif action == "chat_message_action":
+            message_id = str(body.get("message_id") or "").strip()
+            operation = str(body.get("operation") or "").strip()
+            if not message_id.isdigit() or operation not in {"delete", "pin", "unpin", "react"}:
+                return jsonify({"ok": False, "error": "invalid_chat_message_action"}), 400
+            mid = int(message_id)
+            if operation == "delete":
+                result = bot.delete_msg(cid, mid)
+            elif operation == "pin":
+                result = bot.pin_msg(cid, mid)
+            elif operation == "unpin":
+                result = bot.unpin_msg(cid, mid)
+            else:
+                reaction = str(body.get("reaction") or "👍")[:16]
+                result = bot.set_message_reaction(cid, mid, reaction, is_big=bool(body.get("is_big")))
+            if not isinstance(result, dict) or not result.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_message_action_failed",
+                                "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+            if operation == "delete":
+                history = [row for row in _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+                           if str(row.get("message_id") or "") != message_id]
+                _db.set(f"CHAT_HIST_{cid}", history[-200:])
+            if _add_audit_log:
+                _add_audit_log(f"Chat master: {operation} sobre mensaje {message_id} en {cid}")
+            return jsonify({"ok": True, "operation": operation, "message_id": mid})
         elif action == "send_ephemeral_message":
             text = str(body.get("text") or "").strip()
             receiver_user_id = str(body.get("receiver_user_id") or "").strip()
@@ -609,8 +640,12 @@ def internal_group_admin(cid):
             if media_url:
                 media = [{"id": str(body.get("media_id") or "media_1"), "media": {
                     "type": str(body.get("media_type") or "photo").lower(), "media": media_url}}]
+            rich_reply_to = str(body.get("reply_to_message_id") or "").strip()
             kwargs = {rich_format: text, "media": media, "is_rtl": bool(body.get("is_rtl")),
                       "skip_entity_detection": bool(body.get("skip_entity_detection")),
+                      "reply_parameters": ({"message_id": int(rich_reply_to)} if rich_reply_to.isdigit() else None),
+                      "disable_notification": bool(body.get("disable_notification")),
+                      "protect_content": bool(body.get("protect_content")),
                       "fallback_text": str(body.get("fallback_text") or text)[:4096]}
             result = bot.send_rich_message(cid, **kwargs)
             if not isinstance(result, dict) or not result.get("ok"):
@@ -619,6 +654,8 @@ def internal_group_admin(cid):
             history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
             history.append({"time": datetime.datetime.now().strftime("%H:%M"), "sender": "Bot",
                             "uid": str(getattr(bot, "bot_username", "Moonbot")), "text": text[:1000],
+                            "message_id": (result.get("result") or {}).get("message_id"),
+                            "reply_to_message_id": int(rich_reply_to) if rich_reply_to.isdigit() else None,
                             "media": None, "format": f"rich_{rich_format}"})
             _db.set(f"CHAT_HIST_{cid}", history[-200:])
             if _add_audit_log:
@@ -691,6 +728,7 @@ def internal_group_admin(cid):
     history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
     safe_history = [{"time": row.get("time"), "sender": str(row.get("sender") or row.get("uid") or "")[:100],
                      "uid": str(row.get("uid") or "")[:40], "text": str(row.get("text") or "")[:1000],
+                     "message_id": row.get("message_id"), "reply_to_message_id": row.get("reply_to_message_id"),
                      "has_media": bool(row.get("media")),
                      "media": ({"type": str(row["media"].get("type") or "document")[:20],
                                 "file_id": str(row["media"].get("file_id") or "")[:300],
