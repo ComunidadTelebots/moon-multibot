@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Horizonte unificado - 2026-07-27
+- Horizonte 202 y Horizonte 1000 se presentan como un solo catálogo de 1.100 funciones.
+- El Hub conserva el ejecutor de las 100 funciones operativas e integra el roadmap por estado.
+- Las rutas y acciones anteriores continúan siendo compatibles.
+
 ### Horizonte 202 unificado de extremo a extremo - 2026-07-27
 
 - Las 25 funciones originales de `RoadmapEngine` y las 75 de `HorizonCompletion` forman ahora un catálogo único de exactamente 100 operaciones.

@@ -376,7 +376,7 @@ def internal_roadmap_action():
 
 @bp.route("/api/internal/horizon", methods=["GET", "POST"])
 def internal_horizon():
-    """Catálogo único y ejecutor de las 100 funciones de Horizonte 202."""
+    """Núcleo ejecutable del catálogo Horizonte unificado."""
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     service = FullHorizonSuite(_db)
@@ -390,7 +390,7 @@ def internal_horizon():
     try:
         result = service.execute(slug, body.get("payload") or {})
         if _add_audit_log:
-            _add_audit_log(f"Horizonte 202 ejecutado desde TodoSobreAllTech: {slug}")
+            _add_audit_log(f"Horizonte unificado ejecutado desde TodoSobreAllTech: {slug}")
         return jsonify({"ok": True, "slug": slug, "result": result})
     except (TypeError, ValueError, KeyError) as error:
         return jsonify({"ok": False, "error": str(error)}), 400

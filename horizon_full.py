@@ -1,4 +1,4 @@
-"""Unified executable catalog for the 100 Horizonte 202 capabilities."""
+"""Executable core of the unified Horizonte catalog."""
 
 from horizon_completion import FEATURES, HorizonCompletion
 from roadmap_engine import RoadmapEngine
@@ -81,5 +81,5 @@ class FullHorizonSuite:
             "public_announcement": lambda: self.roadmap.public_announcement_version(data.get("operation", "publish"), data.get("announcement_id"), data.get("title", ""), data.get("body", ""), data.get("correction_note", ""), data.get("actor_id")),
         }
         if slug not in handlers:
-            raise ValueError("función Horizonte 202 desconocida")
+            raise ValueError("función del Horizonte unificado desconocida")
         return handlers[slug]()
