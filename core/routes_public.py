@@ -305,6 +305,8 @@ def internal_admin_overview():
         not isinstance(item, dict) or item.get("status", "pending") in ("pending", "open", "new")
         for item in values
     ) for name, values in pending_sources.items()}
+    learning_notifications = [row for row in _safe_list(_db.get("AI_LEARNING_NOTIFICATIONS", []))
+                              if isinstance(row, dict)][-10:]
 
     names = (_get_global_chat_names() or {}) if _get_global_chat_names else {}
     persisted = _db.get("U_FILE", {}) or {}
@@ -340,6 +342,7 @@ def internal_admin_overview():
             {"name": "Base de datos", "status": "online" if _db else "offline"},
         ],
         "pending": {**pending, "total": sum(pending.values())},
+        "notifications": list(reversed(learning_notifications)),
         "instances": instances,
         "groups": groups,
         "timeline": timeline,
@@ -1465,6 +1468,9 @@ def internal_experience():
             count = sum(not isinstance(row, dict) or row.get("status", "pending") in ("pending", "open", "new")
                         for row in _safe_list(_db.get(key, [])))
             if count: pending.append({"id": key.lower(), "title": label, "count": count, "read": False})
+        for alert in reversed(_safe_list(_db.get("AI_LEARNING_NOTIFICATIONS", []))[-20:]):
+            if isinstance(alert, dict):
+                pending.append({**alert, "count": 1, "read": False})
         themes = _db.get("WEB_GROUP_THEMES", {}) or {}
         return jsonify({"ok": True, "preferences": state, "themes": themes,
                         "notifications": pending, "actions": _experience_actions()})

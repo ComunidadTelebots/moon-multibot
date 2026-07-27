@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Avisos web del aprendizaje IA - 2026-07-27
+
+- Cada copia horaria del aprendizaje genera un aviso estructurado para TodoSobreAllTech con resultado, tamaño, neuronas, progreso y fecha.
+- Se conservan los últimos 100 eventos y se exponen únicamente mediante los endpoints administrativos protegidos.
+- Los fallos de entrega también quedan visibles para que el master pueda detectarlos sin revisar los logs del bot.
+
 ### Chat Telegram dentro de la MiniApp - 2026-07-27
 
 - El master dispone de un chat integrado en el Hub con todos los grupos únicos y los bots asociados a cada comunidad.

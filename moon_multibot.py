@@ -5400,6 +5400,25 @@ class MoonBot:
                             f"Hito 1B/12H: {stats.get('billion_progress')} | {stats.get('billion_status')}"
                         )
                         res = self.send_document(MASTER_ID, db_path, caption)
+                        learning_alerts = db.get("AI_LEARNING_NOTIFICATIONS", []) or []
+                        if not isinstance(learning_alerts, list):
+                            learning_alerts = []
+                        learning_alerts.append({
+                            "id": f"learning-backup-{int(time.time())}",
+                            "type": "ai_learning",
+                            "title": "Copia horaria del aprendizaje IA",
+                            "body": (
+                                f"{stats.get('words', 0)} neuronas · {size_mb} MB · "
+                                f"progreso {stats.get('billion_progress', '—')}"
+                            ),
+                            "status": "delivered" if res.get("ok") else "failed",
+                            "words": stats.get("words", 0),
+                            "size_mb": size_mb,
+                            "progress": stats.get("billion_progress"),
+                            "milestone_status": stats.get("billion_status"),
+                            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        })
+                        db.set("AI_LEARNING_NOTIFICATIONS", learning_alerts[-100:])
                         if res.get("ok"):
                             add_web_log("SUCCESS", f"Backup de aprendizaje enviado al Master ({size_mb} MB).")
                         else:
