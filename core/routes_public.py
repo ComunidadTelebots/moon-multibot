@@ -24,7 +24,7 @@ import urllib.error
 from urllib.parse import parse_qsl, urlparse
 
 import jwt
-from flask import Blueprint, request, jsonify, redirect
+from flask import Blueprint, Response, request, jsonify, redirect
 
 try:
     import psutil
@@ -597,6 +597,35 @@ def internal_group_admin(cid):
                      "media_events": len(suite.media_events(cid, 100))},
         "history": safe_history,
     })
+
+
+@bp.route("/api/internal/groups/<cid>/photo")
+def internal_group_photo(cid):
+    """Entrega la foto de una comunidad sin revelar el token del bot."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    bot = _known_internal_group(cid)
+    if not bot:
+        return jsonify({"ok": False, "error": "group_not_found"}), 404
+    chat_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
+    chat = chat_response.get("result", {}) if isinstance(chat_response, dict) and chat_response.get("ok") else {}
+    file_id = (chat.get("photo") or {}).get("small_file_id")
+    if not file_id:
+        return jsonify({"ok": False, "error": "photo_not_found"}), 404
+    file_response = bot.api_call("getFile", {"file_id": file_id}, silent=True)
+    file_path = (file_response.get("result") or {}).get("file_path") if isinstance(file_response, dict) and file_response.get("ok") else None
+    if not file_path or ".." in file_path:
+        return jsonify({"ok": False, "error": "photo_unavailable"}), 502
+    try:
+        photo_url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+        with urllib.request.urlopen(photo_url, timeout=8) as upstream:
+            content = upstream.read(5 * 1024 * 1024 + 1)
+            content_type = upstream.headers.get_content_type()
+        if len(content) > 5 * 1024 * 1024 or not str(content_type).startswith("image/"):
+            return jsonify({"ok": False, "error": "invalid_photo"}), 502
+        return Response(content, mimetype=content_type, headers={"Cache-Control": "private, max-age=3600"})
+    except (OSError, urllib.error.URLError):
+        return jsonify({"ok": False, "error": "photo_download_failed"}), 502
 
 
 def _internal_ads_payload(cid):
