@@ -2177,7 +2177,7 @@
 
   async function loadMasterRoadmap(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [d,catalog,completion]=await Promise.all([masterApi("/api/users/roadmap"),fetch("/future-features.json").then(r=>r.json()).catch(()=>({categories:[]})),masterApi("/api/users/horizon-completion")]);
+    const [d,roadmapCatalog]=await Promise.all([masterApi("/api/users/roadmap"),fetch("/future-features-1000.json").then(r=>r.json()).catch(()=>({items:[],implemented:0,routed:0,total:0}))]),catalog={categories:[]},completion={features:[]};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Automatización editorial</div><div class="dbody"><input id="rmTitle" placeholder="Título"><textarea id="rmBody" placeholder="Contenido; admite {{date}}, {{time}} y {{group_id}}"></textarea><select id="rmKind"><option value="post">Publicación</option><option value="resource">Recurso</option><option value="campaign">Campaña</option></select><button class="btn teal" data-rm-action="content_create">Crear borrador</button><input id="rmContentId" placeholder="ID del contenido"><input id="rmTargets" placeholder="Grupos destino separados por comas"><input id="rmExecute" type="datetime-local"><select id="rmRecurrence"><option value="">Una vez</option><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensual</option></select><button class="btn ghost" data-rm-action="content_schedule">Programar</button></div></div>
       <div class="dropdown"><div class="dhead">Rich Markdown 10.2 <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><p class="muted">Admite títulos, listas, tareas, tablas, fórmulas, notas, detalles y medios.</p><input id="rmRichGroup" placeholder="ID del grupo"><textarea id="rmRichMarkdown" rows="8" placeholder="## Informe\n\n- [x] Tarea completada\n- [ ] Pendiente\n\n| Métrica | Valor |\n|---|---:|\n| Salud | 92 |"></textarea><button class="btn teal" id="rmRichSend">Publicar mensaje enriquecido</button></div></div>
       <div class="dropdown"><div class="dhead">IA y conocimiento <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmAiGroup" placeholder="ID grupo"><input id="rmAiTitle" placeholder="Título de fuente"><textarea id="rmAiContent" placeholder="Contenido aprobado"></textarea><button class="btn teal" data-rm-action="ai_source">Añadir fuente</button><input id="rmPriorities" placeholder="Prioridades separadas por comas"><button class="btn ghost" data-rm-action="draft_rules">Redactar reglas</button></div></div>
@@ -2191,9 +2191,16 @@
       </div></div>
       <div class="dropdown"><div class="dhead">API e integraciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmTokenName" placeholder="Nombre del token"><input id="rmScopes" placeholder="Permisos separados por comas"><button class="btn teal" data-rm-action="api_token">Crear token granular</button><input id="rmWebhookGroup" placeholder="ID grupo"><input id="rmWebhookUrl" placeholder="URL webhook"><input id="rmWebhookEvents" placeholder="Eventos separados por comas"><button class="btn ghost" data-rm-action="webhook">Registrar webhook</button></div></div>
       <div class="dropdown"><div class="dhead">Operaciones y fiabilidad <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="rmVersion" placeholder="Versión"><input id="rmInstances" placeholder="Instancias separadas por comas"><input id="rmBatch" type="number" value="1"><button class="btn teal" data-rm-action="deployment">Crear despliegue gradual</button><div class="btnrow"><input id="rmRetention" type="number" value="30"><button class="btn ghost" data-rm-action="backup_policy">Guardar política de backup cifrado</button></div></div></div>
-      <div class="dropdown"><div class="dhead">Horizonte unificado · 1.100 funciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+      <div class="dropdown open"><div class="dhead">Roadmap master <span class="chev">${svg('chevron')}</span></div><div class="dbody">
+        <div class="stats"><div><b>${Number(roadmapCatalog.total||0)}</b><span>Total</span></div><div><b>${Number(roadmapCatalog.implemented||0)}</b><span>Incluidas</span></div><div><b>${Number(roadmapCatalog.routed||0)}</b><span>En desarrollo</span></div></div>
+        <input id="masterRoadmapSearch" type="search" placeholder="Buscar features…">
+        <select id="masterRoadmapStatus"><option value="all">Todas</option><option value="implemented">Features incluidas</option><option value="routed">En desarrollo</option><option value="proposed">Propuestas</option></select>
+        <div id="masterRoadmapList"></div>
+        <a class="btn teal" href="https://todosobreall.tech/roadmap" target="_blank" rel="noopener">Abrir roadmap completo</a>
+      </div></div>
+      <div hidden><div>
         <p class="muted">Un solo horizonte para la web, Moonbot y la Mini App: las 1.100 funciones son ejecutables, configurables y auditables.</p>
-        <a class="btn teal" href="/roadmap1000.html">Explorar el catálogo unificado</a>
+        <a href="https://todosobreall.tech/roadmap">Roadmap</a>
         <div class="gsec">Primera fase operativa</div>
         <input id="h202Group" placeholder="ID del grupo">
         <textarea id="h202Samples" rows="3" placeholder='Muestras JSON: [{"user_id":"1","text":"...","negative":0.8,"score":70}]'></textarea>
@@ -2223,6 +2230,9 @@
       </div></div>
       <pre id="rmResult" class="casbox"></pre><div class="sec">Estado del sistema avanzado</div><pre class="casbox">${escHtml(JSON.stringify(d,null,2))}</pre>`;
     box.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const body=h.nextElementSibling;if(body)body.hidden=!body.hidden;});
+    const masterRoadmapSearch=box.querySelector("#masterRoadmapSearch"),masterRoadmapStatus=box.querySelector("#masterRoadmapStatus"),masterRoadmapList=box.querySelector("#masterRoadmapList");
+    const renderMasterRoadmap=()=>{const q=(masterRoadmapSearch.value||"").trim().toLowerCase(),status=masterRoadmapStatus.value;const rows=(roadmapCatalog.items||[]).filter(item=>(status==="all"||item.status===status)&&(!q||`${item.title} ${item.description}`.toLowerCase().includes(q))).slice(0,100);masterRoadmapList.innerHTML=rows.map(item=>`<div class="casbox"><b>${escHtml(item.title)}</b><br><span class="muted">${escHtml(item.product_name)} · ${escHtml(item.category)}</span><br><span class="${item.status==='implemented'?'clean':'k'}">${item.status==='implemented'?'Incluida':item.status==='routed'?'En desarrollo':'Propuesta'}</span></div>`).join("")||'<p class="muted">No hay features que coincidan.</p>';};
+    masterRoadmapSearch.oninput=renderMasterRoadmap;masterRoadmapStatus.onchange=renderMasterRoadmap;renderMasterRoadmap();
     let futureCategory="all";
     const futureSearch=box.querySelector("#futureFeatureSearch"),futureList=box.querySelector("#futureFeatureList");
     const implementedFuture=new Set(catalog.all_implemented?(catalog.categories||[]).flatMap(category=>category.items||[]):catalog.implemented||[]);

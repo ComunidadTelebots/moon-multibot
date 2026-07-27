@@ -1,5 +1,15 @@
 ﻿# Changelog - Moon Multibot
 
+### Roadmap master dentro de la WebApp - 2026-07-27
+- El roadmap vuelve al Centro avanzado de la WebApp y solo se muestra dentro del área master.
+- Incluye búsqueda, filtro de estado y un apartado identificable de features incluidas.
+- La URL pública completa continúa siendo `https://todosobreall.tech/roadmap`.
+
+### Roadmap canónico - 2026-07-27
+- El Hub enlaza exclusivamente a `https://todosobreall.tech/roadmap` para consultar la planificación.
+- Eliminada la pantalla independiente `roadmap1000.html` y ocultado el antiguo ejecutor genérico.
+- Las herramientas operativas permanecen en IA, moderación, automatizaciones, integraciones y operaciones.
+
 ### Horizonte mediante recursos REST reales - 2026-07-27
 - Nuevos recursos `/api/internal/horizon/features/<slug>` y `/api/users/horizon/<slug>` con `GET`, `POST`, `PUT` y `DELETE`.
 - `GET` consulta estado, `POST` ejecuta, `PUT` configura y `DELETE` revierte las funciones del Horizonte 1000.
