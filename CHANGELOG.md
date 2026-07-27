@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Grupos y canales paginados - 2026-07-27
+
+- Nueva consulta administrativa paginada con búsqueda global y filtro real por grupo o canal.
+- Solo devuelve comunidades vinculadas actualmente con al menos una instancia activa de Moonbot.
+- Cada registro conserva tipo, enlace público, métricas y bots asociados.
+
 ### Usuarios paginados desde servidor - 2026-07-27
 
 - La API administrativa pagina el inventario completo de usuarios y mantiene la búsqueda global por nombre o ID.

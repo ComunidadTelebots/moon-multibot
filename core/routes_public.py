@@ -209,6 +209,18 @@ def _admin_channel_union():
     return list(by_id.values())
 
 
+def _admin_group_rows():
+    """Inventario normalizado de chats que pertenecen al menos a un bot activo."""
+    rows = []
+    for channel in _admin_channel_union():
+        bots = channel.get("bots") or []
+        if not bots or channel.get("chat_id") is None:
+            continue
+        rows.append({**channel, "id": str(channel["chat_id"]),
+                     "name": str(channel.get("name") or channel.get("username") or f"Grupo {channel['chat_id']}")[:160]})
+    return rows
+
+
 @bp.route("/api/internal/admin-overview")
 def internal_admin_overview():
     """Resumen real y sin secretos para el panel central de TodoSobreAllTech."""
@@ -435,6 +447,32 @@ def _start_bulk_captcha(bot, cid, actor="admin"):
 
     threading.Thread(target=run, daemon=True, name=f"captcha-bulk-{cid}").start()
     return job, True
+
+
+@bp.route("/api/internal/groups")
+def internal_groups():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    query = str(request.args.get("q", "")).strip().casefold()[:100]
+    kind = str(request.args.get("type", "all")).lower()
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+        per_page = max(10, min(100, int(request.args.get("per_page", 40))))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "invalid_pagination"}), 400
+    if kind not in ("all", "group", "channel"):
+        return jsonify({"ok": False, "error": "invalid_type"}), 400
+    rows = _admin_group_rows()
+    if kind == "channel": rows = [row for row in rows if str(row.get("ctype", "")).lower() == "channel"]
+    elif kind == "group": rows = [row for row in rows if str(row.get("ctype", "")).lower() != "channel"]
+    if query:
+        rows = [row for row in rows if query in " ".join([str(row.get("name", "")), str(row.get("id", "")),
+            str(row.get("username", "")), *[str(bot.get("username", "")) for bot in row.get("bots", [])]]).casefold()]
+    rows.sort(key=lambda row: str(row.get("name") or row.get("id")).casefold())
+    total = len(rows); total_pages = max(1, (total + per_page - 1) // per_page); page = min(page, total_pages)
+    start = (page - 1) * per_page
+    return jsonify({"ok": True, "groups": rows[start:start + per_page], "total": total,
+                    "page": page, "per_page": per_page, "total_pages": total_pages, "type": kind})
 
 
 @bp.route("/api/internal/groups/<cid>", methods=["GET", "POST"])
