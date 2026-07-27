@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Chat MiniApp con diseño Telegram - 2026-07-27
+
+- La lista de conversaciones, cabecera, burbujas, horas, acciones y compositor adoptan una presentación compacta inspirada en Telegram.
+- Al abrir un grupo se consulta en Telegram el número real de miembros mediante el bot seleccionado y se actualiza la caché del inventario.
+- Los controles de moderación quedan recogidos dentro de cada mensaje para mantener limpia la conversación.
+
 ### Avisos web del aprendizaje IA - 2026-07-27
 
 - Cada copia horaria del aprendizaje genera un aviso estructurado para TodoSobreAllTech con resultado, tamaño, neuronas, progreso y fecha.
