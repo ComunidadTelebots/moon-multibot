@@ -1,5 +1,12 @@
 ﻿# Changelog - Moon Multibot
 
+### Edición, distribución y encuestas desde el chat - 2026-07-27
+
+- Se conectan a las interfaces los métodos ya existentes para editar, copiar, reenviar y limpiar todas las reacciones de un mensaje.
+- Nueva acción para desfijar todos los mensajes del grupo con una sola confirmación administrativa.
+- El chat puede crear encuestas de 1 a 12 opciones y el motor admite modo cuestionario, respuestas múltiples, caducidad y protección.
+- Copiar y reenviar solo permite destinos realmente administrados por una instancia conocida de Moonbot.
+
 ### Controles completos del chat master - 2026-07-27
 
 - Se auditaron las funciones existentes y se reutilizaron los métodos Telegram ya incorporados, evitando duplicarlos.

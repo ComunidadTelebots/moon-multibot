@@ -568,15 +568,32 @@ def internal_group_admin(cid):
         elif action == "chat_message_action":
             message_id = str(body.get("message_id") or "").strip()
             operation = str(body.get("operation") or "").strip()
-            if not message_id.isdigit() or operation not in {"delete", "pin", "unpin", "react"}:
+            allowed_operations = {"delete", "pin", "unpin", "react", "edit", "copy", "forward",
+                                  "clear_reactions", "unpin_all"}
+            if (operation != "unpin_all" and not message_id.isdigit()) or operation not in allowed_operations:
                 return jsonify({"ok": False, "error": "invalid_chat_message_action"}), 400
-            mid = int(message_id)
+            mid = int(message_id) if message_id.isdigit() else None
             if operation == "delete":
                 result = bot.delete_msg(cid, mid)
             elif operation == "pin":
                 result = bot.pin_msg(cid, mid)
             elif operation == "unpin":
                 result = bot.unpin_msg(cid, mid)
+            elif operation == "unpin_all":
+                result = bot.unpin_all_messages(cid)
+            elif operation == "edit":
+                new_text = str(body.get("text") or "").strip()
+                if not new_text or len(new_text) > 4096:
+                    return jsonify({"ok": False, "error": "invalid_message"}), 400
+                result = bot.edit_msg(cid, mid, new_text)
+            elif operation in {"copy", "forward"}:
+                target_chat_id = str(body.get("target_chat_id") or "").strip()
+                if not target_chat_id or not _known_internal_group(target_chat_id):
+                    return jsonify({"ok": False, "error": "target_group_not_found"}), 404
+                result = (bot.copy_message(target_chat_id, cid, mid, body.get("caption"))
+                          if operation == "copy" else bot.forward_message(target_chat_id, cid, mid))
+            elif operation == "clear_reactions":
+                result = bot.delete_all_message_reactions(cid, mid)
             else:
                 reaction = str(body.get("reaction") or "👍")[:16]
                 result = bot.set_message_reaction(cid, mid, reaction, is_big=bool(body.get("is_big")))
@@ -587,9 +604,35 @@ def internal_group_admin(cid):
                 history = [row for row in _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
                            if str(row.get("message_id") or "") != message_id]
                 _db.set(f"CHAT_HIST_{cid}", history[-200:])
+            elif operation == "edit":
+                history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+                for row in history:
+                    if str(row.get("message_id") or "") == message_id:
+                        row["text"] = str(body.get("text"))[:1000]
+                        row["edited"] = True
+                _db.set(f"CHAT_HIST_{cid}", history[-200:])
             if _add_audit_log:
                 _add_audit_log(f"Chat master: {operation} sobre mensaje {message_id} en {cid}")
             return jsonify({"ok": True, "operation": operation, "message_id": mid})
+        elif action == "send_poll":
+            question = str(body.get("question") or "").strip()
+            options = body.get("options") or []
+            if not question or not isinstance(options, list) or not 1 <= len(options) <= 12:
+                return jsonify({"ok": False, "error": "invalid_poll"}), 400
+            result = bot.send_poll(cid, question, options,
+                                   is_anonymous=bool(body.get("is_anonymous", True)),
+                                   allows_multiple_answers=bool(body.get("allows_multiple_answers")),
+                                   quiz=bool(body.get("quiz")),
+                                   correct_option_ids=body.get("correct_option_ids"),
+                                   explanation=body.get("explanation"),
+                                   open_period=body.get("open_period"),
+                                   protect_content=bool(body.get("protect_content")))
+            if not isinstance(result, dict) or not result.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_poll_failed",
+                                "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+            if _add_audit_log:
+                _add_audit_log(f"Encuesta enviada desde chat master a {cid}")
+            return jsonify({"ok": True, "message_id": (result.get("result") or {}).get("message_id")})
         elif action == "send_ephemeral_message":
             text = str(body.get("text") or "").strip()
             receiver_user_id = str(body.get("receiver_user_id") or "").strip()

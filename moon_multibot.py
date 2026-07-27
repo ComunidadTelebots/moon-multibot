@@ -4464,6 +4464,31 @@ class MoonBot:
             p["caption"] = caption
         return self.api_call("copyMessage", p)
 
+    def send_poll(self, cid, question, options, is_anonymous=True,
+                  allows_multiple_answers=False, quiz=False, correct_option_ids=None,
+                  explanation=None, open_period=None, protect_content=False):
+        clean_options = []
+        for option in options[:12]:
+            if isinstance(option, dict):
+                text = str(option.get("text") or "").strip()
+                clean_options.append({**option, "text": text})
+            else:
+                clean_options.append({"text": str(option).strip()})
+        clean_options = [option for option in clean_options if option["text"]]
+        payload = {"chat_id": cid, "question": str(question).strip()[:300],
+                   "options": clean_options, "is_anonymous": bool(is_anonymous),
+                   "allows_multiple_answers": bool(allows_multiple_answers),
+                   "type": "quiz" if quiz else "regular"}
+        if quiz and correct_option_ids:
+            payload["correct_option_ids"] = [int(value) for value in correct_option_ids]
+        if explanation:
+            payload["explanation"] = str(explanation)[:200]
+        if open_period is not None:
+            payload["open_period"] = max(5, min(int(open_period), 2628000))
+        if protect_content:
+            payload["protect_content"] = True
+        return self.api_call("sendPoll", payload)
+
     def get_chat(self, cid):
         return self.api_call("getChat", {"chat_id": cid})
 
