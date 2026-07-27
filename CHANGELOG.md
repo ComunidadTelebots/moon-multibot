@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Comparador y catálogo sincronizado en la WebApp - 2026-07-27
+- El roadmap master permite comparar hasta tres entradas sin salir del Hub.
+- El catálogo local se sincroniza con las 3.000 entradas de `todosobreall.tech/roadmap` y reconoce definiciones completadas.
+- Los contadores separan funciones incluidas, definidas, en desarrollo y propuestas.
+
 ### Roadmap master dentro de la WebApp - 2026-07-27
 - El roadmap vuelve al Centro avanzado de la WebApp y solo se muestra dentro del área master.
 - Incluye búsqueda, filtro de estado y un apartado identificable de features incluidas.
