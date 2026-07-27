@@ -180,6 +180,14 @@
   .master-metric .ml{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px;}
   .master-metric.good .mv{color:var(--teal)} .master-metric.warn .mv{color:var(--amber)}
   .master-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px;}
+  .bot-chat-list{display:grid;gap:9px}.bot-chat-row{display:flex;align-items:center;gap:10px;text-align:left}
+  .bot-chat-row .meta{min-width:0;flex:1}.bot-chat-row .nm,.bot-chat-row .un{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bot-chat-shell{display:flex;flex-direction:column;gap:10px;min-height:58vh}.bot-chat-messages{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow:auto;padding:4px 2px}
+  .bot-chat-msg{max-width:88%;padding:9px 11px;border:1px solid var(--line);border-radius:14px;background:var(--card);align-self:flex-start}
+  .bot-chat-msg.mine{align-self:flex-end;border-color:rgba(93,202,165,.35);background:rgba(93,202,165,.10)}
+  .bot-chat-msg .who{font-size:11px;color:var(--muted);margin-bottom:4px}.bot-chat-msg .body{white-space:pre-wrap;overflow-wrap:anywhere}
+  .bot-chat-msg .chat-controls{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.bot-chat-msg .chat-controls button{font-size:10px;padding:5px 7px}
+  .bot-chat-compose{position:sticky;bottom:0;background:var(--bg);padding:8px 0 2px}.bot-chat-compose textarea{resize:none}
   .master-action{min-height:88px;text-align:left;border:1px solid var(--line);border-radius:14px;padding:13px;
     background:var(--card);color:var(--ink);font-family:var(--body);cursor:pointer;transition:.15s;}
   .master-action:active{transform:translateY(1px);background:rgba(255,255,255,.06);}
@@ -1383,6 +1391,7 @@
   }
 
   let masterListScroll=0;
+  let masterChatTimer=null,masterChatGroups=[],masterChatCurrent=null;
   async function openMasterPage(title,subtitle,loader){
     const page=document.getElementById("v-master-detail");
     masterListScroll=window.scrollY||document.documentElement.scrollTop||0;
@@ -1397,6 +1406,7 @@
     }
   }
   function closeMasterPage(){
+    if(masterChatTimer){clearInterval(masterChatTimer);masterChatTimer=null;}
     document.getElementById("v-master-detail").hidden=true;
     document.body.style.overflow="";
     requestAnimationFrame(()=>window.scrollTo(0,masterListScroll));
@@ -1432,6 +1442,7 @@
         <button class="master-action" id="masterUsers"><span class="mai">${svg('users')}</span><b>Usuarios y baneos</b><small>Consultar, banear o restaurar</small></button>
         <button class="master-action" id="masterProxies"><span class="mai">${svg('globe')}</span><b>Proxies</b><small>Estado y controles MTProto</small></button>
         <button class="master-action" id="masterBots"><span class="mai">${svg('bot')}</span><b>Bots conectados</b><small>Nodos, chats y nuevas instancias</small></button>
+        <button class="master-action" id="masterChat"><span class="mai">${svg('message')}</span><b>Chat de Telegram</b><small>Leer grupos, responder y moderar</small></button>
         <button class="master-action" id="masterIA"><span class="mai">${svg('sparkles')}</span><b>Moon IA</b><small>Aprendizaje, modo y fuentes</small></button>
         <button class="master-action" id="masterQueue"><span class="mai">${svg('clock')}</span><b>Cola de tareas</b><small>Priorizar o cancelar procesos</small></button>
         <button class="master-action" id="masterSecurity"><span class="mai">${svg('shield')}</span><b>Seguridad</b><small>Escudo neural y consulta CAS</small></button>
@@ -1460,6 +1471,7 @@
     document.getElementById("masterUsers").onclick=()=>openMasterPage("Usuarios y baneos","Consultar, banear o restaurar",loadMasterUsers);
     document.getElementById("masterProxies").onclick=()=>openMasterPage("Proxies","Estado y controles MTProto",loadMasterProxies);
     document.getElementById("masterBots").onclick=()=>openMasterPage("Bots conectados","Nodos, chats y nuevas instancias",loadMasterBots);
+    document.getElementById("masterChat").onclick=()=>openMasterPage("Chat de Telegram","Todos tus bots y grupos en un mismo chat",loadMasterChatGroups);
     document.getElementById("masterIA").onclick=()=>openMasterPage("Moon IA","Aprendizaje, modo y fuentes",loadMasterIA);
     document.getElementById("masterQueue").onclick=()=>openMasterPage("Cola de tareas","Priorizar o cancelar procesos",loadMasterQueue);
     document.getElementById("masterSecurity").onclick=()=>openMasterPage("Seguridad","Escudo neural y consulta CAS",loadMasterSecurity);
@@ -1673,6 +1685,81 @@
   async function scanMasterProxies(){
     const r=await masterApi("/api/proxies/scan");
     if(r&&r.ok){showToast(`${fmt(r.detected&&r.detected.length||r.detected||0)} detectados`);loadMasterProxies();}else showToast("No se pudo completar el escaneo");
+  }
+  async function fetchMasterChatGroups(query=""){
+    const first=await masterApi(`/api/internal/groups?type=group&per_page=100&page=1&q=${encodeURIComponent(query)}`);
+    if(!first||!first.ok)return first||{ok:false,error:"Sin respuesta"};
+    let groups=[...(first.groups||[])];
+    for(let page=2;page<=Math.min(Number(first.total_pages)||1,20);page++){
+      const next=await masterApi(`/api/internal/groups?type=group&per_page=100&page=${page}&q=${encodeURIComponent(query)}`);
+      if(!next||!next.ok)break;groups.push(...(next.groups||[]));
+    }
+    return {...first,groups};
+  }
+  function masterChatBotLabel(group){
+    const bots=(group.bots||[]).map(b=>b.username?`@${b.username}`:b.id).filter(Boolean);
+    return bots.length?bots.join(" + "):"Moonbot";
+  }
+  async function loadMasterChatGroups(){
+    if(masterChatTimer){clearInterval(masterChatTimer);masterChatTimer=null;}
+    masterChatCurrent=null;
+    document.getElementById("masterDetailTitle").textContent="Chat de Telegram";
+    document.getElementById("masterDetailSubtitle").textContent="Todos tus bots y grupos en un mismo chat";
+    document.getElementById("masterDetailBack").onclick=closeMasterPage;
+    const box=document.getElementById("masterDetail");box.innerHTML=`<div class="card"><input id="masterChatSearch" type="search" placeholder="Buscar grupo, ID o bot…"><div class="btnrow" style="margin-top:8px"><button class="btn ghost" id="masterChatSearchBtn">Buscar</button><button class="btn ghost" id="masterChatReload">Actualizar</button></div></div><div id="masterChatList">${skel()}</div>`;
+    const render=async()=>{
+      const target=document.getElementById("masterChatList");if(!target)return;target.innerHTML=skel();
+      const data=await fetchMasterChatGroups(document.getElementById("masterChatSearch").value.trim());
+      masterChatGroups=(data&&data.groups)||[];
+      target.innerHTML=masterChatGroups.length?`<p class="muted">${masterChatGroups.length} grupos únicos. Los compartidos muestran todos los bots disponibles.</p><div class="bot-chat-list">${masterChatGroups.map((g,i)=>`<button class="card bot-chat-row" data-master-chat-group="${i}"><span class="av">${initials(g.name||"G")}</span><span class="meta"><span class="nm">${escHtml(g.name||`Grupo ${g.id}`)}</span><span class="un">${escHtml(masterChatBotLabel(g))} · ${fmt(g.subscribers||0)} miembros</span></span><span>›</span></button>`).join("")}</div>`:`<div class="empty"><p>${escHtml((data&&data.error)||"No hay grupos disponibles")}</p></div>`;
+      target.querySelectorAll("[data-master-chat-group]").forEach(button=>button.onclick=()=>openMasterChat(masterChatGroups[Number(button.dataset.masterChatGroup)]));
+    };
+    document.getElementById("masterChatSearchBtn").onclick=render;
+    document.getElementById("masterChatReload").onclick=render;
+    document.getElementById("masterChatSearch").onkeydown=e=>{if(e.key==="Enter")render();};
+    await render();
+  }
+  async function openMasterChat(group){
+    if(!group)return;masterChatCurrent=group;
+    document.getElementById("masterDetailTitle").textContent=group.name||`Grupo ${group.id}`;
+    document.getElementById("masterDetailSubtitle").textContent=masterChatBotLabel(group);
+    document.getElementById("masterDetailBack").onclick=loadMasterChatGroups;
+    const box=document.getElementById("masterDetail"),bots=group.bots||[];
+    box.innerHTML=`<div class="bot-chat-shell"><div class="card"><label class="muted">Responder como</label><select id="masterChatBot">${bots.map(b=>`<option value="${escAttr(b.id||b.username)}">@${escHtml(b.username||b.id||"Moonbot")}</option>`).join("")||'<option value="">Moonbot</option>'}</select><div class="btnrow" style="margin-top:8px"><button class="minibtn" id="masterChatRefresh">Actualizar chat</button><button class="minibtn" id="masterChatOpenGroup">Abrir en Telegram</button></div></div><div class="bot-chat-messages" id="masterChatMessages">${skel()}</div><div class="bot-chat-compose"><textarea id="masterChatText" rows="3" maxlength="4096" placeholder="Escribe un mensaje…"></textarea><div class="btnrow"><label class="muted"><input id="masterChatMarkdown" type="checkbox" checked style="width:auto"> Markdown</label><button class="btn teal" id="masterChatSend">Enviar</button></div></div></div>`;
+    document.getElementById("masterChatRefresh").onclick=()=>refreshMasterChat(false);
+    document.getElementById("masterChatOpenGroup").onclick=()=>openTg(`https://t.me/c/${String(group.id).replace("-100","")}`);
+    document.getElementById("masterChatSend").onclick=sendMasterChatMessage;
+    document.getElementById("masterChatText").onkeydown=e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();sendMasterChatMessage();}};
+    await refreshMasterChat(true);
+    if(masterChatTimer)clearInterval(masterChatTimer);
+    masterChatTimer=setInterval(()=>{if(masterChatCurrent)refreshMasterChat(true);},7000);
+  }
+  async function refreshMasterChat(quiet=false){
+    if(!masterChatCurrent)return;const target=document.getElementById("masterChatMessages");if(!target)return;
+    if(!quiet)target.innerHTML=skel();
+    const data=await masterApi(`/api/internal/groups/${encodeURIComponent(masterChatCurrent.id)}`);
+    if(!data||!data.ok){target.innerHTML='<div class="master-error">No se pudo cargar el historial.</div>';return;}
+    const rows=data.history||[];
+    target.innerHTML=rows.length?rows.map((m,i)=>{const uid=String(m.uid||""),mine=m.sender==="Bot",canAct=/^\d+$/.test(uid)&&!mine;return `<div class="bot-chat-msg ${mine?'mine':''}"><div class="who">${escHtml(m.sender||uid||"Usuario")} · ${escHtml(m.time||"")}</div><div class="body">${escHtml(m.text||"")}</div>${m.has_media?`<button class="minibtn" data-chat-media="${i}">Ver archivo</button>`:""}${canAct?`<div class="chat-controls"><button class="minibtn" data-chat-action="warn" data-uid="${uid}">Avisar</button><button class="minibtn" data-chat-action="mute" data-uid="${uid}">Silenciar</button><button class="minibtn" data-chat-action="unmute" data-uid="${uid}">Restaurar</button><button class="minibtn danger" data-chat-action="ban_local" data-uid="${uid}">Banear</button></div>`:""}</div>`;}).join(""):'<p class="muted">Aún no hay mensajes guardados para este grupo.</p>';
+    target.querySelectorAll("[data-chat-action]").forEach(button=>button.onclick=()=>moderateMasterChatUser(button.dataset.uid,button.dataset.chatAction));
+    target.querySelectorAll("[data-chat-media]").forEach(button=>button.onclick=()=>openMasterChatMedia(rows[Number(button.dataset.chatMedia)]));
+    target.scrollTop=target.scrollHeight;
+  }
+  async function sendMasterChatMessage(){
+    const input=document.getElementById("masterChatText"),button=document.getElementById("masterChatSend"),text=input.value.trim();if(!text)return;
+    button.disabled=true;const result=await masterApi(`/api/internal/groups/${encodeURIComponent(masterChatCurrent.id)}`,{method:"POST",body:JSON.stringify({action:"send_message",text,markdown:document.getElementById("masterChatMarkdown").checked,bot_id:document.getElementById("masterChatBot").value})});button.disabled=false;
+    if(result&&result.ok){input.value="";showToast("Mensaje enviado");await refreshMasterChat(true);}else showToast((result&&result.detail)||"No se pudo enviar");
+  }
+  async function moderateMasterChatUser(uid,action){
+    const labels={warn:"advertir",mute:"silenciar",unmute:"restaurar",ban_local:"banear"};
+    if(!await masterConfirm(`¿Quieres ${labels[action]||action} al usuario ${uid}?`))return;
+    const body={action,group_id:String(masterChatCurrent.id)};if(action==="mute")body.minutes=30;if(action==="warn"||action==="ban_local")body.reason=prompt("Motivo de la acción")||"Moderación desde la MiniApp";
+    const result=await masterApi(`/api/internal/users/${encodeURIComponent(uid)}`,{method:"POST",body:JSON.stringify(body)});
+    showToast(result&&result.ok?"Acción aplicada":((result&&result.error)||"No se pudo aplicar"));
+  }
+  async function openMasterChatMedia(message){
+    const media=message&&message.media;if(!media||!media.file_id)return;
+    try{const response=await fetch(`/api/internal/groups/${encodeURIComponent(masterChatCurrent.id)}/media/${encodeURIComponent(media.file_id)}`,{headers:{Authorization:`Bearer ${masterToken}`}});if(!response.ok)throw new Error();const url=URL.createObjectURL(await response.blob());openLink(url);setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(e){showToast("No se pudo abrir el archivo");}
   }
   async function loadMasterBots(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();

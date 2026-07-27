@@ -1,5 +1,13 @@
 ﻿# Changelog - Moon Multibot
 
+### Chat Telegram dentro de la MiniApp - 2026-07-27
+
+- El master dispone de un chat integrado en el Hub con todos los grupos únicos y los bots asociados a cada comunidad.
+- Permite leer el historial, elegir qué bot responde en grupos compartidos, enviar Markdown y actualizar la conversación automáticamente.
+- Desde cada mensaje se puede advertir, silenciar, restaurar o banear al usuario, además de abrir los archivos protegidos del historial.
+- Cada grupo se abre como una pestaña interna con flecha atrás y conserva el diseño oscuro original de la MiniApp.
+- Los endpoints administrativos aceptan un JWT temporal con alcance exclusivo `miniapp_master`; los tokens sin ese alcance siguen sin acceder.
+
 ### Chat Telegram en TodoSobreAllTech - 2026-07-27
 
 - El panel master externo puede consultar el historial seguro de cada comunidad y enviar mensajes mediante el bot realmente asociado.

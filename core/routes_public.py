@@ -159,15 +159,24 @@ def _verify_init_data(init_data, max_age=86400):
 def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Community-Key, X-Moon-Admin-Key"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Community-Key, X-Moon-Admin-Key"
     return resp
 
 
 def _internal_admin_authorized():
-    """Autenticacion servidor-a-servidor; el secreto nunca llega al navegador."""
+    """Autoriza la clave servidor-a-servidor o el JWT temporal del master de la MiniApp."""
     expected = os.getenv("MOON_ADMIN_API_KEY", "").strip()
     supplied = request.headers.get("X-Moon-Admin-Key", "").strip()
-    return bool(expected and supplied and hmac.compare_digest(expected, supplied))
+    if expected and supplied and hmac.compare_digest(expected, supplied):
+        return True
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer ") or not _jwt_secret:
+        return False
+    try:
+        claims = jwt.decode(authorization[7:].strip(), _jwt_secret, algorithms=["HS256"])
+        return claims.get("scope") == "miniapp_master"
+    except (jwt.InvalidTokenError, ValueError, TypeError):
+        return False
 
 
 def _safe_list(value):
@@ -1550,7 +1559,8 @@ def tg_auth():
     }}
     if is_master and _jwt_secret:
         resp["token"] = jwt.encode(
-            {"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)},
+            {"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+             "scope": "miniapp_master", "sub": str(user.get("id"))},
             _jwt_secret, algorithm="HS256",
         )
     return jsonify(resp)
