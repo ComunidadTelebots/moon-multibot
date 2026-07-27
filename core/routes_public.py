@@ -361,8 +361,13 @@ def internal_roadmap_action():
         return jsonify({"ok": False, "error": str(error)}), 400
 
 
-def _known_internal_group(cid):
+def _known_internal_group(cid, bot_id=None):
+    requested = str(bot_id or "").strip().lower()
     for bot in (_get_active_bots() or []) if _get_active_bots else []:
+        identities = {str(getattr(bot, "bot_id", "")).lower(), str(getattr(bot, "user_id", "")).lower(),
+                      str(getattr(bot, "bot_username", "")).lower().lstrip("@")}
+        if requested and requested.lstrip("@") not in identities:
+            continue
         if str(cid) in {str(item) for item in _safe_list(_db.get(f"CHATS_{getattr(bot, 'token', '')}", []))}:
             return bot
     return None
@@ -454,6 +459,7 @@ def internal_groups():
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     query = str(request.args.get("q", "")).strip().casefold()[:100]
+    bot_id = str(request.args.get("bot_id", "")).strip().casefold()[:100]
     kind = str(request.args.get("type", "all")).lower()
     try:
         page = max(1, int(request.args.get("page", 1)))
@@ -463,6 +469,10 @@ def internal_groups():
     if kind not in ("all", "group", "channel"):
         return jsonify({"ok": False, "error": "invalid_type"}), 400
     rows = _admin_group_rows()
+    if bot_id:
+        rows = [row for row in rows if any(bot_id.lstrip("@") in {
+            str(bot.get("id", "")).casefold(), str(bot.get("username", "")).casefold().lstrip("@")
+        } for bot in row.get("bots", []))]
     if kind == "channel": rows = [row for row in rows if str(row.get("ctype", "")).lower() == "channel"]
     elif kind == "group": rows = [row for row in rows if str(row.get("ctype", "")).lower() != "channel"]
     if query:
@@ -479,12 +489,12 @@ def internal_groups():
 def internal_group_admin(cid):
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
-    bot = _known_internal_group(cid)
+    body = (request.json or {}) if request.method == "POST" else {}
+    bot = _known_internal_group(cid, body.get("bot_id"))
     if not bot:
         return jsonify({"ok": False, "error": "group_not_found"}), 404
     suite = GroupSuite(_db)
     if request.method == "POST":
-        body = request.json or {}
         action = body.get("action")
         if action == "save_config" and isinstance(body.get("config"), dict):
             config = suite.save_config(cid, body["config"])
@@ -534,7 +544,9 @@ def internal_group_admin(cid):
                 _add_audit_log(f"TodoSobreAllTech: mensaje enviado a {cid} mediante @{getattr(bot, 'bot_username', 'Moonbot')}")
             return jsonify({"ok": True, "sent": {"time": datetime.datetime.now().strftime("%H:%M"),
                             "sender": "Bot", "text": text[:1000], "has_media": False},
-                            "message_id": (result.get("result") or {}).get("message_id")})
+                            "message_id": (result.get("result") or {}).get("message_id"),
+                            "bot": {"id": str(getattr(bot, "bot_id", "")),
+                                    "username": str(getattr(bot, "bot_username", "Moonbot"))}})
         elif action == "refresh_telegram":
             chat_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
             if not isinstance(chat_response, dict) or not chat_response.get("ok"):

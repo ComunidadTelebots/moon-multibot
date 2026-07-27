@@ -4,6 +4,7 @@
 
 - El panel master externo puede consultar el historial seguro de cada comunidad y enviar mensajes mediante el bot realmente asociado.
 - Los envíos validan pertenencia, longitud y resultado de Telegram, se guardan en el historial y dejan registro de auditoría.
+- El master puede filtrar el inventario por cualquiera de sus bots y elegir qué instancia escribe en los grupos compartidos.
 
 ### Sincronización manual de comunidades - 2026-07-27
 
