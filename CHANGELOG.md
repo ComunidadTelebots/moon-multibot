@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Sincronización manual de comunidades - 2026-07-27
+
+- El panel master puede actualizar bajo demanda el nombre, alias, descripción, tipo, miembros y administradores de un grupo o canal directamente desde Telegram.
+- El inventario administrativo informa de la última sincronización conocida y conserva la fecha de la última comprobación de administradores.
+
 ### Grupos y canales paginados - 2026-07-27
 
 - Nueva consulta administrativa paginada con búsqueda global y filtro real por grupo o canal.

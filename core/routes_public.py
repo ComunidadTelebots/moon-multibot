@@ -515,6 +515,34 @@ def internal_group_admin(cid):
             return jsonify({"ok": True, "captcha_job": job})
         elif action == "sync_commands":
             return jsonify({"ok": True, "command_menu": bot.sync_command_menu(cid)})
+        elif action == "refresh_telegram":
+            chat_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
+            if not isinstance(chat_response, dict) or not chat_response.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_chat_unavailable",
+                                "detail": (chat_response or {}).get("description") if isinstance(chat_response, dict) else None}), 502
+            chat = chat_response.get("result") or {}
+            title = chat.get("title") or chat.get("first_name") or f"Grupo {cid}"
+            username = chat.get("username") or ""
+            description = chat.get("description") or chat.get("bio") or ""
+            _channel_stats.register_channel(cid, username=username, title=title, description=description,
+                                            ctype=chat.get("type"), bot_token=getattr(bot, "token", None))
+            names = (_get_global_chat_names() or {}) if _get_global_chat_names else {}
+            names[str(cid)] = title
+            _db.set("CHAT_NAMES", names)
+            count_response = bot.api_call("getChatMemberCount", {"chat_id": cid}, silent=True)
+            if isinstance(count_response, dict) and count_response.get("ok"):
+                _channel_stats.record_snapshot(cid, int(count_response.get("result") or 0))
+            admins_response = bot.api_call("getChatAdministrators", {"chat_id": cid}, silent=True)
+            if isinstance(admins_response, dict) and admins_response.get("ok"):
+                admins = [{"user_id": row.get("user", {}).get("id"), "status": row.get("status")}
+                          for row in (admins_response.get("result") or []) if row.get("user", {}).get("id")]
+                _channel_stats.set_channel_admins(cid, admins)
+            return jsonify({"ok": True, "refreshed": True, "group": {
+                "id": str(cid), "name": str(title)[:160], "username": username,
+                "ctype": chat.get("type"), "subscribers": (count_response or {}).get("result")
+                    if isinstance(count_response, dict) and count_response.get("ok") else None,
+                "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }})
         elif action == "copy_config":
             source = str(body.get("source_id", ""))
             if not _known_internal_group(source):

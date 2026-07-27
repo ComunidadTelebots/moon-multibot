@@ -288,6 +288,8 @@ def _to_dict(r, role=None):
         "listed": bool(r.get("listed")),
         "role": role,
         "owner": role == "creator" if role else None,
+        "synced_at": r.get("updated") or r.get("admins_checked") or r.get("created"),
+        "admins_checked_at": r.get("admins_checked") or None,
     }
 
 
