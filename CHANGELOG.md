@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Chat Telegram en TodoSobreAllTech - 2026-07-27
+
+- El panel master externo puede consultar el historial seguro de cada comunidad y enviar mensajes mediante el bot realmente asociado.
+- Los envíos validan pertenencia, longitud y resultado de Telegram, se guardan en el historial y dejan registro de auditoría.
+
 ### Sincronización manual de comunidades - 2026-07-27
 
 - El panel master puede actualizar bajo demanda el nombre, alias, descripción, tipo, miembros y administradores de un grupo o canal directamente desde Telegram.

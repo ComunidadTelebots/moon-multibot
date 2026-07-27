@@ -515,6 +515,26 @@ def internal_group_admin(cid):
             return jsonify({"ok": True, "captcha_job": job})
         elif action == "sync_commands":
             return jsonify({"ok": True, "command_menu": bot.sync_command_menu(cid)})
+        elif action == "send_message":
+            text = str(body.get("text") or "").strip()
+            if not text or len(text) > 4096:
+                return jsonify({"ok": False, "error": "invalid_message"}), 400
+            parse_mode = "Markdown" if body.get("markdown", True) else None
+            result = bot.send_msg(cid, text, parse_mode=parse_mode)
+            if not isinstance(result, dict) or not result.get("ok"):
+                return jsonify({"ok": False, "error": "telegram_send_failed",
+                                "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+            history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
+            if not history or history[-1].get("sender") != "Bot" or history[-1].get("text") != text[:1000]:
+                history.append({"time": datetime.datetime.now().strftime("%H:%M"), "sender": "Bot",
+                                "uid": str(getattr(bot, "bot_username", "Moonbot")),
+                                "text": text[:1000], "media": None})
+                _db.set(f"CHAT_HIST_{cid}", history[-200:])
+            if _add_audit_log:
+                _add_audit_log(f"TodoSobreAllTech: mensaje enviado a {cid} mediante @{getattr(bot, 'bot_username', 'Moonbot')}")
+            return jsonify({"ok": True, "sent": {"time": datetime.datetime.now().strftime("%H:%M"),
+                            "sender": "Bot", "text": text[:1000], "has_media": False},
+                            "message_id": (result.get("result") or {}).get("message_id")})
         elif action == "refresh_telegram":
             chat_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
             if not isinstance(chat_response, dict) or not chat_response.get("ok"):
@@ -579,7 +599,8 @@ def internal_group_admin(cid):
     ]
     history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
     safe_history = [{"time": row.get("time"), "sender": str(row.get("sender") or row.get("uid") or "")[:100],
-                     "text": str(row.get("text") or "")[:500], "has_media": bool(row.get("media"))}
+                     "uid": str(row.get("uid") or "")[:40], "text": str(row.get("text") or "")[:1000],
+                     "has_media": bool(row.get("media"))}
                     for row in history[-50:] if isinstance(row, dict)]
     repair_steps = (["Abre la informaciÃ³n del grupo en Telegram", "Entra en Administradores",
                      f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')}",
