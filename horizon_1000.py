@@ -53,7 +53,10 @@ class Horizon1000Engine:
             "capability_index": row.get("capability_index"), "capability": row.get("capability"),
             "context": row.get("context"),
             "payload_example": CAPABILITY_EXAMPLES.get(row.get("capability_index"), {}),
-            "status": "operational", "priority": row["priority"],
+            "resource": f"/api/users/horizon/{row['id']}",
+            "admin_resource": f"/api/internal/horizon/features/{row['id']}",
+            "methods": ["GET", "POST", "PUT", "DELETE"],
+            "status": row.get("status", "routed"), "priority": row["priority"],
             "difficulty": row["difficulty"], "dependency": row["dependency"],
         } for row in self._catalog]
 

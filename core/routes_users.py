@@ -329,6 +329,29 @@ def web_horizon_completion_catalog():
                     "audit": service.audit()[-100:]})
 
 
+@bp.route("/api/users/horizon/<slug>", methods=["GET", "POST", "PUT", "DELETE"])
+def web_horizon_feature(slug):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    service = FullHorizonSuite(_db)
+    feature = service.describe(slug)
+    if not feature:
+        return jsonify({"ok": False, "error": "feature_not_found"}), 404
+    if not str(slug).startswith("future-") and request.method != "POST":
+        if request.method == "GET":
+            return jsonify({"ok": True, "feature": feature})
+        return jsonify({"ok": False, "error": "operation_not_supported_for_legacy_feature"}), 405
+    payload = request.json if request.is_json else request.args.to_dict()
+    payload = payload if isinstance(payload, dict) else {}
+    operations = {"GET": "status", "POST": payload.get("operation", "run"),
+                  "PUT": "configure", "DELETE": "rollback"}
+    try:
+        result = service.execute(slug, {**payload, "operation": operations[request.method]})
+        return jsonify({"ok": True, "slug": slug, "operation": operations[request.method], "result": result})
+    except (TypeError, ValueError, KeyError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
 @bp.route("/api/users/rich-message", methods=["POST"])
 def web_send_rich_message():
     if not _check_jwt(request):

@@ -396,6 +396,32 @@ def internal_horizon():
         return jsonify({"ok": False, "error": str(error)}), 400
 
 
+@bp.route("/api/internal/horizon/features/<slug>", methods=["GET", "POST", "PUT", "DELETE"])
+def internal_horizon_feature(slug):
+    """REST resource for one Horizonte capability."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    service = FullHorizonSuite(_db)
+    feature = service.describe(slug)
+    if not feature:
+        return jsonify({"ok": False, "error": "feature_not_found"}), 404
+    if not str(slug).startswith("future-") and request.method != "POST":
+        if request.method == "GET":
+            return jsonify({"ok": True, "feature": feature})
+        return jsonify({"ok": False, "error": "operation_not_supported_for_legacy_feature"}), 405
+    payload = request.json if request.is_json else request.args.to_dict()
+    payload = payload if isinstance(payload, dict) else {}
+    operations = {"GET": "status", "POST": payload.get("operation", "run"),
+                  "PUT": "configure", "DELETE": "rollback"}
+    payload = {**payload, "operation": operations[request.method]}
+    try:
+        result = service.execute(slug, payload)
+        _add_audit_log(f"Horizonte REST {request.method} {slug}")
+        return jsonify({"ok": True, "slug": slug, "operation": payload["operation"], "result": result})
+    except (TypeError, ValueError, KeyError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
 def _known_internal_group(cid, bot_id=None):
     requested = str(bot_id or "").strip().lower()
     for bot in (_get_active_bots() or []) if _get_active_bots else []:

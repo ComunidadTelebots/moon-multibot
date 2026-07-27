@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Horizonte mediante recursos REST reales - 2026-07-27
+- Nuevos recursos `/api/internal/horizon/features/<slug>` y `/api/users/horizon/<slug>` con `GET`, `POST`, `PUT` y `DELETE`.
+- `GET` consulta estado, `POST` ejecuta, `PUT` configura y `DELETE` revierte las funciones del Horizonte 1000.
+- Las funciones antiguas conservan compatibilidad sin permitir mutaciones REST no soportadas.
+- Se corrige el estado del catálogo: 29 integradas y 971 con ruta preparada para conectar sus efectos de producción.
+
 ### Horizonte completo y ejecutable - 2026-07-27
 - Nuevo motor `Horizon1000Engine` para las 1.000 funciones multiplataforma, con comportamiento específico para 21 categorías.
 - Todas ofrecen ejecución, configuración persistente, consulta de estado, reversión y auditoría.

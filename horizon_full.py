@@ -47,6 +47,9 @@ class FullHorizonSuite:
         completion = [{**row, "engine": "completion"} for row in self.completion.catalog()]
         return core + completion + self.future.catalog()
 
+    def describe(self, slug):
+        return next((row for row in self.catalog() if row.get("slug") == str(slug)), None)
+
     def audit(self):
         return (self.completion._list("HORIZON_COMPLETION_AUDIT") +
                 self.completion._list("ROADMAP_AUDIT") + self.future.audit())[-250:]
