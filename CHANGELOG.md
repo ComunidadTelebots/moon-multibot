@@ -4,6 +4,7 @@
 - Nuevo motor `Horizon1000Engine` para las 1.000 funciones multiplataforma, con comportamiento específico para 21 categorías.
 - Todas ofrecen ejecución, configuración persistente, consulta de estado, reversión y auditoría.
 - `FullHorizonSuite` expone ahora las 1.100 funciones mediante la misma API usada por Hub y TodoSobreAllTech.
+- Los 30 tipos de capacidad cuentan con algoritmos propios y ejemplos de entrada asistidos en web y Mini App.
 
 ### Horizonte unificado - 2026-07-27
 - Horizonte 202 y Horizonte 1000 se presentan como un solo catálogo de 1.100 funciones.
