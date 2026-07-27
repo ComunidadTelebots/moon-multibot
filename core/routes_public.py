@@ -846,6 +846,34 @@ def internal_user_admin(uid):
                                 "can_send_photos": True, "can_send_videos": True, "can_send_other_messages": True,
                                 "can_add_web_page_previews": True}}, silent=True)
         telegram_results.append({"group_id": cid, "ok": bool(result.get("ok"))})
+    elif action in ("warn", "unwarn"):
+        bot = _known_internal_group(cid)
+        if not bot:
+            return jsonify({"ok": False, "error": "group_not_found"}), 404
+        warns = _db.get(f"WARNS_{cid}", {}) or {}
+        if not isinstance(warns, dict):
+            warns = {}
+        if action == "unwarn":
+            warns.pop(uid, None)
+            count = 0
+        else:
+            count = int(warns.get(uid, 0) or 0) + 1
+            warns[uid] = count
+        _db.set(f"WARNS_{cid}", warns)
+        if action == "warn":
+            bot.send_msg(cid, f"⚠️ Usuario `{uid}` advertido ({count}/3). Motivo: {reason}")
+            if count >= 3:
+                _ban_manager.ban_local_user(cid, uid, reason="3 advertencias", source="todosobrealltech")
+                result = bot.api_call("banChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
+                telegram_results.append({"group_id": cid, "ok": bool(result.get("ok")), "auto_ban": True})
+    elif action == "karma":
+        try:
+            value = max(-100, min(100, int(body.get("value", 5))))
+        except (TypeError, ValueError):
+            value = 5
+        stats = stats or {"name": f"Usuario {uid}", "count": 0, "karma": 0}
+        stats["karma"] = int(stats.get("karma", 0) or 0) + value
+        users[uid] = stats
     elif action == "peer_review":
         result = RoadmapEngine(_db).peer_review(body.get("operation", "create"), body.get("case_id"),
                                                "todosobrealltech", body.get("verdict"),
