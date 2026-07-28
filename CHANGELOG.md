@@ -2141,3 +2141,16 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 - Control independiente para activar o detener la promoción de cada canal desde la MiniApp.
 - NoticiasWeb3 recibe campañas propias generadas desde los canales donde el master es creador o administrador.
 - Los anuncios conservan impresiones, clics y métricas por ubicación, y desaparecen si el canal deja de estar administrado.
+
+# Lista estática de bloqueos de Telegram
+
+- Se incorpora en `blocklists/telegram_legacy_ids.txt` una lista independiente proporcionada por el propietario, validada como IDs numéricos y deduplicada durante su generación.
+- Moonbot consulta esta fuente junto a los baneos persistentes, locales y CAS, manteniendo su procedencia separada para auditoría.
+- Los identificadores empaquetados no pueden desbanearse accidentalmente desde la gestión ordinaria.
+- La lista se guarda con nombre propio y puede activarse globalmente o únicamente para una selección de grupos mediante la API administrativa.
+- `Telegram Legacy` queda activa globalmente por defecto y fechada el 24 de septiembre de 2016.
+- Se activa el análisis estático de scripts Lua, Python, JavaScript, PHP, Ruby, shell, PowerShell y otros formatos para detectar recopilación o exfiltración de IDs de Telegram sin ejecutar los archivos.
+- Los patrones críticos se eliminan del grupo y avisan al creador; los casos intermedios quedan registrados para revisión administrativa.
+- Los IDs plausibles encontrados se presentan al creador con el motivo y botones separados para aplicar el ban global o descartar cada candidato; nunca se banean automáticamente desde el contenido de un archivo.
+- Cada conjunto nuevo se registra centralmente con nombre, huella, grupo y remitente, comparando sus IDs con baneos globales, baneos por grupo, CAS y verificaciones captcha.
+- El remitente de una lista nueva queda silenciado hasta superar un captcha; después de agotar los intentos puede presentar una apelación al creador.

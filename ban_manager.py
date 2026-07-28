@@ -5,6 +5,8 @@ Ban Manager - gestion centralizada de baneos globales y locales.
 import datetime
 import hashlib
 import secrets
+import os
+from pathlib import Path
 
 
 class BanManager:
@@ -16,12 +18,15 @@ class BanManager:
     REPORTS_KEY = "COMMUNITY_BAN_REPORTS"
     APPEALS_KEY = "COMMUNITY_BAN_APPEALS"
     API_KEYS_KEY = "COMMUNITY_BAN_API_KEYS"
+    NAMED_LISTS_KEY = "NAMED_BLOCKLISTS"
     LEGACY_KEY = "ST_FILE"
     LOCAL_PREFIX = "BANS_"
+    STATIC_BAN_FILE = Path(os.getenv("TELEGRAM_BLOCKED_IDS_FILE", Path(__file__).parent / "blocklists" / "telegram_legacy_ids.txt"))
 
     def __init__(self, db_manager):
         self.db = db_manager
         self.global_bans = set()
+        self.static_bans = set()
         self.load_from_db()
 
     def _normalize_uid(self, uid) -> str:
@@ -87,6 +92,76 @@ class BanManager:
         users = legacy.get("bans", [])
         return [self._normalize_uid(uid) for uid in users if self._normalize_uid(uid)]
 
+    def _load_static_bans(self) -> set:
+        """Load the packaged, user-supplied legacy blocklist safely."""
+        try:
+            lines = self.STATIC_BAN_FILE.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            return set()
+        return {
+            line.strip()
+            for line in lines
+            if line.strip() and not line.lstrip().startswith("#") and line.strip().isdigit()
+        }
+
+    def _named_lists(self) -> dict:
+        lists = self.db.get(self.NAMED_LISTS_KEY, {})
+        if not isinstance(lists, dict):
+            lists = {}
+        legacy = lists.get("telegram_legacy", {})
+        if not isinstance(legacy, dict):
+            legacy = {}
+        lists["telegram_legacy"] = {
+            "id": "telegram_legacy",
+            "name": str(legacy.get("name") or "Telegram Legacy"),
+            "enabled": bool(legacy.get("enabled", True)),
+            "scope": "groups" if legacy.get("scope") == "groups" else "global",
+            "group_ids": sorted({self._normalize_cid(cid) for cid in legacy.get("group_ids", []) if self._normalize_cid(cid)}),
+            "source": "telegram_legacy_ids.txt",
+            "list_date": "2016-09-24",
+            "list_date_label": "24 de septiembre de 2016",
+            "count": len(self.static_bans),
+            "readonly_ids": True,
+        }
+        return lists
+
+    def get_named_lists(self) -> list:
+        return list(self._named_lists().values())
+
+    def configure_named_list(self, list_id, *, name=None, enabled=None, scope=None, group_ids=None) -> dict:
+        list_id = str(list_id).strip()
+        lists = self._named_lists()
+        if list_id not in lists:
+            raise KeyError("Lista no encontrada")
+        entry = lists[list_id]
+        if name is not None:
+            clean_name = str(name).strip()[:80]
+            if not clean_name:
+                raise ValueError("El nombre no puede estar vacío")
+            entry["name"] = clean_name
+        if enabled is not None:
+            entry["enabled"] = bool(enabled)
+        if scope is not None:
+            if scope not in {"global", "groups"}:
+                raise ValueError("Alcance no válido")
+            entry["scope"] = scope
+        if group_ids is not None:
+            entry["group_ids"] = sorted({self._normalize_cid(cid) for cid in group_ids if self._normalize_cid(cid)})
+        lists[list_id] = entry
+        self.db.set(self.NAMED_LISTS_KEY, lists)
+        return entry
+
+    def _static_applies(self, uid, cid=None, scope="global") -> bool:
+        uid_str = self._normalize_uid(uid)
+        if uid_str not in self.static_bans:
+            return False
+        config = self._named_lists()["telegram_legacy"]
+        if not config["enabled"] or config["scope"] != scope:
+            return False
+        if scope == "global":
+            return True
+        return cid is not None and self._normalize_cid(cid) in set(config["group_ids"])
+
     def _remove_legacy_user(self, uid) -> None:
         uid_str = self._normalize_uid(uid)
         legacy = self.db.get(self.LEGACY_KEY, {})
@@ -102,16 +177,17 @@ class BanManager:
         data = self._global_data()
         users = {self._normalize_uid(uid) for uid in data.get("users", []) if self._normalize_uid(uid)}
         legacy_users = set(self._legacy_users())
-        merged = sorted(users | legacy_users)
-        self.global_bans = set(merged)
-        if merged != data.get("users", []):
-            data["users"] = merged
+        self.static_bans = self._load_static_bans()
+        persisted = sorted(users | legacy_users)
+        self.global_bans = set(persisted)
+        if persisted != data.get("users", []):
+            data["users"] = persisted
             self.db.set(self.GLOBAL_KEY, data)
 
     def is_global_banned(self, uid) -> bool:
         uid_str = self._normalize_uid(uid)
         if uid_str not in self.global_bans:
-            return False
+            return self._static_applies(uid_str, scope="global")
         record = self._registry().get(uid_str)
         if isinstance(record, dict) and self._is_expired(record):
             self._expire_ban(uid_str, record)
@@ -171,7 +247,7 @@ class BanManager:
                     return False
             except (TypeError, ValueError):
                 pass
-        return uid_str in set(data.get("users", []))
+        return uid_str in set(data.get("users", [])) or self._static_applies(uid_str, cid=cid_str, scope="groups")
 
     def is_banned(self, uid, cid=None) -> bool:
         if self.is_global_banned(uid):
@@ -235,6 +311,8 @@ class BanManager:
 
     def unban_user(self, uid) -> bool:
         uid_str = self._normalize_uid(uid)
+        if self._static_applies(uid_str, scope="global"):
+            return False
         if uid_str not in self.global_bans:
             return False
 
@@ -278,7 +356,12 @@ class BanManager:
         return True
 
     def get_all_bans(self) -> dict:
-        return self._global_data()
+        data = self._global_data()
+        active_static = self.static_bans if self._named_lists()["telegram_legacy"]["enabled"] and self._named_lists()["telegram_legacy"]["scope"] == "global" else set()
+        data["users"] = sorted(set(data.get("users", [])) | active_static)
+        data["static_users"] = sorted(self.static_bans)
+        data["static_source"] = "user_supplied_legacy"
+        return data
 
     def get_ban_record(self, uid):
         uid_str = self._normalize_uid(uid)
@@ -608,6 +691,7 @@ class BanManager:
             "total_local_banned_users": sum(len(users) for users in local_data.values()),
             "groups_with_local_bans": len([users for users in local_data.values() if users]),
             "total_banned_hashes": len(global_data.get("hashes", [])),
+            "static_banned_users": len(self.static_bans),
             "recent_bans": recent,
             "sources": sources,
         }

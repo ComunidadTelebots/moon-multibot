@@ -45,6 +45,7 @@ from core.telegram_events import TelegramEventStore
 from core.proxy_manager import ProxyManager
 from core.vt_manager import VirusTotalManager
 from core.media_analyzer import analyze_image as analyze_media_image
+from core.script_security import MAX_SCRIPT_BYTES, SUPPORTED_EXTENSIONS, analyze_script
 from core.task_queue import TaskQueue
 from core.tdlib_client import TDLibClient
 from token_manager import token_manager
@@ -4024,6 +4025,29 @@ class MoonBot:
         cid = str(msg.get("chat", {}).get("id", "")) if msg else ""
         mid = str(msg.get("message_id", "")) if msg else ""
 
+        # --- Confirmar o descartar IDs extraídos de scripts sospechosos ---
+        if data.startswith("harvest_gban:") or data.startswith("harvest_ignore:"):
+            if uid != str(MASTER_ID):
+                self.answer_callback_query(cbq_id, "Solo el creador puede decidir", show_alert=True)
+                return True
+            candidate_uid = data.split(":", 1)[1].strip()
+            pending = db.get("SCRIPT_BAN_CANDIDATES", {})
+            item = pending.get(candidate_uid) if isinstance(pending, dict) else None
+            if not item:
+                self.answer_callback_query(cbq_id, "La propuesta ya no está disponible", show_alert=True)
+                return True
+            if data.startswith("harvest_gban:"):
+                reason = str(item.get("reason") or "ID detectado en código de recopilación de Telegram")
+                created = ban_manager.ban_user(candidate_uid, reason=reason, source="script_id_detection")
+                self.answer_callback_query(cbq_id, "Ban global aplicado" if created else "Ya estaba bloqueado")
+                self.send_msg(cid, f"🚫 ID `{candidate_uid}` añadido al ban global.\nMotivo: {reason}")
+            else:
+                self.answer_callback_query(cbq_id, "Propuesta descartada")
+                self.send_msg(cid, f"✅ ID `{candidate_uid}` descartado; no se aplicó ningún ban.")
+            pending.pop(candidate_uid, None)
+            db.set("SCRIPT_BAN_CANDIDATES", pending)
+            return True
+
         # --- Pedir proxy (CintiaBot) ---
         if data == "req_proxy":
             self.answer_callback_query(cbq_id, "Buscando proxies…")
@@ -5330,6 +5354,35 @@ class MoonBot:
             add_web_log("ERROR", f"handle_channel_membership: {e}")
         return True
 
+    def require_security_captcha(self, cid, uid, reason):
+        """Mute an existing member and require Mini App verification."""
+        cid, uid = str(cid), str(uid)
+        db.set(f"JOINQ_{cid}_{uid}", {
+            "query_id": None, "chat_id": cid, "user_id": uid,
+            "attempts": 0, "exp": int(time.time()) + 86400,
+            "forced": True, "admitted": True, "reason": str(reason)[:400],
+        })
+        db.set(f"CAPTCHA_STATUS_{cid}_{uid}", {"status": "required", "at": int(time.time()), "reason": str(reason)[:400]})
+        self.api_call("restrictChatMember", {
+            "chat_id": cid, "user_id": uid,
+            "permissions": {"can_send_messages": False},
+        }, silent=True)
+        keyboard = {"inline_keyboard": [[{
+            "text": "Resolver captcha",
+            "web_app": {"url": f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"},
+        }]]}
+        sent = self.api_call("sendMessage", {
+            "chat_id": uid,
+            "text": f"Se detectó una lista de IDs en un archivo enviado al grupo {global_chat_names.get(cid, cid)}. Debes verificarte para volver a escribir. Si no superas el reto podrás apelar.\n\nMotivo: {str(reason)[:400]}",
+            "reply_markup": json.dumps(keyboard),
+        }, silent=True)
+        if not sent.get("ok"):
+            self.api_call("sendMessage", {
+                "chat_id": cid,
+                "text": f"⚠️ Usuario {uid}: debes resolver el captcha de seguridad antes de volver a escribir.",
+                "reply_markup": json.dumps(keyboard),
+            }, silent=True)
+
     def handle_join_request(self, u):
         """Captcha anti-bot. Si CintiaBot es guard_bot del chat, el update
         chat_join_request llega con query_id → abrimos la Mini App de verificación."""
@@ -6054,6 +6107,169 @@ class MoonBot:
                             try: os.remove(path)
                             except: pass
                         continue
+
+                    # Defensive source-code inspection: detect Telegram ID harvesting
+                    # without importing or executing user-supplied files.
+                    if "document" in msg:
+                        document = msg.get("document") or {}
+                        file_name = str(document.get("file_name") or "archivo")
+                        extension = os.path.splitext(file_name)[1].lower()
+                        file_size = int(document.get("file_size") or 0)
+                        policy = db.get("SCRIPT_ID_HARVEST_POLICY", {})
+                        if not isinstance(policy, dict):
+                            policy = {}
+                        enabled = policy.get("enabled", True)
+                        if enabled and extension in SUPPORTED_EXTENSIONS:
+                            if file_size and file_size > MAX_SCRIPT_BYTES:
+                                add_web_log("SECURITY", f"Script demasiado grande para análisis: {file_name} ({file_size} bytes)")
+                            else:
+                                file_id = document.get("file_id")
+                                f_info = self.api_call("getFile", {"file_id": file_id})
+                                if f_info.get("ok"):
+                                    os.makedirs("downloads", exist_ok=True)
+                                    safe_token = re.sub(r"[^a-zA-Z0-9_-]", "_", str(document.get("file_unique_id") or file_id))[:120]
+                                    path = os.path.join("downloads", f"script_{safe_token}{extension}")
+                                    url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                                    try:
+                                        response = requests.get(url, timeout=20)
+                                        response.raise_for_status()
+                                        if len(response.content) <= MAX_SCRIPT_BYTES:
+                                            with open(path, "wb") as output:
+                                                output.write(response.content)
+                                            result = analyze_script(path, file_name)
+                                            event = {
+                                                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                                "type": "telegram_id_harvest_scan",
+                                                "chat_id": cid,
+                                                "user_id": uid,
+                                                "user": uname,
+                                                "file_name": file_name[:180],
+                                                "score": result.get("score", 0),
+                                                "verdict": result.get("verdict", "unknown"),
+                                                "categories": result.get("categories", []),
+                                            }
+                                            logs = db.get("SECURITY_AUDIT_LOGS", [])
+                                            logs.append(event)
+                                            db.set("SECURITY_AUDIT_LOGS", logs[-300:])
+                                            candidate_ids = result.get("candidate_ids", [])
+                                            if candidate_ids and result.get("verdict") in {"block", "review"}:
+                                                normalized_ids = sorted(set(str(value) for value in candidate_ids))
+                                                fingerprint = hashlib.sha256(("\n".join(normalized_ids)).encode("utf-8")).hexdigest()
+                                                registry = db.get("DETECTED_ID_LISTS", {})
+                                                if not isinstance(registry, dict):
+                                                    registry = {}
+                                                is_new_list = fingerprint not in registry
+                                                local_bans = ban_manager.get_all_local_bans()
+                                                comparisons = []
+                                                captcha_keys = db.keys("CAPTCHA_STATUS_") if hasattr(db, "keys") else []
+                                                for candidate_uid in normalized_ids:
+                                                    banned_groups = [group_id for group_id, users in local_bans.items() if candidate_uid in set(str(item) for item in users)]
+                                                    captcha_records = []
+                                                    for key in captcha_keys:
+                                                        if str(key).endswith(f"_{candidate_uid}"):
+                                                            captcha_records.append(db.get(key, {}))
+                                                    comparisons.append({
+                                                        "user_id": candidate_uid,
+                                                        "global_banned": ban_manager.is_global_banned(candidate_uid),
+                                                        "local_banned_groups": banned_groups,
+                                                        "cas_banned": None,
+                                                        "cas_status": "pending",
+                                                        "captcha": captcha_records[-1] if captcha_records else {"status": "unknown"},
+                                                    })
+                                                registry[fingerprint] = {
+                                                    "id": fingerprint[:16],
+                                                    "fingerprint": fingerprint,
+                                                    "name": f"{os.path.splitext(file_name)[0][:70]} · {datetime.datetime.now().strftime('%Y-%m-%d')}",
+                                                    "file_name": file_name[:180],
+                                                    "file_hash": self.get_file_hash(path),
+                                                    "chat_id": cid,
+                                                    "chat_name": global_chat_names.get(cid, cid),
+                                                    "sender_id": uid,
+                                                    "sender_name": uname,
+                                                    "detected_at": datetime.datetime.now().isoformat(),
+                                                    "score": result.get("score", 0),
+                                                    "reason": result.get("reason"),
+                                                    "categories": result.get("categories", []),
+                                                    "user_ids": normalized_ids,
+                                                    "comparisons": comparisons,
+                                                    "captcha_required": is_new_list and str(uid) != str(MASTER_ID),
+                                                }
+                                                db.set("DETECTED_ID_LISTS", registry)
+                                                if is_new_list and str(uid) != str(MASTER_ID):
+                                                    self.require_security_captcha(cid, uid, f"Nueva lista de {len(normalized_ids)} IDs detectada en {file_name}")
+
+                                                def enrich_cas(list_fingerprint, ids_to_check):
+                                                    current = db.get("DETECTED_ID_LISTS", {})
+                                                    item = current.get(list_fingerprint) if isinstance(current, dict) else None
+                                                    if not item:
+                                                        return
+                                                    by_uid = {row.get("user_id"): row for row in item.get("comparisons", [])}
+                                                    for extracted_uid in ids_to_check:
+                                                        status = check_cas_status(extracted_uid)
+                                                        row = by_uid.get(extracted_uid)
+                                                        if row is not None:
+                                                            row["cas_banned"] = bool(status.get("banned"))
+                                                            row["cas_status"] = "checked" if status.get("ok") else "unavailable"
+                                                            row["cas_reason"] = str(status.get("description") or "")[:300]
+                                                    current[list_fingerprint] = item
+                                                    db.set("DETECTED_ID_LISTS", current)
+                                                threading.Thread(target=enrich_cas, args=(fingerprint, normalized_ids), daemon=True).start()
+
+                                                pending = db.get("SCRIPT_BAN_CANDIDATES", {})
+                                                if not isinstance(pending, dict):
+                                                    pending = {}
+                                                reason = (
+                                                    f"ID detectado en código sospechoso {file_name[:80]}; "
+                                                    f"indicadores: {', '.join(result.get('categories', [])) or 'recopilación de Telegram'}"
+                                                )[:400]
+                                                rows = []
+                                                status_lines = []
+                                                for candidate_uid in candidate_ids[:8]:
+                                                    already_banned = ban_manager.is_global_banned(candidate_uid)
+                                                    pending[candidate_uid] = {
+                                                        "reason": reason,
+                                                        "file_name": file_name[:180],
+                                                        "chat_id": cid,
+                                                        "detected_at": datetime.datetime.now().isoformat(),
+                                                        "already_banned": already_banned,
+                                                    }
+                                                    status_lines.append(f"• {candidate_uid}: {'ya bloqueado' if already_banned else 'candidato'}")
+                                                    rows.append([
+                                                        {"text": f"🚫 Global {candidate_uid}", "callback_data": f"harvest_gban:{candidate_uid}"},
+                                                        {"text": "Descartar", "callback_data": f"harvest_ignore:{candidate_uid}"},
+                                                    ])
+                                                db.set("SCRIPT_BAN_CANDIDATES", pending)
+                                                alert_text = (
+                                                    "🔎 IDs detectados en código sospechoso\n"
+                                                    f"Archivo: {file_name[:120]}\n"
+                                                    f"Motivo: {reason}\n\n"
+                                                    + "\n".join(status_lines)
+                                                    + "\n\nRevisa cada ID antes de aplicar el ban global."
+                                                )
+                                                self.api_call("sendMessage", {
+                                                    "chat_id": MASTER_ID,
+                                                    "text": alert_text,
+                                                    "reply_markup": json.dumps({"inline_keyboard": rows}),
+                                                })
+                                            if result.get("verdict") == "block":
+                                                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]}, silent=True)
+                                                notice = f"Archivo `{file_name}` bloqueado: posible recopilación de IDs de Telegram ({result['score']}/100)."
+                                                self.send_msg(cid, f"🛡️ **Código bloqueado**\n{notice}")
+                                                if str(cid) != str(MASTER_ID):
+                                                    self.send_msg(MASTER_ID, f"🚨 {notice}\nGrupo: {global_chat_names.get(cid, cid)}\nUsuario: {uname} ({uid})")
+                                                add_web_log("SECURITY", notice)
+                                                try: os.remove(path)
+                                                except OSError: pass
+                                                continue
+                                            if result.get("verdict") == "review":
+                                                self.send_msg(MASTER_ID, f"⚠️ Script para revisión: `{file_name}` ({result['score']}/100)\nGrupo: {global_chat_names.get(cid, cid)}\nUsuario: {uname} ({uid})")
+                                    except Exception as error:
+                                        add_web_log("SECURITY", f"No se pudo analizar {file_name}: {error}")
+                                    finally:
+                                        try:
+                                            if os.path.exists(path): os.remove(path)
+                                        except OSError:
+                                            pass
 
                     # Smart AFK System
                     if str(MASTER_ID) in text and db.get("ADMIN_AFK", False):

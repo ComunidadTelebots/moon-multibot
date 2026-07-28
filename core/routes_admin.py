@@ -360,6 +360,51 @@ def web_admin_ban_registry_export():
         headers={"Content-Disposition": "attachment; filename=community-ban-registry.json"},
     )
 
+@bp.route("/api/admin/blocklists")
+def web_admin_blocklists():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    if _ban_manager is None:
+        return jsonify({"ok": False, "msg": "Gestor de baneos no disponible"}), 503
+    return jsonify({"ok": True, "lists": _ban_manager.get_named_lists()})
+
+
+@bp.route("/api/admin/detected-id-lists")
+def web_admin_detected_id_lists():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    registry = _db.get("DETECTED_ID_LISTS", {})
+    if not isinstance(registry, dict):
+        registry = {}
+    rows = sorted(registry.values(), key=lambda item: item.get("detected_at", ""), reverse=True)
+    return jsonify({"ok": True, "count": len(rows), "lists": rows})
+
+
+@bp.route("/api/admin/blocklists/<list_id>", methods=["POST"])
+def web_admin_configure_blocklist(list_id):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    if _ban_manager is None:
+        return jsonify({"ok": False, "msg": "Gestor de baneos no disponible"}), 503
+    payload = request.json or {}
+    group_ids = payload.get("group_ids")
+    if group_ids is not None and not isinstance(group_ids, list):
+        return jsonify({"ok": False, "msg": "group_ids debe ser una lista"}), 400
+    try:
+        entry = _ban_manager.configure_named_list(
+            list_id,
+            name=payload.get("name") if "name" in payload else None,
+            enabled=payload.get("enabled") if "enabled" in payload else None,
+            scope=payload.get("scope") if "scope" in payload else None,
+            group_ids=group_ids,
+        )
+    except KeyError as error:
+        return jsonify({"ok": False, "msg": str(error)}), 404
+    except ValueError as error:
+        return jsonify({"ok": False, "msg": str(error)}), 400
+    _add_audit_log(f"Lista {list_id} actualizada: alcance={entry['scope']} activa={entry['enabled']}")
+    return jsonify({"ok": True, "list": entry})
+
 
 @bp.route("/api/admin/unban", methods=["POST"])
 def web_admin_unban():

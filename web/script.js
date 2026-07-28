@@ -3134,6 +3134,22 @@ function loadSecurityTab() {
     fetchSecurityBlacklist();
     fetchSecurityAudit();
     fetchGlobalBans();
+    fetchDetectedIdLists();
+}
+
+function fetchDetectedIdLists() {
+    fetch("/api/admin/detected-id-lists", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        const box = document.getElementById("detectedIdLists");
+        if(!box) return;
+        const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const lists = data.lists || [];
+        if(!lists.length){box.innerHTML='<p style="color:var(--text-muted)">Todavía no se han detectado listas.</p>';return;}
+        box.innerHTML = lists.map(item => {
+            const rows=(item.comparisons||[]).map(row=>`<tr><td><code>${safe(row.user_id)}</code></td><td>${row.global_banned?'Sí':'No'}</td><td>${safe((row.local_banned_groups||[]).join(', ')||'—')}</td><td>${row.cas_status==='pending'?'Pendiente':(row.cas_banned?'Sí':'No')}</td><td>${safe(row.captcha?.status||'unknown')}</td></tr>`).join('');
+            return `<details style="border:1px solid var(--glass-border);border-radius:10px;padding:12px"><summary style="cursor:pointer"><b>${safe(item.name)}</b> · ${safe(item.chat_name)} · ${(item.user_ids||[]).length} IDs</summary><p style="color:var(--text-muted);margin:8px 0">${safe(item.detected_at)} · riesgo ${safe(item.score)}/100 · remitente ${safe(item.sender_name)} (${safe(item.sender_id)})</p><div style="overflow:auto"><table class="audit-table" style="width:100%;font-size:11px"><thead><tr><th>ID</th><th>Global</th><th>Grupos</th><th>CAS</th><th>Captcha</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+        }).join('');
+    }).catch(()=>{});
 }
 
 function fetchGlobalBans() {

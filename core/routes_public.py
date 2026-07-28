@@ -3924,6 +3924,7 @@ def join_verify():
                 pend["permission_restore_error"] = result.get("description", "Telegram rechazó la restauración")
                 _db.set(f"JOINQ_{cid}_{uid}", pend)
                 return jsonify({"ok": False, "error": "captcha superado, pero no se pudieron restaurar los permisos"}), 502
+        _db.set(f"CAPTCHA_STATUS_{cid}_{uid}", {"status": "passed", "at": int(time.time()), "reason": pend.get("reason", "")})
         _db.delete(f"JOINC_{cid}_{uid}"); _db.delete(f"JOINQ_{cid}_{uid}")  # query_id de un solo uso
         _bump_join_stat(cid, "approved")
         return jsonify({"ok": True, "approved": True})
@@ -3931,17 +3932,47 @@ def join_verify():
     attempts = int(pend.get("attempts", 0)) + 1
     _db.delete(f"JOINC_{cid}_{uid}")  # fuerza reto nuevo (no resetea intentos)
     if attempts >= config["max_attempts"]:
-        if bot:
+        if pend.get("forced"):
+            _db.set(f"CAPTCHA_APPEAL_{cid}_{uid}", {
+                "status": "available", "chat_id": cid, "user_id": uid,
+                "reason": pend.get("reason", "Lista de IDs detectada"),
+                "created_at": int(time.time()),
+            })
+            _db.set(f"CAPTCHA_STATUS_{cid}_{uid}", {"status": "failed", "at": int(time.time()), "reason": pend.get("reason", "")})
+        elif bot:
             if pend.get("admitted"):
                 bot.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
             else:
                 bot.api_call("declineChatJoinRequest", {"chat_id": cid, "user_id": uid})
         _db.delete(f"JOINQ_{cid}_{uid}")
         _bump_join_stat(cid, "declined")
-        return jsonify({"ok": False, "declined": True, "attempts_left": 0})
+        return jsonify({"ok": False, "declined": True, "appeal_available": bool(pend.get("forced")), "attempts_left": 0})
     pend["attempts"] = attempts
     _db.set(f"JOINQ_{cid}_{uid}", pend)
     return jsonify({"ok": False, "attempts_left": config["max_attempts"] - attempts})
+
+
+@bp.route("/api/public/join/appeal", methods=["POST", "OPTIONS"])
+def join_appeal():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    cid, uid = body.get("chat"), user.get("id")
+    appeal = _db.get(f"CAPTCHA_APPEAL_{cid}_{uid}") if _db else None
+    if not appeal or appeal.get("status") != "available":
+        return jsonify({"ok": False, "error": "sin apelación disponible"}), 404
+    text = str(body.get("text") or "").strip()[:1000]
+    if len(text) < 10:
+        return jsonify({"ok": False, "error": "explica el motivo con más detalle"}), 400
+    appeal.update({"status": "pending", "text": text, "submitted_at": int(time.time())})
+    _db.set(f"CAPTCHA_APPEAL_{cid}_{uid}", appeal)
+    bot = _hub_bot()
+    if bot and _master_id:
+        bot.send_msg(_master_id, f"📨 Apelación de captcha\nUsuario: {uid}\nGrupo: {cid}\nMotivo original: {appeal.get('reason')}\n\n{text}")
+    return jsonify({"ok": True, "submitted": True})
 
 
 # ─────────────────────────────── Canales ───────────────────────────────────────

@@ -53,6 +53,7 @@
   .state .ic.bad{color:var(--red);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);}
   .state h2{font-family:var(--display);font-weight:700;font-size:21px;margin-bottom:8px;}
   .state p{font-size:14px;color:var(--muted);max-width:20rem;margin:0 auto;}
+  textarea{width:100%;min-height:110px;margin:16px 0 10px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;resize:vertical;}
   @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
   .shake{animation:shake .35s;}
   .cas-credit{margin-top:auto;padding-top:20px;font-size:11px;color:var(--muted);text-decoration:none;opacity:.75;}
@@ -93,6 +94,17 @@
     if(timerId){clearInterval(timerId);timerId=null;}
     app.innerHTML=`<div class="state"><div class="ic ${kind==='ok'?'ok':'bad'}">${kind==='ok'?svg('check'):'✕'}</div><h2>${title}</h2><p>${text}</p></div>`;
   }
+  function appealScreen(){
+    if(timerId){clearInterval(timerId);timerId=null;}
+    app.innerHTML=`<div class="state"><div class="ic bad">!</div><h2>Verificación fallida</h2><p>Puedes explicar por qué enviaste el archivo y solicitar una revisión.</p><textarea id="appealText" maxlength="1000" placeholder="Explica el origen y finalidad del archivo…"></textarea><button class="btn active" id="appealSend">Enviar apelación</button><div class="msg" id="appealMsg"></div></div>`;
+    document.getElementById("appealSend").onclick=async()=>{
+      const text=document.getElementById("appealText").value.trim();
+      const out=document.getElementById("appealMsg");
+      const {data}=await post("/join/appeal",{initData:tg&&tg.initData,chat,text});
+      if(data&&data.ok){stateScreen('ok','Apelación enviada','El creador revisará tu caso. Seguirás silenciado hasta recibir una decisión.');}
+      else{out.className="msg err";out.textContent=(data&&data.error)||"No se pudo enviar la apelación.";}
+    };
+  }
   function renderChallenge(c){
     selected=new Set();
     app.innerHTML=`
@@ -119,7 +131,7 @@
     if(data&&data.subscription_required){renderSubscriptions(data.missing_channels||[]);return;}
     if(data&&data.approved){if(window.gtag)gtag("event","captcha_passed");stateScreen('ok','¡Verificado!','Ya puedes entrar al grupo. Puedes cerrar esta ventana.');if(tg&&tg.close)setTimeout(()=>tg.close(),2200);return;}
     if(data&&data.under_review){if(window.gtag)gtag("event","captcha_review");stateScreen('ok','Verificación completada','Tu solicitud necesita una revisión de seguridad. Los administradores ya han sido avisados.');return;}
-    if(data&&data.declined){if(window.gtag)gtag("event","captcha_failed",{reason:"attempts"});stateScreen('bad','Verificación fallida','Has agotado los intentos. Vuelve a solicitar unirte más tarde.');return;}
+    if(data&&data.declined){if(window.gtag)gtag("event","captcha_failed",{reason:"attempts"});if(data.appeal_available)appealScreen();else stateScreen('bad','Verificación fallida','Has agotado los intentos. Vuelve a solicitar unirte más tarde.');return;}
     if(data&&data.expired){if(window.gtag)gtag("event","captcha_expired",{reason:"challenge"});stateScreen('bad','Caducado','El reto expiró. Vuelve a solicitar unirte al grupo.');return;}
     const left=(data&&data.attempts_left)||0;
     const grid=document.getElementById("grid"); if(grid)grid.classList.add("shake");
