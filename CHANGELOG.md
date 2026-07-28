@@ -1,5 +1,9 @@
 ﻿# Changelog - Moon Multibot
 
+### Reconstrucciones Docker más rápidas - 2026-07-28
+- Docker conserva en la caché de BuildKit los índices y paquetes de APT y las descargas de Python, reduciendo esperas cuando una capa necesita reconstruirse.
+- Las dependencias del sistema se instalan sin paquetes recomendados innecesarios para reducir el tamaño de la imagen.
+
 ### Anuncios Telegram no intrusivos - 2026-07-28
 - Las campañas comunitarias del Hub admiten mosaico deslizable, fila compacta, tarjetas, recomendación rotatoria y cinta de accesos.
 - El modo automático adapta la presentación al número de chats y mantiene los enlaces medidos sin ventanas emergentes, superposiciones ni reproducción automática.
