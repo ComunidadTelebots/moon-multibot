@@ -269,14 +269,69 @@ def _admin_channel_union():
 
 def _admin_group_rows():
     """Inventario normalizado de chats que pertenecen al menos a un bot activo."""
+    communities = _db.get("TELEGRAM_COMMUNITIES", {}) or {}
     rows = []
     for channel in _admin_channel_union():
         bots = channel.get("bots") or []
         if not bots or channel.get("chat_id") is None:
             continue
-        rows.append({**channel, "id": str(channel["chat_id"]),
+        chat_id = str(channel["chat_id"])
+        rows.append({**channel, "id": chat_id,
+                     "community": communities.get(chat_id),
                      "name": str(channel.get("name") or channel.get("username") or f"Grupo {channel['chat_id']}")[:160]})
     return rows
+
+
+def _sync_telegram_community(chat_id, chat):
+    """Actualiza la pertenencia real usando ChatFullInfo de Bot API 10.2."""
+    if not isinstance(chat, dict):
+        return None
+    cid = str(chat_id)
+    registry = _db.get("TELEGRAM_COMMUNITIES", {}) or {}
+    community = chat.get("community")
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    if isinstance(community, dict) and community.get("id") is not None:
+        registry[cid] = {
+            "chat_id": cid,
+            "chat_title": chat.get("title") or registry.get(cid, {}).get("chat_title"),
+            "community": community,
+            "community_id": str(community.get("id")),
+            "active": True,
+            "source": "getChat",
+            "updated_at": now,
+        }
+    elif "community" in chat:
+        current = registry.get(cid, {"chat_id": cid, "chat_title": chat.get("title")})
+        current.update({"active": False, "community": None, "community_id": "",
+                        "source": "getChat", "updated_at": now})
+        registry[cid] = current
+    _db.set("TELEGRAM_COMMUNITIES", registry)
+    return registry.get(cid)
+
+
+def _telegram_community_overview(chat_id):
+    cid = str(chat_id)
+    registry = _db.get("TELEGRAM_COMMUNITIES", {}) or {}
+    current = registry.get(cid) or {}
+    community_id = str(current.get("community_id") or "") if current.get("active") else ""
+    rows = _admin_group_rows()
+    members = [row for row in rows if community_id and str((row.get("community") or {}).get("community_id") or "") == community_id
+               and (row.get("community") or {}).get("active")]
+    current_bots = {str(bot.get("id") or bot.get("username") or "") for row in rows if str(row.get("id")) == cid for bot in row.get("bots", [])}
+    candidates = []
+    if community_id:
+        for row in rows:
+            if str(row.get("id")) == cid or any(str(member.get("id")) == str(row.get("id")) for member in members):
+                continue
+            row_bots = {str(bot.get("id") or bot.get("username") or "") for bot in row.get("bots", [])}
+            if current_bots and not current_bots.intersection(row_bots):
+                continue
+            username = str(row.get("username") or "").lstrip("@")
+            candidates.append({**row, "telegram_url": f"https://t.me/{username}" if username and username != str(row.get("id")) else None})
+    return {"detected": bool(community_id), "current": current or None,
+            "members": members, "candidates": candidates,
+            "bot_api_can_add": False,
+            "add_note": "Bot API 10.2 detecta comunidades, pero la incorporación se confirma desde los ajustes de la comunidad en Telegram."}
 
 
 @bp.route("/api/internal/admin-overview")
@@ -810,6 +865,7 @@ def internal_group_admin(cid):
                 return jsonify({"ok": False, "error": "telegram_chat_unavailable",
                                 "detail": (chat_response or {}).get("description") if isinstance(chat_response, dict) else None}), 502
             chat = chat_response.get("result") or {}
+            community_record = _sync_telegram_community(cid, chat)
             title = chat.get("title") or chat.get("first_name") or f"Grupo {cid}"
             username = chat.get("username") or ""
             description = chat.get("description") or chat.get("bio") or ""
@@ -832,8 +888,45 @@ def internal_group_admin(cid):
                 "id": str(cid), "name": str(title)[:160], "username": username,
                 "ctype": chat.get("type"), "subscribers": (count_response or {}).get("result")
                     if isinstance(count_response, dict) and count_response.get("ok") else None,
+                "community": community_record,
                 "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }})
+        elif action == "scan_community":
+            rows = _admin_group_rows()
+            job_key = "TELEGRAM_COMMUNITY_SCAN"
+            existing = _db.get(job_key, {}) or {}
+            if existing.get("status") == "running":
+                return jsonify({"ok": True, "community": _telegram_community_overview(cid),
+                                "scan": existing, "started": False})
+            job = {"status": "running", "total": len(rows), "scanned": 0, "detected": 0,
+                   "failed": 0, "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+            _db.set(job_key, job)
+
+            def scan_all_communities():
+                for row in rows:
+                    target_id = str(row.get("id") or "")
+                    target_bot = _known_internal_group(target_id)
+                    if not target_bot:
+                        job["failed"] += 1
+                        continue
+                    response = target_bot.api_call("getChat", {"chat_id": target_id}, silent=True)
+                    if isinstance(response, dict) and response.get("ok"):
+                        record = _sync_telegram_community(target_id, response.get("result") or {})
+                        job["detected"] += bool(record and record.get("active"))
+                        job["scanned"] += 1
+                    else:
+                        job["failed"] += 1
+                    if (job["scanned"] + job["failed"]) % 5 == 0:
+                        _db.set(job_key, dict(job))
+                    time.sleep(0.05)
+                job["status"] = "completed"
+                job["finished_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                _db.set(job_key, job)
+
+            threading.Thread(target=scan_all_communities, daemon=True,
+                             name="telegram-community-scan").start()
+            return jsonify({"ok": True, "community": _telegram_community_overview(cid),
+                            "scan": job, "started": True})
         elif action == "copy_config":
             source = str(body.get("source_id", ""))
             if not _known_internal_group(source):
@@ -854,6 +947,9 @@ def internal_group_admin(cid):
             return jsonify({"ok": False, "error": "invalid_action"}), 400
         return jsonify({"ok": True, "config": config, "command_menu": bot.sync_command_menu(cid)})
 
+    community_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
+    if isinstance(community_response, dict) and community_response.get("ok"):
+        _sync_telegram_community(cid, community_response.get("result") or {})
     response = bot.api_call("getChatMember", {"chat_id": cid, "user_id": bot.bot_id}, silent=True)
     member = response.get("result", {}) if isinstance(response, dict) and response.get("ok") else {}
     required = {
@@ -894,7 +990,8 @@ def internal_group_admin(cid):
         "administrators_checked_at": (_channel_stats.get_stats_by_chat(cid) or {}).get("admins_checked_at"),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
-        "community": (_db.get("TELEGRAM_COMMUNITIES", {}) or {}).get(str(cid)),
+        "community": _telegram_community_overview(cid),
+        "community_scan": _db.get("TELEGRAM_COMMUNITY_SCAN", {}),
         "ephemeral_history": list(reversed(_safe_list(_db.get(f"EPHEMERAL_HIST_{cid}", []))))[:20],
         "history": safe_history,
     })

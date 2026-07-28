@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Detección y gestión asistida de Comunidades Telegram 10.2 - 2026-07-28
+- Moonbot registra automáticamente altas y bajas de chats en comunidades y confirma el estado mediante `getChat`.
+- La web y el Hub agrupan los chats por comunidad, muestran miembros detectados y proponen el resto de chats administrados por el mismo bot.
+- Se añade una comprobación masiva de hasta 100 chats y un flujo seguro para completar en Telegram las incorporaciones que Bot API todavía no permite ejecutar directamente.
+
 ### Vista Instant de NoticiasWeb3 - 2026-07-28
 - NoticiasWeb3 dispone ahora de una vista rápida nativa en el Hub, inspirada en Telegram Instant View, con búsqueda, lectura resumida y navegación interna.
 - Las campañas propias se intercalan en el feed y los artículos usando enlaces medidos del gestor de anuncios.
