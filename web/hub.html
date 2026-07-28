@@ -218,6 +218,13 @@
   .service-frame{width:100%;height:100%;border:0;background:#fff;}
   .service-loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--muted);z-index:1;text-align:center;padding:24px;}
   .service-loading[hidden]{display:none;}
+  .instant-news{height:100%;overflow-y:auto;background:var(--bg);padding:14px 12px 100px;scrollbar-width:none;}
+  .instant-news[hidden]{display:none}.instant-news::-webkit-scrollbar{display:none}
+  .iv-hero{padding:18px;border-radius:20px;background:linear-gradient(145deg,#2381cc,#17639f);color:#fff;box-shadow:0 10px 30px rgba(18,103,171,.22);margin-bottom:12px}.iv-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.78}.iv-hero h2{font-size:25px;margin:6px 0}.iv-hero p{font-size:13px;line-height:1.45;opacity:.9;margin:0}
+  .iv-tools{display:flex;gap:8px;margin:12px 0}.iv-search{flex:1;min-width:0;border:1px solid var(--line);border-radius:13px;padding:11px 13px;background:var(--card);color:var(--text);font:inherit}.iv-feed{display:grid;gap:10px}.iv-card,.iv-article,.iv-ad{border:1px solid var(--line);background:var(--card);border-radius:17px;padding:15px;box-shadow:0 5px 18px rgba(0,0,0,.06)}
+  .iv-card{cursor:pointer}.iv-card:active{transform:scale(.99)}.iv-meta{display:flex;gap:7px;align-items:center;color:var(--muted);font-size:11px;margin-bottom:7px}.iv-dot{width:4px;height:4px;border-radius:50%;background:#2aabee}.iv-card h3,.iv-article h2{margin:0 0 8px;line-height:1.25}.iv-card h3{font-size:17px}.iv-card p,.iv-article p{color:var(--muted);font-size:13px;line-height:1.5;margin:0}.iv-more{display:inline-block;color:#2aabee;font-weight:700;font-size:12px;margin-top:10px}
+  .iv-ad{position:relative;overflow:hidden;background:linear-gradient(135deg,#18385b,#227ab2);color:#fff;border:0}.iv-ad:before{content:"";position:absolute;width:130px;height:130px;border-radius:50%;right:-45px;bottom:-70px;background:rgba(255,255,255,.1)}.iv-ad-label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;opacity:.72}.iv-ad h3{font-size:17px;margin:8px 0 5px}.iv-ad p{font-size:12px;opacity:.84;margin:0 0 12px;max-width:85%}.iv-ad a{display:inline-flex;padding:8px 13px;border-radius:999px;background:#fff;color:#12659f;font-size:12px;font-weight:800;text-decoration:none}
+  .iv-article{padding:20px}.iv-article h2{font-size:25px}.iv-back{border:0;background:transparent;color:#2aabee;font:inherit;font-weight:700;padding:0 0 14px}.iv-source{margin-top:18px;display:flex;gap:8px}.iv-source .btn{margin:0}.iv-empty{text-align:center;padding:36px 15px;color:var(--muted)}
   .assoc-tools{display:flex;gap:8px;margin:0 0 10px}.assoc-tools input{min-width:0;flex:1;}
   .assoc-tools .btn{width:auto;margin:0;padding:10px 12px;}
   .filterbar{display:flex;gap:7px;overflow-x:auto;padding:0 0 11px;scrollbar-width:none;}
@@ -326,7 +333,7 @@
     </section>
     <section class="service-page" id="v-service" hidden>
       <div class="service-head"><button class="master-back" id="serviceBack" aria-label="Volver">←</button><div class="service-copy"><b id="serviceTitle">Servicio</b><small id="serviceDescription"></small></div><button class="topact" id="serviceReload" aria-label="Recargar" title="Recargar">↻</button><button class="topact" id="serviceExternal" aria-label="Abrir externamente" title="Abrir externamente">↗</button></div>
-      <div class="service-frame-wrap"><div class="service-loading" id="serviceLoading">Cargando servicio…</div><iframe class="service-frame" id="serviceFrame" title="Servicio TodoSobreAllTech" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>
+      <div class="service-frame-wrap"><div class="service-loading" id="serviceLoading">Cargando servicio…</div><div class="instant-news" id="instantNews" hidden></div><iframe class="service-frame" id="serviceFrame" title="Servicio TodoSobreAllTech" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals" allow="clipboard-read; clipboard-write; fullscreen"></iframe></div>
     </section>
   </main>
 
@@ -2472,23 +2479,51 @@
   ];
   let activeService=null;
   let serviceLoadTimer=null;
+  let instantNewsData=null;
+  let instantNewsArticle=null;
+  function instantDate(value){const date=new Date(value);return Number.isNaN(date.getTime())?"Reciente":date.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"numeric"});}
+  function instantAd(ad,position){
+    if(!ad)return"";
+    const click=`https://todosobreall.tech/hcgi/api/house-ads/${encodeURIComponent(ad.id)}/click?placement=hub_instant&position=${position}`;
+    return `<aside class="iv-ad"><span class="iv-ad-label">Contenido de la red</span><h3>${escHtml(ad.title||"ComunidadTelebots")}</h3><p>${escHtml(ad.description||"")}</p><a href="${click}" data-iv-ad>${escHtml(ad.cta||"Descubrir")}</a></aside>`;
+  }
+  function bindInstantAds(){document.querySelectorAll("[data-iv-ad]").forEach(el=>el.onclick=e=>{e.preventDefault();openLink(el.href);ev("house_ad_click",{placement:"hub_instant"});});}
+  function renderInstantNews(){
+    const articles=(instantNewsData&&instantNewsData.articles)||[],ads=(instantNewsData&&instantNewsData.ads)||[];
+    instantNews.innerHTML=`<div class="iv-hero"><span class="iv-kicker">NoticiasWeb3 · Instant</span><h2>Actualidad sin esperas</h2><p>Lectura rápida dentro de Telegram. Los enlaces completos se abren en NoticiasWeb3.</p></div><div class="iv-tools"><input class="iv-search" id="ivSearch" type="search" placeholder="Buscar noticias…" autocomplete="off"></div><div class="iv-feed" id="ivFeed"></div>`;
+    const paint=()=>{const q=(document.getElementById("ivSearch").value||"").trim().toLowerCase(),rows=articles.map((a,i)=>({...a,_i:i})).filter(a=>!q||`${a.title} ${a.summary} ${a.category}`.toLowerCase().includes(q));
+      document.getElementById("ivFeed").innerHTML=rows.length?rows.map((a,n)=>`${n&&n%4===0?instantAd(ads[(n/4-1)%Math.max(ads.length,1)],n):""}<article class="iv-card" data-iv-article="${a._i}"><div class="iv-meta"><b>${escHtml(a.category||"Tecnología")}</b><i class="iv-dot"></i><span>${escHtml(instantDate(a.date))}</span></div><h3>${escHtml(a.title)}</h3><p>${escHtml(a.summary||"").slice(0,280)}</p><span class="iv-more">Leer vista rápida →</span></article>`).join(""):`<div class="iv-empty">No hay noticias que coincidan.</div>`;
+      document.querySelectorAll("[data-iv-article]").forEach(el=>el.onclick=()=>openInstantArticle(Number(el.dataset.ivArticle)));bindInstantAds();};
+    document.getElementById("ivSearch").oninput=paint;paint();
+  }
+  function openInstantArticle(index){
+    const article=instantNewsData&&instantNewsData.articles&&instantNewsData.articles[index];if(!article)return;instantNewsArticle=index;
+    const ads=instantNewsData.ads||[],ad=ads.length?ads[index%ads.length]:null;
+    instantNews.innerHTML=`<button class="iv-back" id="ivArticleBack">← Todas las noticias</button><article class="iv-article"><div class="iv-meta"><b>${escHtml(article.category||"Tecnología")}</b><i class="iv-dot"></i><span>${escHtml(instantDate(article.date))}</span></div><h2>${escHtml(article.title)}</h2><p>${escHtml(article.summary||"Sin resumen disponible.")}</p><div class="iv-source"><button class="btn" id="ivFullArticle">Leer artículo completo ↗</button></div></article>${instantAd(ad,"article")}`;
+    document.getElementById("ivArticleBack").onclick=()=>{instantNewsArticle=null;renderInstantNews();};document.getElementById("ivFullArticle").onclick=()=>openLink(article.url);bindInstantAds();instantNews.scrollTop=0;ev("instant_article_open",{article:article.id});
+  }
+  async function loadInstantNews(force=false){
+    serviceFrame.hidden=true;instantNews.hidden=false;serviceLoading.hidden=false;serviceLoading.innerHTML=`<div>${svg("newspaper")}<p style="margin-top:10px">Preparando vista rápida…</p></div>`;
+    if(force)instantNewsData=null;const data=instantNewsData||await apiGet("/news/instant");serviceLoading.hidden=true;
+    if(!data||!data.ok){instantNews.innerHTML=`<div class="iv-empty">No se pudieron cargar las noticias.<br><button class="btn" id="ivRetry">Reintentar</button></div>`;document.getElementById("ivRetry").onclick=()=>loadInstantNews(true);return;}
+    instantNewsData=data;instantNewsArticle=null;renderInstantNews();
+  }
   function openService(index){
     const service=SERVICES[index];if(!service)return;activeService=service;
     serviceTitle.textContent=service.n;serviceDescription.textContent=service.d;serviceLoading.hidden=false;
     serviceLoading.innerHTML=`<div>${svg(service.ic)}<p style="margin-top:10px">Cargando ${escHtml(service.n)}…</p><small>También puedes abrirlo externamente desde ↗</small></div>`;
-    const embeddedUrl=new URL(service.url);embeddedUrl.searchParams.set("miniapp","1");Object.entries(service.params||{}).forEach(([key,value])=>embeddedUrl.searchParams.set(key,value));serviceFrame.src=embeddedUrl.toString();
-    clearTimeout(serviceLoadTimer);serviceLoadTimer=setTimeout(()=>{serviceLoading.hidden=true;showToast("La carga está tardando; puedes recargar o abrir el sitio externamente.");},12000);
+    if(service.n==="Noticias Web3")loadInstantNews();else{instantNews.hidden=true;serviceFrame.hidden=false;const embeddedUrl=new URL(service.url);embeddedUrl.searchParams.set("miniapp","1");Object.entries(service.params||{}).forEach(([key,value])=>embeddedUrl.searchParams.set(key,value));serviceFrame.src=embeddedUrl.toString();clearTimeout(serviceLoadTimer);serviceLoadTimer=setTimeout(()=>{serviceLoading.hidden=true;showToast("La carga está tardando; puedes recargar o abrir el sitio externamente.");},12000);}
     document.getElementById("v-service").hidden=false;document.body.style.overflow="hidden";
     if(tg&&tg.BackButton){tg.BackButton.show();tg.BackButton.onClick(closeService);}
     ev("service_open",{service:service.n,mode:"embedded"});
   }
   function closeService(){
-    document.getElementById("v-service").hidden=true;clearTimeout(serviceLoadTimer);serviceFrame.src="about:blank";activeService=null;document.body.style.overflow="";
+    document.getElementById("v-service").hidden=true;clearTimeout(serviceLoadTimer);serviceFrame.src="about:blank";serviceFrame.hidden=false;instantNews.hidden=true;instantNewsArticle=null;activeService=null;document.body.style.overflow="";
     if(tg&&tg.BackButton){tg.BackButton.offClick(closeService);tg.BackButton.hide();}
   }
-  function reloadService(){if(!activeService)return;serviceLoading.hidden=false;const src=serviceFrame.src;serviceFrame.src="about:blank";setTimeout(()=>serviceFrame.src=src,30);}
+  function reloadService(){if(!activeService)return;if(activeService.n==="Noticias Web3"){loadInstantNews(true);return;}serviceLoading.hidden=false;const src=serviceFrame.src;serviceFrame.src="about:blank";setTimeout(()=>serviceFrame.src=src,30);}
   serviceFrame.addEventListener("load",()=>{if(serviceFrame.src!=="about:blank"){clearTimeout(serviceLoadTimer);serviceLoading.hidden=true;}});
-  serviceBack.onclick=closeService;serviceReload.onclick=reloadService;serviceExternal.onclick=()=>{if(activeService)openLink(activeService.url);};
+  serviceBack.onclick=()=>{if(activeService&&activeService.n==="Noticias Web3"&&instantNewsArticle!==null){instantNewsArticle=null;renderInstantNews();}else closeService();};serviceReload.onclick=reloadService;serviceExternal.onclick=()=>{if(activeService)openLink(activeService.url);};
   function loadRed(){
     const el=document.getElementById("v-red");
     el.innerHTML=`<div class="vtitle">Red</div><div class="vsub">Servicios y herramientas de ComunidadTelebots.</div>
@@ -2561,9 +2596,10 @@
   async function openUxNotifications(){
     uxTitle.textContent="Notificaciones";uxSheet.hidden=false;uxBody.innerHTML=skel();
     const rows=await syncUxNotifications();
-    uxBody.innerHTML=rows.map(x=>`<div class="uxresult" data-notification-chat="${x.chat_id||""}"><div class="meta"><b>${x.title}</b><small>${x.body}</small></div></div>`).join("")||'<p class="muted">No tienes notificaciones pendientes.</p>';
+    uxBody.innerHTML=rows.map(x=>`<div class="uxresult" data-notification-chat="${x.chat_id||""}"><div class="meta"><b>${escHtml(x.title)}</b><small>${escHtml(x.body)}</small>${x.type==="gban_report"?`<div class="btnrow" style="margin-top:8px"><button class="btn teal" data-gban-decision="approved" data-report-id="${escHtml(x.report_id)}">Confirmar GBAN</button><button class="btn ghost" data-gban-decision="rejected" data-report-id="${escHtml(x.report_id)}">Revocar / rechazar</button></div>`:""}</div></div>`).join("")||'<p class="muted">No tienes notificaciones pendientes.</p>';
     uxWrite("hub_notification_reads",rows.map(x=>x.id));uxWrite("hub_notifications",rows.map(x=>({...x,read:true})));notificationDot.hidden=true;
     document.querySelectorAll("[data-notification-chat]").forEach(x=>x.onclick=()=>{const cid=x.dataset.notificationChat;if(!cid)return;const channel=(window._moonChannels||[]).find(c=>String(c.chat_id)===cid);if(channel){closeUx();openGroup(cid,channel.name);}});
+    document.querySelectorAll("[data-gban-decision]").forEach(button=>button.onclick=async event=>{event.stopPropagation();button.disabled=true;const result=await apiPost("/master/ban-report/resolve",{initData:tg.initData,report_id:button.dataset.reportId,decision:button.dataset.gbanDecision});showToast(result&&result.ok?"Decisión registrada":((result&&result.error)||"No se pudo resolver"));if(result&&result.ok)openUxNotifications();else button.disabled=false;});
   }
   function applyUxPreferences(){const p=uxRead("hub_ui_preferences",{compact:false,font:"normal"});document.body.classList.toggle("compact",!!p.compact);document.documentElement.classList.remove("font-small","font-large");if(p.font==="small"||p.font==="large")document.documentElement.classList.add("font-"+p.font);if(document.getElementById("uxCompact"))uxCompact.checked=!!p.compact;if(document.getElementById("uxFont"))uxFont.value=p.font||"normal";}
   function saveUxPreferences(){uxWrite("hub_ui_preferences",{compact:uxCompact.checked,font:uxFont.value});applyUxPreferences();showToast("Accesibilidad guardada");}

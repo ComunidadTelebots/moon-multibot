@@ -1,5 +1,41 @@
 ﻿# Changelog - Moon Multibot
 
+### Vista Instant de NoticiasWeb3 - 2026-07-28
+- NoticiasWeb3 dispone ahora de una vista rápida nativa en el Hub, inspirada en Telegram Instant View, con búsqueda, lectura resumida y navegación interna.
+- Las campañas propias se intercalan en el feed y los artículos usando enlaces medidos del gestor de anuncios.
+
+### Lista histórica de baneos de marzo de 2018 - 2026-07-28
+- Se incorpora una segunda lista estática independiente, fechada el 9 de marzo de 2018 y activa globalmente por defecto.
+- De 2.672 entradas recibidas se conservan 2.669 IDs únicas; se descartan tres repeticiones internas y 270 coincidencias con la lista de 2016.
+- La nueva lista contiene 2.399 IDs realmente nuevas y se puede activar, desactivar o limitar a grupos sin modificar la lista de 2016.
+- Las listas de 2016 y 2018 permanecen activas simultáneamente y se unen a los GBAN creados localmente o desde los paneles.
+- Los datos se consideran señales históricas de moderación no verificadas y mantienen acceso al sistema de apelación.
+
+### Propuestas comunitarias de GBAN con análisis previo - 2026-07-28
+- Los administradores de grupos pueden proponer un usuario al registro global aportando motivo y evidencias.
+- Moonbot puntúa de forma explicable la propuesta con señales antispam, coincidencia CAS y consenso entre grupos diferentes.
+- Solo CAS, tres grupos independientes o riesgo antispam extremo con varias evidencias activan una cuarentena global automática de 24 horas.
+- La decisión queda pendiente en la campana de la WebApp master, con botones para confirmar el GBAN permanente o revocarlo inmediatamente.
+- Un único reporte nunca produce por sí solo un bloqueo global automático y todas las decisiones quedan en auditoría.
+- El motor v2 pondera calidad y variedad de evidencias, independencia de grupos y reportantes, contradicciones recientes y confianza calibrada.
+- Cada aprobación o rechazo del master actualiza la fiabilidad bayesiana del reportante y las métricas de acierto del sistema.
+- La evaluación incorpora reincidencia en bans locales, advertencias, fallos de captcha y eventos spam o ham confirmados en todos los grupos administrados.
+- El historial legítimo reduce el riesgo, mientras que la conducta persistente en varios grupos puede activar una cuarentena aunque no exista coincidencia CAS.
+- Las propuestas llegan al master como Rich Markdown 10.2 con tabla, confianza, recomendación y señales desplegables.
+- Confirmar o revocar desde Telegram edita el mensaje original, actualiza su estado y elimina los botones; existe fallback automático a `editMessageText`.
+- Todas las respuestas generadas por comandos de grupo se presentan automáticamente con Rich Markdown 10.2 y un encabezado contextual, incluidos comandos de plugins.
+- Las respuestas que ya contienen tablas, tareas, código, fórmulas o detalles enriquecidos se conservan sin envolverlas de nuevo.
+- Si Rich Markdown no está disponible, Moonbot entrega exactamente el texto original mediante el mecanismo compatible anterior.
+- El diseñador contextual incorpora estados visuales, tarjetas de aviso o éxito, separadores y firma discreta de Moonbot.
+- Las respuestas con varias parejas `dato: valor` se convierten automáticamente en tablas sin transformar URLs, código ni contenido ya enriquecido.
+
+### Recuperación de comandos clásicos TeleBots - 2026-07-28
+- Se recuperan `/helpadmin`, `/info`, `/reglas`, `/conv`, `/calculadora` y `/sera` con integración en el cargador actual de plugins.
+- Vuelven las utilidades GNU/Linux `/alternativa`, `/distro`, `/isos`, `/kernel` y `/man`, enlazando fuentes y descargas oficiales.
+- Se añaden `/clima`, `/hora`, `/mapa`, `/terremoto`, `/wiki`, `/diccionario`, `/stack`, `/google` y `/rae` con validación de entrada, tiempos de espera, caché y límites de respuesta.
+- Las consultas usan Open-Meteo, USGS, OpenStreetMap, Wikimedia y Stack Exchange según corresponda.
+- Se incorporan pruebas automatizadas de alias, conversión numérica, consultas simuladas y tratamiento seguro de fallos externos.
+
 ### Reacciones contextuales de Telegram - 2026-07-28
 - Moonbot interpreta el mensaje y el texto al que responde para detectar agradecimiento, humor, celebración, entusiasmo, tristeza, acuerdo, duda o novedad.
 - Las reacciones usan `setMessageReaction`, excluyen contenido sensible y aplican espera y máximo por hora configurables por grupo.

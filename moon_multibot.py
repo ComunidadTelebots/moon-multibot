@@ -35,6 +35,7 @@ from core.telegram_api import (
     DEFAULT_ALLOWED_UPDATES,
     TELEGRAM_BOT_API_VERSION,
     build_input_rich_message,
+    format_command_rich_markdown,
     build_get_updates_payload,
     is_rich_markdown_mode,
     normalize_method,
@@ -3256,6 +3257,7 @@ class MoonBot:
         self.ia_nativa = ia_nativa
         self.i18n = UniversalI18n(db, lambda text, language: ia_nativa.translate_text(text, language))
         self._command_languages = {}
+        self._response_context = threading.local()
         self.running = True
         self.runtime_started_at = time.time()
         self.runtime_api_calls = 0
@@ -3315,6 +3317,19 @@ class MoonBot:
         if language and not str(language).lower().startswith("es"):
             text = self.i18n.translate(text, language)
         safe_text = _repair_mojibake(text)
+
+        command_response = bool(getattr(self._response_context, "command", False))
+        if command_response and parse_mode == "Markdown" and receiver_user_id is None and callback_query_id is None:
+            rich_text = format_command_rich_markdown(
+                getattr(self._response_context, "command_name", ""), safe_text
+            )
+            return self.send_rich_message(
+                chat_id, markdown=rich_text, business_connection_id=business_connection_id,
+                message_thread_id=message_thread_id, direct_messages_topic_id=direct_messages_topic_id,
+                reply_parameters=reply_parameters, reply_markup=reply_markup,
+                fallback_text=safe_text, disable_notification=disable_notification,
+                protect_content=protect_content,
+            )
 
         if is_rich_markdown_mode(parse_mode):
             return self.send_rich_message(
@@ -3422,6 +3437,30 @@ class MoonBot:
         if message_thread_id is not None:
             payload["message_thread_id"] = message_thread_id
         return self.call_api("sendRichMessageDraft", payload)
+
+    def edit_rich_message(self, chat_id, message_id, markdown=None, html=None, blocks=None,
+                          media=None, reply_markup=None, fallback_text=None):
+        """Edita Rich Markdown 10.2 y recurre a editMessageText si no está disponible."""
+        try:
+            rich_message = build_input_rich_message(markdown=markdown, html=html, blocks=blocks, media=media)
+        except ValueError as error:
+            return {"ok": False, "error_code": 400, "description": str(error)}
+        payload = {"chat_id": chat_id, "message_id": message_id, "rich_message": rich_message}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        result = self.call_api("editRichMessage", payload, silent=True)
+        if result.get("ok"):
+            return result
+        fallback = fallback_text if fallback_text is not None else markdown if markdown is not None else html
+        plain = str(fallback if fallback is not None else json.dumps(blocks, ensure_ascii=False))[:4096]
+        fallback_payload = {"chat_id": chat_id, "message_id": message_id, "text": plain, "parse_mode": "Markdown"}
+        if reply_markup is not None:
+            fallback_payload["reply_markup"] = reply_markup
+        edited = self.call_api("editMessageText", fallback_payload, silent=True)
+        if not edited.get("ok") and "parse" in str(edited.get("description", "")).lower():
+            fallback_payload.pop("parse_mode", None)
+            edited = self.call_api("editMessageText", fallback_payload, silent=True)
+        return edited
 
     def send_message_draft(self, chat_id, text, message_thread_id=None):
         payload = {"chat_id": chat_id, "text": text}
@@ -4024,6 +4063,31 @@ class MoonBot:
         msg = cbq.get("message", {})
         cid = str(msg.get("chat", {}).get("id", "")) if msg else ""
         mid = str(msg.get("message_id", "")) if msg else ""
+
+        if data.startswith("gban_report:approved:") or data.startswith("gban_report:rejected:"):
+            if uid != str(MASTER_ID):
+                self.answer_callback_query(cbq_id, "Solo el creador puede decidir", show_alert=True)
+                return True
+            _, decision, report_id = data.split(":", 2)
+            pending = next((item for item in ban_manager.list_ban_reports(status="pending", limit=2000)
+                            if str(item.get("id")) == report_id), None)
+            if not pending:
+                self.answer_callback_query(cbq_id, "El reporte ya fue resuelto", show_alert=True)
+                return True
+            if decision == "approved":
+                ban_manager.ban_user(
+                    pending.get("user_id"), reason=pending.get("reason"), source="group_admin_report",
+                    reported_by=pending.get("reported_by"), evidence=pending.get("evidence"),
+                    groups=[pending.get("chat_id")], reviewed=True,
+                )
+            elif pending.get("auto_ban_applied"):
+                ban_manager.unban_user(pending.get("user_id"))
+            resolved = ban_manager.resolve_ban_report(report_id, decision, uid)
+            rich = ban_manager.gban_intelligence.render_markdown(resolved, decision)
+            self.edit_rich_message(cid, mid, markdown=rich, fallback_text=rich, reply_markup={"inline_keyboard": []})
+            self.answer_callback_query(cbq_id, "GBAN confirmado" if decision == "approved" else "Cuarentena revocada")
+            add_audit_log(f"Reporte GBAN {report_id} {decision} desde Telegram por {uid}")
+            return True
 
         # --- Confirmar o descartar IDs extraídos de scripts sospechosos ---
         if data.startswith("harvest_gban:") or data.startswith("harvest_ignore:"):
@@ -6362,10 +6426,16 @@ class MoonBot:
                     # PROCESAMIENTO DE COMANDOS (Si empieza por /)
                     if text.startswith("/"):
                         rk = self.get_user_rank(cid, uid)
-                        if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
-                            continue
-                        if not self._run_plugin_command(cid, uid, text, rk):
-                            self.send_msg(cid, "Comando no reconocido. Usa /ayuda o /helpplus.")
+                        self._response_context.command = True
+                        self._response_context.command_name = text.split(maxsplit=1)[0]
+                        try:
+                            if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
+                                continue
+                            if not self._run_plugin_command(cid, uid, text, rk):
+                                self.send_msg(cid, "Comando no reconocido. Usa /ayuda o /helpplus.")
+                        finally:
+                            self._response_context.command = False
+                            self._response_context.command_name = ""
                         continue # NUNCA pasar un comando a la IA
 
                     # Anti-Link per Group

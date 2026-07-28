@@ -260,6 +260,8 @@ def web_admin_ban_reports_resolve():
             evidence=pending.get("evidence"), groups=[pending.get("chat_id")],
             reviewed=True,
         )
+    elif pending.get("auto_ban_applied"):
+        _ban_manager.unban_user(pending.get("user_id"))
     report = _ban_manager.resolve_ban_report(report_id, decision, "master")
     _add_audit_log(
         f"Reporte {report_id} {decision}: usuario {pending.get('user_id')} "

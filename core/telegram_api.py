@@ -55,6 +55,65 @@ def is_rich_markdown_mode(parse_mode):
     return str(parse_mode or "").strip().lower() in RICH_MARKDOWN_MODES
 
 
+def looks_like_rich_markdown(text):
+    value = str(text or "")
+    return bool(
+        re.search(r"(?m)^#{1,6}\s+\S", value)
+        or re.search(r"(?m)^\|.+\|\s*$\n^\|[-: |]+\|\s*$", value)
+        or re.search(r"(?m)^\s*[-*]\s+\[[ xX]\]\s+", value)
+        or "<details>" in value
+        or "```" in value
+        or re.search(r"\$\$.+?\$\$", value, re.S)
+    )
+
+
+def format_command_rich_markdown(command, text):
+    """Mejora visualmente una respuesta de comando sin alterar su contenido."""
+    value = str(text or "").strip()
+    if not value or looks_like_rich_markdown(value):
+        return value
+    name = str(command or "respuesta").split("@", 1)[0].lstrip("/").replace("_", " ").strip()
+    titles = {
+        "ban": "🛡️ Moderación", "gban": "🛡️ Seguridad global", "unban": "🛡️ Moderación",
+        "mute": "🔇 Moderación", "warn": "⚠️ Advertencia", "clima": "🌤️ Tiempo",
+        "hora": "🕒 Hora local", "wiki": "📚 Wikipedia", "diccionario": "📖 Diccionario",
+        "info": "🌙 Moonbot", "reglas": "📜 Reglas", "calc": "🧮 Resultado",
+        "calculadora": "🧮 Resultado", "terremoto": "🌍 Actividad sísmica",
+        "top": "🏆 Clasificación", "help": "📘 Ayuda", "helpadmin": "🛡️ Ayuda administrativa",
+    }
+    title = titles.get(name.lower(), f"🌙 {name.title() or 'Moonbot'}")
+    lower = value.lower()
+    if any(token in lower for token in ("error", "no pude", "no se pudo", "inválido", "denegado")):
+        body = f"> **⚠️ Atención**\n> {value.replace(chr(10), chr(10) + '> ')}"
+        state = "`REVISAR`"
+    elif any(token in lower for token in ("correcto", "completado", "guardado", "confirmado", "resultado:")):
+        body = f"> **✅ Operación completada**\n> {value.replace(chr(10), chr(10) + '> ')}"
+        state = "`COMPLETADO`"
+    else:
+        lines = value.splitlines()
+        pairs, remaining = [], []
+        for line in lines:
+            match = re.match(r"^([^:\n]{1,40}):\s+(.{1,300})$", line.strip())
+            if match and not re.search(r"https?://", line, re.I):
+                pairs.append((match.group(1).strip(), match.group(2).strip()))
+            else:
+                remaining.append(line)
+        # Dos o más métricas se entienden mejor como tarjeta tabular.
+        if len(pairs) >= 2:
+            table = ["| Dato | Valor |", "|---|---|"]
+            for key, item in pairs[:12]:
+                safe_key, safe_item = key.replace("|", "\\|"), item.replace("|", "\\|")
+                table.append(f"| {safe_key} | {safe_item} |")
+            body = "\n".join(table)
+            extra = "\n".join(remaining).strip()
+            if extra:
+                body += f"\n\n{extra}"
+        else:
+            body = value
+        state = "`INFORMACIÓN`"
+    return f"## {title}\n\n{state}\n\n{body}\n\n---\n_Respuesta enriquecida de Moonbot_"
+
+
 def build_input_rich_message(markdown=None, html=None, blocks=None, media=None,
                              is_rtl=False, skip_entity_detection=False):
     """Build and validate the Bot API 10.2 InputRichMessage payload."""

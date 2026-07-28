@@ -11,6 +11,7 @@ consumir la API desde el navegador.
 
 import hmac
 import hashlib
+import html
 import json
 import datetime
 import os
@@ -63,6 +64,7 @@ _set_ai_runtime_config = None
 _task_queue = None
 _group_administration = None
 _community_api_usage = {}
+_instant_news_cache = {"at": 0, "articles": []}
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
@@ -93,6 +95,50 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _task_queue = task_queue
     _group_administration = group_administration
     return bp
+
+
+@bp.route("/api/public/news/instant")
+def public_news_instant():
+    """Vista rápida y segura de NoticiasWeb3 para el Hub de Telegram."""
+    now = time.time()
+    articles = _instant_news_cache.get("articles", [])
+    stale = now - float(_instant_news_cache.get("at", 0) or 0) > 600
+    if stale:
+        try:
+            req = urllib.request.Request(
+                "https://api.todosobreall.tech/noticias/rss",
+                headers={"User-Agent": "MoonMultibot-InstantNews/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=8) as response:
+                payload = response.read(2 * 1024 * 1024)
+            root = ET.fromstring(payload)
+            parsed = []
+            for item in root.findall("./channel/item")[:60]:
+                value = lambda name: str(item.findtext(name) or "").strip()
+                link = value("link")
+                if not link.startswith("https://noticiasweb3.todosobreall.tech/"):
+                    continue
+                description = html.unescape(re.sub(r"<[^>]+>", " ", value("description")))
+                description = re.sub(r"\s+", " ", description).strip()
+                parsed.append({
+                    "id": hashlib.sha256(link.encode()).hexdigest()[:16],
+                    "title": value("title")[:240], "summary": description[:1200],
+                    "category": value("category")[:80] or "Tecnología",
+                    "date": value("pubDate")[:100], "url": link,
+                })
+            if parsed:
+                articles = parsed
+                _instant_news_cache.update({"at": now, "articles": articles})
+        except Exception:
+            pass
+    _sync_master_channel_ads()
+    ads = [{key: row.get(key) for key in ("id", "title", "description", "url", "image", "cta",
+                                            "background", "foreground", "accent")}
+           for row in _house_ads_payload("inline")[:12]
+           if row.get("enabled", True) and row.get("approval_status", "approved") == "approved"
+           and str(row.get("url") or "").startswith(("https://", "http://"))]
+    return jsonify({"ok": True, "mode": "instant_view", "articles": articles[:60], "ads": ads,
+                    "cached": stale and bool(articles), "source": "NoticiasWeb3 2026"})
 
 
 # Desfase máximo (s) permitido hacia el futuro: un auth_date muy adelantado
@@ -2008,6 +2054,60 @@ def group_ban_report():
     report = _ban_manager.create_ban_report(
         user_id, reason, user.get("id"), chat_id, evidence=body.get("evidence")
     )
+    evidence = report.get("evidence", []) if report else []
+    analysis_text = " ".join([reason] + [str(item) for item in evidence])[:5000]
+    spam_result = SpamRiskEngine(_db).analyze(chat_id, user_id, analysis_text, karma=0)
+    try:
+        cas_result = _check_cas(user_id) if _check_cas else None
+    except Exception:
+        cas_result = None
+    context = {"local_ban_groups": [], "captcha_fail_groups": [], "warning_count": 0,
+               "spam_events": 0, "ham_events": 0}
+    channels = (_channel_stats.get_all_channels() if _channel_stats else []) or []
+    seen = set()
+    for channel in channels[:500]:
+        cid = str(channel.get("chat_id", "")).strip() if isinstance(channel, dict) else ""
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        if user_id in {str(value) for value in _ban_manager.get_local_bans(cid).get("users", [])}:
+            context["local_ban_groups"].append(cid)
+        warns = _db.get(f"WARNS_{cid}", {}) if _db else {}
+        context["warning_count"] += int((warns if isinstance(warns, dict) else {}).get(user_id, 0) or 0)
+        captcha = _db.get(f"CAPTCHA_STATUS_{cid}_{user_id}", {}) if _db else {}
+        if isinstance(captcha, dict) and captcha.get("status") == "failed":
+            context["captcha_fail_groups"].append(cid)
+        events = _db.get(f"SPAMEVENTS_{cid}", []) if _db else []
+        for event in events[-200:] if isinstance(events, list) else []:
+            if not isinstance(event, dict) or str(event.get("user_id")) != user_id:
+                continue
+            if event.get("feedback") == "ham":
+                context["ham_events"] += 1
+            elif event.get("feedback") == "spam" or int(event.get("score", 0) or 0) >= 70:
+                context["spam_events"] += 1
+    report = _ban_manager.analyze_ban_report(
+        report.get("id"), spam_result=spam_result, cas_result=cas_result, context=context
+    ) if report else report
+    if _add_audit_log and report:
+        analysis = report.get("analysis") or {}
+        _add_audit_log(
+            f"Propuesta GBAN {report.get('id')} · usuario {user_id} · "
+            f"riesgo {analysis.get('score', 0)}/100 · automático {bool(report.get('auto_ban_applied'))}"
+        )
+    hub = _hub_bot()
+    if hub and report and _master_id:
+        rich = _ban_manager.gban_intelligence.render_markdown(report)
+        keyboard = {"inline_keyboard": [[
+            {"text": "✅ Confirmar GBAN", "callback_data": f"gban_report:approved:{report.get('id')}"},
+            {"text": "↩️ Revocar", "callback_data": f"gban_report:rejected:{report.get('id')}"},
+        ]]}
+        sent = hub.send_rich_message(
+            _master_id, markdown=rich, fallback_text=rich, reply_markup=keyboard,
+            protect_content=True,
+        )
+        message_id = ((sent or {}).get("result") or {}).get("message_id") if isinstance(sent, dict) else None
+        if message_id:
+            _ban_manager.attach_report_notification(report.get("id"), _master_id, message_id)
     return jsonify({"ok": True, "report": report}), 201
 
 
@@ -2025,6 +2125,37 @@ def group_ban_reports():
         if str(report.get("chat_id")) == str(chat_id)
     ][:100]
     return jsonify({"ok": True, "reports": reports})
+
+
+@bp.route("/api/public/master/ban-report/resolve", methods=["POST", "OPTIONS"])
+def master_ban_report_resolve():
+    """Permite al master confirmar o revocar una propuesta desde la Mini App."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None or not _is_master(user):
+        return jsonify({"ok": False, "error": "solo el master puede resolver reportes"}), 403
+    report_id = str(body.get("report_id", "")).strip()
+    decision = str(body.get("decision", "")).strip()
+    if decision not in ("approved", "rejected"):
+        return jsonify({"ok": False, "error": "decisión inválida"}), 400
+    pending = next((item for item in _ban_manager.list_ban_reports(status="pending", limit=2000)
+                    if str(item.get("id")) == report_id), None) if _ban_manager else None
+    if not pending:
+        return jsonify({"ok": False, "error": "reporte no encontrado o ya resuelto"}), 404
+    if decision == "approved":
+        _ban_manager.ban_user(
+            pending.get("user_id"), reason=pending.get("reason"), source="group_admin_report",
+            reported_by=pending.get("reported_by"), evidence=pending.get("evidence"),
+            groups=[pending.get("chat_id")], reviewed=True,
+        )
+    elif pending.get("auto_ban_applied"):
+        _ban_manager.unban_user(pending.get("user_id"))
+    report = _ban_manager.resolve_ban_report(report_id, decision, user.get("id"))
+    if _add_audit_log:
+        _add_audit_log(f"Reporte GBAN {report_id} {decision} desde Mini App por {user.get('id')}")
+    return jsonify({"ok": True, "report": report})
 
 
 @bp.route("/api/public/group/spam/get", methods=["POST", "OPTIONS"])
@@ -3347,6 +3478,22 @@ def public_notifications():
                     "created_at": event.get("created_at"), "chat_id": cid,
                 })
     if _is_master(user):
+        global_reports = _ban_manager.list_ban_reports(status="pending", limit=100) if _ban_manager else []
+        for report in global_reports:
+            analysis = report.get("analysis") or {}
+            automatic = bool(report.get("auto_ban_applied"))
+            rows.append({
+                "id": f"gban-report:{report.get('id')}", "type": "gban_report",
+                "title": "GBAN automático pendiente" if automatic else "Propuesta de GBAN pendiente",
+                "body": (
+                    f"Usuario {report.get('user_id')} · riesgo {analysis.get('score', 0)}/100 · "
+                    f"{report.get('reason') or 'Sin motivo'}"
+                ),
+                "created_at": report.get("created_at"),
+                "chat_id": str(report.get("chat_id") or ""),
+                "report_id": report.get("id"),
+                "priority": "critical" if automatic else analysis.get("level", "medium"),
+            })
         appeals = _db.get("BAN_APPEALS", []) if _db else []
         for appeal in appeals[-30:] if isinstance(appeals, list) else []:
             if appeal.get("status") == "pending":
@@ -3358,8 +3505,8 @@ def public_notifications():
                 })
     rows = [row for row in rows if (
         (row.get("type") == "security" and preferences["security"]) or
-        (row.get("type") in ("report", "appeal") and preferences["reports"]) or
-        row.get("type") not in ("security", "report", "appeal")
+        (row.get("type") in ("report", "gban_report", "appeal") and preferences["reports"]) or
+        row.get("type") not in ("security", "report", "gban_report", "appeal")
     )]
     rows.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
     return jsonify({"ok": True, "notifications": rows[:100]})

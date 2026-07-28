@@ -8,6 +8,8 @@ import secrets
 import os
 from pathlib import Path
 
+from gban_intelligence import GbanIntelligenceEngine
+
 
 class BanManager:
     """Gestiona baneos globales y baneos locales por grupo."""
@@ -22,11 +24,17 @@ class BanManager:
     LEGACY_KEY = "ST_FILE"
     LOCAL_PREFIX = "BANS_"
     STATIC_BAN_FILE = Path(os.getenv("TELEGRAM_BLOCKED_IDS_FILE", Path(__file__).parent / "blocklists" / "telegram_legacy_ids.txt"))
+    STATIC_BAN_FILES = {
+        "telegram_legacy": STATIC_BAN_FILE,
+        "telegram_2018_03_09": Path(__file__).parent / "blocklists" / "telegram_bans_2018_03_09.txt",
+    }
 
     def __init__(self, db_manager):
         self.db = db_manager
         self.global_bans = set()
         self.static_bans = set()
+        self.static_bans_by_list = {}
+        self.gban_intelligence = GbanIntelligenceEngine(db_manager)
         self.load_from_db()
 
     def _normalize_uid(self, uid) -> str:
@@ -92,17 +100,19 @@ class BanManager:
         users = legacy.get("bans", [])
         return [self._normalize_uid(uid) for uid in users if self._normalize_uid(uid)]
 
-    def _load_static_bans(self) -> set:
-        """Load the packaged, user-supplied legacy blocklist safely."""
-        try:
-            lines = self.STATIC_BAN_FILE.read_text(encoding="utf-8").splitlines()
-        except FileNotFoundError:
-            return set()
-        return {
-            line.strip()
-            for line in lines
-            if line.strip() and not line.lstrip().startswith("#") and line.strip().isdigit()
-        }
+    def _load_static_bans(self) -> dict:
+        """Load each packaged user-supplied blocklist independently."""
+        loaded = {}
+        for list_id, path in self.STATIC_BAN_FILES.items():
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except FileNotFoundError:
+                lines = []
+            loaded[list_id] = {
+                line.strip() for line in lines
+                if line.strip() and not line.lstrip().startswith("#") and line.strip().isdigit()
+            }
+        return loaded
 
     def _named_lists(self) -> dict:
         lists = self.db.get(self.NAMED_LISTS_KEY, {})
@@ -120,7 +130,22 @@ class BanManager:
             "source": "telegram_legacy_ids.txt",
             "list_date": "2016-09-24",
             "list_date_label": "24 de septiembre de 2016",
-            "count": len(self.static_bans),
+            "count": len(self.static_bans_by_list.get("telegram_legacy", set())),
+            "readonly_ids": True,
+        }
+        march_2018 = lists.get("telegram_2018_03_09", {})
+        if not isinstance(march_2018, dict):
+            march_2018 = {}
+        lists["telegram_2018_03_09"] = {
+            "id": "telegram_2018_03_09",
+            "name": str(march_2018.get("name") or "Baneos Telegram · marzo 2018"),
+            "enabled": bool(march_2018.get("enabled", True)),
+            "scope": "groups" if march_2018.get("scope") == "groups" else "global",
+            "group_ids": sorted({self._normalize_cid(cid) for cid in march_2018.get("group_ids", []) if self._normalize_cid(cid)}),
+            "source": "telegram_bans_2018_03_09.txt",
+            "list_date": "2018-03-09",
+            "list_date_label": "9 de marzo de 2018",
+            "count": len(self.static_bans_by_list.get("telegram_2018_03_09", set())),
             "readonly_ids": True,
         }
         return lists
@@ -153,14 +178,18 @@ class BanManager:
 
     def _static_applies(self, uid, cid=None, scope="global") -> bool:
         uid_str = self._normalize_uid(uid)
-        if uid_str not in self.static_bans:
-            return False
-        config = self._named_lists()["telegram_legacy"]
-        if not config["enabled"] or config["scope"] != scope:
-            return False
-        if scope == "global":
-            return True
-        return cid is not None and self._normalize_cid(cid) in set(config["group_ids"])
+        configs = self._named_lists()
+        for list_id, users in self.static_bans_by_list.items():
+            if uid_str not in users:
+                continue
+            config = configs.get(list_id, {})
+            if not config.get("enabled") or config.get("scope") != scope:
+                continue
+            if scope == "global":
+                return True
+            if cid is not None and self._normalize_cid(cid) in set(config.get("group_ids", [])):
+                return True
+        return False
 
     def _remove_legacy_user(self, uid) -> None:
         uid_str = self._normalize_uid(uid)
@@ -177,7 +206,8 @@ class BanManager:
         data = self._global_data()
         users = {self._normalize_uid(uid) for uid in data.get("users", []) if self._normalize_uid(uid)}
         legacy_users = set(self._legacy_users())
-        self.static_bans = self._load_static_bans()
+        self.static_bans_by_list = self._load_static_bans()
+        self.static_bans = set().union(*self.static_bans_by_list.values()) if self.static_bans_by_list else set()
         persisted = sorted(users | legacy_users)
         self.global_bans = set(persisted)
         if persisted != data.get("users", []):
@@ -357,10 +387,15 @@ class BanManager:
 
     def get_all_bans(self) -> dict:
         data = self._global_data()
-        active_static = self.static_bans if self._named_lists()["telegram_legacy"]["enabled"] and self._named_lists()["telegram_legacy"]["scope"] == "global" else set()
+        configs = self._named_lists()
+        active_static = set().union(*(
+            users for list_id, users in self.static_bans_by_list.items()
+            if configs.get(list_id, {}).get("enabled") and configs.get(list_id, {}).get("scope") == "global"
+        )) if self.static_bans_by_list else set()
         data["users"] = sorted(set(data.get("users", [])) | active_static)
         data["static_users"] = sorted(self.static_bans)
-        data["static_source"] = "user_supplied_legacy"
+        data["static_source"] = "user_supplied_named_lists"
+        data["static_lists"] = self.get_named_lists()
         return data
 
     def get_ban_record(self, uid):
@@ -481,7 +516,7 @@ class BanManager:
             reports = []
         now = datetime.datetime.now().isoformat()
         report = {
-            "id": f"{int(datetime.datetime.now().timestamp() * 1000)}-{uid_str}",
+            "id": f"{int(datetime.datetime.now().timestamp() * 1000)}-{uid_str}-{secrets.token_hex(4)}",
             "user_id": uid_str,
             "reason": reason,
             "evidence": self._clean_list(evidence),
@@ -507,6 +542,55 @@ class BanManager:
         rows.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
         return rows[:max(1, min(int(limit), 2000))]
 
+    def attach_report_notification(self, report_id, chat_id, message_id):
+        reports = self.db.get(self.REPORTS_KEY, [])
+        if not isinstance(reports, list):
+            return False
+        for report in reports:
+            if isinstance(report, dict) and str(report.get("id")) == str(report_id):
+                report["notification"] = {"chat_id": str(chat_id), "message_id": str(message_id)}
+                report["updated_at"] = datetime.datetime.now().isoformat()
+                self.db.set(self.REPORTS_KEY, reports[-2000:])
+                return True
+        return False
+
+    def analyze_ban_report(self, report_id, spam_result=None, cas_result=None, context=None):
+        """Puntúa una propuesta y aplica un GBAN temporal solo con evidencia fuerte.
+
+        El reporte permanece pendiente para que el master confirme o revoque la
+        decisión. Un único reporte humano nunca basta por sí solo para automatizar.
+        """
+        reports = self.db.get(self.REPORTS_KEY, [])
+        if not isinstance(reports, list):
+            return None
+        target = next((item for item in reports if isinstance(item, dict) and str(item.get("id")) == str(report_id)), None)
+        if not target:
+            return None
+        now = datetime.datetime.now()
+        uid = self._normalize_uid(target.get("user_id"))
+        evidence = self._clean_list(target.get("evidence", []))
+        analysis = self.gban_intelligence.assess(
+            target, reports, spam_result=spam_result, cas_result=cas_result, context=context
+        )
+        automatic = analysis["automatic_eligible"]
+        distinct_groups = analysis["groups"]
+        target["analysis"] = analysis
+        target["automatic_action"] = "temporary_global_ban" if automatic else None
+        target["auto_ban_applied"] = False
+        if automatic and not self.is_global_banned(uid):
+            expires = (now + datetime.timedelta(hours=24)).isoformat()
+            self.ban_user(
+                uid, reason=f"Cuarentena automática pendiente de revisión: {target.get('reason')}",
+                source="automatic_report_analysis", reported_by="moonbot",
+                evidence=evidence, groups=distinct_groups, reviewed=False,
+                severity="critical" if analysis["score"] >= 90 else "high", expires_at=expires,
+            )
+            target["auto_ban_applied"] = True
+            target["auto_ban_expires_at"] = expires
+        target["updated_at"] = now.isoformat()
+        self.db.set(self.REPORTS_KEY, reports[-2000:])
+        return dict(target)
+
     def resolve_ban_report(self, report_id, decision, resolved_by):
         if decision not in ("approved", "rejected"):
             return None
@@ -525,6 +609,7 @@ class BanManager:
             result = dict(report)
             break
         if result:
+            self.gban_intelligence.learn_resolution(result, decision)
             self.db.set(self.REPORTS_KEY, reports[-2000:])
         return result
 
