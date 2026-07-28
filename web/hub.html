@@ -2594,6 +2594,13 @@
     tourNext.onclick=()=>{if(index<TOUR_STEPS.length-1)startGuidedTour(index+1);else{uxWrite("hub_tour_done",true);closeUx();showToast("Guía completada");}};
   }
 
+  const vaultEncoder=new TextEncoder(),vaultDecoder=new TextDecoder();
+  function vaultStorageKey(){const user=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user;return `moon_personal_vault:${user&&user.id||"anonymous"}`;}
+  function vaultB64(bytes){return btoa(String.fromCharCode(...new Uint8Array(bytes)));}
+  function vaultBytes(value){return Uint8Array.from(atob(value),char=>char.charCodeAt(0));}
+  async function vaultKey(passphrase,salt){const material=await crypto.subtle.importKey("raw",vaultEncoder.encode(passphrase),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);}
+  async function savePersonalVault(passphrase,text){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await vaultKey(passphrase,salt),data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,vaultEncoder.encode(text));localStorage.setItem(vaultStorageKey(),JSON.stringify({version:1,algorithm:"AES-GCM",iterations:250000,salt:vaultB64(salt),iv:vaultB64(iv),data:vaultB64(data),consented_at:new Date().toISOString()}));}
+  async function openPersonalVault(passphrase){const payload=JSON.parse(localStorage.getItem(vaultStorageKey())||"null");if(!payload||payload.version!==1)throw new Error("No existe una bóveda compatible");const key=await vaultKey(passphrase,vaultBytes(payload.salt));try{return vaultDecoder.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:vaultBytes(payload.iv)},key,vaultBytes(payload.data)));}catch(e){throw new Error("Contraseña incorrecta o bóveda dañada");}}
   async function loadAjustes(){
     const el=document.getElementById("v-ajustes");
     el.innerHTML=`<div class="vtitle">Ajustes</div><div class="vsub">Personaliza tu panel.</div>
@@ -2609,12 +2616,25 @@
       <div class="casbox"><span id="offlineQueueCount">0</span> cambios pendientes de sincronización offline.</div>
       <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
       <button class="btn ghost" id="uxTourRestart" style="margin-top:8px">Repetir recorrido guiado</button>
+      <div class="sec">Bóveda personal cifrada</div>
+      <p class="muted">Notas privadas guardadas únicamente en este dispositivo. No se envían al bot ni al servidor.</p>
+      <input id="vaultPassphrase" type="password" minlength="8" placeholder="Contraseña local (mínimo 8 caracteres)">
+      <textarea id="vaultContent" rows="5" maxlength="50000" placeholder="Contenido privado" hidden></textarea>
+      <label class="setrow"><span><b>Consentimiento local</b><span>Acepto guardar estos datos cifrados en este dispositivo.</span></span><input id="vaultConsent" type="checkbox"></label>
+      <div class="btnrow"><button class="btn teal" id="vaultPrimary"></button><button class="btn ghost" id="vaultLock" hidden>Bloquear</button><button class="btn red" id="vaultDelete" hidden>Eliminar</button></div>
+      <p class="muted">AES-GCM 256 · PBKDF2-SHA-256 · 250.000 iteraciones · sin recuperación de contraseña.</p>
       <div class="sec">Seguridad comunitaria</div><div id="myRegistryStatus">${skel()}</div>`;
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     reflectTheme();applyUxPreferences();
     const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true});widgetFavorites.checked=widgetPrefs.favorites;widgetSort.checked=widgetPrefs.sort;offlineQueueCount.textContent=offlineQueue().length;
     document.getElementById("uxPreferencesSave").onclick=()=>{saveUxPreferences();uxWrite("hub_widgets",{favorites:widgetFavorites.checked,sort:widgetSort.checked});};
     document.getElementById("uxTourRestart").onclick=()=>startGuidedTour();
+    let vaultExists=!!localStorage.getItem(vaultStorageKey()),vaultUnlocked=false;
+    const vaultRefresh=()=>{vaultPrimary.textContent=vaultExists?(vaultUnlocked?"Guardar cifrada":"Desbloquear"):"Crear bóveda cifrada";vaultContent.hidden=!vaultUnlocked;vaultLock.hidden=!vaultUnlocked;vaultDelete.hidden=!vaultExists;};
+    vaultPrimary.onclick=async()=>{const pass=vaultPassphrase.value;if(pass.length<8)return showToast("La contraseña debe tener al menos 8 caracteres");try{if(vaultExists&&!vaultUnlocked){vaultContent.value=await openPersonalVault(pass);vaultUnlocked=true;showToast("Bóveda desbloqueada");}else{if(!vaultConsent.checked)return showToast("Confirma el consentimiento local");await savePersonalVault(pass,vaultContent.value);vaultExists=true;vaultUnlocked=true;showToast("Bóveda cifrada y guardada");}vaultRefresh();}catch(error){showToast(error.message);}};
+    vaultLock.onclick=()=>{vaultContent.value="";vaultPassphrase.value="";vaultUnlocked=false;vaultRefresh();};
+    vaultDelete.onclick=()=>{if(!confirm("¿Eliminar definitivamente la bóveda de este dispositivo?"))return;localStorage.removeItem(vaultStorageKey());vaultExists=false;vaultUnlocked=false;vaultContent.value="";vaultPassphrase.value="";vaultConsent.checked=false;vaultRefresh();showToast("Bóveda eliminada");};
+    vaultRefresh();
     const box=document.getElementById("myRegistryStatus");
     if(!tg||!tg.initData){box.innerHTML=`<p class="muted">Abre la Mini App desde Telegram para consultar tu estado.</p>`;return;}
     const d=await apiPost("/registry/status",{initData:tg.initData});

@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Bóveda personal cifrada en la WebApp - 2026-07-28
+- Ajustes incorpora una bóveda local con consentimiento explícito para notas privadas.
+- El contenido se cifra con AES-GCM y una clave PBKDF2 antes de almacenarse en el dispositivo.
+- Permite crear, desbloquear, volver a cifrar, bloquear y eliminar sin transmitir datos al bot.
+
 ### Búsqueda y navegación por voz en la WebApp - 2026-07-28
 - La búsqueda global acepta comandos hablados y filtra acciones sin necesidad de teclado.
 - Una coincidencia directa abre la vista permitida, respetando los roles de usuario, administrador y master.
