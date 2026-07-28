@@ -18,7 +18,7 @@
     "url": "https://t.me/comunidadtelebots",
     "cta": "Abrir comunidad",
     "placement": "all",
-    "priority": 58,
+    "priority": 60,
     "background": "#ecfdf5",
     "foreground": "#14532d",
     "accent": "#16a36a"
@@ -30,7 +30,7 @@
     "url": "https://t.me/resistencia_censura",
     "cta": "Ver canal",
     "placement": "all",
-    "priority": 56,
+    "priority": 60,
     "background": "#fff7ed",
     "foreground": "#7c2d12",
     "accent": "#ea580c"
@@ -42,9 +42,21 @@
     "url": "https://t.me/TodoSobreGameplaysCanal",
     "cta": "Ver gameplays",
     "placement": "all",
-    "priority": 54,
+    "priority": 60,
     "background": "#f5f3ff",
     "foreground": "#4c1d95",
     "accent": "#7c3aed"
+  },
+  {
+    "id": "official-instagram",
+    "title": "TodoSobreAllTech en Instagram",
+    "description": "Noticias, tecnología e inteligencia artificial en formato visual.",
+    "url": "https://www.instagram.com/todosobrealltech/",
+    "cta": "Seguir en Instagram",
+    "placement": "all",
+    "priority": 60,
+    "background": "#fff1f2",
+    "foreground": "#831843",
+    "accent": "#db2777"
   }
 ]
