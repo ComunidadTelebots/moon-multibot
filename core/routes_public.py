@@ -364,6 +364,7 @@ def internal_roadmap_action():
         "report_schedule": lambda: service.report_schedule(data.get("group_id"), data.get("channel"), data.get("frequency"), data.get("recipients")),
         "translation": lambda: service.translation_job(data.get("content_id"), data.get("languages")),
         "public_announcement": lambda: service.public_announcement_version("publish", title=data.get("title"), body=data.get("body"), actor_id="master_web"),
+        "incident_correlation": lambda: service.correlate_incidents(data.get("group_ids") or [], data.get("window_minutes", 30), data.get("minimum_events", 2)),
     }
     if action not in handlers:
         return jsonify({"ok": False, "error": "acción no permitida"}), 400

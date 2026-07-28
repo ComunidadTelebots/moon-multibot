@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Correlación de incidencias multigrupo - 2026-07-28
+- Nuevo motor determinista que cruza cronologías sin modificar los incidentes originales.
+- Agrupa eventos por ventana temporal, tipo y vocabulario común y asigna un nivel de riesgo explicable.
+- Disponible mediante rutas protegidas para Web y WebApp master.
+
 ### Bóveda personal cifrada en la WebApp - 2026-07-28
 - Ajustes incorpora una bóveda local con consentimiento explícito para notas privadas.
 - El contenido se cifra con AES-GCM y una clave PBKDF2 antes de almacenarse en el dispositivo.

@@ -396,6 +396,7 @@ def web_roadmap_action():
         "reputation_passport": lambda: service.reputation_passport(data.get("user_id"), data.get("metrics") or {}, data.get("consent", False)),
         "voice_clone_risk": lambda: service.voice_clone_risk(data.get("features") or {}),
         "incident_timeline": lambda: service.incident_timeline(data.get("group_id"), data.get("operation", "list"), data.get("event")),
+        "incident_correlation": lambda: service.correlate_incidents(data.get("group_ids") or [], data.get("window_minutes", 30), data.get("minimum_events", 2)),
         "evidence_chain": lambda: service.evidence_chain(data.get("case_id"), data.get("operation", "append"), data.get("evidence")),
         "assembly": lambda: service.assembly(data.get("group_id"), data.get("operation"), data.get("assembly_id"), data.get("actor_id"), data),
         "participatory_budget": lambda: service.participatory_budget(data.get("group_id"), data.get("operation"), data.get("budget_id"), data.get("user_id"), data),

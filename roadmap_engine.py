@@ -8,6 +8,7 @@ import datetime
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import uuid
 from collections import Counter, defaultdict
@@ -248,6 +249,48 @@ class RoadmapEngine:
         elif action != "list":
             raise ValueError("acción de cronología inválida")
         return {"group_id": self._id(group_id), "events": sorted(rows, key=lambda x: x.get("occurred_at", ""))}
+
+    def correlate_incidents(self, group_ids, window_minutes=30, minimum_events=2):
+        """Agrupa incidentes cercanos por tiempo, tipo y vocabulario compartido, sin alterar la cronología."""
+        group_ids = [self._id(value) for value in (group_ids or []) if self._id(value)]
+        if not group_ids:
+            raise ValueError("se requiere al menos un grupo")
+        window = max(1, min(int(window_minutes or 30), 1440))
+        minimum = max(2, min(int(minimum_events or 2), 50))
+        events = []
+        for group_id in dict.fromkeys(group_ids):
+            for event in self._list(f"H202_INCIDENT_TIMELINE_{group_id}"):
+                try:
+                    occurred = datetime.datetime.fromisoformat(str(event.get("occurred_at", "")).replace("Z", "+00:00")).replace(tzinfo=None)
+                except (TypeError, ValueError):
+                    continue
+                text = f"{event.get('title', '')} {event.get('detail', '')}".lower()
+                tokens = {token for token in re.findall(r"[a-záéíóúüñ0-9]{4,}", text) if token not in {"para", "desde", "sobre", "entre", "incidente"}}
+                events.append({**event, "group_id": group_id, "_time": occurred, "_tokens": tokens})
+        events.sort(key=lambda row: row["_time"])
+        clusters = []
+        for event in events:
+            target = next((cluster for cluster in reversed(clusters)
+                           if (event["_time"] - cluster["last_time"]).total_seconds() <= window * 60
+                           and (event.get("kind") == cluster["kind"] or event["_tokens"] & cluster["tokens"])), None)
+            if target is None:
+                target = {"kind": event.get("kind", "unknown"), "tokens": set(event["_tokens"]), "last_time": event["_time"], "events": []}
+                clusters.append(target)
+            target["events"].append(event); target["tokens"].update(event["_tokens"]); target["last_time"] = event["_time"]
+        severity_score = {"critical": 4, "high": 3, "review": 2, "medium": 2, "low": 1, "info": 0}
+        output = []
+        for cluster in clusters:
+            if len(cluster["events"]) < minimum:
+                continue
+            rows = cluster["events"]
+            score = max(severity_score.get(str(row.get("severity", "info")).lower(), 0) for row in rows)
+            output.append({"id": hashlib.sha256("|".join(str(row.get("id")) for row in rows).encode()).hexdigest()[:12],
+                           "kind": cluster["kind"], "risk": "critical" if score >= 4 else "high" if score >= 3 else "review" if score >= 2 else "low",
+                           "groups": sorted({row["group_id"] for row in rows}), "events": len(rows),
+                           "shared_terms": sorted(cluster["tokens"])[:12], "starts_at": rows[0]["occurred_at"], "ends_at": rows[-1]["occurred_at"],
+                           "event_ids": [row.get("id") for row in rows]})
+        output.sort(key=lambda row: (row["risk"] in ("critical", "high"), row["events"]), reverse=True)
+        return {"groups_analyzed": len(set(group_ids)), "events_analyzed": len(events), "window_minutes": window, "clusters": output}
 
     def evidence_chain(self, case_id, action="append", evidence=None):
         key = f"H202_EVIDENCE_CHAIN_{self._id(case_id)}"
