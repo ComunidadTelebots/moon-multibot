@@ -1872,6 +1872,27 @@ def _rss_action(chat_id, body, actor):
             if not feed:
                 return {"ok": False, "error": "RSS no encontrado"}, 404
             return {"ok": True, "entries": manager.fetch(feed["url"])[:5], "feeds": manager.list(chat_id)}, 200
+        if action == "run_now":
+            feed_id = str(body.get("feed_id") or "")
+            if not any(row.get("id") == feed_id for row in manager.list(chat_id)):
+                return {"ok": False, "error": "RSS no encontrado"}, 404
+            bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
+            if not bot:
+                return {"ok": False, "error": "bot no disponible"}, 503
+            entries = manager.poll(chat_filter=chat_id, feed_filter=feed_id, force=True)
+            sent = 0
+            for entry in entries:
+                title = str(entry.get("title") or "Nueva publicación").replace("[", "\\[").replace("]", "\\]")
+                source = str(entry.get("source") or "RSS").replace("[", "\\[").replace("]", "\\]")
+                text = str(entry.get("template") or "📰 **{title}**\n{url}")
+                text = text.replace("{title}", title).replace("{url}", entry["url"]).replace("{source}", source)
+                result = bot.send_msg(chat_id, text[:4096], parse_mode="Markdown",
+                                      message_thread_id=entry.get("message_thread_id"))
+                if isinstance(result, dict) and result.get("ok"):
+                    manager.mark_published(chat_id, feed_id, entry["id"])
+                    sent += 1
+            return {"ok": True, "sent": sent, "initialized": not entries,
+                    "feeds": manager.list(chat_id)}, 200
         return {"ok": True, "feeds": manager.list(chat_id), "limit": manager.MAX_FEEDS}, 200
     except KeyError as error:
         return {"ok": False, "error": str(error).strip("'")}, 404

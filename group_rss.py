@@ -74,6 +74,9 @@ class GroupRssManager:
                 "enabled": False, "created_by": str(created_by)[:40],
                 "include_keywords": [], "exclude_keywords": [],
                 "template": "📰 **{title}**\n{url}", "message_thread_id": None,
+                "poll_interval_minutes": 15, "max_entries_per_cycle": 3,
+                "pause_after_failures": 5, "consecutive_failures": 0,
+                "quiet_start_utc": None, "quiet_end_utc": None, "paused_reason": None,
                 "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "last_checked_at": None, "last_published_at": None, "last_error": None,
                 "initialized": False, "seen": []}
@@ -88,6 +91,9 @@ class GroupRssManager:
             raise KeyError("RSS no encontrado")
         match["enabled"] = bool(enabled)
         match["last_error"] = None
+        if enabled:
+            match["paused_reason"] = None
+            match["consecutive_failures"] = 0
         self._save(chat_id, feeds)
         return dict(match)
 
@@ -112,6 +118,22 @@ class GroupRssManager:
             if raw_thread and not raw_thread.isdigit():
                 raise ValueError("El ID del tema debe ser numérico")
             match["message_thread_id"] = int(raw_thread) if raw_thread else None
+        for field, minimum, maximum, default in (
+            ("poll_interval_minutes", 5, 1440, 15),
+            ("max_entries_per_cycle", 1, 10, 3),
+            ("pause_after_failures", 1, 20, 5),
+        ):
+            if field in values:
+                try:
+                    match[field] = max(minimum, min(maximum, int(values.get(field, default))))
+                except (TypeError, ValueError) as error:
+                    raise ValueError(f"{field} debe ser numérico") from error
+        for field in ("quiet_start_utc", "quiet_end_utc"):
+            if field in values:
+                raw = str(values.get(field) if values.get(field) is not None else "").strip()
+                if raw and (not raw.isdigit() or not 0 <= int(raw) <= 23):
+                    raise ValueError("Las horas silenciosas deben estar entre 0 y 23 UTC")
+                match[field] = int(raw) if raw else None
         self._save(chat_id, feeds)
         return dict(match)
 
@@ -158,20 +180,40 @@ class GroupRssManager:
             raise ValueError("No se encontraron entradas RSS o Atom")
         return output
 
-    def poll(self):
+    @staticmethod
+    def _in_quiet_hours(feed, now):
+        start, end = feed.get("quiet_start_utc"), feed.get("quiet_end_utc")
+        if start is None or end is None or start == end:
+            return False
+        return start <= now.hour < end if start < end else now.hour >= start or now.hour < end
+
+    def poll(self, chat_filter=None, feed_filter=None, force=False):
         """Devuelve entradas nuevas. La primera lectura inicializa sin publicar históricos."""
         pending = []
+        now = datetime.datetime.now(datetime.timezone.utc)
         for chat_id in list(self.db.get("GROUP_RSS_GROUPS", []) or []):
+            if chat_filter is not None and str(chat_id) != str(chat_filter):
+                continue
             feeds = self._feeds(chat_id)
             changed = False
             for feed in feeds:
-                if not feed.get("enabled"):
+                if not feed.get("enabled") and not force:
+                    continue
+                if feed_filter is not None and str(feed.get("id")) != str(feed_filter):
+                    continue
+                try:
+                    last = datetime.datetime.fromisoformat(feed["last_checked_at"]) if feed.get("last_checked_at") else None
+                except (TypeError, ValueError):
+                    last = None
+                if not force and last and (now - last).total_seconds() < int(feed.get("poll_interval_minutes", 15)) * 60:
+                    continue
+                if not force and self._in_quiet_hours(feed, now):
                     continue
                 try:
                     entries = self.fetch(feed["url"])
                     known = set(feed.get("seen") or [])
                     if feed.get("initialized"):
-                        fresh = [item for item in entries if item["id"] not in known][:3]
+                        fresh = [item for item in entries if item["id"] not in known][:int(feed.get("max_entries_per_cycle", 3))]
                         for entry in reversed(fresh):
                             searchable = entry["title"].casefold()
                             includes = feed.get("include_keywords") or []
@@ -190,9 +232,14 @@ class GroupRssManager:
                         feed["seen"] = [item["id"] for item in entries][:self.MAX_SEEN]
                     feed["initialized"] = True
                     feed["last_error"] = None
+                    feed["consecutive_failures"] = 0
                 except Exception as error:
                     feed["last_error"] = str(error)[:240]
-                feed["last_checked_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    feed["consecutive_failures"] = int(feed.get("consecutive_failures", 0)) + 1
+                    if feed["consecutive_failures"] >= int(feed.get("pause_after_failures", 5)):
+                        feed["enabled"] = False
+                        feed["paused_reason"] = "Pausado automáticamente por fallos consecutivos"
+                feed["last_checked_at"] = now.isoformat()
                 changed = True
             if changed:
                 self._save(chat_id, feeds)
