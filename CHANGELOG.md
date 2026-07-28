@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Búsqueda y navegación por voz en la WebApp - 2026-07-28
+- La búsqueda global acepta comandos hablados y filtra acciones sin necesidad de teclado.
+- Una coincidencia directa abre la vista permitida, respetando los roles de usuario, administrador y master.
+- Se reutiliza el procesamiento de voz existente en Moonbot y se sincroniza el estado real con el roadmap.
+
 ### Comparador y catálogo sincronizado en la WebApp - 2026-07-27
 - El roadmap master permite comparar hasta tres entradas sin salir del Hub.
 - El catálogo local se sincroniza con las 3.000 entradas de `todosobreall.tech/roadmap` y reconoce definiciones completadas.

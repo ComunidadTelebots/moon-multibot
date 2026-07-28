@@ -2500,11 +2500,21 @@
     document.querySelectorAll("[data-ux-action]").forEach(x=>x.onclick=()=>runUxAction(x.dataset.uxAction));
     document.querySelectorAll("[data-ux-fav]").forEach(x=>x.onclick=e=>{e.stopPropagation();let favs=uxFavorites();const id=x.dataset.uxFav;favs=favs.includes(id)?favs.filter(v=>v!==id):[...favs,id];uxWrite("hub_action_favorites",favs);openUxSearch();});
   }
+  function startUxVoiceSearch(){
+    const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition,button=document.getElementById("uxVoiceSearch");
+    if(!Recognition){showToast("El navegador no admite reconocimiento de voz");return;}
+    const recognition=new Recognition();recognition.lang=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.language_code)||"es-ES";recognition.interimResults=false;recognition.maxAlternatives=1;
+    recognition.onstart=()=>{if(button){button.disabled=true;button.textContent="Escuchando…";}};
+    recognition.onend=()=>{if(button){button.disabled=false;button.textContent="🎙 Buscar por voz";}};
+    recognition.onerror=()=>showToast("No se pudo reconocer el comando de voz");
+    recognition.onresult=event=>{const spoken=(event.results&&event.results[0]&&event.results[0][0]&&event.results[0][0].transcript||"").trim();if(!spoken)return;uxQuery.value=spoken;uxQuery.dispatchEvent(new Event("input"));const normalized=spoken.toLowerCase(),action=UX_ACTIONS.find(x=>(x.name+" "+x.desc).toLowerCase().includes(normalized)&&(!x.master||master)&&(!x.admin||canAdmin||master));if(action)runUxAction(action.id);};
+    recognition.start();
+  }
   function openUxSearch(){
     uxTitle.textContent="Buscar acciones";uxSheet.hidden=false;
-    uxBody.innerHTML=`<input id="uxQuery" type="search" placeholder="Buscar paneles y acciones…" autocomplete="off"><div id="uxFavorites"></div><div id="uxResults"></div>`;
+    uxBody.innerHTML=`<input id="uxQuery" type="search" placeholder="Buscar paneles y acciones…" autocomplete="off"><button class="btn ghost" id="uxVoiceSearch">🎙 Buscar por voz</button><div id="uxFavorites"></div><div id="uxResults"></div>`;
     const draw=()=>{const q=uxQuery.value.trim(),favs=uxFavorites();document.getElementById("uxFavorites").innerHTML=!q&&favs.length?`<div class="sec">Favoritos</div>${renderUxActions(UX_ACTIONS.filter(x=>favs.includes(x.id)))}`:"";uxResults.innerHTML=`<div class="sec">${q?"Resultados":"Todas las acciones"}</div>${renderUxActions(UX_ACTIONS,q)}`;bindUxActions();};
-    uxQuery.oninput=draw;draw();uxQuery.focus();
+    uxQuery.oninput=draw;document.getElementById("uxVoiceSearch").onclick=startUxVoiceSearch;draw();uxQuery.focus();
   }
   function uxNotifications(){return uxRead("hub_notifications",[]);}
   async function syncUxNotifications(){
