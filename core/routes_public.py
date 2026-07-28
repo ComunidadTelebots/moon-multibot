@@ -2395,7 +2395,7 @@ def _house_ads_update(body):
         item.update({"id": secrets.token_hex(8), "title": f"{source.get('title', 'Campaña')} (copia)"[:80],
                      "enabled": False, "approval_status": "pending", "clicks": 0, "impressions": 0,
                      "clicks_by_placement": {}, "impressions_by_placement": {},
-                     "clicks_by_country": {}, "impressions_by_country": {}})
+                     "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {}})
         rows.append(item)
     elif action == "click":
         for row in rows:
@@ -2403,6 +2403,9 @@ def _house_ads_update(body):
                 row["clicks"] = int(row.get("clicks", 0) or 0) + 1
                 place = str(body.get("placement") or "unknown"); by = dict(row.get("clicks_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["clicks_by_placement"] = by
                 country = str(body.get("country") or "UNK").upper(); country = country if re.fullmatch(r"[A-Z]{2}", country) else "UNK"; by_country = dict(row.get("clicks_by_country") or {}); by_country[country] = int(by_country.get(country, 0)) + 1; row["clicks_by_country"] = by_country
+                item_id = str(body.get("item_id") or "")[:64]
+                if item_id:
+                    by_item = dict(row.get("clicks_by_item") or {}); by_item[item_id] = int(by_item.get(item_id, 0)) + 1; row["clicks_by_item"] = by_item
                 if int(row.get("max_clicks", 0) or 0) and row["clicks"] >= int(row["max_clicks"]):
                     row["enabled"] = False
                     row["goal_reached"] = True
@@ -2415,11 +2418,20 @@ def _house_ads_update(body):
     elif action == "reset_metrics":
         for row in rows:
             if str(row.get("id")) == ad_id:
-                row.update({"clicks": 0, "impressions": 0, "clicks_by_placement": {}, "impressions_by_placement": {}, "clicks_by_country": {}, "impressions_by_country": {}})
+                row.update({"clicks": 0, "impressions": 0, "clicks_by_placement": {}, "impressions_by_placement": {}, "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {}})
     else:
         raw = body.get("ad") or body
         url = str(raw.get("url") or "").strip()
         if not url.startswith(("https://", "tg://")): raise ValueError("enlace no válido")
+        community_items = []
+        for entry in _safe_list(raw.get("community_items"))[:16]:
+            if not isinstance(entry, dict): continue
+            entry_url = str(entry.get("url") or "").strip()
+            if not entry_url.startswith(("https://", "tg://")): continue
+            community_items.append({"id": str(entry.get("id") or secrets.token_hex(4))[:64],
+                                    "title": str(entry.get("title") or "Chat Telegram")[:80],
+                                    "url": entry_url[:500], "image": str(entry.get("image") or "")[:500],
+                                    "type": "channel" if entry.get("type") == "channel" else "group"})
         item = {"id": str(raw.get("id") or secrets.token_hex(8)), "title": str(raw.get("title") or "")[:80],
                 "description": str(raw.get("description") or "")[:800], "url": url[:500],
                 "image": str(raw.get("image") or "")[:500], "placement": str(raw.get("placement") or "all"),
@@ -2438,7 +2450,10 @@ def _house_ads_update(body):
                 "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {}),
                 "clicks_by_country": dict(raw.get("clicks_by_country") or {}), "impressions_by_country": dict(raw.get("impressions_by_country") or {}),
                 "source": str(raw.get("source") or "manual")[:32], "source_chat_id": str(raw.get("source_chat_id") or "")[:32],
-                "automatic": bool(raw.get("automatic", False))}
+                "automatic": bool(raw.get("automatic", False)),
+                "community_id": str(raw.get("community_id") or "")[:64],
+                "community_items": community_items,
+                "clicks_by_item": dict(raw.get("clicks_by_item") or {})}
         if item["placement"] not in ("all", "top", "right", "inline"): raise ValueError("ubicación no válida")
         if not item["title"]: raise ValueError("título obligatorio")
         rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]

@@ -1,5 +1,9 @@
 ﻿# Changelog - Moon Multibot
 
+### Campañas mosaico para comunidades Telegram - 2026-07-28
+- Las campañas propias pueden contener hasta 16 grupos o canales de una comunidad y mantener métricas de clics por chat.
+- El formato se conserva en Moonbot con validación de enlaces y compatibilidad con las campañas individuales anteriores.
+
 ### Detección y gestión asistida de Comunidades Telegram 10.2 - 2026-07-28
 - Moonbot registra automáticamente altas y bajas de chats en comunidades y confirma el estado mediante `getChat`.
 - La web y el Hub agrupan los chats por comunidad, muestran miembros detectados y proponen el resto de chats administrados por el mismo bot.
