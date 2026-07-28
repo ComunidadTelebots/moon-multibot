@@ -174,10 +174,14 @@ def queue_worker():
                         if not target_bot:
                             continue
                         title = str(rss_entry.get("title") or "Nueva publicación").replace("[", "\\[").replace("]", "\\]")
+                        source = str(rss_entry.get("source") or "RSS").replace("[", "\\[").replace("]", "\\]")
+                        text = str(rss_entry.get("template") or "📰 **{title}**\n{url}")
+                        text = text.replace("{title}", title).replace("{url}", rss_entry["url"]).replace("{source}", source)
                         result = target_bot.send_msg(
                             rss_entry["chat_id"],
-                            f"📰 **{title}**\n{rss_entry['url']}",
+                            text[:4096],
                             parse_mode="Markdown",
+                            message_thread_id=rss_entry.get("message_thread_id"),
                         )
                         if isinstance(result, dict) and result.get("ok"):
                             group_rss.mark_published(rss_entry["chat_id"], rss_entry["feed_id"], rss_entry["id"])

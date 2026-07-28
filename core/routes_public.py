@@ -1861,6 +1861,9 @@ def _rss_action(chat_id, body, actor):
         if action == "toggle":
             feed = manager.set_enabled(chat_id, body.get("feed_id"), body.get("enabled"))
             return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 200
+        if action == "configure":
+            feed = manager.configure(chat_id, body.get("feed_id"), body)
+            return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 200
         if action == "delete":
             manager.remove(chat_id, body.get("feed_id"))
             return {"ok": True, "feeds": manager.list(chat_id)}, 200

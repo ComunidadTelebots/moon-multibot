@@ -72,6 +72,8 @@ class GroupRssManager:
         feed_id = hashlib.sha256(f"{chat_id}:{url}".encode()).hexdigest()[:16]
         feed = {"id": feed_id, "url": url, "title": str(title or "").strip()[:120],
                 "enabled": False, "created_by": str(created_by)[:40],
+                "include_keywords": [], "exclude_keywords": [],
+                "template": "📰 **{title}**\n{url}", "message_thread_id": None,
                 "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "last_checked_at": None, "last_published_at": None, "last_error": None,
                 "initialized": False, "seen": []}
@@ -86,6 +88,30 @@ class GroupRssManager:
             raise KeyError("RSS no encontrado")
         match["enabled"] = bool(enabled)
         match["last_error"] = None
+        self._save(chat_id, feeds)
+        return dict(match)
+
+    def configure(self, chat_id, feed_id, values):
+        feeds = self._feeds(chat_id)
+        match = next((item for item in feeds if item.get("id") == str(feed_id)), None)
+        if not match:
+            raise KeyError("RSS no encontrado")
+        for field in ("include_keywords", "exclude_keywords"):
+            if field in values:
+                raw = values.get(field) or []
+                if isinstance(raw, str):
+                    raw = raw.split(",")
+                match[field] = list(dict.fromkeys(str(item).strip().casefold() for item in raw if str(item).strip()))[:30]
+        if "template" in values:
+            template = str(values.get("template") or "").strip()
+            if not template or len(template) > 3500 or "{url}" not in template:
+                raise ValueError("La plantilla debe incluir {url} y no superar 3500 caracteres")
+            match["template"] = template
+        if "message_thread_id" in values:
+            raw_thread = str(values.get("message_thread_id") or "").strip()
+            if raw_thread and not raw_thread.isdigit():
+                raise ValueError("El ID del tema debe ser numérico")
+            match["message_thread_id"] = int(raw_thread) if raw_thread else None
         self._save(chat_id, feeds)
         return dict(match)
 
@@ -147,7 +173,19 @@ class GroupRssManager:
                     if feed.get("initialized"):
                         fresh = [item for item in entries if item["id"] not in known][:3]
                         for entry in reversed(fresh):
-                            pending.append({"chat_id": str(chat_id), "feed_id": feed["id"], **entry})
+                            searchable = entry["title"].casefold()
+                            includes = feed.get("include_keywords") or []
+                            excludes = feed.get("exclude_keywords") or []
+                            if includes and not any(word in searchable for word in includes):
+                                feed["seen"] = [entry["id"]] + list(feed.get("seen") or [])
+                                continue
+                            if any(word in searchable for word in excludes):
+                                feed["seen"] = [entry["id"]] + list(feed.get("seen") or [])
+                                continue
+                            pending.append({"chat_id": str(chat_id), "feed_id": feed["id"],
+                                            "source": feed.get("title") or feed.get("url"),
+                                            "template": feed.get("template") or "📰 **{title}**\n{url}",
+                                            "message_thread_id": feed.get("message_thread_id"), **entry})
                     else:
                         feed["seen"] = [item["id"] for item in entries][:self.MAX_SEEN]
                     feed["initialized"] = True

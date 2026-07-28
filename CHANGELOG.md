@@ -5,6 +5,7 @@
 - Cada fuente se puede probar, activar, pausar o eliminar; una fuente recién activada inicializa su historial sin publicar entradas antiguas.
 - Moonbot comprueba las fuentes activas cada cinco minutos y publica las entradas nuevas con el bot asociado al grupo.
 - Se limitan cantidad, tamaño y tiempo de respuesta, se bloquean destinos privados para evitar SSRF y se validan también las redirecciones.
+- Los administradores pueden filtrar titulares, personalizar el mensaje con `{title}`, `{url}` y `{source}`, y publicar dentro de un tema del foro.
 
 ### Correlación de incidencias multigrupo - 2026-07-28
 - Nuevo motor determinista que cruza cronologías sin modificar los incidentes originales.
