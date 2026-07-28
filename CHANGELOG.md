@@ -1,5 +1,14 @@
 ﻿# Changelog - Moon Multibot
 
+### Anuncios Telegram no intrusivos - 2026-07-28
+- Las campañas comunitarias del Hub admiten mosaico deslizable, fila compacta, tarjetas, recomendación rotatoria y cinta de accesos.
+- El modo automático adapta la presentación al número de chats y mantiene los enlaces medidos sin ventanas emergentes, superposiciones ni reproducción automática.
+
+### Campañas comunitarias compatibles con el Hub - 2026-07-28
+- La vista Instant de NoticiasWeb3 muestra las campañas comunitarias como un mosaico horizontal compacto y abre cada chat dentro del flujo de Telegram.
+- El gestor de anuncios del master en el Hub permite seleccionar una comunidad detectada y crear su campaña completa sin acudir a la web externa.
+- Se mantienen enlaces medidos por chat y compatibilidad con anuncios individuales.
+
 ### Campañas mosaico para comunidades Telegram - 2026-07-28
 - Las campañas propias pueden contener hasta 16 grupos o canales de una comunidad y mantener métricas de clics por chat.
 - El formato se conserva en Moonbot con validación de enlaces y compatibilidad con las campañas individuales anteriores.

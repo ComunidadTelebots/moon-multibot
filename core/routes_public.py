@@ -133,7 +133,8 @@ def public_news_instant():
             pass
     _sync_master_channel_ads()
     ads = [{key: row.get(key) for key in ("id", "title", "description", "url", "image", "cta",
-                                            "background", "foreground", "accent")}
+                                            "background", "foreground", "accent", "community_id", "display_format",
+                                            "community_items")}
            for row in _house_ads_payload("inline")[:12]
            if row.get("enabled", True) and row.get("approval_status", "approved") == "approved"
            and str(row.get("url") or "").startswith(("https://", "http://"))]
@@ -2451,6 +2452,7 @@ def _house_ads_update(body):
                 "clicks_by_country": dict(raw.get("clicks_by_country") or {}), "impressions_by_country": dict(raw.get("impressions_by_country") or {}),
                 "source": str(raw.get("source") or "manual")[:32], "source_chat_id": str(raw.get("source_chat_id") or "")[:32],
                 "automatic": bool(raw.get("automatic", False)),
+                "display_format": str(raw.get("display_format") or "auto") if str(raw.get("display_format") or "auto") in ("auto", "mosaic", "compact", "cards", "spotlight", "ticker") else "auto",
                 "community_id": str(raw.get("community_id") or "")[:64],
                 "community_items": community_items,
                 "clicks_by_item": dict(raw.get("clicks_by_item") or {})}
@@ -4347,5 +4349,18 @@ def public_house_ads_manage():
     try:
         _sync_master_channel_ads()
         if body.get("action") and body.get("action") != "list": _house_ads_update(body)
-        return jsonify({"ok": True, "ads": _house_ads_payload()})
+        grouped = {}
+        for row in _admin_group_rows():
+            record = row.get("community") or {}
+            community_id = str(record.get("community_id") or (record.get("community") or {}).get("id") or "")
+            username = str(row.get("username") or "").strip().lstrip("@")
+            if not record.get("active") or not community_id or not re.fullmatch(r"[A-Za-z0-9_]{5,64}", username):
+                continue
+            community = grouped.setdefault(community_id, {"id": community_id,
+                "title": (record.get("community") or {}).get("title") or (record.get("community") or {}).get("name") or f"Comunidad {community_id}", "items": []})
+            community["items"].append({"id": str(row.get("id"))[:64], "title": str(row.get("name") or username)[:80],
+                                       "url": f"https://t.me/{username}",
+                                       "type": "channel" if row.get("ctype") == "channel" else "group", "image": ""})
+        communities = [{**community, "items": community["items"][:16]} for community in grouped.values() if community["items"]]
+        return jsonify({"ok": True, "ads": _house_ads_payload(), "communities": communities})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
