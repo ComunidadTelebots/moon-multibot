@@ -3,6 +3,7 @@
 import datetime
 import re
 import time
+import unicodedata
 import uuid
 from collections import Counter
 
@@ -41,6 +42,7 @@ class GroupSuite:
         media_controls = section("media_controls")
         plugin_controls = section("plugin_controls")
         ad_exchange = section("ad_exchange")
+        contextual_reactions = section("contextual_reactions")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -153,18 +155,64 @@ class GroupSuite:
                 "max_size_ratio": max(1, min(int(ad_exchange.get("max_size_ratio", 10)), 100)),
                 "pause_after_failures": max(1, min(int(ad_exchange.get("pause_after_failures", 3)), 20)),
             },
+            "contextual_reactions": {
+                "enabled": bool(contextual_reactions.get("enabled", False)),
+                "mode": str(contextual_reactions.get("mode", "balanced"))
+                    if str(contextual_reactions.get("mode", "balanced")) in ("selective", "balanced", "active") else "balanced",
+                "cooldown_seconds": max(5, min(int(contextual_reactions.get("cooldown_seconds", 30)), 3600)),
+                "max_per_hour": max(1, min(int(contextual_reactions.get("max_per_hour", 20)), 120)),
+                "react_to_bots": bool(contextual_reactions.get("react_to_bots", False)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
     def save_config(self, chat_id, updates):
         current = self.config(chat_id)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls", "ad_exchange"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls", "ad_exchange", "contextual_reactions"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
             current["rules"] = updates["rules"][:30]
         self.db.set(f"GROUPSUITE_{self._cid(chat_id)}", current)
         return self.config(chat_id)
+
+    def contextual_reaction(self, chat_id, text, reply_text="", sender_is_bot=False, now=None):
+        """Selecciona una reacción conservadora usando el mensaje y el texto al que responde."""
+        cfg = self.config(chat_id)["contextual_reactions"]
+        if not cfg["enabled"] or (sender_is_bot and not cfg["react_to_bots"]):
+            return None
+        raw = str(text or "").strip()
+        if not raw or raw.startswith("/") or len(raw) > 1500:
+            return None
+        normalized = unicodedata.normalize("NFKD", raw.casefold()).encode("ascii", "ignore").decode()
+        previous = unicodedata.normalize("NFKD", str(reply_text or "").casefold()).encode("ascii", "ignore").decode()
+        blocked = ("suicid", "matar", "violacion", "abuso", "contraseña", "password", "token", "hackeado")
+        if any(word in normalized for word in blocked):
+            return None
+        rules = (
+            ("🎉", "celebración", 0.98, ("felicidades", "enhorabuena", "lo conseguimos", "hemos ganado", "cumpleanos")),
+            ("😂", "humor", 0.94, ("jajaja", "jajaj", "lol", "me parto", "que risa")),
+            ("❤", "agradecimiento", 0.92, ("muchas gracias", "te lo agradezco", "mil gracias", "gracias por")),
+            ("🔥", "entusiasmo", 0.90, ("increible", "brutal", "espectacular", "tremendo", "que grande")),
+            ("😢", "tristeza", 0.90, ("lo siento", "que pena", "fallecio", "ha muerto", "muy triste")),
+            ("👍", "acuerdo", 0.86, ("de acuerdo", "correcto", "exacto", "confirmado", "funciona")),
+            ("🤔", "pregunta", 0.78, ("?", "alguien sabe", "como puedo", "por que", "que opinan")),
+            ("👀", "novedad", 0.76, ("ultima hora", "noticia", "nuevo lanzamiento", "atencion", "mirad")),
+        )
+        match = next(((emoji, reason, score) for emoji, reason, score, terms in rules if any(term in normalized for term in terms)), None)
+        if not match and previous and any(term in normalized for term in ("si", "no", "vale", "hecho", "entendido")):
+            match = ("👍", "respuesta contextual", 0.74)
+        thresholds = {"selective": 0.90, "balanced": 0.82, "active": 0.72}
+        if not match or match[2] < thresholds[cfg["mode"]]:
+            return None
+        now = float(now or time.time())
+        cid = self._cid(chat_id)
+        recent = [float(item) for item in (self.db.get(f"CONTEXT_REACTIONS_{cid}", []) or []) if now - float(item) < 3600]
+        if recent and now - recent[-1] < cfg["cooldown_seconds"] or len(recent) >= cfg["max_per_hour"]:
+            return None
+        recent.append(now)
+        self.db.set(f"CONTEXT_REACTIONS_{cid}", recent[-cfg["max_per_hour"]:])
+        return {"emoji": match[0], "reason": match[1], "confidence": match[2]}
 
     def media_decision(self, chat_id, result, source="vision"):
         """Evalúa un resultado; nunca ejecuta acciones de Telegram por sí mismo."""

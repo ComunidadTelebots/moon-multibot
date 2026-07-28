@@ -6228,6 +6228,19 @@ class MoonBot:
                         add_web_log("IA", f"ðŸ§  Aprendiendo en silencio de {global_chat_names.get(cid, cid)}")
                         continue
 
+                    if msg.get("chat", {}).get("type") in ("group", "supergroup") and text:
+                        reply_text = str((msg.get("reply_to_message") or {}).get("text") or
+                                         (msg.get("reply_to_message") or {}).get("caption") or "")
+                        reaction = group_suite.contextual_reaction(
+                            cid, text, reply_text=reply_text,
+                            sender_is_bot=bool((msg.get("from") or {}).get("is_bot")),
+                        )
+                        if reaction:
+                            reacted = self.set_message_reaction(cid, msg.get("message_id"), reaction["emoji"])
+                            if isinstance(reacted, dict) and reacted.get("ok"):
+                                db.set("STATS_CONTEXT_REACTIONS", int(db.get("STATS_CONTEXT_REACTIONS", 0)) + 1)
+                                add_web_log("DEBUG", f"Reacción contextual {reaction['emoji']} ({reaction['reason']}) en {cid}")
+
                     # 3. ActivaciÃ³n IA por MenciÃ³n o Master (Fuera de Comandos)
                     is_ia_call = (self.bot_username in text)
                     is_master_natural = (uid == str(MASTER_ID) and not text.startswith("/"))

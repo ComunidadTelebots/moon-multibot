@@ -681,6 +681,14 @@
         <button class="btn teal" id="mbiSave">Guardar interacción</button>
         ${(d.bot_interactions||[]).slice(0,8).map(x=>`<div class="userchip"><span>@${escHtml(x.username)} · ${x.learned?"aprendido":"sin aprendizaje"} · ${x.replied?"respuesta enviada":"sin respuesta"}</span></div>`).join("")||'<p class="muted">Sin interacciones registradas.</p>'}
       </div></div>
+      <div class="dropdown"><div class="dhead">Reacciones contextuales <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Interpreta el mensaje y aquello a lo que responde. No reacciona a comandos ni a contenido sensible y aplica límites anti-spam.</p>
+        <label class="setrow"><b>Activar reacciones inteligentes</b><input id="mcrEnabled" type="checkbox" ${c.contextual_reactions.enabled?"checked":""}></label>
+        <select id="mcrMode"><option value="selective">Selectivo</option><option value="balanced">Equilibrado</option><option value="active">Activo</option></select>
+        <div class="btnrow"><input id="mcrLimit" type="number" min="1" max="120" value="${c.contextual_reactions.max_per_hour}" placeholder="Máximo por hora"><input id="mcrCooldown" type="number" min="5" max="3600" value="${c.contextual_reactions.cooldown_seconds}" placeholder="Espera (s)"></div>
+        <label class="setrow"><b>Reaccionar también a otros bots</b><input id="mcrBots" type="checkbox" ${c.contextual_reactions.react_to_bots?"checked":""}></label>
+        <button class="btn teal" id="mcrSave">Guardar reacciones</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Intercambio de anuncios <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <label class="setrow"><b>Permitir anuncios mutuos</b><input id="maeEnabled" type="checkbox" ${c.ad_exchange.enabled?"checked":""}></label>
         <label class="setrow"><b>Priorizar misma categoría</b><input id="maeCategory" type="checkbox" ${c.ad_exchange.same_category_priority?"checked":""}></label>
@@ -770,6 +778,8 @@
     const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
     const saveChannelSenders=()=>gp("/group/suite/settings",{config:{channel_senders:{ban_external_channels:mcsBan.checked,delete_messages:mcsDelete.checked,notify:mcsNotify.checked}}}).then(()=>{showToast("Protección de canales guardada");loadGroupSuiteMini();});
     const saveBotInteraction=()=>gp("/group/suite/settings",{config:{bot_interaction:{enabled:mbiEnabled.checked,learn:mbiLearn.checked,reply:mbiReply.checked,allowed_usernames:mbiAllowed.value.split(",").map(x=>x.trim()).filter(Boolean),max_replies_per_hour:+mbiLimit.value}}}).then(()=>{showToast("Interacción con bots guardada");loadGroupSuiteMini();});
+    mcrMode.value=c.contextual_reactions.mode;
+    const saveContextualReactions=()=>gp("/group/suite/settings",{config:{contextual_reactions:{enabled:mcrEnabled.checked,mode:mcrMode.value,max_per_hour:+mcrLimit.value,cooldown_seconds:+mcrCooldown.value,react_to_bots:mcrBots.checked}}}).then(()=>{showToast("Reacciones contextuales guardadas");loadGroupSuiteMini();});
     mctAction.value=c.media_controls.action;
     const saveMediaControls=()=>gp("/group/suite/settings",{config:{media_controls:{enabled:mctEnabled.checked,blocked_types:[...host.querySelectorAll(".mctType:checked")].map(x=>x.value),max_file_mb:+mctMaxMb.value,action:mctAction.value,mute_minutes:+mctMute.value,notify:mctNotify.checked}}}).then(()=>{showToast("Tipos de contenido guardados");loadGroupSuiteMini();});
     maAccent.value=c.appearance.accent;applyGroupAppearance(c.appearance);
@@ -780,6 +790,7 @@
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
     mbiSave.onclick=saveBotInteraction;
+    mcrSave.onclick=saveContextualReactions;
     maeSave.onclick=()=>gp("/group/suite/settings",{config:{ad_exchange:{enabled:maeEnabled.checked,cooldown_hours:+maeCooldown.value,max_daily:+maeDaily.value,max_weekly:+maeWeekly.value,pause_after_failures:+maeFailures.value,same_category_priority:maeCategory.checked,max_size_ratio:+maeRatio.value}}}).then(()=>{showToast("Política publicitaria guardada");loadGroupSuiteMini();});
     mcmdSave.onclick=()=>{const enabled=[...host.querySelectorAll(".mcmdPlugin:checked")].map(x=>x.value.toLowerCase());const all=d.command_menu?.plugin_names||[];gp("/group/suite/settings",{config:{plugin_controls:{enabled:mcmdEnabled.checked,disabled_plugins:all.filter(name=>!enabled.includes(name.toLowerCase()))}}}).then(()=>{showToast("Plugins del grupo guardados");loadGroupSuiteMini();});};
     mcmdSync.onclick=()=>gp("/group/commands/sync",{}).then(x=>{showToast(x.command_menu?.synced?"Comandos sincronizados":"Telegram rechazó algún menú");loadGroupSuiteMini();});

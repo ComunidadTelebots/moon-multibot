@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Reacciones contextuales de Telegram - 2026-07-28
+- Moonbot interpreta el mensaje y el texto al que responde para detectar agradecimiento, humor, celebración, entusiasmo, tristeza, acuerdo, duda o novedad.
+- Las reacciones usan `setMessageReaction`, excluyen contenido sensible y aplican espera y máximo por hora configurables por grupo.
+- WebApp y web ofrecen los mismos perfiles; los mensajes de otros bots permanecen excluidos salvo activación expresa.
+
 ### RSS automático por grupo - 2026-07-28
 - Los administradores pueden gestionar una lista RSS o Atom independiente desde la sección de cada grupo en la WebApp.
 - Cada fuente se puede probar, activar, pausar o eliminar; una fuente recién activada inicializa su historial sin publicar entradas antiguas.
