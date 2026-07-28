@@ -51,6 +51,7 @@ from token_manager import token_manager
 from ban_manager import BanManager
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
+from group_rss import GroupRssManager
 from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from group_administration import GroupAdministration
@@ -101,6 +102,7 @@ db = DBManager()
 ban_manager = BanManager(db)  # Gestor centralizado de baneos
 spam_risk = SpamRiskEngine(db)
 group_suite = GroupSuite(db)
+group_rss = GroupRssManager(db)
 community_members = CommunityMembers(db)
 community_engagement = CommunityEngagement(db)
 group_administration = GroupAdministration(db)
@@ -111,9 +113,10 @@ start_time = time.time()
 bots_data = []
 active_bots = []
 next_group_admin_check = 0
+next_group_rss_check = 0
 
 def queue_worker():
-    global next_group_admin_check
+    global next_group_admin_check, next_group_rss_check
     while True:
         try:
             if active_bots:
@@ -165,6 +168,20 @@ def queue_worker():
                             actual = response.get("result", {}) if isinstance(response, dict) and response.get("ok") else {}
                             group_administration.permission_audit(group_id, actual)
                     next_group_admin_check = time.time() + 3600
+                if time.time() >= next_group_rss_check:
+                    for rss_entry in group_rss.poll():
+                        target_bot = get_bot_for_chat(rss_entry["chat_id"]) if "get_bot_for_chat" in globals() else active_bots[0]
+                        if not target_bot:
+                            continue
+                        title = str(rss_entry.get("title") or "Nueva publicación").replace("[", "\\[").replace("]", "\\]")
+                        result = target_bot.send_msg(
+                            rss_entry["chat_id"],
+                            f"📰 **{title}**\n{rss_entry['url']}",
+                            parse_mode="Markdown",
+                        )
+                        if isinstance(result, dict) and result.get("ok"):
+                            group_rss.mark_published(rss_entry["chat_id"], rss_entry["feed_id"], rss_entry["id"])
+                    next_group_rss_check = time.time() + 300
                 content_items = {x.get("id"): x for x in roadmap_engine._list("CONTENT_ITEMS")}
                 for scheduled in roadmap_engine.due_content():
                     content = content_items.get(scheduled["content_id"])

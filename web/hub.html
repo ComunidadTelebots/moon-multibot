@@ -811,6 +811,17 @@
     loadGroup();
   }
 
+  async function loadGroupRss(){
+    const host=document.getElementById("gRss");if(!host)return;
+    const data=await gp("/group/rss",{action:"list"});
+    if(!data||!data.ok){host.innerHTML=`<p class="muted">${escHtml((data&&data.error)||"No se pudo cargar el RSS")}</p>`;return;}
+    host.innerHTML=`<p class="muted">Publica automáticamente las entradas nuevas. La primera lectura no enviará artículos antiguos.</p><input id="gRssTitle" maxlength="120" placeholder="Nombre opcional"><input id="gRssUrl" type="url" placeholder="https://ejemplo.com/feed.xml"><button class="btn teal" id="gRssAdd">Añadir RSS</button><div>${(data.feeds||[]).map(feed=>`<div class="userchip" style="align-items:flex-start"><span style="min-width:0"><b>${escHtml(feed.title||feed.url)}</b><small style="display:block;word-break:break-all;color:var(--muted)">${escHtml(feed.url)}</small><small style="display:block;color:${feed.last_error?'#fb7185':'var(--muted)'}">${feed.last_error?escHtml(feed.last_error):(feed.last_checked_at?'Comprobado '+new Date(feed.last_checked_at).toLocaleString():'Sin comprobar')}</small></span><span><button class="btn ${feed.enabled?'teal':'ghost'}" data-rss-toggle="${feed.id}" data-enabled="${feed.enabled?1:0}" style="width:auto;padding:8px">${feed.enabled?'Activo':'Pausado'}</button><button class="btn ghost" data-rss-test="${feed.id}" style="width:auto;padding:8px">Probar</button><button class="btn danger" data-rss-delete="${feed.id}" style="width:auto;padding:8px">Eliminar</button></span></div>`).join("")||'<p class="muted">Este grupo todavía no tiene fuentes RSS.</p>'}</div>`;
+    gRssAdd.onclick=()=>{const url=gRssUrl.value.trim();if(!url)return showToast("Escribe una URL RSS");gp("/group/rss",{action:"add",url,title:gRssTitle.value}).then(x=>{if(!x.ok)return showToast(x.error||"No se pudo añadir");showToast("RSS añadido; actívalo cuando quieras");loadGroupRss();});};
+    host.querySelectorAll("[data-rss-toggle]").forEach(btn=>btn.onclick=()=>gp("/group/rss",{action:"toggle",feed_id:btn.dataset.rssToggle,enabled:btn.dataset.enabled!=="1"}).then(x=>{showToast(x.ok?"Estado RSS actualizado":x.error);loadGroupRss();}));
+    host.querySelectorAll("[data-rss-test]").forEach(btn=>btn.onclick=()=>gp("/group/rss",{action:"test",feed_id:btn.dataset.rssTest}).then(x=>showToast(x.ok?`RSS válido: ${(x.entries||[]).length} entradas`:x.error)));
+    host.querySelectorAll("[data-rss-delete]").forEach(btn=>btn.onclick=()=>{if(confirm("¿Eliminar este RSS del grupo?"))gp("/group/rss",{action:"delete",feed_id:btn.dataset.rssDelete}).then(loadGroupRss);});
+  }
+
   async function loadGroupBotPermissions(){
     const host=document.getElementById("gPermissions");if(!host)return;
     const result=await gp("/group/bot-permissions",{});
@@ -888,6 +899,8 @@
         <div class="dbody" id="gspamRisk">${skel()}</div></div>
       <div class="gsec">Suite avanzada de grupos</div>
       <div id="gGroupSuite">${skel()}</div>
+      <div class="gsec">Fuentes RSS del grupo</div>
+      <div class="dropdown open"><div class="dhead">Publicación RSS automática <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gRss">${skel()}</div></div>
       <div class="gsec">Acceso automático</div>
       <div class="dropdown open" id="dd-join"><div class="dhead">Captcha de entrada <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gjoin">${skel()}</div></div>
@@ -908,6 +921,7 @@
       <div class="btnrow"><button class="btn ghost" id="gnotesSave">Guardar notas</button></div>`;
     loadGroupBotPermissions();
     loadGroupSuiteMini();
+    loadGroupRss();
     document.getElementById("gback").onclick=()=>showView("canales");
     if(document.getElementById("gopen"))document.getElementById("gopen").onclick=()=>openTg(`https://t.me/${m.username}`);
     document.getElementById("gshare").onclick=()=>{

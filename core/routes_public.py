@@ -21,6 +21,7 @@ import re
 import ipaddress
 import urllib.request
 import urllib.error
+import xml.etree.ElementTree as ET
 from urllib.parse import parse_qsl, urlparse
 
 import jwt
@@ -34,6 +35,7 @@ except ImportError:  # pragma: no cover - la imagen oficial incluye psutil
 from . import image_gen
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
+from group_rss import GroupRssManager
 from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from roadmap_engine import RoadmapEngine
@@ -1799,6 +1801,17 @@ def admin_all_channels():
         return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
 
 
+@bp.route("/api/internal/groups/<cid>/rss", methods=["GET", "POST"])
+def internal_group_rss(cid):
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if not _known_internal_group(cid):
+        return jsonify({"ok": False, "error": "group_not_found"}), 404
+    body = (request.json or {}) if request.method == "POST" else {"action": "list"}
+    payload, status = _rss_action(cid, body, "web-master")
+    return jsonify(payload), status
+
+
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
 def admin_set_listed():
     """Publicar/ocultar un canal en el directorio público. Master o dueño del chat."""
@@ -1832,6 +1845,48 @@ def _group_auth(body):
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), chat_id)):
         return None, (jsonify({"ok": False, "error": "sin permiso sobre ese chat"}), 403)
     return (user, chat_id), None
+
+
+def _rss_manager():
+    return GroupRssManager(_db)
+
+
+def _rss_action(chat_id, body, actor):
+    manager = _rss_manager()
+    action = str(body.get("action") or "list")
+    try:
+        if action == "add":
+            feed = manager.add(chat_id, body.get("url"), body.get("title"), actor)
+            return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 201
+        if action == "toggle":
+            feed = manager.set_enabled(chat_id, body.get("feed_id"), body.get("enabled"))
+            return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 200
+        if action == "delete":
+            manager.remove(chat_id, body.get("feed_id"))
+            return {"ok": True, "feeds": manager.list(chat_id)}, 200
+        if action == "test":
+            feed = next((row for row in manager.list(chat_id) if row.get("id") == str(body.get("feed_id"))), None)
+            if not feed:
+                return {"ok": False, "error": "RSS no encontrado"}, 404
+            return {"ok": True, "entries": manager.fetch(feed["url"])[:5], "feeds": manager.list(chat_id)}, 200
+        return {"ok": True, "feeds": manager.list(chat_id), "limit": manager.MAX_FEEDS}, 200
+    except KeyError as error:
+        return {"ok": False, "error": str(error).strip("'")}, 404
+    except (ValueError, urllib.error.URLError, ET.ParseError) as error:
+        return {"ok": False, "error": str(error)}, 400
+
+
+@bp.route("/api/public/group/rss", methods=["POST", "OPTIONS"])
+def group_rss():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    payload, status = _rss_action(chat_id, body, user.get("id"))
+    return jsonify(payload), status
 
 
 _SETTING_KEYS = {"auto_mod", "welcome", "ia_learning", "security_shield"}
