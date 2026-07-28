@@ -5,13 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Panel · ComunidadTelebots</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<!-- Google Analytics (GA4) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-F5P08EW3SV"></script>
 <script>
+  const HUB_GA_ID='G-F5P08EW3SV';
+  const HUB_CONSENT_KEY='moon_hub_cookie_consent';
   window.dataLayer=window.dataLayer||[];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js',new Date());
-  gtag('config','G-F5P08EW3SV');
+  window.gtag=window.gtag||function(){window.dataLayer.push(arguments);};
+  gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',wait_for_update:500});
+  function hubRequiresConsent(){const locale=navigator.languages?.[0]||navigator.language||'',region=(locale.match(/[-_]([A-Z]{2})$/i)||[])[1]?.toUpperCase()||'',zone=Intl.DateTimeFormat().resolvedOptions().timeZone||'',regions=new Set(['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB','UK','CH']);return regions.has(region)||zone.startsWith('Europe/')||['Atlantic/Canary','Atlantic/Madeira','Atlantic/Azores'].includes(zone)||(!region&&!zone);}
+  function hubStoredConsent(){try{return JSON.parse(localStorage.getItem(HUB_CONSENT_KEY)||'null');}catch(e){return null;}}
+  function hubAnalyticsAllowed(){const saved=hubStoredConsent();return saved?saved.analytics===true:!hubRequiresConsent();}
+  function hubLoadAnalytics(){if(!hubAnalyticsAllowed()||document.getElementById('hub-ga-script'))return;gtag('consent','update',{analytics_storage:'granted',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'});const script=document.createElement('script');script.id='hub-ga-script';script.async=true;script.src=`https://www.googletagmanager.com/gtag/js?id=${HUB_GA_ID}`;document.head.appendChild(script);gtag('js',new Date());gtag('config',HUB_GA_ID,{send_page_view:false});gtag('event','page_view',{page_path:'/hub',page_title:'Hub ComunidadTelebots'});}
+  function hubSaveConsent(analytics){const value={essential:true,analytics:Boolean(analytics),updated_at:new Date().toISOString()};localStorage.setItem(HUB_CONSENT_KEY,JSON.stringify(value));gtag('consent','update',{analytics_storage:value.analytics?'granted':'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'});document.getElementById('hubCookieBanner')?.remove();if(value.analytics)hubLoadAnalytics();}
+  function hubShowConsent(force=false){if(!force&&(!hubRequiresConsent()||hubStoredConsent()))return;document.getElementById('hubCookieBanner')?.remove();const banner=document.createElement('aside');banner.id='hubCookieBanner';banner.className='hub-cookie-banner';banner.setAttribute('role','dialog');banner.setAttribute('aria-modal','true');banner.innerHTML='<div class="hub-cookie-icon">◉</div><div class="hub-cookie-copy"><b>Privacidad y analítica</b><p>Usamos Google Analytics únicamente con tu permiso para mejorar el Hub. Las funciones del bot y los anuncios comunitarios seguirán funcionando si rechazas.</p><a href="https://todosobreall.tech/cookies" target="_blank" rel="noopener">Política de cookies</a></div><div class="hub-cookie-actions"><button data-hub-consent="reject">Rechazar</button><button class="accept" data-hub-consent="accept">Aceptar analítica</button></div>';document.body.appendChild(banner);banner.querySelector('[data-hub-consent="reject"]').onclick=()=>hubSaveConsent(false);banner.querySelector('[data-hub-consent="accept"]').onclick=()=>hubSaveConsent(true);}
+  function initHubAnalytics(){if(hubAnalyticsAllowed())hubLoadAnalytics();if(hubRequiresConsent()&&!hubStoredConsent())hubShowConsent();}
+  window.addEventListener('DOMContentLoaded',initHubAnalytics);
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,6 +38,7 @@
   body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;line-height:1.5;
     overflow-x:hidden;position:relative;-webkit-font-smoothing:antialiased;}
   .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  .hub-cookie-banner{position:fixed;z-index:10000;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));display:grid;grid-template-columns:auto 1fr;gap:10px;max-width:650px;margin:auto;padding:14px;border:1px solid rgba(93,202,165,.35);border-radius:18px;background:rgba(12,19,32,.98);color:var(--ink);box-shadow:0 18px 55px rgba(0,0,0,.45);backdrop-filter:blur(16px)}.hub-cookie-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:rgba(93,202,165,.13);color:var(--teal)}.hub-cookie-copy b{font-size:14px}.hub-cookie-copy p{margin:3px 0 5px;color:var(--muted);font-size:11px;line-height:1.4}.hub-cookie-copy a{color:var(--teal);font-size:10px}.hub-cookie-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}.hub-cookie-actions button{border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:var(--card);color:var(--ink);font:inherit;font-size:11px;font-weight:700}.hub-cookie-actions .accept{border-color:transparent;background:var(--teal);color:#04121f}
   .aurora{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none;}
   .aurora::before{content:'';position:absolute;width:80vw;height:80vw;top:-40vw;left:-25vw;border-radius:50%;
     filter:blur(90px);opacity:.28;background:radial-gradient(circle,var(--teal),transparent 62%);}
@@ -469,7 +477,7 @@
     return window.confirm(message);
   }
   // Evento GA4 seguro (no rompe la app si gtag no está / está bloqueado). Sin PII.
-  function ev(name,params){try{if(window.gtag)gtag("event",name,params||{});}catch(e){}}
+  function ev(name,params){try{if(hubAnalyticsAllowed()&&window.gtag)gtag("event",name,params||{});}catch(e){}}
 
   const skel=()=>`<div class="skel"></div><div class="skel"></div><div class="skel"></div>`;
 
@@ -820,7 +828,7 @@
 
   function openGroup(chat_id,name){
     curChat=chat_id;
-    if(window.gtag)gtag("event","page_view",{page_path:"/hub/grupo"});
+    ev("page_view",{page_path:"/hub/grupo"});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!=="grupo");
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.remove("active"));
     const el=document.getElementById("v-grupo");
@@ -1441,7 +1449,7 @@
     document.getElementById("masterDetail").innerHTML=skel();
     page.hidden=false;page.scrollTop=0;document.body.style.overflow="hidden";
     document.getElementById("masterDetailBack").onclick=closeMasterPage;
-    if(window.gtag)gtag("event","page_view",{page_path:"/hub/master/"+title.toLowerCase().replaceAll(" ","-")});
+    ev("page_view",{page_path:"/hub/master/"+title.toLowerCase().replaceAll(" ","-")});
     try{await loader();}catch(error){
       document.getElementById("masterDetail").innerHTML='<div class="master-error">No se pudo cargar esta sección.</div>';
     }
@@ -2685,6 +2693,8 @@
       <div class="casbox"><span id="offlineQueueCount">0</span> cambios pendientes de sincronización offline.</div>
       <button class="btn ghost" id="uxPreferencesSave" style="margin-top:10px">Guardar visualización</button>
       <button class="btn ghost" id="uxTourRestart" style="margin-top:8px">Repetir recorrido guiado</button>
+      <div class="sec">Privacidad</div>
+      <div class="setrow"><span><b>Google Analytics</b><span id="hubAnalyticsStatus">Consulta y cambia el consentimiento de este dispositivo.</span></span><button class="minibtn" id="hubCookieSettings">Configurar</button></div>
       <div class="sec">Bóveda personal cifrada</div>
       <p class="muted">Notas privadas guardadas únicamente en este dispositivo. No se envían al bot ni al servidor.</p>
       <input id="vaultPassphrase" type="password" minlength="8" placeholder="Contraseña local (mínimo 8 caracteres)">
@@ -2698,6 +2708,8 @@
     const widgetPrefs=uxRead("hub_widgets",{favorites:true,sort:true});widgetFavorites.checked=widgetPrefs.favorites;widgetSort.checked=widgetPrefs.sort;offlineQueueCount.textContent=offlineQueue().length;
     document.getElementById("uxPreferencesSave").onclick=()=>{saveUxPreferences();uxWrite("hub_widgets",{favorites:widgetFavorites.checked,sort:widgetSort.checked});};
     document.getElementById("uxTourRestart").onclick=()=>startGuidedTour();
+    document.getElementById("hubAnalyticsStatus").textContent=hubAnalyticsAllowed()?"Analítica permitida en este dispositivo.":"Analítica desactivada en este dispositivo.";
+    document.getElementById("hubCookieSettings").onclick=()=>hubShowConsent(true);
     let vaultExists=!!localStorage.getItem(vaultStorageKey()),vaultUnlocked=false;
     const vaultRefresh=()=>{vaultPrimary.textContent=vaultExists?(vaultUnlocked?"Guardar cifrada":"Desbloquear"):"Crear bóveda cifrada";vaultContent.hidden=!vaultUnlocked;vaultLock.hidden=!vaultUnlocked;vaultDelete.hidden=!vaultExists;};
     vaultPrimary.onclick=async()=>{const pass=vaultPassphrase.value;if(pass.length<8)return showToast("La contraseña debe tener al menos 8 caracteres");try{if(vaultExists&&!vaultUnlocked){vaultContent.value=await openPersonalVault(pass);vaultUnlocked=true;showToast("Bóveda desbloqueada");}else{if(!vaultConsent.checked)return showToast("Confirma el consentimiento local");await savePersonalVault(pass,vaultContent.value);vaultExists=true;vaultUnlocked=true;showToast("Bóveda cifrada y guardada");}vaultRefresh();}catch(error){showToast(error.message);}};
@@ -2731,7 +2743,7 @@
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
     if(!fromHistory&&history.state&&history.state.moonView!==name)history.pushState({moonView:name},"","#"+name);
-    if(window.gtag)gtag("event","page_view",{page_path:"/hub/"+name});
+    ev("page_view",{page_path:"/hub/"+name});
     (LOADERS[name]||(()=>{}))();
   }
   let newBound=false;
