@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import ipaddress
 import socket
+import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -56,6 +57,16 @@ class GroupRssManager:
             row["health"] = ("paused" if row.get("paused_reason") else
                              "error" if row.get("last_error") else
                              "active" if row.get("enabled") else "disabled")
+            if row.get("enabled") and row.get("last_checked_at"):
+                try:
+                    last = datetime.datetime.fromisoformat(row["last_checked_at"])
+                    failures = min(4, int(row.get("consecutive_failures", 0)))
+                    minutes = min(1440, int(row.get("poll_interval_minutes", 15)) * (2 ** failures))
+                    row["next_check_at"] = (last + datetime.timedelta(minutes=minutes)).isoformat()
+                except (TypeError, ValueError):
+                    row["next_check_at"] = None
+            else:
+                row["next_check_at"] = None
             output.append(row)
         return output
 
@@ -86,6 +97,7 @@ class GroupRssManager:
                 "quiet_start_utc": None, "quiet_end_utc": None, "paused_reason": None,
                 "checks_count": 0, "published_count": 0, "filtered_count": 0,
                 "error_count": 0, "last_success_at": None,
+                "last_duration_ms": None,
                 "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "last_checked_at": None, "last_published_at": None, "last_error": None,
                 "initialized": False, "seen": []}
@@ -157,6 +169,19 @@ class GroupRssManager:
                       "last_error": None, "consecutive_failures": 0})
         self._save(chat_id, feeds)
         return dict(match)
+
+    def reset_metrics(self, chat_id, feed_id):
+        feeds = self._feeds(chat_id)
+        match = next((item for item in feeds if item.get("id") == str(feed_id)), None)
+        if not match:
+            raise KeyError("RSS no encontrado")
+        match.update({"checks_count": 0, "published_count": 0, "filtered_count": 0,
+                      "error_count": 0, "last_duration_ms": None})
+        self._save(chat_id, feeds)
+        return dict(match)
+
+    def clear_history(self, chat_id):
+        self.db.set(f"GROUP_RSS_HISTORY_{chat_id}", [])
 
     def history(self, chat_id, limit=50):
         rows = self.db.get(f"GROUP_RSS_HISTORY_{chat_id}", []) or []
@@ -230,13 +255,17 @@ class GroupRssManager:
                     last = datetime.datetime.fromisoformat(feed["last_checked_at"]) if feed.get("last_checked_at") else None
                 except (TypeError, ValueError):
                     last = None
-                if not force and last and (now - last).total_seconds() < int(feed.get("poll_interval_minutes", 15)) * 60:
+                failures = min(4, int(feed.get("consecutive_failures", 0)))
+                effective_minutes = min(1440, int(feed.get("poll_interval_minutes", 15)) * (2 ** failures))
+                if not force and last and (now - last).total_seconds() < effective_minutes * 60:
                     continue
                 if not force and self._in_quiet_hours(feed, now):
                     continue
                 try:
+                    started = time.monotonic()
                     feed["checks_count"] = int(feed.get("checks_count", 0)) + 1
                     entries = self.fetch(feed["url"])
+                    feed["last_duration_ms"] = round((time.monotonic() - started) * 1000)
                     known = set(feed.get("seen") or [])
                     if feed.get("initialized"):
                         fresh = [item for item in entries if item["id"] not in known][:int(feed.get("max_entries_per_cycle", 3))]
@@ -263,6 +292,8 @@ class GroupRssManager:
                     feed["consecutive_failures"] = 0
                     feed["last_success_at"] = now.isoformat()
                 except Exception as error:
+                    if "started" in locals():
+                        feed["last_duration_ms"] = round((time.monotonic() - started) * 1000)
                     feed["last_error"] = str(error)[:240]
                     feed["error_count"] = int(feed.get("error_count", 0)) + 1
                     feed["consecutive_failures"] = int(feed.get("consecutive_failures", 0)) + 1
@@ -275,7 +306,9 @@ class GroupRssManager:
                 self._save(chat_id, feeds)
         return pending
 
-    def mark_published(self, chat_id, feed_id, entry_id=None):
+    def mark_published(self, chat_id, feed_id, entry=None):
+        entry_data = entry if isinstance(entry, dict) else {"id": entry}
+        entry_id = entry_data.get("id")
         feeds = self._feeds(chat_id)
         for feed in feeds:
             if feed.get("id") == str(feed_id):
@@ -288,5 +321,8 @@ class GroupRssManager:
         if entry_id:
             history = self.db.get(f"GROUP_RSS_HISTORY_{chat_id}", []) or []
             history.append({"feed_id": str(feed_id), "entry_id": str(entry_id),
+                            "title": str(entry_data.get("title") or "")[:300],
+                            "url": str(entry_data.get("url") or "")[:2000],
+                            "source": str(entry_data.get("source") or "")[:120],
                             "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
             self.db.set(f"GROUP_RSS_HISTORY_{chat_id}", history[-200:])

@@ -10,6 +10,8 @@
 - La ejecución manual permite inicializar o publicar una fuente inmediatamente desde WebApp o web sin esperar al siguiente ciclo.
 - Se incorporan estado de salud, contadores de comprobaciones, publicaciones, filtros y errores por fuente.
 - Las fuentes se pueden renombrar y reiniciar sin publicar entradas antiguas; las entregas quedan registradas en un historial limitado.
+- El motor calcula latencia y próxima ejecución, y aplica backoff exponencial acotado cuando una fuente falla.
+- El historial conserva título, URL y origen de cada entrega; WebApp permite vaciarlo y reiniciar contadores por fuente.
 
 ### Correlación de incidencias multigrupo - 2026-07-28
 - Nuevo motor determinista que cruza cronologías sin modificar los incidentes originales.

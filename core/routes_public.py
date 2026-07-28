@@ -1867,6 +1867,13 @@ def _rss_action(chat_id, body, actor):
         if action == "reset_cursor":
             feed = manager.reset_cursor(chat_id, body.get("feed_id"))
             return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 200
+        if action == "reset_metrics":
+            feed = manager.reset_metrics(chat_id, body.get("feed_id"))
+            return {"ok": True, "feed": feed, "feeds": manager.list(chat_id),
+                    "history": manager.history(chat_id)}, 200
+        if action == "clear_history":
+            manager.clear_history(chat_id)
+            return {"ok": True, "feeds": manager.list(chat_id), "history": []}, 200
         if action == "delete":
             manager.remove(chat_id, body.get("feed_id"))
             return {"ok": True, "feeds": manager.list(chat_id)}, 200
@@ -1892,7 +1899,7 @@ def _rss_action(chat_id, body, actor):
                 result = bot.send_msg(chat_id, text[:4096], parse_mode="Markdown",
                                       message_thread_id=entry.get("message_thread_id"))
                 if isinstance(result, dict) and result.get("ok"):
-                    manager.mark_published(chat_id, feed_id, entry["id"])
+                    manager.mark_published(chat_id, feed_id, entry)
                     sent += 1
             return {"ok": True, "sent": sent, "initialized": not entries,
                     "feeds": manager.list(chat_id)}, 200

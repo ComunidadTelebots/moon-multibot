@@ -184,7 +184,7 @@ def queue_worker():
                             message_thread_id=rss_entry.get("message_thread_id"),
                         )
                         if isinstance(result, dict) and result.get("ok"):
-                            group_rss.mark_published(rss_entry["chat_id"], rss_entry["feed_id"], rss_entry["id"])
+                            group_rss.mark_published(rss_entry["chat_id"], rss_entry["feed_id"], rss_entry)
                     next_group_rss_check = time.time() + 300
                 content_items = {x.get("id"): x for x in roadmap_engine._list("CONTENT_ITEMS")}
                 for scheduled in roadmap_engine.due_content():
