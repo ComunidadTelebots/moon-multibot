@@ -8,6 +8,8 @@
 - Los administradores pueden filtrar titulares, personalizar el mensaje con `{title}`, `{url}` y `{source}`, y publicar dentro de un tema del foro.
 - Cada fuente admite frecuencia propia, máximo por ciclo, horario silencioso UTC y pausa automática configurable por fallos.
 - La ejecución manual permite inicializar o publicar una fuente inmediatamente desde WebApp o web sin esperar al siguiente ciclo.
+- Se incorporan estado de salud, contadores de comprobaciones, publicaciones, filtros y errores por fuente.
+- Las fuentes se pueden renombrar y reiniciar sin publicar entradas antiguas; las entregas quedan registradas en un historial limitado.
 
 ### Correlación de incidencias multigrupo - 2026-07-28
 - Nuevo motor determinista que cruza cronologías sin modificar los incidentes originales.

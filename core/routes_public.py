@@ -1864,6 +1864,9 @@ def _rss_action(chat_id, body, actor):
         if action == "configure":
             feed = manager.configure(chat_id, body.get("feed_id"), body)
             return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 200
+        if action == "reset_cursor":
+            feed = manager.reset_cursor(chat_id, body.get("feed_id"))
+            return {"ok": True, "feed": feed, "feeds": manager.list(chat_id)}, 200
         if action == "delete":
             manager.remove(chat_id, body.get("feed_id"))
             return {"ok": True, "feeds": manager.list(chat_id)}, 200
@@ -1893,7 +1896,8 @@ def _rss_action(chat_id, body, actor):
                     sent += 1
             return {"ok": True, "sent": sent, "initialized": not entries,
                     "feeds": manager.list(chat_id)}, 200
-        return {"ok": True, "feeds": manager.list(chat_id), "limit": manager.MAX_FEEDS}, 200
+        return {"ok": True, "feeds": manager.list(chat_id), "history": manager.history(chat_id),
+                "limit": manager.MAX_FEEDS}, 200
     except KeyError as error:
         return {"ok": False, "error": str(error).strip("'")}, 404
     except (ValueError, urllib.error.URLError, ET.ParseError) as error:

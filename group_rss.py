@@ -50,7 +50,14 @@ class GroupRssManager:
         return value if isinstance(value, list) else []
 
     def list(self, chat_id):
-        return [dict(item) for item in self._feeds(chat_id)]
+        output = []
+        for item in self._feeds(chat_id):
+            row = dict(item)
+            row["health"] = ("paused" if row.get("paused_reason") else
+                             "error" if row.get("last_error") else
+                             "active" if row.get("enabled") else "disabled")
+            output.append(row)
+        return output
 
     def _save(self, chat_id, feeds):
         self.db.set(self._key(chat_id), feeds)
@@ -77,6 +84,8 @@ class GroupRssManager:
                 "poll_interval_minutes": 15, "max_entries_per_cycle": 3,
                 "pause_after_failures": 5, "consecutive_failures": 0,
                 "quiet_start_utc": None, "quiet_end_utc": None, "paused_reason": None,
+                "checks_count": 0, "published_count": 0, "filtered_count": 0,
+                "error_count": 0, "last_success_at": None,
                 "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "last_checked_at": None, "last_published_at": None, "last_error": None,
                 "initialized": False, "seen": []}
@@ -102,6 +111,8 @@ class GroupRssManager:
         match = next((item for item in feeds if item.get("id") == str(feed_id)), None)
         if not match:
             raise KeyError("RSS no encontrado")
+        if "title" in values:
+            match["title"] = str(values.get("title") or "").strip()[:120]
         for field in ("include_keywords", "exclude_keywords"):
             if field in values:
                 raw = values.get(field) or []
@@ -136,6 +147,20 @@ class GroupRssManager:
                 match[field] = int(raw) if raw else None
         self._save(chat_id, feeds)
         return dict(match)
+
+    def reset_cursor(self, chat_id, feed_id):
+        feeds = self._feeds(chat_id)
+        match = next((item for item in feeds if item.get("id") == str(feed_id)), None)
+        if not match:
+            raise KeyError("RSS no encontrado")
+        match.update({"initialized": False, "seen": [], "last_checked_at": None,
+                      "last_error": None, "consecutive_failures": 0})
+        self._save(chat_id, feeds)
+        return dict(match)
+
+    def history(self, chat_id, limit=50):
+        rows = self.db.get(f"GROUP_RSS_HISTORY_{chat_id}", []) or []
+        return list(rows)[-max(1, min(200, int(limit))):][::-1]
 
     def remove(self, chat_id, feed_id):
         feeds = self._feeds(chat_id)
@@ -210,6 +235,7 @@ class GroupRssManager:
                 if not force and self._in_quiet_hours(feed, now):
                     continue
                 try:
+                    feed["checks_count"] = int(feed.get("checks_count", 0)) + 1
                     entries = self.fetch(feed["url"])
                     known = set(feed.get("seen") or [])
                     if feed.get("initialized"):
@@ -220,9 +246,11 @@ class GroupRssManager:
                             excludes = feed.get("exclude_keywords") or []
                             if includes and not any(word in searchable for word in includes):
                                 feed["seen"] = [entry["id"]] + list(feed.get("seen") or [])
+                                feed["filtered_count"] = int(feed.get("filtered_count", 0)) + 1
                                 continue
                             if any(word in searchable for word in excludes):
                                 feed["seen"] = [entry["id"]] + list(feed.get("seen") or [])
+                                feed["filtered_count"] = int(feed.get("filtered_count", 0)) + 1
                                 continue
                             pending.append({"chat_id": str(chat_id), "feed_id": feed["id"],
                                             "source": feed.get("title") or feed.get("url"),
@@ -233,8 +261,10 @@ class GroupRssManager:
                     feed["initialized"] = True
                     feed["last_error"] = None
                     feed["consecutive_failures"] = 0
+                    feed["last_success_at"] = now.isoformat()
                 except Exception as error:
                     feed["last_error"] = str(error)[:240]
+                    feed["error_count"] = int(feed.get("error_count", 0)) + 1
                     feed["consecutive_failures"] = int(feed.get("consecutive_failures", 0)) + 1
                     if feed["consecutive_failures"] >= int(feed.get("pause_after_failures", 5)):
                         feed["enabled"] = False
@@ -250,7 +280,13 @@ class GroupRssManager:
         for feed in feeds:
             if feed.get("id") == str(feed_id):
                 feed["last_published_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                feed["published_count"] = int(feed.get("published_count", 0)) + 1
                 if entry_id:
                     feed["seen"] = [str(entry_id)] + [item for item in (feed.get("seen") or []) if item != str(entry_id)]
                     feed["seen"] = feed["seen"][:self.MAX_SEEN]
         self._save(chat_id, feeds)
+        if entry_id:
+            history = self.db.get(f"GROUP_RSS_HISTORY_{chat_id}", []) or []
+            history.append({"feed_id": str(feed_id), "entry_id": str(entry_id),
+                            "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+            self.db.set(f"GROUP_RSS_HISTORY_{chat_id}", history[-200:])
