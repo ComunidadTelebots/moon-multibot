@@ -1105,7 +1105,7 @@ def internal_group_ads(cid):
         if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
             return jsonify({"ok": False, "error": "enlace no válido"}), 400
         source, destination = _channel_stats.get_channel_meta(cid) or {}, _channel_stats.get_channel_meta(target) or {}
-        _channel_stats.create_ad_request(cid, MASTER_ID, source.get("name", f"Grupo {cid}"), target,
+        _channel_stats.create_ad_request(cid, _master_id, source.get("name", f"Grupo {cid}"), target,
             destination.get("name", f"Grupo {target}"), text, when, from_image=body.get("image"),
             from_url=target_url, variants=json.dumps(body.get("variants") or [], ensure_ascii=False))
     else:
@@ -1121,7 +1121,7 @@ def internal_group_ads(cid):
             target_url = str(body.get("target_url") or "").strip()
             if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
                 return jsonify({"ok": False, "error": "enlace no válido"}), 400
-            _schedule_ad_pair(ad, MASTER_ID, reciprocal, body.get("image"), target_url, ad.get("when"))
+            _schedule_ad_pair(ad, _master_id, reciprocal, body.get("image"), target_url, ad.get("when"))
         else: return jsonify({"ok": False, "error": "acción no permitida"}), 400
     return jsonify({"ok": True, **_internal_ads_payload(cid)})
 

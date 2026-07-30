@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### CI operativo y errores de ejecución corregidos - 2026-07-30
+- El CI comprueba errores Python que pueden romper la ejecución, ejecuta las 21 pruebas y valida el JavaScript del Hub.
+- Se corrigen las referencias administrativas de campañas al identificador real del master y se elimina un bloque inalcanzable con variables inexistentes.
+- Dependabot queda configurado para Python, Docker y GitHub Actions sin publicar secretos.
+
 ### Reconstrucciones Docker más rápidas - 2026-07-28
 - Docker conserva en la caché de BuildKit los índices y paquetes de APT y las descargas de Python, reduciendo esperas cuando una capa necesita reconstruirse.
 - Las dependencias del sistema se instalan sin paquetes recomendados innecesarios para reducir el tamaño de la imagen.

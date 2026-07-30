@@ -3001,17 +3001,6 @@ class MoonCoreIA:
         sorted_s = sorted(sources.items(), key=lambda x: x[1], reverse=True)
         return [{"name": k, "count": v, "words": source_words.get(k, [])} for k, v in sorted_s]
         
-        eta = "Madura (Estable)"
-        if est_minutes > 0:
-            eta = str(datetime.timedelta(minutes=int(est_minutes)))
-
-        return {
-            "words": words_count, 
-            "connections": connections,
-            "rate": f"{round(rate, 2)} p/min",
-            "est_maturity": eta
-        }
-
     def search_web(self, query):
         """Buscador Neural via DuckDuckGo Instant Answer API (sin scraping, sin bloqueos)."""
         try:
