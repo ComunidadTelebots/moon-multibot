@@ -41,6 +41,7 @@ MANIFEST_MODULES = (
     "resource_duplicate_expiry_manifest",
     "resource_expiry_approval_manifest",
     "resource_approval_signature_manifest",
+    "resource_signature_trace_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -58,6 +59,7 @@ MANIFEST_MODULES = (
     "core.web_subscription_operations_manifest",
     "core.web_accessibility_account_manifest",
     "core.web_account_creator_advanced_manifest",
+    "core.web_creator_advanced_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -75,6 +77,9 @@ MANIFEST_MODULES = (
     "webapp_sublot_15_manifest",
     "webapp_sublot_16_manifest",
     "webapp_sublot_17_manifest",
+    "webapp_sublot_18_manifest",
+    "webapp_sublot_19_manifest",
+    "webapp_sublot_20_manifest",
 )
 
 
