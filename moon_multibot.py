@@ -1,5 +1,7 @@
 ﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
+from core.plugin_security import validate_plugin_filename
+from core.auth_security import dashboard_password_matches
 from dotenv import load_dotenv
 from collections import Counter
 from array import array
@@ -406,6 +408,8 @@ def check_jwt(req):
         add_web_log("WARNING", f"Intento de acceso bloqueado desde IP no autorizada: {req.remote_addr}")
         return False
 
+    if not JWT_SECRET:
+        return False
     auth = req.headers.get("Authorization")
     if not auth or not auth.startswith("Bearer "):
         # Intentar desde query param para descargas
@@ -864,7 +868,8 @@ def get_changelog(): return send_from_directory(".", "CHANGELOG.md")
 
 @app.route("/api/login", methods=['POST'])
 def web_login():
-    if request.json.get("password") == WEB_PASSWORD:
+    supplied_password = (request.get_json(silent=True) or {}).get("password")
+    if dashboard_password_matches(WEB_PASSWORD, supplied_password, JWT_SECRET):
         tk = jwt.encode({"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)}, JWT_SECRET, algorithm="HS256")
         add_audit_log("Login Web OK")
         return jsonify({"ok": True, "token": tk})
@@ -1076,7 +1081,10 @@ def web_plugins():
 @app.route("/api/plugins/toggle", methods=['POST'])
 def web_plugins_toggle():
     if not check_jwt(request): return jsonify({"ok": False}), 401
-    name = request.json.get("name")
+    try:
+        name = validate_plugin_filename((request.json or {}).get("name"))
+    except ValueError as error:
+        return jsonify({"ok": False, "msg": str(error)}), 400
     p1, p2 = os.path.join("plugins", name), os.path.join("plugins", name + ".disabled")
     if os.path.exists(p1): os.rename(p1, p2)
     elif os.path.exists(p2): os.rename(p2, p1)
@@ -1087,12 +1095,14 @@ def web_plugins_upload():
     if not check_jwt(request): return jsonify({"ok": False}), 401
     if 'file' not in request.files: return jsonify({"ok": False, "msg": "No file"}), 400
     f = request.files['file']
-    if f.filename == '': return jsonify({"ok": False}), 400
-    if f and f.filename.endswith('.py'):
-        f.save(os.path.join("plugins", f.filename))
-        add_audit_log(f"Plugin subido: {f.filename}")
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "msg": "Solo archivos .py"}), 400
+    try:
+        filename = validate_plugin_filename(f.filename)
+    except ValueError as error:
+        return jsonify({"ok": False, "msg": str(error)}), 400
+    os.makedirs("plugins", exist_ok=True)
+    f.save(os.path.join("plugins", filename))
+    add_audit_log(f"Plugin subido: {filename}")
+    return jsonify({"ok": True})
 
 @app.route("/api/plugins/reload", methods=['POST'])
 def web_plugins_reload():

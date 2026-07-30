@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Refuerzo de autenticación y plugins - 2026-07-30
+- El panel falla de forma cerrada si faltan la contraseña o el secreto JWT y compara credenciales en tiempo constante.
+- La carga y activación de plugins rechazan rutas relativas, absolutas y separadores que pudieran escapar del directorio permitido.
+- Cinco pruebas de regresión cubren la configuración vacía, credenciales incorrectas y nombres de archivo maliciosos.
+
 ### Registro ampliado a 1.700 funciones verificadas - 2026-07-30
 - Se añaden 80 contratos de accesibilidad WebApp, explicaciones accesibles, revisión colaborativa y localización cultural.
 - Seis capacidades existentes se reutilizan desde su implementación canónica sin registrar manifiestos duplicados.
