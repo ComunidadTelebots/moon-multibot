@@ -1,0 +1,25 @@
+import unittest
+import webapp_sublot_02 as f
+class Sublot02Tests(unittest.TestCase):
+ def test_688(self):self.assertFalse(f.accessible_home_notice("Aviso")["color_only"])
+ def test_689(self):self.assertFalse(f.home_webhook_plan("https://e.test",{"type":"open"},"k")["delivered"])
+ def test_690(self):self.assertTrue(f.detect_home_anomalies([{"actor":"a","minute":1}]*3,2)["anomalies"])
+ def test_691(self):self.assertEqual(f.home_learning_state([{"id":"a"}],[])["resume"],"a")
+ def test_692(self):self.assertEqual(f.home_language_preference("ar-SA")["direction"],"rtl")
+ def test_693(self):self.assertEqual(f.home_density_preference("compact")["minimum_target_px"],44)
+ def test_694(self):self.assertFalse(f.preview_home_recovery({}, {"widgets":[]},["widgets"])["applied"])
+ def test_695(self):self.assertEqual(f.configure_home_report("10:30",["usage"],"u")["status"],"scheduled")
+ def test_696(self):self.assertFalse(f.run_home_sandbox({"a":1},{"a":2})["committed"])
+ def test_697(self):self.assertFalse(f.export_home_connector([{"id":"a"}])["import_applied"])
+ def test_698(self):self.assertEqual(f.predict_group_members([10,12],1)["forecast"],14)
+ def test_699(self):self.assertEqual(f.next_group_admin_task({"id":1})["next_task"],"permissions")
+ def test_700(self):self.assertTrue(f.adaptive_group_raid_alert(range(10),60,1)["alert"])
+ def test_702(self):self.assertEqual(f.compare_group_moderation({"messages":2,"deletions":1,"warnings":0,"bans":0},{"messages":1,"deletions":0,"warnings":0,"bans":0})["delta"]["messages"],1)
+ def test_703(self):self.assertEqual(f.sign_group_export({"id":1},b"x"*32)["algorithm"],"HMAC-SHA256")
+ def test_706(self):self.assertEqual(f.search_managed_groups("tech",[{"id":1,"title":"Tech"}])[0]["group_id"],1)
+ def test_707(self):self.assertEqual(f.explain_group_summary([{"type":"warn"}])["source_event_count"],1)
+ def test_709(self):
+  t=f.GroupPolicyTemplates();t.save("x",{"welcome":True});self.assertFalse(t.preview("x",{})["applied"])
+ def test_710(self):self.assertFalse(f.plan_group_batch_update([{"id":1}],"welcome",True)["applied"])
+ def test_712(self):self.assertEqual(f.protect_group_admin_view({"bot_token":"x"})["redacted_fields"],["bot_token"])
+if __name__=="__main__":unittest.main()
