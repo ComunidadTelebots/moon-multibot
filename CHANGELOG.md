@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Cuentas avanzadas equiparadas en el Hub - 2026-07-30
+- El centro master incorpora una sección de cuentas avanzadas con accesos al asistente, webhooks, preferencias, plantillas, sandbox, búsqueda semántica, revisiones, aprendizaje, colaboración, métricas y conector interoperable.
+- El destino de TodoSobreAllTech es configurable y se valida como HTTPS, con excepción local para desarrollo.
+- El Hub mantiene aislado su Bearer master: esta vista abre herramientas en modo enlace y nunca replica operaciones ni comparte credenciales entre servicios.
+
 ### Auditoría de configuración sensible - 2026-07-30
 - Moonbot registra diferencias efectivas de seguridad y moderación por grupo, con autor, origen, fecha y nivel de riesgo.
 - Los cambios idénticos no crean eventos duplicados y el historial queda limitado a 300 entradas por grupo.

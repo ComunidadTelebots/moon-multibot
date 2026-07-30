@@ -218,6 +218,11 @@
   .master-back svg{width:20px;height:20px}.master-subcopy{min-width:0;flex:1}
   .master-subcopy b{display:block;font-size:17px}.master-subcopy span{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
   .master-subpage .master-list{max-width:760px;margin:0 auto;}
+  .account-advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0;}
+  .account-advanced-card{display:block;border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card);color:var(--ink);text-decoration:none;cursor:pointer;}
+  .account-advanced-card:active{transform:translateY(1px);background:rgba(255,255,255,.06)}
+  .account-advanced-card b{display:block;font-size:13px}.account-advanced-card small{display:block;color:var(--muted);font-size:11px;line-height:1.4;margin-top:3px}
+  .account-advanced-config{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}.account-advanced-config input{min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:10px;font:12px var(--mono)}
   .service-page{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;}
   .service-page[hidden]{display:none;}
   .service-head{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:1px solid var(--line);background:rgba(9,14,24,.96);}
@@ -1508,6 +1513,7 @@
         <button class="master-action" id="masterActivity"><span class="mai">${svg('clock')}</span><b>Actividad</b><small>Auditoría administrativa</small></button>
         <button class="master-action" id="masterEngagement"><span class="mai">${svg('users')}</span><b>Comunidad y eventos</b><small>Encuestas, agenda, retos y sorteos</small></button>
         <button class="master-action" id="masterGroupAdmin"><span class="mai">${svg('settings')}</span><b>Grupos avanzados</b><small>Versiones, sincronización y delegaciones</small></button>
+        <button class="master-action" id="masterAdvancedAccounts"><span class="mai">${svg('users')}</span><b>Cuentas avanzadas</b><small>Herramientas equiparadas con TodoSobreAllTech</small></button>
         <button class="master-action" id="masterGlobalAccess"><span class="mai">${svg('shield')}</span><b>Acceso global</b><small>Canal obligatorio para todos los grupos</small></button>
         <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
         <button class="master-action" id="masterFaq"><span class="mai">${svg('message')}</span><b>Respuestas automáticas</b><small>Preguntas frecuentes del bot</small></button>
@@ -1537,6 +1543,7 @@
     document.getElementById("masterActivity").onclick=()=>openMasterPage("Actividad","Auditoría administrativa",loadMasterActivity);
     document.getElementById("masterEngagement").onclick=()=>openMasterPage("Comunidad y eventos","Encuestas, agenda, retos y sorteos",loadMasterEngagement);
     document.getElementById("masterGroupAdmin").onclick=()=>openMasterPage("Grupos avanzados","Versiones, sincronización y delegaciones",loadMasterGroupAdministration);
+    document.getElementById("masterAdvancedAccounts").onclick=()=>openMasterPage("Cuentas avanzadas","Herramientas de TodoSobreAllTech en un acceso master seguro",loadMasterAdvancedAccounts);
     document.getElementById("masterGlobalAccess").onclick=()=>openMasterPage("Acceso global","Suscripción obligatoria general para todos los grupos",loadMasterGlobalAccess);
     document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
     document.getElementById("masterFaq").onclick=()=>openMasterPage("Respuestas automáticas","Preguntas frecuentes del bot",loadMasterFaq);
@@ -1551,6 +1558,34 @@
     const list=document.getElementById("masterChannelList");
     list.innerHTML=chs.length?chs.map(adminRow).join(""):`<p class="muted">El bot no está en ningún canal todavía.</p>`;
     bindSwitches(list);
+  }
+
+  const ADVANCED_ACCOUNT_TOOLS=[
+    ["assistant","Asistente","Ayuda contextual y acciones guiadas"],
+    ["webhooks","Webhooks","Eventos y entregas configurables"],
+    ["preferences","Idioma y densidad","Preferencias visuales por cuenta"],
+    ["templates","Plantillas","Configuraciones reutilizables"],
+    ["sandbox","Sandbox","Pruebas sin afectar cuentas activas"],
+    ["semantic-search","Búsqueda semántica","Localiza cuentas por intención"],
+    ["reviews","Revisiones","Aprobaciones y trazabilidad"],
+    ["learning","Aprendizaje","Módulos, progreso y reanudación"],
+    ["collaboration","Colaboración","Trabajo coordinado entre operadores"],
+    ["metrics","Métricas","Estado y evolución de cuentas"],
+    ["connector","Conector","Paquetes JSON versionados para revisión"]
+  ];
+  function advancedAccountsUrl(value){
+    try{const url=new URL(String(value||"").trim()),local=["localhost","127.0.0.1","::1"].includes(url.hostname);if(url.protocol!=="https:"&&!(local&&url.protocol==="http:"))return null;url.hash="";return url;}
+    catch(e){return null;}
+  }
+  function loadMasterAdvancedAccounts(){
+    const box=document.getElementById("masterDetail"),saved=uxRead("hub_accounts_web_url","https://todosobreall.tech/dashboard"),base=advancedAccountsUrl(saved)||advancedAccountsUrl("https://todosobreall.tech/dashboard");
+    box.innerHTML=`<div class="card master-hero"><div class="master-kicker">Cuentas avanzadas</div><h3 style="margin-top:5px">Mismas capacidades, acceso seguro</h3><p>El Hub reúne accesos a las herramientas de cuentas de TodoSobreAllTech sin copiar operaciones ni compartir el Bearer master de Moonbot.</p><div class="master-status" style="margin-top:10px">Modo enlace seguro</div></div>
+      <div class="card"><b>Panel de TodoSobreAllTech</b><p class="muted">Configura un destino HTTPS. En desarrollo también se admite localhost por HTTP.</p><div class="account-advanced-config"><input id="advancedAccountsBase" type="url" inputmode="url" autocomplete="url" aria-label="URL del panel de cuentas"><button type="button" class="btn teal" id="advancedAccountsSave">Guardar</button></div><p class="muted" id="advancedAccountsMessage" role="status" aria-live="polite">No se envían credenciales ni se ejecutan cambios desde esta vista.</p></div>
+      <div class="sec">Funciones equiparadas</div><div class="account-advanced-grid">${ADVANCED_ACCOUNT_TOOLS.map(([key,title,description])=>`<button type="button" class="account-advanced-card" data-account-tool="${key}"><b>${title}</b><small>${description}</small></button>`).join("")}</div>`;
+    document.getElementById("advancedAccountsBase").value=base.toString();
+    const bindCards=()=>box.querySelectorAll("[data-account-tool]").forEach(card=>card.onclick=()=>{const configured=advancedAccountsUrl(document.getElementById("advancedAccountsBase").value);if(!configured)return showToast("Configura una URL HTTPS válida");configured.searchParams.set("accountTool",card.dataset.accountTool);openLink(configured.toString());});
+    document.getElementById("advancedAccountsSave").onclick=()=>{const input=document.getElementById("advancedAccountsBase"),url=advancedAccountsUrl(input.value),message=document.getElementById("advancedAccountsMessage");if(!url){message.textContent="Usa HTTPS o HTTP solo para localhost.";return;}uxWrite("hub_accounts_web_url",url.toString());input.value=url.toString();message.textContent="Destino guardado en este dispositivo. Las credenciales siguen aisladas.";};
+    bindCards();
   }
 
   async function loadMasterOverview(){
