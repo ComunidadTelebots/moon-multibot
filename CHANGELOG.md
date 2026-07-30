@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 2.040 funciones verificadas - 2026-07-30
+- Se incorporan 60 operaciones WebApp para creadores, noticias y proxies con roles y estados operativos explícitos.
+- Las firmas HMAC quedan separadas por dominio y tipo de evento para impedir sustituciones con una firma reutilizada.
+- Los informes proxy normalizan y omiten variantes de secretos, rechazan valores no finitos y mantienen las acciones en modo planificado.
+
 ### Registro ampliado a 1.980 funciones verificadas - 2026-07-30
 - Se integran 60 funciones Moonbot de notificaciones agrupadas, routing inteligente, caché reconciliable y rotación segura.
 - La autorización por scope, los límites, las versiones, la aprobación y el rollback se validan antes de producir planes operativos.

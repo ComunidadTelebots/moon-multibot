@@ -336,14 +336,16 @@ def plan_account_federated_bridge(peers,fields):  # future-2028
     return {"peers":nodes,"fields":selected,"push_enabled":False,"consent_required":True,"redirects_allowed":False}
 
 
-def validate_account_external_event(event,secret,now=None,max_age_seconds=300):  # future-2029
+def validate_account_external_event(event,secret,now=None,max_age_seconds=300,context=""):  # future-2029
     if not isinstance(secret,str) or not 16<=len(secret)<=512: raise ValueError("invalid webhook secret")
     body=event.get("body","")
     if not isinstance(body,str) or len(body.encode("utf-8"))>1_000_000: raise ValueError("invalid webhook body")
     event_id=_text(event.get("id"),"event id",100); timestamp=_iso(event.get("at")); signature=str(event.get("signature",""))
     if not re.fullmatch(r"[0-9a-f]{64}",signature): valid=False
     else:
-        signed=f"{timestamp.isoformat()}.{event_id}.{body}".encode()
+        if not isinstance(context,str) or len(context)>100: raise ValueError("invalid webhook context")
+        prefix=f"{context}." if context else ""
+        signed=f"{prefix}{timestamp.isoformat()}.{event_id}.{body}".encode()
         expected=hmac.new(secret.encode(),signed,hashlib.sha256).hexdigest(); valid=hmac.compare_digest(signature,expected)
     fresh=None
     if now is not None:
