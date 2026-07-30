@@ -62,6 +62,8 @@ MANIFEST_MODULES = (
     "core.web_account_creator_advanced_manifest",
     "core.web_creator_advanced_operations_manifest",
     "core.web_creator_news_advanced_manifest",
+    "core.web_news_proxy_operations_manifest",
+    "core.web_proxy_advanced_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -84,6 +86,8 @@ MANIFEST_MODULES = (
     "webapp_sublot_20_manifest",
     "webapp_sublot_21_manifest",
     "webapp_sublot_22_manifest",
+    "webapp_sublot_23_manifest",
+    "webapp_sublot_24_manifest",
 )
 
 

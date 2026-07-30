@@ -1,0 +1,23 @@
+"""Alert and quick-action contracts for future-1782..1801."""
+import webapp_sublot_17 as a
+import webapp_sublot_18 as b
+alert_migration=b.migration_assistant
+alert_decision_log=b.administrative_decision_log
+alert_accessibility=b.continuous_accessibility_analysis
+alert_storage=b.external_storage_connector
+alert_time_policies=b.time_window_policies
+alert_growth=b.sustainable_growth_simulator
+quick_dependency_map=a.functional_dependency_map
+quick_visual_rules=a.visual_conditional_rules
+quick_review_inbox=a.unified_review_inbox
+quick_sensitive_changes=a.detect_sensitive_changes
+explain_quick_decision=a.explain_automatic_decision
+quick_data_quality=a.data_quality_panel
+preview_quick_import=a.preview_import
+quick_comments=a.collaborative_comments
+quick_smart_tags=a.smart_tags
+quick_activity_summary=a.configurable_activity_summary
+quick_expiry=a.expiry_alerts
+quick_emergency=a.reversible_emergency_mode
+quick_permission_history=b.effective_permission_history
+quick_goal_progress=b.shared_goal_progress
