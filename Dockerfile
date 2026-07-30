@@ -4,14 +4,15 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Conserva índices y paquetes descargados entre reconstrucciones con BuildKit.
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,id=moonbot-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=moonbot-apt-lists,target=/var/lib/apt/lists,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt-get update && apt-get install -y --no-install-recommends \
     gcc git curl libssl3 zlib1g tesseract-ocr tesseract-ocr-spa \
-    && apt-get clean
+    && test -x /usr/bin/curl && test -x /usr/bin/tesseract
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=moonbot-pip-cache,target=/root/.cache/pip,sharing=locked \
     pip install -r requirements.txt
 
 COPY . .

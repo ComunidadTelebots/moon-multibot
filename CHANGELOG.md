@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.23.9
+
+- Añade al Hub paneles específicos para IA avanzada, integraciones/API, experiencia y revisión de calidad.
+- Mejora navegación con flecha atrás, etiquetas accesibles y controles operables por teclado.
+- Conserva secretos fuera de las exportaciones y limita las nuevas acciones a análisis, simulación y preferencias reversibles.
+- Mantiene cachés APT y pip estables para no volver a descargar dependencias en cada reconstrucción.
+
 ## v18.23.8
 
 - Repara automáticamente instalaciones antiguas de `tg_ad_templates` añadiendo los campos que falten en PocketBase.
