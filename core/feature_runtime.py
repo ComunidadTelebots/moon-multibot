@@ -19,16 +19,20 @@ MANIFEST_MODULES = (
     "resource_recovery_causal_manifest",
     "resource_causal_validation_manifest",
     "resource_orchestration_priority_manifest",
+    "resource_priority_delegation_manifest",
+    "resource_delegation_version_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
     "core.web_proxy_features_manifest",
     "core.web_proxy_dashboard_manifest",
+    "core.web_dashboard_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
     "webapp_sublot_04_manifest",
     "webapp_sublot_05_manifest",
+    "webapp_sublot_06_manifest",
 )
 
 
