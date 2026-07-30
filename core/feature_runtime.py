@@ -17,12 +17,15 @@ MANIFEST_MODULES = (
     "resource_drift_impact_manifest",
     "resource_impact_recovery_manifest",
     "resource_recovery_causal_manifest",
+    "resource_causal_validation_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
+    "core.web_proxy_features_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
+    "webapp_sublot_04_manifest",
 )
 
 
