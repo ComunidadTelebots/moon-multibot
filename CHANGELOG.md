@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 1.920 funciones verificadas - 2026-07-30
+- Se incorporan 60 operaciones WebApp de IA, notificaciones, cuentas y herramientas de creadores con roles explícitos.
+- Los eventos externos firman timestamp, identificador y cuerpo, aplican ventana antirreplay, límite de tamaño y secretos robustos.
+- Los planes de conexión exigen revalidación DNS y prohíben redirecciones antes de cualquier ejecución de red.
+
 ### Registro ampliado a 1.860 funciones verificadas - 2026-07-30
 - Se integran 60 operaciones WebApp de contenido, seguridad e IA con roles y ejecución protegida por el registro central.
 - El preflight confirma IDs y APIs nuevas; 126 pruebas cubren el bloque y sus regresiones de accesibilidad y modo offline.
