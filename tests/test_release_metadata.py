@@ -1,8 +1,7 @@
 import unittest
 
 from core.config import APP_VERSION
-from webapp_proxy_dashboard_analytics_operations_manifest import FEATURES as FIRST_RELEASE_FEATURES
-from webapp_analytics_privacy_seo_operations_manifest import FEATURES as SECOND_RELEASE_FEATURES
+from tools.update_release_changelog import RELEASES, entries
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -11,9 +10,14 @@ class ReleaseMetadataTests(unittest.TestCase):
         with open("CHANGELOG.md", encoding="utf-8-sig") as handle:
             changelog = handle.read()
         self.assertIn("## v18.23.0", changelog)
-        for feature in (*FIRST_RELEASE_FEATURES, *SECOND_RELEASE_FEATURES):
-            with self.subTest(api=feature["api"]):
-                self.assertIn(f"`{feature['api']}`", changelog)
+        for version, modules in RELEASES.items():
+            self.assertIn(f"### {version}", changelog)
+            for module in modules:
+                for feature in entries(module):
+                    with self.subTest(version=version, api=feature["api"]):
+                        self.assertIn(
+                            f"`{feature['id']}` · `{feature['api']}`", changelog
+                        )
 
 
 if __name__ == "__main__":

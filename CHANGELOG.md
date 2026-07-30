@@ -1,4 +1,435 @@
-﻿# Changelog - Moon Multibot
+# Changelog - Moon Multibot
+
+<!-- GENERATED_RELEASE_FEATURES_START -->
+## Inventario exacto por versión
+
+### v18.22.0 — 300 funciones incorporadas
+
+- `future-1922` · `recommend_content_config` — Recomendador de configuración para contenido
+- `future-1923` · `test_content_config` — Pruebas automáticas de configuración para contenido
+- `future-1924` · `update_content_consent` — Centro de consentimiento para contenido
+- `future-1925` · `content_task_navigation` — Navegación simplificada por tareas para contenido
+- `future-1926` · `sync_content_devices` — Sincronización entre dispositivos para contenido
+- `future-1927` · `detect_content_duplicates` — Detección de duplicados para contenido
+- `future-1928` · `content_adaptive_quota` — Cuotas adaptativas por uso para contenido
+- `future-1929` · `content_community_impact` — Panel de impacto comunitario para contenido
+- `future-1930` · `review_content_translation` — Traducción revisable por la comunidad para contenido
+- `future-1931` · `group_content_notifications` — Notificaciones agrupadas por contexto para contenido
+- `future-1932` · `plan_content_migration` — Asistente de migración para contenido
+- `future-1933` · `record_content_admin_decision` — Registro de decisiones administrativas para contenido
+- `future-1934` · `content_accessibility_timeline` — Análisis de accesibilidad continuo para contenido
+- `future-1935` · `prepare_content_storage_transfer` — Conector de almacenamiento externo para contenido
+- `future-1936` · `evaluate_content_time_policy` — Políticas por franja horaria para contenido
+- `future-1937` · `simulate_content_growth` — Simulador de crecimiento sostenible para contenido
+- `future-1938` · `map_security_dependencies` — Mapa de dependencias funcionales para seguridad
+- `future-1939` · `apply_security_visual_rules` — Reglas condicionales visuales para seguridad
+- `future-1940` · `security_review_inbox` — Bandeja unificada de revisión para seguridad
+- `future-1941` · `detect_sensitive_security_changes` — Detección de cambios sensibles para seguridad
+- `future-1942` · `explain_security_decision` — Explicación de decisiones automáticas para seguridad
+- `future-1943` · `security_data_quality` — Panel de calidad de datos para seguridad
+- `future-1944` · `preview_security_import` — Importación con vista previa para seguridad
+- `future-1945` · `add_security_comment` — Colaboración mediante comentarios para seguridad
+- `future-1946` · `security_smart_tags` — Etiquetas inteligentes para seguridad
+- `future-1947` · `security_activity_digest` — Resumen de actividad configurable para seguridad
+- `future-1948` · `security_expiry_alerts` — Alertas de caducidad para seguridad
+- `future-1949` · `open_security_emergency` — Modo de emergencia reversible para seguridad
+- `future-1950` · `security_permission_history` — Historial de permisos efectivo para seguridad
+- `future-1951` · `update_security_goal` — Objetivos y progreso compartidos para seguridad
+- `future-1952` · `recommend_security_config` — Recomendador de configuración para seguridad
+- `future-1953` · `test_security_config` — Pruebas automáticas de configuración para seguridad
+- `future-1954` · `update_security_consent` — Centro de consentimiento para seguridad
+- `future-1955` · `security_task_navigation` — Navegación simplificada por tareas para seguridad
+- `future-1956` · `sync_security_devices` — Sincronización entre dispositivos para seguridad
+- `future-1957` · `detect_security_duplicates` — Detección de duplicados para seguridad
+- `future-1958` · `security_adaptive_quota` — Cuotas adaptativas por uso para seguridad
+- `future-1959` · `security_community_impact` — Panel de impacto comunitario para seguridad
+- `future-1960` · `review_security_translation` — Traducción revisable por la comunidad para seguridad
+- `future-1961` · `group_security_notifications` — Notificaciones agrupadas por contexto para seguridad
+- `future-1962` · `plan_security_migration` — Asistente de migración para seguridad
+- `future-1963` · `record_security_admin_decision` — Registro de decisiones administrativas para seguridad
+- `future-1964` · `security_accessibility_timeline` — Análisis de accesibilidad continuo para seguridad
+- `future-1965` · `prepare_security_storage_transfer` — Conector de almacenamiento externo para seguridad
+- `future-1966` · `evaluate_security_time_policy` — Políticas por franja horaria para seguridad
+- `future-1967` · `simulate_security_growth` — Simulador de crecimiento sostenible para seguridad
+- `future-1968` · `map_ai_dependencies` — Mapa de dependencias funcionales para IA
+- `future-1969` · `apply_ai_visual_rules` — Reglas condicionales visuales para IA
+- `future-1970` · `ai_review_inbox` — Bandeja unificada de revisión para IA
+- `future-1971` · `detect_sensitive_ai_changes` — Detección de cambios sensibles para IA
+- `future-1972` · `explain_ai_decision` — Explicación de decisiones automáticas para IA
+- `future-1973` · `ai_data_quality` — Panel de calidad de datos para IA
+- `future-1974` · `preview_ai_import` — Importación con vista previa para IA
+- `future-1975` · `add_ai_comment` — Colaboración mediante comentarios para IA
+- `future-1976` · `ai_smart_tags` — Etiquetas inteligentes para IA
+- `future-1977` · `ai_activity_digest` — Resumen de actividad configurable para IA
+- `future-1978` · `ai_expiry_alerts` — Alertas de caducidad para IA
+- `future-1979` · `open_ai_emergency` — Modo de emergencia reversible para IA
+- `future-1980` · `ai_permission_history` — Historial de permisos efectivo para IA
+- `future-1981` · `update_ai_goal` — Objetivos y progreso compartidos para IA
+- `future-1982` · `recommend_ai_config` — Recomendador de configuración para IA
+- `future-1983` · `test_ai_config` — Pruebas automáticas de configuración para IA
+- `future-1984` · `update_ai_consent` — Centro de consentimiento para IA
+- `future-1985` · `ai_task_navigation` — Navegación simplificada por tareas para IA
+- `future-1986` · `sync_ai_devices` — Sincronización entre dispositivos para IA
+- `future-1987` · `detect_ai_duplicates` — Detección de duplicados para IA
+- `future-1988` · `ai_adaptive_quota` — Cuotas adaptativas por uso para IA
+- `future-1989` · `ai_community_impact` — Panel de impacto comunitario para IA
+- `future-1990` · `review_ai_translation` — Traducción revisable por la comunidad para IA
+- `future-1991` · `group_ai_notifications` — Notificaciones agrupadas por contexto para IA
+- `future-1992` · `plan_ai_migration` — Asistente de migración para IA
+- `future-1993` · `record_ai_admin_decision` — Registro de decisiones administrativas para IA
+- `future-1994` · `ai_accessibility_timeline` — Análisis de accesibilidad continuo para IA
+- `future-1995` · `prepare_ai_storage_transfer` — Conector de almacenamiento externo para IA
+- `future-1996` · `evaluate_ai_time_policy` — Políticas por franja horaria para IA
+- `future-1997` · `simulate_ai_growth` — Simulador de crecimiento sostenible para IA
+- `future-1998` · `map_notification_dependencies` — Mapa de dependencias funcionales para notificaciones
+- `future-1999` · `apply_notification_visual_rules` — Reglas condicionales visuales para notificaciones
+- `future-2000` · `notification_review_inbox` — Bandeja unificada de revisión para notificaciones
+- `future-2001` · `correlate_account_incidents` — Centro de incidencias correlacionadas para cuentas
+- `future-2002` · `build_account_workflow` — Constructor de flujos sin código para cuentas
+- `future-2003` · `delegate_account_role` — Delegación temporal de funciones para cuentas
+- `future-2004` · `detect_coordinated_account_abuse` — Protección contra abuso coordinado para cuentas
+- `future-2005` · `account_context_copilot` — Copiloto de respuesta contextual para cuentas
+- `future-2006` · `forecast_account_capacity` — Pronóstico de capacidad y demanda para cuentas
+- `future-2007` · `execute_account_batch_plan` — Centro de operaciones por lotes para cuentas
+- `future-2008` · `create_account_workspace` — Espacios de trabajo compartidos para cuentas
+- `future-2009` · `index_account_media` — Biblioteca multimedia inteligente para cuentas
+- `future-2010` · `narrate_account_report` — Informes narrativos automáticos para cuentas
+- `future-2011` · `escalate_account_alerts` — Escalado inteligente de avisos para cuentas
+- `future-2012` · `account_offline_continuity` — Continuidad operativa sin conexión para cuentas
+- `future-2013` · `evaluate_adaptive_account_trust` — Acceso de confianza adaptativa para cuentas
+- `future-2014` · `plan_account_community_campaign` — Planificador de campañas comunitarias para cuentas
+- `future-2015` · `detect_account_intent` — Detección de intención y contexto para cuentas
+- `future-2016` · `test_account_integration` — Laboratorio de integraciones para cuentas
+- `future-2017` · `store_account_personal_vault` — Bóveda de datos personales para cuentas
+- `future-2018` · `format_account_easy_read` — Interfaz de lectura fácil para cuentas
+- `future-2019` · `reconcile_account_sessions` — Continuidad de sesión multidispositivo para cuentas
+- `future-2020` · `curate_account_editorial` — Curación editorial asistida para cuentas
+- `future-2021` · `budget_account_resources` — Control presupuestario de recursos para cuentas
+- `future-2022` · `score_account_reputation` — Sistema de reputación transparente para cuentas
+- `future-2023` · `localize_account_culturally` — Localización cultural automática para cuentas
+- `future-2024` · `update_account_communication_preferences` — Centro de preferencias de comunicación para cuentas
+- `future-2025` · `plan_account_onboarding` — Recorridos personalizados de incorporación para cuentas
+- `future-2026` · `evaluate_account_governance` — Gobernanza mediante propuestas y votos para cuentas
+- `future-2027` · `parse_accessible_account_voice_control` — Control por voz accesible para cuentas
+- `future-2028` · `plan_account_federated_bridge` — Puente de datos federado para cuentas
+- `future-2029` · `validate_account_external_event` — Automatización por eventos externos para cuentas
+- `future-2030` · `simulate_account_digital_twin` — Gemelo digital operativo para cuentas
+- `future-2031` · `correlate_creator_incidents` — Centro de incidencias correlacionadas para creadores
+- `future-2032` · `build_creator_workflow` — Constructor de flujos sin código para creadores
+- `future-2033` · `delegate_creator_role` — Delegación temporal de funciones para creadores
+- `future-2034` · `detect_coordinated_creator_abuse` — Protección contra abuso coordinado para creadores
+- `future-2035` · `creator_context_copilot` — Copiloto de respuesta contextual para creadores
+- `future-2036` · `forecast_creator_capacity` — Pronóstico de capacidad y demanda para creadores
+- `future-2037` · `execute_creator_batch_plan` — Centro de operaciones por lotes para creadores
+- `future-2038` · `create_creator_workspace` — Espacios de trabajo compartidos para creadores
+- `future-2039` · `index_creator_media` — Biblioteca multimedia inteligente para creadores
+- `future-2040` · `narrate_creator_report` — Informes narrativos automáticos para creadores
+- `future-2041` · `escalate_creator_alerts` — Escalado inteligente de avisos para creadores
+- `future-5162` · `group_editorial_articles_notifications` — Notificación agrupada de artículos editoriales en Moonbot
+- `future-5165` · `group_moderated_images_notifications` — Notificación agrupada de imágenes moderadas en Moonbot
+- `future-5168` · `group_user_appeals_notifications` — Notificación agrupada de apelaciones de usuarios en Moonbot
+- `future-5171` · `group_mtproto_proxies_notifications` — Notificación agrupada de proxies MTProto en Moonbot
+- `future-5174` · `group_persistent_tasks_notifications` — Notificación agrupada de tareas persistentes en Moonbot
+- `future-5177` · `group_moderation_rules_notifications` — Notificación agrupada de reglas de moderación en Moonbot
+- `future-5180` · `group_language_metrics_notifications` — Notificación agrupada de métricas lingüísticas en Moonbot
+- `future-5183` · `group_community_translations_notifications` — Notificación agrupada de traducciones comunitarias en Moonbot
+- `future-5186` · `group_personal_consents_notifications` — Notificación agrupada de consentimientos personales en Moonbot
+- `future-5189` · `group_telegram_reactions_notifications` — Notificación agrupada de reacciones Telegram en Moonbot
+- `future-5192` · `group_master_panels_notifications` — Notificación agrupada de paneles del master en Moonbot
+- `future-5195` · `group_channel_directories_notifications` — Notificación agrupada de directorios de canales en Moonbot
+- `future-5198` · `group_external_links_notifications` — Notificación agrupada de enlaces externos en Moonbot
+- `future-5201` · `route_administrative_sessions_intelligently` — Enrutamiento inteligente de sesiones administrativas en Moonbot
+- `future-5204` · `route_community_profiles_intelligently` — Enrutamiento inteligente de perfiles comunitarios en Moonbot
+- `future-5207` · `route_telegram_communities_intelligently` — Enrutamiento inteligente de comunidades Telegram en Moonbot
+- `future-5210` · `route_house_ads_intelligently` — Enrutamiento inteligente de anuncios propios en Moonbot
+- `future-5213` · `route_voice_notes_intelligently` — Enrutamiento inteligente de notas de voz en Moonbot
+- `future-5216` · `route_suspicious_files_intelligently` — Enrutamiento inteligente de archivos sospechosos en Moonbot
+- `future-5219` · `route_captcha_decisions_intelligently` — Enrutamiento inteligente de decisiones de captcha en Moonbot
+- `future-5222` · `route_managed_bots_intelligently` — Enrutamiento inteligente de bots administrados en Moonbot
+- `future-5225` · `route_recurring_reminders_intelligently` — Enrutamiento inteligente de recordatorios recurrentes en Moonbot
+- `future-5228` · `route_security_events_intelligently` — Enrutamiento inteligente de eventos de seguridad en Moonbot
+- `future-5231` · `route_regional_maps_intelligently` — Enrutamiento inteligente de mapas regionales en Moonbot
+- `future-5234` · `route_backups_intelligently` — Enrutamiento inteligente de copias de seguridad en Moonbot
+- `future-5237` · `route_ai_learning_data_intelligently` — Enrutamiento inteligente de datos de aprendizaje IA en Moonbot
+- `future-5240` · `route_rich_commands_intelligently` — Enrutamiento inteligente de comandos enriquecidos en Moonbot
+- `future-5243` · `route_hub_notifications_intelligently` — Enrutamiento inteligente de notificaciones del Hub en Moonbot
+- `future-5246` · `route_cookie_policies_intelligently` — Enrutamiento inteligente de políticas de cookies en Moonbot
+- `future-5249` · `route_wayback_history_intelligently` — Enrutamiento inteligente de historial Wayback en Moonbot
+- `future-5252` · `reconcile_temporary_roles_cache` — Caché reconciliable de roles temporales en Moonbot
+- `future-5255` · `reconcile_managed_groups_cache` — Caché reconciliable de grupos administrados en Moonbot
+- `future-5258` · `reconcile_scheduled_messages_cache` — Caché reconciliable de mensajes programados en Moonbot
+- `future-5261` · `reconcile_rss_feeds_cache` — Caché reconciliable de feeds RSS en Moonbot
+- `future-5264` · `reconcile_telegram_videos_cache` — Caché reconciliable de vídeos de Telegram en Moonbot
+- `future-5267` · `reconcile_blocklists_cache` — Caché reconciliable de listas de bloqueo en Moonbot
+- `future-5270` · `reconcile_required_subscriptions_cache` — Caché reconciliable de suscripciones obligatorias en Moonbot
+- `future-5273` · `reconcile_signed_webhooks_cache` — Caché reconciliable de webhooks firmados en Moonbot
+- `future-5276` · `reconcile_quiet_hours_cache` — Caché reconciliable de horarios silenciosos en Moonbot
+- `future-5279` · `reconcile_correlated_incidents_cache` — Caché reconciliable de incidentes correlacionados en Moonbot
+- `future-5282` · `reconcile_accessible_preferences_cache` — Caché reconciliable de preferencias accesibles en Moonbot
+- `future-5285` · `reconcile_integration_secrets_cache` — Caché reconciliable de secretos de integración en Moonbot
+- `future-5288` · `reconcile_contextual_responses_cache` — Caché reconciliable de respuestas contextuales en Moonbot
+- `future-5291` · `reconcile_miniapp_menus_cache` — Caché reconciliable de menús de la MiniApp en Moonbot
+- `future-5294` · `reconcile_bot_statistics_cache` — Caché reconciliable de estadísticas por bot en Moonbot
+- `future-5297` · `reconcile_advertising_preferences_cache` — Caché reconciliable de preferencias publicitarias en Moonbot
+- `future-5300` · `reconcile_processing_queues_cache` — Caché reconciliable de colas de procesamiento en Moonbot
+- `future-5303` · `plan_safe_creator_accounts_rotation` — Rotación segura de cuentas creadoras en Moonbot
+- `future-5306` · `plan_safe_associated_channels_rotation` — Rotación segura de canales asociados en Moonbot
+- `future-5309` · `plan_safe_community_campaigns_rotation` — Rotación segura de campañas comunitarias en Moonbot
+- `future-5312` · `plan_safe_editorial_articles_rotation` — Rotación segura de artículos editoriales en Moonbot
+- `future-5315` · `plan_safe_moderated_images_rotation` — Rotación segura de imágenes moderadas en Moonbot
+- `future-5318` · `plan_safe_user_appeals_rotation` — Rotación segura de apelaciones de usuarios en Moonbot
+- `future-5321` · `plan_safe_mtproto_proxies_rotation` — Rotación segura de proxies MTProto en Moonbot
+- `future-5324` · `plan_safe_persistent_tasks_rotation` — Rotación segura de tareas persistentes en Moonbot
+- `future-5327` · `plan_safe_moderation_rules_rotation` — Rotación segura de reglas de moderación en Moonbot
+- `future-5330` · `plan_safe_language_metrics_rotation` — Rotación segura de métricas lingüísticas en Moonbot
+- `future-5333` · `plan_safe_community_translations_rotation` — Rotación segura de traducciones comunitarias en Moonbot
+- `future-5336` · `plan_safe_personal_consents_rotation` — Rotación segura de consentimientos personales en Moonbot
+- `future-5339` · `plan_safe_telegram_reactions_rotation` — Rotación segura de reacciones Telegram en Moonbot
+- `future-2042` · `creator_offline_continuity` — Continuidad operativa sin conexión para creadores
+- `future-2043` · `evaluate_creator_adaptive_trust` — Acceso de confianza adaptativa para creadores
+- `future-2044` · `plan_creator_campaign` — Planificador de campañas comunitarias para creadores
+- `future-2045` · `detect_creator_intent` — Detección de intención y contexto para creadores
+- `future-2046` · `test_creator_integration` — Laboratorio de integraciones para creadores
+- `future-2047` · `store_creator_vault` — Bóveda de datos personales para creadores
+- `future-2048` · `format_creator_easy_read` — Interfaz de lectura fácil para creadores
+- `future-2049` · `reconcile_creator_sessions` — Continuidad de sesión multidispositivo para creadores
+- `future-2050` · `curate_creator_editorial` — Curación editorial asistida para creadores
+- `future-2051` · `budget_creator_resources` — Control presupuestario de recursos para creadores
+- `future-2052` · `score_creator_reputation` — Sistema de reputación transparente para creadores
+- `future-2053` · `localize_creator_culturally` — Localización cultural automática para creadores
+- `future-2054` · `update_creator_communication_preferences` — Centro de preferencias de comunicación para creadores
+- `future-2055` · `plan_creator_onboarding` — Recorridos personalizados de incorporación para creadores
+- `future-2056` · `evaluate_creator_governance` — Gobernanza mediante propuestas y votos para creadores
+- `future-2057` · `parse_creator_voice_control` — Control por voz accesible para creadores
+- `future-2058` · `plan_creator_federated_bridge` — Puente de datos federado para creadores
+- `future-2059` · `validate_creator_external_event` — Automatización por eventos externos para creadores
+- `future-2060` · `simulate_creator_digital_twin` — Gemelo digital operativo para creadores
+- `future-2061` · `correlate_news_incidents` — Centro de incidencias correlacionadas para noticias
+- `future-2062` · `build_news_workflow` — Constructor de flujos sin código para noticias
+- `future-2063` · `delegate_news_role` — Delegación temporal de funciones para noticias
+- `future-2064` · `detect_coordinated_news_abuse` — Protección contra abuso coordinado para noticias
+- `future-2065` · `news_context_copilot` — Copiloto de respuesta contextual para noticias
+- `future-2066` · `forecast_news_capacity` — Pronóstico de capacidad y demanda para noticias
+- `future-2067` · `execute_news_batch_plan` — Centro de operaciones por lotes para noticias
+- `future-2068` · `create_news_workspace` — Espacios de trabajo compartidos para noticias
+- `future-2069` · `index_news_media` — Biblioteca multimedia inteligente para noticias
+- `future-2070` · `narrate_news_report` — Informes narrativos automáticos para noticias
+- `future-2071` · `escalate_news_alerts` — Escalado inteligente de avisos para noticias
+- `future-2072` · `news_offline_continuity` — Continuidad operativa sin conexión para noticias
+- `future-2073` · `evaluate_news_adaptive_trust` — Acceso de confianza adaptativa para noticias
+- `future-2074` · `plan_news_campaign` — Planificador de campañas comunitarias para noticias
+- `future-2075` · `detect_news_intent` — Detección de intención y contexto para noticias
+- `future-2076` · `test_news_integration` — Laboratorio de integraciones para noticias
+- `future-2077` · `store_news_vault` — Bóveda de datos personales para noticias
+- `future-2078` · `format_news_easy_read` — Interfaz de lectura fácil para noticias
+- `future-2079` · `reconcile_news_sessions` — Continuidad de sesión multidispositivo para noticias
+- `future-2080` · `curate_news_editorial` — Curación editorial asistida para noticias
+- `future-2081` · `budget_news_resources` — Control presupuestario de recursos para noticias
+- `future-2082` · `score_news_reputation` — Sistema de reputación transparente para noticias
+- `future-2083` · `localize_news_culturally` — Localización cultural automática para noticias
+- `future-2084` · `update_news_communication_preferences` — Centro de preferencias de comunicación para noticias
+- `future-2085` · `plan_news_onboarding` — Recorridos personalizados de incorporación para noticias
+- `future-2086` · `evaluate_news_governance` — Gobernanza mediante propuestas y votos para noticias
+- `future-2087` · `parse_news_voice_control` — Control por voz accesible para noticias
+- `future-2088` · `plan_news_federated_bridge` — Puente de datos federado para noticias
+- `future-2089` · `validate_news_external_event` — Automatización por eventos externos para noticias
+- `future-2090` · `simulate_news_digital_twin` — Gemelo digital operativo para noticias
+- `future-2091` · `correlate_proxy_incidents` — Centro de incidencias correlacionadas para proxies
+- `future-2092` · `build_proxy_workflow` — Constructor de flujos sin código para proxies
+- `future-2093` · `delegate_proxy_role` — Delegación temporal de funciones para proxies
+- `future-2094` · `detect_coordinated_proxy_abuse` — Protección contra abuso coordinado para proxies
+- `future-2095` · `proxy_context_copilot` — Copiloto de respuesta contextual para proxies
+- `future-2096` · `forecast_proxy_capacity` — Pronóstico de capacidad y demanda para proxies
+- `future-2097` · `execute_proxy_batch_plan` — Centro de operaciones por lotes para proxies
+- `future-2098` · `create_proxy_workspace` — Espacios de trabajo compartidos para proxies
+- `future-2099` · `index_proxy_media` — Biblioteca multimedia inteligente para proxies
+- `future-2100` · `narrate_proxy_report` — Informes narrativos automáticos para proxies
+- `future-2101` · `escalate_proxy_alerts` — Escalado inteligente de avisos para proxies
+- `future-5342` · `plan_safe_master_panels_rotation` — Rotación segura de paneles del master en Moonbot
+- `future-5345` · `plan_safe_channel_directories_rotation` — Rotación segura de directorios de canales en Moonbot
+- `future-5348` · `plan_safe_external_links_rotation` — Rotación segura de enlaces externos en Moonbot
+- `future-5351` · `plan_administrative_sessions_scheduled_archive` — Archivado programado de sesiones administrativas en Moonbot
+- `future-5354` · `plan_community_profiles_scheduled_archive` — Archivado programado de perfiles comunitarios en Moonbot
+- `future-5357` · `plan_telegram_communities_scheduled_archive` — Archivado programado de comunidades Telegram en Moonbot
+- `future-5360` · `plan_house_ads_scheduled_archive` — Archivado programado de anuncios propios en Moonbot
+- `future-5363` · `plan_voice_notes_scheduled_archive` — Archivado programado de notas de voz en Moonbot
+- `future-5366` · `plan_suspicious_files_scheduled_archive` — Archivado programado de archivos sospechosos en Moonbot
+- `future-5369` · `plan_captcha_decisions_scheduled_archive` — Archivado programado de decisiones de captcha en Moonbot
+- `future-5372` · `plan_managed_bots_scheduled_archive` — Archivado programado de bots administrados en Moonbot
+- `future-5375` · `plan_recurring_reminders_scheduled_archive` — Archivado programado de recordatorios recurrentes en Moonbot
+- `future-5378` · `plan_security_events_scheduled_archive` — Archivado programado de eventos de seguridad en Moonbot
+- `future-5381` · `plan_regional_maps_scheduled_archive` — Archivado programado de mapas regionales en Moonbot
+- `future-5384` · `plan_backups_scheduled_archive` — Archivado programado de copias de seguridad en Moonbot
+- `future-5387` · `plan_ai_learning_data_scheduled_archive` — Archivado programado de datos de aprendizaje IA en Moonbot
+- `future-5390` · `plan_rich_commands_scheduled_archive` — Archivado programado de comandos enriquecidos en Moonbot
+- `future-5393` · `plan_hub_notifications_scheduled_archive` — Archivado programado de notificaciones del Hub en Moonbot
+- `future-5396` · `plan_cookie_policies_scheduled_archive` — Archivado programado de políticas de cookies en Moonbot
+- `future-5399` · `plan_wayback_history_scheduled_archive` — Archivado programado de historial Wayback en Moonbot
+- `future-5402` · `plan_temporary_roles_point_in_time_restore` — Restauración por punto temporal de roles temporales en Moonbot
+- `future-5405` · `plan_managed_groups_point_in_time_restore` — Restauración por punto temporal de grupos administrados en Moonbot
+- `future-5408` · `plan_scheduled_messages_point_in_time_restore` — Restauración por punto temporal de mensajes programados en Moonbot
+- `future-5411` · `plan_rss_feeds_point_in_time_restore` — Restauración por punto temporal de feeds RSS en Moonbot
+- `future-5414` · `plan_telegram_videos_point_in_time_restore` — Restauración por punto temporal de vídeos de Telegram en Moonbot
+- `future-5417` · `plan_blocklists_point_in_time_restore` — Restauración por punto temporal de listas de bloqueo en Moonbot
+- `future-5420` · `plan_required_subscriptions_point_in_time_restore` — Restauración por punto temporal de suscripciones obligatorias en Moonbot
+- `future-5423` · `plan_signed_webhooks_point_in_time_restore` — Restauración por punto temporal de webhooks firmados en Moonbot
+- `future-5426` · `plan_quiet_hours_point_in_time_restore` — Restauración por punto temporal de horarios silenciosos en Moonbot
+- `future-5429` · `plan_correlated_incidents_point_in_time_restore` — Restauración por punto temporal de incidentes correlacionados en Moonbot
+- `future-5432` · `plan_accessible_preferences_point_in_time_restore` — Restauración por punto temporal de preferencias accesibles en Moonbot
+- `future-5435` · `plan_integration_secrets_point_in_time_restore` — Restauración por punto temporal de secretos de integración en Moonbot
+- `future-5438` · `plan_contextual_responses_point_in_time_restore` — Restauración por punto temporal de respuestas contextuales en Moonbot
+- `future-5441` · `plan_miniapp_menus_point_in_time_restore` — Restauración por punto temporal de menús de la MiniApp en Moonbot
+- `future-5444` · `plan_bot_statistics_point_in_time_restore` — Restauración por punto temporal de estadísticas por bot en Moonbot
+- `future-5447` · `plan_advertising_preferences_point_in_time_restore` — Restauración por punto temporal de preferencias publicitarias en Moonbot
+- `future-5450` · `plan_processing_queues_point_in_time_restore` — Restauración por punto temporal de colas de procesamiento en Moonbot
+- `future-5453` · `observe_creator_accounts_distributed` — Observabilidad distribuida de cuentas creadoras en Moonbot
+- `future-5456` · `observe_associated_channels_distributed` — Observabilidad distribuida de canales asociados en Moonbot
+- `future-5459` · `observe_community_campaigns_distributed` — Observabilidad distribuida de campañas comunitarias en Moonbot
+- `future-5462` · `observe_editorial_articles_distributed` — Observabilidad distribuida de artículos editoriales en Moonbot
+- `future-5465` · `observe_moderated_images_distributed` — Observabilidad distribuida de imágenes moderadas en Moonbot
+- `future-5468` · `observe_user_appeals_distributed` — Observabilidad distribuida de apelaciones de usuarios en Moonbot
+- `future-5471` · `observe_mtproto_proxies_distributed` — Observabilidad distribuida de proxies MTProto en Moonbot
+- `future-5474` · `observe_persistent_tasks_distributed` — Observabilidad distribuida de tareas persistentes en Moonbot
+- `future-5477` · `observe_moderation_rules_distributed` — Observabilidad distribuida de reglas de moderación en Moonbot
+- `future-5480` · `observe_language_metrics_distributed` — Observabilidad distribuida de métricas lingüísticas en Moonbot
+- `future-5483` · `observe_community_translations_distributed` — Observabilidad distribuida de traducciones comunitarias en Moonbot
+- `future-5486` · `observe_personal_consents_distributed` — Observabilidad distribuida de consentimientos personales en Moonbot
+- `future-5489` · `observe_telegram_reactions_distributed` — Observabilidad distribuida de reacciones Telegram en Moonbot
+- `future-5492` · `observe_master_panels_distributed` — Observabilidad distribuida de paneles del master en Moonbot
+- `future-5495` · `observe_channel_directories_distributed` — Observabilidad distribuida de directorios de canales en Moonbot
+- `future-5498` · `observe_external_links_distributed` — Observabilidad distribuida de enlaces externos en Moonbot
+- `future-5501` · `review_administrative_sessions_quality` — Control de calidad para sesiones administrativas en Moonbot
+- `future-5504` · `review_community_profiles_quality` — Control de calidad para perfiles comunitarios en Moonbot
+- `future-5507` · `review_telegram_communities_quality` — Control de calidad para comunidades Telegram en Moonbot
+- `future-5510` · `review_house_ads_quality` — Control de calidad para anuncios propios en Moonbot
+- `future-5513` · `review_voice_notes_quality` — Control de calidad para notas de voz en Moonbot
+- `future-5516` · `review_suspicious_files_quality` — Control de calidad para archivos sospechosos en Moonbot
+- `future-5519` · `review_captcha_decisions_quality` — Control de calidad para decisiones de captcha en Moonbot
+
+### v18.23.0 — 120 funciones incorporadas
+
+- `future-2102` · `proxy_offline_continuity` — Continuidad operativa sin conexión para proxies
+- `future-2103` · `proxy_adaptive_trust` — Acceso de confianza adaptativa para proxies
+- `future-2104` · `proxy_campaign` — Planificador de campañas comunitarias para proxies
+- `future-2105` · `proxy_intent` — Detección de intención y contexto para proxies
+- `future-2106` · `proxy_integration` — Laboratorio de integraciones para proxies
+- `future-2107` · `proxy_vault` — Bóveda de datos personales para proxies
+- `future-2108` · `proxy_easy_read` — Interfaz de lectura fácil para proxies
+- `future-2109` · `proxy_sessions` — Continuidad de sesión multidispositivo para proxies
+- `future-2110` · `proxy_editorial` — Curación editorial asistida para proxies
+- `future-2111` · `proxy_budget` — Control presupuestario de recursos para proxies
+- `future-2112` · `proxy_reputation` — Sistema de reputación transparente para proxies
+- `future-2113` · `proxy_localization` — Localización cultural automática para proxies
+- `future-2114` · `proxy_communication_preferences` — Centro de preferencias de comunicación para proxies
+- `future-2115` · `proxy_onboarding` — Recorridos personalizados de incorporación para proxies
+- `future-2116` · `proxy_governance` — Gobernanza mediante propuestas y votos para proxies
+- `future-2117` · `proxy_voice_control` — Control por voz accesible para proxies
+- `future-2118` · `proxy_federated_bridge` — Puente de datos federado para proxies
+- `future-2119` · `proxy_external_event` — Automatización por eventos externos para proxies
+- `future-2120` · `proxy_digital_twin` — Gemelo digital operativo para proxies
+- `future-2121` · `dashboard_incidents` — Centro de incidencias correlacionadas para panel principal
+- `future-2122` · `dashboard_workflow` — Constructor de flujos sin código para panel principal
+- `future-2123` · `dashboard_delegation` — Delegación temporal de funciones para panel principal
+- `future-2124` · `dashboard_coordinated_abuse` — Protección contra abuso coordinado para panel principal
+- `future-2125` · `dashboard_copilot` — Copiloto de respuesta contextual para panel principal
+- `future-2126` · `dashboard_capacity` — Pronóstico de capacidad y demanda para panel principal
+- `future-2127` · `dashboard_batch_plan` — Centro de operaciones por lotes para panel principal
+- `future-2128` · `dashboard_workspace` — Espacios de trabajo compartidos para panel principal
+- `future-2129` · `dashboard_media` — Biblioteca multimedia inteligente para panel principal
+- `future-2130` · `dashboard_narrative_report` — Informes narrativos automáticos para panel principal
+- `future-2131` · `dashboard_alert_escalation` — Escalado inteligente de avisos para panel principal
+- `future-2132` · `dashboard_offline_continuity` — Continuidad operativa sin conexión para panel principal
+- `future-2133` · `dashboard_adaptive_trust` — Acceso de confianza adaptativa para panel principal
+- `future-2134` · `dashboard_campaign` — Planificador de campañas comunitarias para panel principal
+- `future-2135` · `dashboard_intent` — Detección de intención y contexto para panel principal
+- `future-2136` · `dashboard_integration` — Laboratorio de integraciones para panel principal
+- `future-2137` · `dashboard_vault` — Bóveda de datos personales para panel principal
+- `future-2138` · `dashboard_easy_read` — Interfaz de lectura fácil para panel principal
+- `future-2139` · `dashboard_sessions` — Continuidad de sesión multidispositivo para panel principal
+- `future-2140` · `dashboard_editorial` — Curación editorial asistida para panel principal
+- `future-2141` · `dashboard_budget` — Control presupuestario de recursos para panel principal
+- `future-2142` · `dashboard_reputation` — Sistema de reputación transparente para panel principal
+- `future-2143` · `dashboard_localization` — Localización cultural automática para panel principal
+- `future-2144` · `dashboard_communication_preferences` — Centro de preferencias de comunicación para panel principal
+- `future-2145` · `dashboard_onboarding` — Recorridos personalizados de incorporación para panel principal
+- `future-2146` · `dashboard_governance` — Gobernanza mediante propuestas y votos para panel principal
+- `future-2147` · `dashboard_voice_control` — Control por voz accesible para panel principal
+- `future-2148` · `dashboard_federated_bridge` — Puente de datos federado para panel principal
+- `future-2149` · `dashboard_external_event` — Automatización por eventos externos para panel principal
+- `future-2150` · `dashboard_digital_twin` — Gemelo digital operativo para panel principal
+- `future-2151` · `analytics_incidents` — Centro de incidencias correlacionadas para analítica
+- `future-2152` · `analytics_workflow` — Constructor de flujos sin código para analítica
+- `future-2153` · `analytics_delegation` — Delegación temporal de funciones para analítica
+- `future-2154` · `analytics_coordinated_abuse` — Protección contra abuso coordinado para analítica
+- `future-2155` · `analytics_copilot` — Copiloto de respuesta contextual para analítica
+- `future-2156` · `analytics_capacity` — Pronóstico de capacidad y demanda para analítica
+- `future-2157` · `analytics_batch_plan` — Centro de operaciones por lotes para analítica
+- `future-2158` · `analytics_workspace` — Espacios de trabajo compartidos para analítica
+- `future-2159` · `analytics_media` — Biblioteca multimedia inteligente para analítica
+- `future-2160` · `analytics_narrative_report` — Informes narrativos automáticos para analítica
+- `future-2161` · `analytics_alert_escalation` — Escalado inteligente de avisos para analítica
+- `future-2162` · `analytics_offline_continuity` — Continuidad operativa sin conexión para analítica
+- `future-2163` · `analytics_adaptive_trust` — Acceso de confianza adaptativa para analítica
+- `future-2164` · `analytics_campaign` — Planificador de campañas comunitarias para analítica
+- `future-2165` · `analytics_intent` — Detección de intención y contexto para analítica
+- `future-2166` · `analytics_integration` — Laboratorio de integraciones para analítica
+- `future-2167` · `analytics_vault` — Bóveda de datos personales para analítica
+- `future-2168` · `analytics_easy_read` — Interfaz de lectura fácil para analítica
+- `future-2169` · `analytics_sessions` — Continuidad de sesión multidispositivo para analítica
+- `future-2170` · `analytics_editorial` — Curación editorial asistida para analítica
+- `future-2171` · `analytics_budget` — Control presupuestario de recursos para analítica
+- `future-2172` · `analytics_reputation` — Sistema de reputación transparente para analítica
+- `future-2173` · `analytics_localization` — Localización cultural automática para analítica
+- `future-2174` · `analytics_communication_preferences` — Centro de preferencias de comunicación para analítica
+- `future-2175` · `analytics_onboarding` — Recorridos personalizados de incorporación para analítica
+- `future-2176` · `analytics_governance` — Gobernanza mediante propuestas y votos para analítica
+- `future-2177` · `analytics_voice_control` — Control por voz accesible para analítica
+- `future-2178` · `analytics_federated_bridge` — Puente de datos federado para analítica
+- `future-2179` · `analytics_external_event` — Automatización por eventos externos para analítica
+- `future-2180` · `analytics_digital_twin` — Gemelo digital operativo para analítica
+- `future-2181` · `webapp_privacy_incidents` — Centro de incidencias correlacionadas para privacidad
+- `future-2182` · `webapp_privacy_workflow` — Constructor de flujos sin código para privacidad
+- `future-2183` · `webapp_privacy_delegation` — Delegación temporal de funciones para privacidad
+- `future-2184` · `webapp_privacy_coordinated_abuse` — Protección contra abuso coordinado para privacidad
+- `future-2185` · `webapp_privacy_copilot` — Copiloto de respuesta contextual para privacidad
+- `future-2186` · `webapp_privacy_capacity` — Pronóstico de capacidad y demanda para privacidad
+- `future-2187` · `webapp_privacy_batch_plan` — Centro de operaciones por lotes para privacidad
+- `future-2188` · `webapp_privacy_workspace` — Espacios de trabajo compartidos para privacidad
+- `future-2189` · `webapp_privacy_media` — Biblioteca multimedia inteligente para privacidad
+- `future-2190` · `webapp_privacy_report` — Informes narrativos automáticos para privacidad
+- `future-2191` · `webapp_privacy_alert_escalation` — Escalado inteligente de avisos para privacidad
+- `future-2192` · `webapp_privacy_offline_continuity` — Continuidad operativa sin conexión para privacidad
+- `future-2193` · `webapp_privacy_adaptive_trust` — Acceso de confianza adaptativa para privacidad
+- `future-2194` · `webapp_privacy_campaign` — Planificador de campañas comunitarias para privacidad
+- `future-2195` · `webapp_privacy_intent` — Detección de intención y contexto para privacidad
+- `future-2196` · `webapp_privacy_integration` — Laboratorio de integraciones para privacidad
+- `future-2197` · `webapp_privacy_vault` — Bóveda de datos personales para privacidad
+- `future-2198` · `webapp_privacy_easy_read` — Interfaz de lectura fácil para privacidad
+- `future-2199` · `webapp_privacy_sessions` — Continuidad de sesión multidispositivo para privacidad
+- `future-2200` · `webapp_privacy_editorial` — Curación editorial asistida para privacidad
+- `future-2201` · `webapp_privacy_budget` — Control presupuestario de recursos para privacidad
+- `future-2202` · `webapp_privacy_reputation` — Sistema de reputación transparente para privacidad
+- `future-2203` · `webapp_privacy_localization` — Localización cultural automática para privacidad
+- `future-2204` · `webapp_privacy_communication_preferences` — Centro de preferencias de comunicación para privacidad
+- `future-2205` · `webapp_privacy_onboarding` — Recorridos personalizados de incorporación para privacidad
+- `future-2206` · `webapp_privacy_governance` — Gobernanza mediante propuestas y votos para privacidad
+- `future-2207` · `webapp_privacy_voice_control` — Control por voz accesible para privacidad
+- `future-2208` · `webapp_privacy_federated_bridge` — Puente de datos federado para privacidad
+- `future-2209` · `webapp_privacy_external_event` — Automatización por eventos externos para privacidad
+- `future-2210` · `webapp_privacy_digital_twin` — Gemelo digital operativo para privacidad
+- `future-2211` · `webapp_seo_incidents` — Centro de incidencias correlacionadas para SEO
+- `future-2212` · `webapp_seo_workflow` — Constructor de flujos sin código para SEO
+- `future-2213` · `webapp_seo_delegation` — Delegación temporal de funciones para SEO
+- `future-2214` · `webapp_seo_coordinated_abuse` — Protección contra abuso coordinado para SEO
+- `future-2215` · `webapp_seo_copilot` — Copiloto de respuesta contextual para SEO
+- `future-2216` · `webapp_seo_capacity` — Pronóstico de capacidad y demanda para SEO
+- `future-2217` · `webapp_seo_batch_plan` — Centro de operaciones por lotes para SEO
+- `future-2218` · `webapp_seo_workspace` — Espacios de trabajo compartidos para SEO
+- `future-2219` · `webapp_seo_media` — Biblioteca multimedia inteligente para SEO
+- `future-2220` · `webapp_seo_report` — Informes narrativos automáticos para SEO
+- `future-2221` · `webapp_seo_alert_escalation` — Escalado inteligente de avisos para SEO
+
+<!-- GENERATED_RELEASE_FEATURES_END -->
 
 ## v18.23.0 - 2026-07-30 - Registro ampliado a 2.220 funciones verificadas
 
