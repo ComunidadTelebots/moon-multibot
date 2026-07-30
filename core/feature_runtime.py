@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import inspect
 from functools import lru_cache
+from core.feature_access import can_access_feature, classify_feature
 
 
 MANIFEST_MODULES = (
@@ -46,6 +47,7 @@ MANIFEST_MODULES = (
     "resource_incident_temporal_manifest",
     "resource_temporal_collaborative_manifest",
     "resource_review_accessible_localization_manifest",
+    "resource_localization_easy_voice_grouped_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -70,8 +72,10 @@ MANIFEST_MODULES = (
     "core.web_proxy_dashboard_operations_manifest",
     "core.web_dashboard_analytics_advanced_manifest",
     "core.web_analytics_advanced_operations_manifest",
+    "core.web_analytics_privacy_controls_manifest",
     "webapp_offline_operations_manifest",
     "webapp_accessibility_operations_manifest",
+    "webapp_moderation_content_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -121,19 +125,24 @@ def registry():
             if not callable(target):
                 raise RuntimeError(f"API no invocable: {module_name}.{api_name}")
             item.update({"module": module_name, "api": api_name, "callable": target})
+            item.update(classify_feature(item))
             result[feature_id] = item
     return result
 
 
-def list_features():
-    return [{key: value for key, value in item.items() if key != "callable"}
-            for item in registry().values()]
+def list_features(actor_role=None):
+    items = registry().values()
+    if actor_role is not None:
+        items = (item for item in items if can_access_feature(item, actor_role))
+    return [{key: value for key, value in item.items() if key != "callable"} for item in items]
 
 
-def execute(feature_id, payload):
+def execute(feature_id, payload, actor_role="master"):
     item = registry().get(str(feature_id))
     if item is None:
         raise KeyError("Función no registrada")
+    if not can_access_feature(item, actor_role):
+        raise PermissionError("El rol no puede ejecutar esta función")
     if not isinstance(payload, dict):
         raise ValueError("El payload debe ser un objeto")
     args = payload.get("args", [])
