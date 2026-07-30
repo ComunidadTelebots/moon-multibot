@@ -43,6 +43,7 @@ from roadmap_engine import RoadmapEngine
 from horizon_full import FullHorizonSuite
 from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
+from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features
 
 bp = Blueprint("public", __name__)
 
@@ -228,6 +229,24 @@ def _internal_admin_authorized():
         return claims.get("scope") == "miniapp_master"
     except (jwt.InvalidTokenError, ValueError, TypeError):
         return False
+
+
+@bp.route("/api/internal/features", methods=["GET", "POST"])
+def internal_verified_features():
+    """Lista o ejecuta exclusivamente funciones verificadas y registradas."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if request.method == "GET":
+        features = list_verified_features()
+        return jsonify({"ok": True, "total": len(features), "features": features})
+    body = request.get_json(silent=True) or {}
+    try:
+        result = execute_verified_feature(body.get("feature_id"), body.get("payload", {}))
+        return jsonify({"ok": True, "feature_id": body.get("feature_id"), "result": result})
+    except KeyError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 404
+    except (TypeError, ValueError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
 
 
 def _safe_list(value):
