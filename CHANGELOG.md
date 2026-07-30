@@ -1,7 +1,7 @@
 ﻿# Changelog - Moon Multibot
 
 ### Registro verificable compartido de funciones - 2026-07-30
-- 860 funciones de Moonbot, web y Telegram WebApp disponen de contrato específico, manifiesto versionable y pruebas por ID.
+- 1.180 funciones de Moonbot, web y Telegram WebApp disponen de contrato específico, manifiesto versionable y pruebas por ID.
 - La API interna solo ejecuta capacidades incluidas en una lista explícita y rechaza IDs, módulos, argumentos o funciones no registrados.
 - El Hub master permite buscar el registro operativo desde Centro avanzado y la web ofrece una pestaña equivalente con ejecución autenticada.
 - Los lotes incluyen pronósticos, deriva, impacto, recuperación, validación, orquestación, delegación, versionado, importación, analítica y acciones rápidas.
