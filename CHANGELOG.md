@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 1.620 funciones verificadas - 2026-07-30
+- Se integran 120 contratos nuevos de incidentes, correlación temporal, revisión colaborativa, paneles, analítica y operación offline.
+- El registro protegido confirma IDs, APIs, módulos y funciones únicas antes de permitir su ejecución.
+- El bloque supera 139 pruebas específicas y queda disponible tanto para el Hub como para la pasarela master de TodoSobreAllTech.
+
 ### Registro verificable compartido de funciones - 2026-07-30
 - 1.500 funciones de Moonbot, web y Telegram WebApp disponen de contrato específico, manifiesto versionable y pruebas por ID.
 - La API interna solo ejecuta capacidades incluidas en una lista explícita y rechaza IDs, módulos, argumentos o funciones no registrados.
