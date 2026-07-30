@@ -864,13 +864,15 @@
       host.innerHTML=`<div class="permission-alert"><h3>${svg('shield')} No se pudieron comprobar los permisos</h3><p>${escHtml((result&&result.error)||"Telegram no respondió. Comprueba que el bot siga dentro del grupo.")}</p><button class="btn ghost" id="gPermissionRetry">Comprobar de nuevo</button></div>`;
       document.getElementById("gPermissionRetry").onclick=loadGroupBotPermissions;return;
     }
-    if(result.healthy){host.innerHTML="";return;}
+    const history=(result.permission_history||[]).slice(0,10);
+    const timeline=history.length?`<details class="casbox" style="margin-top:10px"><summary>Historial efectivo de permisos (${history.length})</summary>${history.map(item=>`<p class="muted"><b>@${escHtml(item.bot_username||"MoonBot")}</b> · ${item.healthy?"Correctos":"Faltan "+(item.missing||[]).map(x=>escHtml(x.label)).join(", ")} · ${new Date(item.detected_at).toLocaleString()}</p>`).join("")}</details>`:"";
+    if(result.healthy){host.innerHTML=`<div class="casbox"><b>${svg('shield')} Permisos correctos</b><p class="muted">Última comprobación: ${new Date(result.checked_at).toLocaleString()}</p><button class="btn ghost" id="gPermissionRetry">${svg('refresh')} Comprobar de nuevo</button>${timeline}</div>`;document.getElementById("gPermissionRetry").onclick=loadGroupBotPermissions;return;}
     host.innerHTML=`<div class="permission-alert" data-help="Este aviso compara los permisos reales del bot en Telegram con los necesarios para moderar correctamente.">
       <h3>${svg('shield')} El bot no tiene permisos suficientes</h3>
       <p>Algunas funciones de moderación no podrán ejecutarse hasta corregirlo.</p>
       <b>Permisos que faltan:</b><ul>${result.missing.map(item=>`<li>${escHtml(item.label)}</li>`).join("")}</ul>
       <b>Cómo arreglarlo:</b><ol>${result.instructions.map(step=>`<li>${escHtml(step)}</li>`).join("")}</ol>
-      <button class="btn cta" id="gPermissionRetry">${svg('refresh')} Comprobar de nuevo</button>
+      <button class="btn cta" id="gPermissionRetry">${svg('refresh')} Comprobar de nuevo</button>${timeline}
     </div>`;
     document.getElementById("gPermissionRetry").onclick=loadGroupBotPermissions;
   }

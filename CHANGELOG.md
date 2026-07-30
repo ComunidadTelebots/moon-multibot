@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Historial efectivo de permisos - 2026-07-30
+- Moonbot registra únicamente cambios reales en los permisos de cada bot y grupo.
+- La MiniApp muestra la cronología, los permisos ausentes, el bot afectado y quién realizó la comprobación.
+- Las comprobaciones repetidas sin cambios no generan eventos duplicados.
+
 ### CI operativo y errores de ejecución corregidos - 2026-07-30
 - El CI comprueba errores Python que pueden romper la ejecución, ejecuta las 21 pruebas y valida el JavaScript del Hub.
 - Se corrigen las referencias administrativas de campañas al identificador real del master y se elimina un bloque inalcanzable con variables inexistentes.

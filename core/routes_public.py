@@ -963,6 +963,13 @@ def internal_group_admin(cid):
     missing = [] if member.get("status") == "creator" else [
         {"permission": key, "label": label} for key, label in required.items() if not member.get(key)
     ]
+    if member.get("status") not in ("administrator", "creator"):
+        missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+    chat_type = ((community_response.get("result") or {}).get("type")
+                 if isinstance(community_response, dict) and community_response.get("ok") else "supergroup")
+    permission_history, permission_changed = _record_permission_snapshot(
+        cid, bot, member.get("status", "unknown"), chat_type, missing, "web-master"
+    )
     history = _safe_list(_db.get(f"CHAT_HIST_{cid}", []))
     safe_history = [{"time": row.get("time"), "sender": str(row.get("sender") or row.get("uid") or "")[:100],
                      "uid": str(row.get("uid") or "")[:40], "text": str(row.get("text") or "")[:1000],
@@ -980,6 +987,8 @@ def internal_group_admin(cid):
         "ok": True,
         "group": {"id": str(cid), "name": str((_get_global_chat_names() or {}).get(str(cid), f"Grupo {cid}"))[:160]},
         "permissions": {"healthy": not missing, "status": member.get("status", "unknown"), "missing": missing},
+        "permission_changed": permission_changed,
+        "permission_history": permission_history,
         "repair_steps": repair_steps,
         "config": suite.config(cid),
         "join_config": _join_config(cid),
@@ -2571,6 +2580,34 @@ def _group_suite():
     return GroupSuite(_db)
 
 
+def _record_permission_snapshot(chat_id, bot, status, chat_type, missing, actor):
+    """Guarda solo cambios efectivos de permisos, separados por bot y grupo."""
+    key = f"BOT_PERMISSION_HISTORY_{chat_id}"
+    rows = _safe_list(_db.get(key, []))
+    bot_id = str(getattr(bot, "bot_id", ""))
+    missing_names = sorted(str(item.get("permission")) for item in missing if item.get("permission"))
+    previous = next((row for row in reversed(rows) if str(row.get("bot_id")) == bot_id), None)
+    signature = {"status": str(status), "chat_type": str(chat_type), "missing": missing_names}
+    changed = not previous or previous.get("signature") != signature
+    if changed:
+        rows.append({
+            "id": f"perm-{int(time.time() * 1000)}-{bot_id}",
+            "bot_id": bot_id,
+            "bot_username": str(getattr(bot, "bot_username", "MoonBot"))[:100],
+            "actor": str(actor or "system")[:100],
+            "detected_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "healthy": not missing,
+            "status": str(status),
+            "chat_type": str(chat_type),
+            "missing": [{"permission": str(item.get("permission"))[:80],
+                         "label": str(item.get("label"))[:120]} for item in missing],
+            "signature": signature,
+        })
+        _db.set(key, rows[-100:])
+    _db.set(f"BOT_PERMISSION_LAST_CHECK_{chat_id}", datetime.datetime.now(datetime.timezone.utc).isoformat())
+    return list(reversed(rows[-50:])), changed
+
+
 @bp.route("/api/public/group/bot-permissions", methods=["POST", "OPTIONS"])
 def group_bot_permissions():
     if request.method == "OPTIONS":
@@ -2579,7 +2616,7 @@ def group_bot_permissions():
     res, err = _group_auth(body)
     if err:
         return err
-    _, chat_id = res
+    user, chat_id = res
     bot = _get_bot_for_chat(chat_id)
     if not bot:
         return jsonify({"ok": False, "error": "bot no disponible"}), 503
@@ -2612,12 +2649,18 @@ def group_bot_permissions():
     ]
     if status not in ("administrator", "creator"):
         missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+    permission_history, changed = _record_permission_snapshot(
+        chat_id, bot, status, chat_type, missing,
+        user.get("id") if isinstance(user, dict) else "group-admin",
+    )
     return jsonify({
         "ok": True,
         "healthy": not missing,
         "status": status,
         "chat_type": chat_type,
         "missing": missing,
+        "changed": changed,
+        "permission_history": permission_history,
         "bot_username": getattr(bot, "bot_username", "MoonBot"),
         "instructions": [
             "Abre el grupo en Telegram.",
