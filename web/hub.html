@@ -54,6 +54,12 @@
   .hi b{font-weight:700;}
   .badge{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
     padding:2px 7px;border-radius:999px;color:var(--teal);border:1px solid rgba(93,202,165,.4);background:rgba(93,202,165,.08);}
+  .release-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;font-weight:600;
+    letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:999px;color:var(--muted);
+    border:1px solid var(--line);background:var(--card);vertical-align:middle;}
+  .release-badge[data-channel="rc"]{color:var(--cyan);border-color:rgba(34,211,238,.38)}
+  .release-badge[data-channel="beta"]{color:var(--amber);border-color:rgba(255,180,60,.4)}
+  .release-badge[data-channel="alpha"]{color:var(--red);border-color:rgba(248,113,113,.4)}
   .who .sub{font-size:11.5px;color:var(--muted);}
   .gear{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--muted);
     font-size:19px;display:grid;place-items:center;cursor:pointer;transition:.2s;}
@@ -324,7 +330,7 @@
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l3-1 2 4 3-9 3 6 2-3h3"/></svg></div>
     <div class="who">
       <div class="hi">Hola <b id="uname">invitado</b> <span class="badge" id="roleBadge" hidden>master</span></div>
-      <div class="sub">ComunidadTelebots</div>
+      <div class="sub">ComunidadTelebots <span class="release-badge" id="releaseBadge" hidden></span></div>
     </div>
     <button class="topact" id="btnSearch" aria-label="Buscar" title="Buscar">⌕</button>
     <button class="topact" id="btnNotifications" aria-label="Notificaciones" title="Notificaciones">♢<span class="dot" id="notificationDot"></span></button>
@@ -371,7 +377,7 @@
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
     <div class="logo" style="width:44px;height:44px;border-radius:13px;font-size:22px;"><svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l3-1 2 4 3-9 3 6 2-3h3"/></svg></div>
     <div><div style="font-family:var(--display);font-weight:800;font-size:20px;">Panel</div>
-    <div style="font-size:12px;color:var(--muted);">ComunidadTelebots</div></div>
+    <div style="font-size:12px;color:var(--muted);">ComunidadTelebots <span class="release-badge" id="classicRelease" hidden></span></div></div>
   </div>
   <div class="hi" id="c-hello" style="font-size:14px;color:var(--muted);margin:14px 2px 16px;">Bienvenido al panel principal.</div>
   <div class="c-card" id="c-masterCard" style="display:none;">
@@ -395,6 +401,25 @@
 
 <script>
   const API="/api/public";
+  const HUB_RELEASE_CHANNELS=new Set(["stable","rc","beta","alpha"]);
+  let hubRelease={channel:null,version:null,bundle:null};
+  async function applyHubReleaseIdentity(channel,version){
+    if(!HUB_RELEASE_CHANNELS.has(channel)||typeof version!=="string"||!version.trim())return false;
+    const badge=document.getElementById("releaseBadge");
+    badge.dataset.channel=channel;badge.textContent=`${channel} · ${version}`;badge.hidden=false;
+    const classic=document.getElementById("classicRelease");
+    if(classic){classic.dataset.channel=channel;classic.textContent=`${channel} · ${version}`;classic.hidden=false;}
+    hubRelease={channel,version,bundle:null};
+    try{
+      const response=await fetch(`/hub-channels/${channel}.manifest`,{credentials:"same-origin",cache:"no-store"});
+      if(!response.ok)return true;
+      const bundle=await response.json();
+      if(!bundle||bundle.channel!==channel||bundle.schema_version!==1)return true;
+      hubRelease.bundle=bundle;document.documentElement.dataset.releaseChannel=channel;
+      window.dispatchEvent(new CustomEvent("moonhub:release",{detail:{channel,version,bundle}}));
+    }catch(_){/* El Hub base sigue siendo completamente funcional. */}
+    return true;
+  }
   const tg=(window.Telegram&&window.Telegram.WebApp)?window.Telegram.WebApp:null;
   if(tg){try{tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor("#070b14");tg.setBackgroundColor&&tg.setBackgroundColor("#070b14");}catch(e){}}
   const user=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||null;
@@ -2973,6 +2998,7 @@
     if(user&&user.first_name)document.getElementById("uname").textContent=user.first_name;
     if(tg&&tg.initData){
       const d=await apiPost("/tg_auth",{initData:tg.initData});
+      if(d&&d.ok)await applyHubReleaseIdentity(d.release_channel,d.app_version);
       if(d&&d.ok&&d.is_master){
         master=true;canAdmin=true;masterToken=d.token||"";
         document.getElementById("roleBadge").hidden=false;

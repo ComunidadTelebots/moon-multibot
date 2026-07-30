@@ -77,6 +77,9 @@ def normalize_release_channel(value):
 
 
 def can_access_release(item, actor_channel):
-    required = normalize_release_channel(item.get("release_channel"))
+    raw_required = str(item.get("release_channel") or "stable").strip().lower()
+    if raw_required not in RELEASE_CHANNELS:
+        return False
+    required = raw_required
     granted = normalize_release_channel(actor_channel)
     return RELEASE_CHANNELS.index(granted) >= RELEASE_CHANNELS.index(required)

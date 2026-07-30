@@ -45,6 +45,7 @@ from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
 from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features, registry as verified_feature_registry
 from core.feature_access import normalize_release_channel
+from core.config import APP_VERSION
 from core.pb_client import PBError
 
 bp = Blueprint("public", __name__)
@@ -214,6 +215,10 @@ def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Community-Key, X-Moon-Admin-Key"
+    if request.path in {"/api/internal/features", "/api/public/features"}:
+        resp.headers["Cache-Control"] = "private, no-store, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Vary"] = "Authorization, X-Moon-Actor-Role, X-Moon-Actor-Id, X-Moon-Release-Channel"
     return resp
 
 
@@ -1977,7 +1982,10 @@ def tg_auth():
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     is_master = _master_id is not None and str(user.get("id")) == str(_master_id)
-    resp = {"ok": True, "is_master": is_master, "user": {
+    release_channel = _miniapp_release_channel(user)
+    resp = {"ok": True, "is_master": is_master,
+            "release_channel": release_channel, "app_version": APP_VERSION,
+            "user": {
         "id": user.get("id"), "first_name": user.get("first_name"), "username": user.get("username"),
     }}
     if is_master and _jwt_secret:

@@ -12,6 +12,7 @@ class FeatureReleaseChannelTests(unittest.TestCase):
         self.assertTrue(can_access_release(feature, "beta"))
         self.assertTrue(can_access_release(feature, "alpha"))
         self.assertEqual("stable", normalize_release_channel("unknown"))
+        self.assertFalse(can_access_release({"release_channel": "unknown"}, "alpha"))
 
     def test_alpha_registry_features_are_hidden_from_lower_channels(self):
         stable = {item["id"] for item in list_features("master", "stable")}

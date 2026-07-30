@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.14
+
+- Muestra en el Hub el canal autorizado y la versiÃ³n real servida, tanto en el diseÃ±o moderno como en el clÃ¡sico.
+- Resuelve esa identidad exclusivamente en el servidor mediante `telegram_id`; ignora cualquier canal indicado por el navegador.
+- AÃ±ade manifiestos pasivos y allowlisted para preparar bundles separados de `stable`, `rc`, `beta` y `alpha`.
+- Mantiene el Hub base operativo si falta un manifiesto o no cumple el contrato esperado.
+- Rechaza canales desconocidos en manifiestos y evita cachear respuestas privadas entre identidades o canales.
+
 ## v18.23.13
 
 - Incorpora canales progresivos de funciones `stable`, `rc`, `beta` y `alpha` sin alterar los roles existentes.

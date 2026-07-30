@@ -11,7 +11,7 @@ import importlib
 import inspect
 import json
 from functools import lru_cache
-from core.feature_access import ROLES, can_access_feature, can_access_release, classify_feature
+from core.feature_access import RELEASE_CHANNELS, ROLES, can_access_feature, can_access_release, classify_feature
 
 
 MANIFEST_MODULES = (
@@ -141,6 +141,10 @@ def registry():
                 raise RuntimeError(f"Manifiesto incompleto en {manifest_name}")
             if feature_id in result:
                 raise RuntimeError(f"ID de función duplicado: {feature_id}")
+            release_channel = str(item.get("release_channel") or "stable").strip().lower()
+            if release_channel not in RELEASE_CHANNELS:
+                raise RuntimeError(f"Invalid release channel in {feature_id}: {release_channel}")
+            item["release_channel"] = release_channel
             target = getattr(importlib.import_module(module_name), api_name, None)
             if not callable(target):
                 raise RuntimeError(f"API no invocable: {module_name}.{api_name}")
