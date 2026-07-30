@@ -38,6 +38,8 @@ MANIFEST_MODULES = (
     "resource_federation_reconcile_manifest",
     "resource_reconcile_anonymize_manifest",
     "resource_anonymize_classify_manifest",
+    "resource_duplicate_expiry_manifest",
+    "resource_expiry_approval_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -53,6 +55,7 @@ MANIFEST_MODULES = (
     "core.web_support_features_manifest",
     "core.web_support_subscription_manifest",
     "core.web_subscription_operations_manifest",
+    "core.web_accessibility_account_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -68,6 +71,7 @@ MANIFEST_MODULES = (
     "webapp_sublot_13_manifest",
     "webapp_sublot_14_manifest",
     "webapp_sublot_15_manifest",
+    "webapp_sublot_16_manifest",
 )
 
 
