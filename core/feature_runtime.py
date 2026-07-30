@@ -34,6 +34,8 @@ MANIFEST_MODULES = (
     "resource_template_bulk_manifest",
     "resource_bulk_recommendation_manifest",
     "resource_realtime_budget_manifest",
+    "resource_budget_federation_manifest",
+    "resource_federation_reconcile_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -47,6 +49,7 @@ MANIFEST_MODULES = (
     "core.web_seo_community_manifest",
     "core.web_community_operations_manifest",
     "core.web_support_features_manifest",
+    "core.web_support_subscription_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -60,6 +63,7 @@ MANIFEST_MODULES = (
     "webapp_sublot_11_manifest",
     "webapp_sublot_12_manifest",
     "webapp_sublot_13_manifest",
+    "webapp_sublot_14_manifest",
 )
 
 
