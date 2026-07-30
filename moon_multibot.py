@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, send_from_directory, Response, send_f
 from core.plugin_security import validate_plugin_filename
 from core.auth_security import dashboard_password_matches
 from dotenv import load_dotenv
-from collections import Counter
+from collections import Counter, deque
 from array import array
 from bisect import bisect_left
 from core.config import (
@@ -116,6 +116,31 @@ roadmap_engine = RoadmapEngine(db, JWT_SECRET)
 
 task_queue = TaskQueue()
 start_time = time.time()
+_login_attempts = {}
+_login_attempts_lock = threading.Lock()
+LOGIN_RATE_WINDOW = 5 * 60
+LOGIN_RATE_MAX_FAILURES = 5
+
+def _login_rate_key():
+    # remote_addr is supplied by the WSGI server, unlike spoofable forwarding headers.
+    return str(request.remote_addr or "unknown")
+
+def _login_rate_limited(key, now=None):
+    current = time.time() if now is None else now
+    with _login_attempts_lock:
+        attempts = _login_attempts.setdefault(key, deque())
+        while attempts and current - attempts[0] >= LOGIN_RATE_WINDOW:
+            attempts.popleft()
+        return len(attempts) >= LOGIN_RATE_MAX_FAILURES
+
+def _record_login_failure(key, now=None):
+    current = time.time() if now is None else now
+    with _login_attempts_lock:
+        _login_attempts.setdefault(key, deque()).append(current)
+
+def _clear_login_failures(key):
+    with _login_attempts_lock:
+        _login_attempts.pop(key, None)
 bots_data = []
 active_bots = []
 next_group_admin_check = 0
@@ -412,10 +437,7 @@ def check_jwt(req):
         return False
     auth = req.headers.get("Authorization")
     if not auth or not auth.startswith("Bearer "):
-        # Intentar desde query param para descargas
-        tk = req.args.get("token")
-        if tk: auth = f"Bearer {tk}"
-        else: return False
+        return False
     try: jwt.decode(auth.split(" ")[1], JWT_SECRET, algorithms=["HS256"]); return True
     except: return False
 
@@ -868,11 +890,16 @@ def get_changelog(): return send_from_directory(".", "CHANGELOG.md")
 
 @app.route("/api/login", methods=['POST'])
 def web_login():
+    rate_key = _login_rate_key()
+    if _login_rate_limited(rate_key):
+        return jsonify({"ok": False, "error": "Demasiados intentos; inténtalo más tarde"}), 429, {"Retry-After": str(LOGIN_RATE_WINDOW)}
     supplied_password = (request.get_json(silent=True) or {}).get("password")
     if dashboard_password_matches(WEB_PASSWORD, supplied_password, JWT_SECRET):
+        _clear_login_failures(rate_key)
         tk = jwt.encode({"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)}, JWT_SECRET, algorithm="HS256")
         add_audit_log("Login Web OK")
         return jsonify({"ok": True, "token": tk})
+    _record_login_failure(rate_key)
     return jsonify({"ok": False}), 401
 
 @app.route("/health")

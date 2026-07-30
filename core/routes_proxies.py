@@ -29,7 +29,10 @@ def api_proxies_vps_config():
     if not _check_jwt(request):
         return jsonify({"ok": False}), 401
     if request.method == "POST":
-        cfg = _proxy_mgr.save_vps_config(request.json or {})
+        try:
+            cfg = _proxy_mgr.save_vps_config(request.get_json(silent=True) or {})
+        except (TypeError, ValueError) as error:
+            return jsonify({"ok": False, "error": str(error)}), 400
         return jsonify({"ok": True, "config": cfg})
     return jsonify({"ok": True, "config": _proxy_mgr.get_vps_config(include_secret=False)})
 

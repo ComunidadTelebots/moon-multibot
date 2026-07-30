@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.10
+
+- Elimina la carga insegura de modelos antispam mediante Pickle y conserva el clasificador con entrenamiento determinista.
+- Impide atravesar directorios al restaurar copias y confina los archivos JSON al directorio de datos.
+- Valida los puertos MTProxy antes de crear comandos remotos y rechaza claves SSH desconocidas.
+- Evita tokens JWT en URLs de descarga: registros y datos de IA se obtienen con cabecera `Authorization`.
+- Limita los intentos fallidos de acceso al Hub por origen y devuelve `429` con `Retry-After`.
+- Añade pruebas focales para las protecciones de restauración, SSH, puertos, descargas y autenticación.
+
 ## v18.23.9
 
 - Añade al Hub paneles específicos para IA avanzada, integraciones/API, experiencia y revisión de calidad.

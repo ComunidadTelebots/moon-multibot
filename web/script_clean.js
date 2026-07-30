@@ -338,8 +338,12 @@ function searchInChat() {
     });
 }
 
-function downloadLogs() {
-    window.open('/api/logs/download?token=' + authToken.split(' ')[1]);
+async function downloadLogs() {
+    const response = await fetch('/api/logs/download', {headers: {'Authorization': authToken}});
+    if (!response.ok) return;
+    const url = URL.createObjectURL(await response.blob());
+    const a = document.createElement('a'); a.href = url; a.download = 'bot.log'; a.click();
+    URL.revokeObjectURL(url);
 }
 
 // Plugins & Settings

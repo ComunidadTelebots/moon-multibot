@@ -1539,10 +1539,11 @@ function setIAPower() {
 }
 
 async function backupIA() {
-    const token = getStoredAuthToken().replace("Bearer ", "");
-    const a = document.createElement("a");
-    a.href = `/api/ia/download?token=${encodeURIComponent(token)}`;
-    a.click();
+    const response = await fetch("/api/ia/download", {headers: {Authorization: getStoredAuthToken()}});
+    if (!response.ok) { showToast("❌ Error", "No se pudo descargar el backup"); return; }
+    const url = URL.createObjectURL(await response.blob());
+    const a = document.createElement("a"); a.href = url; a.download = "moon_brain.db"; a.click();
+    URL.revokeObjectURL(url);
 }
 
 async function restoreIA(input) {
