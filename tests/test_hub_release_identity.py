@@ -35,7 +35,7 @@ class HubReleaseIdentityTests(unittest.TestCase):
 
     def test_all_channel_manifests_are_data_only_and_consistent(self):
         for channel in ("stable", "rc", "beta", "alpha"):
-            path = ROOT / "web" / "hub-channels" / f"{channel}.manifest"
+            path = ROOT / "core" / "hub_release_bundles" / f"{channel}.manifest"
             payload = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(1, payload["schema_version"])
             self.assertEqual(channel, payload["channel"])
@@ -45,7 +45,8 @@ class HubReleaseIdentityTests(unittest.TestCase):
         source = (ROOT / "web" / "hub.html").read_text(encoding="utf-8")
         self.assertIn('new Set(["stable","rc","beta","alpha"])', source)
         self.assertIn('applyHubReleaseIdentity(d.release_channel,d.app_version)', source)
-        self.assertIn('fetch(`/hub-channels/${channel}.manifest`', source)
+        self.assertIn('fetch(`${API}/hub-release-asset`', source)
+        self.assertIn('initData:tg.initData,asset:"manifest"', source)
         self.assertIn('bundle.channel!==channel||bundle.schema_version!==1', source)
         self.assertIn('id="releaseBadge"', source)
         self.assertIn('id="classicRelease"', source)

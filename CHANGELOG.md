@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.15
+
+- Retira los manifiestos de canales del directorio web público para impedir su descarga directa.
+- Sirve los assets futuros del Hub mediante un endpoint autenticado con `initData` de Telegram.
+- Resuelve el canal exclusivamente desde el `telegram_id` verificado e ignora cualquier canal o ruta aportados por el navegador.
+- Limita los assets a un registro cerrado, valida su esquema y tamaño, y devuelve respuestas privadas sin caché ni detección MIME.
+- Conserva el Hub base y su diseño actual cuando no existe un bundle válido para el canal autorizado.
+
 ## v18.23.14
 
 - Muestra en el Hub el canal autorizado y la versiÃ³n real servida, tanto en el diseÃ±o moderno como en el clÃ¡sico.

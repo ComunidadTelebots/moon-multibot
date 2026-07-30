@@ -411,7 +411,9 @@
     if(classic){classic.dataset.channel=channel;classic.textContent=`${channel} · ${version}`;classic.hidden=false;}
     hubRelease={channel,version,bundle:null};
     try{
-      const response=await fetch(`/hub-channels/${channel}.manifest`,{credentials:"same-origin",cache:"no-store"});
+      if(!tg||!tg.initData)return true;
+      const response=await fetch(`${API}/hub-release-asset`,{method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData,asset:"manifest"})});
       if(!response.ok)return true;
       const bundle=await response.json();
       if(!bundle||bundle.channel!==channel||bundle.schema_version!==1)return true;

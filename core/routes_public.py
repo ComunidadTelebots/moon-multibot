@@ -46,6 +46,7 @@ from core.language_map import aggregate_language_map
 from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features, registry as verified_feature_registry
 from core.feature_access import normalize_release_channel
 from core.config import APP_VERSION
+from core.hub_release_assets import read_hub_release_asset
 from core.pb_client import PBError
 
 bp = Blueprint("public", __name__)
@@ -1995,6 +1996,29 @@ def tg_auth():
             _jwt_secret, algorithm="HS256",
         )
     return jsonify(resp)
+
+
+@bp.route("/api/public/hub-release-asset", methods=["POST", "OPTIONS"])
+def hub_release_asset():
+    """Serve an allowlisted asset for the Telegram-verified release channel only."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.get_json(silent=True) or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    channel = _miniapp_release_channel(user)
+    try:
+        payload, content_type = read_hub_release_asset(channel, body.get("asset", "manifest"))
+    except KeyError:
+        return jsonify({"ok": False, "error": "asset no disponible"}), 404
+    except (OSError, TypeError, ValueError):
+        return jsonify({"ok": False, "error": "asset inválido"}), 400
+    response = Response(payload, content_type=content_type)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Moon-Release-Channel"] = channel
+    return response
 
 
 def _is_master(user):
