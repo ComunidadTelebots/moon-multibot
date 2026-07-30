@@ -90,6 +90,7 @@ MANIFEST_MODULES = (
     "webapp_support_subscription_moderation_operations_manifest",
     "webapp_moderation_security_ai_operations_manifest",
     "webapp_ai_group_channel_operations_manifest",
+    "webapp_channel_user_automation_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",

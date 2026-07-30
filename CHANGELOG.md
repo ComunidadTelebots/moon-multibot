@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.23.5
+
+- Integra 60 servicios WebApp para canales, usuarios y automatizaciones.
+- Incorpora eventos externos firmados y aislados por dominio.
+- Mantiene las operaciones masivas en modo de vista previa, sin ejecución ni persistencia automática.
+- Verifica roles, pruebas resolubles, identificadores y APIs únicas antes de registrarlas.
+
 <!-- GENERATED_RELEASE_FEATURES_START -->
 ## Inventario exacto por versión
 
@@ -837,6 +844,69 @@
 - `future-2459` · `moon_channel_copilot` — None
 - `future-2460` · `moon_channel_capacity_forecast` — None
 - `future-2461` · `moon_channel_batch_plan` — None
+
+### v18.23.5 — 60 funciones incorporadas
+
+- `future-2462` · `moon_channel_workspace` — Workspace para canales
+- `future-2463` · `moon_channel_media` — Media para canales
+- `future-2464` · `moon_channel_narrative_report` — Narrative report para canales
+- `future-2465` · `moon_channel_alert_escalation` — Alert escalation para canales
+- `future-2466` · `moon_channel_offline_continuity` — Offline continuity para canales
+- `future-2467` · `moon_channel_adaptive_trust` — Adaptive trust para canales
+- `future-2468` · `moon_channel_campaign_plan` — Campaign plan para canales
+- `future-2469` · `moon_channel_intent` — Intent para canales
+- `future-2470` · `moon_channel_integration` — Integration para canales
+- `future-2471` · `moon_channel_vault` — Vault para canales
+- `future-2472` · `moon_channel_easy_read` — Easy read para canales
+- `future-2473` · `moon_channel_sessions` — Sessions para canales
+- `future-2474` · `moon_channel_editorial` — Editorial para canales
+- `future-2475` · `moon_channel_budget` — Budget para canales
+- `future-2476` · `moon_channel_reputation` — Reputation para canales
+- `future-2477` · `moon_channel_localization` — Localization para canales
+- `future-2478` · `moon_channel_communication_preferences` — Communication preferences para canales
+- `future-2479` · `moon_channel_onboarding` — Onboarding para canales
+- `future-2480` · `moon_channel_governance` — Governance para canales
+- `future-2481` · `moon_channel_voice_control` — Voice control para canales
+- `future-2482` · `moon_channel_federated_bridge` — Federated bridge para canales
+- `future-2483` · `moon_channel_external_event` — External event para canales
+- `future-2484` · `moon_channel_digital_twin` — Digital twin para canales
+- `future-2485` · `moon_user_incident_correlation` — Incident correlation para usuarios
+- `future-2486` · `moon_user_workflow` — Workflow para usuarios
+- `future-2487` · `moon_user_delegation` — Delegation para usuarios
+- `future-2488` · `moon_user_coordinated_abuse` — Coordinated abuse para usuarios
+- `future-2489` · `moon_user_copilot` — Copilot para usuarios
+- `future-2490` · `moon_user_capacity_forecast` — Capacity forecast para usuarios
+- `future-2491` · `moon_user_batch_plan` — Batch plan para usuarios
+- `future-2492` · `moon_user_workspace` — Workspace para usuarios
+- `future-2493` · `moon_user_media` — Media para usuarios
+- `future-2494` · `moon_user_narrative_report` — Narrative report para usuarios
+- `future-2495` · `moon_user_alert_escalation` — Alert escalation para usuarios
+- `future-2496` · `moon_user_offline_continuity` — Offline continuity para usuarios
+- `future-2497` · `moon_user_adaptive_trust` — Adaptive trust para usuarios
+- `future-2498` · `moon_user_campaign_plan` — Campaign plan para usuarios
+- `future-2499` · `moon_user_intent` — Intent para usuarios
+- `future-2500` · `moon_user_integration` — Integration para usuarios
+- `future-2501` · `moon_user_vault` — Vault para usuarios
+- `future-2502` · `moon_user_easy_read` — Easy read para usuarios
+- `future-2503` · `moon_user_sessions` — Sessions para usuarios
+- `future-2504` · `moon_user_editorial` — Editorial para usuarios
+- `future-2505` · `moon_user_budget` — Budget para usuarios
+- `future-2506` · `moon_user_reputation` — Reputation para usuarios
+- `future-2507` · `moon_user_localization` — Localization para usuarios
+- `future-2508` · `moon_user_communication_preferences` — Communication preferences para usuarios
+- `future-2509` · `moon_user_onboarding` — Onboarding para usuarios
+- `future-2510` · `moon_user_governance` — Governance para usuarios
+- `future-2511` · `moon_user_voice_control` — Voice control para usuarios
+- `future-2512` · `moon_user_federated_bridge` — Federated bridge para usuarios
+- `future-2513` · `moon_user_external_event` — External event para usuarios
+- `future-2514` · `moon_user_digital_twin` — Digital twin para usuarios
+- `future-2515` · `moon_automation_incident_correlation` — Incident correlation para automatizaciones
+- `future-2516` · `moon_automation_workflow` — Workflow para automatizaciones
+- `future-2517` · `moon_automation_delegation` — Delegation para automatizaciones
+- `future-2518` · `moon_automation_coordinated_abuse` — Coordinated abuse para automatizaciones
+- `future-2519` · `moon_automation_copilot` — Copilot para automatizaciones
+- `future-2520` · `moon_automation_capacity_forecast` — Capacity forecast para automatizaciones
+- `future-2521` · `moon_automation_batch_plan` — Batch plan para automatizaciones
 
 <!-- GENERATED_RELEASE_FEATURES_END -->
 

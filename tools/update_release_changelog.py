@@ -37,6 +37,9 @@ RELEASES = {
         "resource_federation_continuity_assistance_manifest",
         "webapp_ai_group_channel_operations_manifest",
     ),
+    "v18.23.5": (
+        "webapp_channel_user_automation_operations_manifest",
+    ),
 }
 
 
