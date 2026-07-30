@@ -91,12 +91,13 @@ class WebappSupportSubscriptionModerationTests(unittest.TestCase):
 
 
 def _make_test(feature):
+    method_name = feature["test"].rsplit(".", 1)[-1]
     def test(self):
         result = getattr(operations, feature["api"])(*_case(feature["api"]))
         self.assertIsNotNone(result)
-    test.__name__ = feature["test"]
+    test.__name__ = method_name
     return test
 
 
 for _feature in FEATURES:
-    setattr(WebappSupportSubscriptionModerationTests, _feature["test"], _make_test(_feature))
+    setattr(WebappSupportSubscriptionModerationTests, _feature["test"].rsplit(".", 1)[-1], _make_test(_feature))

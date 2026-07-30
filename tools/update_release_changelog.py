@@ -33,6 +33,10 @@ RELEASES = {
         "resource_energy_abuse_migration_federation_manifest",
         "webapp_moderation_security_ai_operations_manifest",
     ),
+    "v18.23.4": (
+        "resource_federation_continuity_assistance_manifest",
+        "webapp_ai_group_channel_operations_manifest",
+    ),
 }
 
 

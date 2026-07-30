@@ -735,7 +735,117 @@
 - `future-2400` · `ai_capacity_forecast` — None
 - `future-2401` · `ai_batch_plan` — None
 
+### v18.23.4 — 100 funciones incorporadas
+
+- `future-5882` · `verify_accessible_preferences_federated_compatibility` — Compatibilidad federada de preferencias accesibles en Moonbot
+- `future-5885` · `verify_integration_secrets_federated_compatibility` — Compatibilidad federada de secretos de integración en Moonbot
+- `future-5888` · `verify_contextual_responses_federated_compatibility` — Compatibilidad federada de respuestas contextuales en Moonbot
+- `future-5891` · `verify_miniapp_menus_federated_compatibility` — Compatibilidad federada de menús de la MiniApp en Moonbot
+- `future-5894` · `verify_bot_statistics_federated_compatibility` — Compatibilidad federada de estadísticas por bot en Moonbot
+- `future-5897` · `verify_advertising_preferences_federated_compatibility` — Compatibilidad federada de preferencias publicitarias en Moonbot
+- `future-5900` · `verify_processing_queues_federated_compatibility` — Compatibilidad federada de colas de procesamiento en Moonbot
+- `future-5903` · `plan_creator_accounts_operational_continuity` — Continuidad operativa de cuentas creadoras en Moonbot
+- `future-5906` · `plan_associated_channels_operational_continuity` — Continuidad operativa de canales asociados en Moonbot
+- `future-5909` · `plan_community_campaigns_operational_continuity` — Continuidad operativa de campañas comunitarias en Moonbot
+- `future-5912` · `plan_editorial_articles_operational_continuity` — Continuidad operativa de artículos editoriales en Moonbot
+- `future-5915` · `plan_moderated_images_operational_continuity` — Continuidad operativa de imágenes moderadas en Moonbot
+- `future-5918` · `plan_user_appeals_operational_continuity` — Continuidad operativa de apelaciones de usuarios en Moonbot
+- `future-5921` · `plan_mtproto_proxies_operational_continuity` — Continuidad operativa de proxies MTProto en Moonbot
+- `future-5924` · `plan_persistent_tasks_operational_continuity` — Continuidad operativa de tareas persistentes en Moonbot
+- `future-5927` · `plan_moderation_rules_operational_continuity` — Continuidad operativa de reglas de moderación en Moonbot
+- `future-5930` · `plan_language_metrics_operational_continuity` — Continuidad operativa de métricas lingüísticas en Moonbot
+- `future-5933` · `plan_community_translations_operational_continuity` — Continuidad operativa de traducciones comunitarias en Moonbot
+- `future-5936` · `plan_personal_consents_operational_continuity` — Continuidad operativa de consentimientos personales en Moonbot
+- `future-5939` · `plan_telegram_reactions_operational_continuity` — Continuidad operativa de reacciones Telegram en Moonbot
+- `future-5942` · `plan_master_panels_operational_continuity` — Continuidad operativa de paneles del master en Moonbot
+- `future-5945` · `plan_channel_directories_operational_continuity` — Continuidad operativa de directorios de canales en Moonbot
+- `future-5948` · `plan_external_links_operational_continuity` — Continuidad operativa de enlaces externos en Moonbot
+- `future-5951` · `assist_administrative_sessions_contextually` — Asistencia contextual para sesiones administrativas en Moonbot
+- `future-5954` · `assist_community_profiles_contextually` — Asistencia contextual para perfiles comunitarios en Moonbot
+- `future-5957` · `assist_telegram_communities_contextually` — Asistencia contextual para comunidades Telegram en Moonbot
+- `future-5960` · `assist_house_ads_contextually` — Asistencia contextual para anuncios propios en Moonbot
+- `future-5963` · `assist_voice_notes_contextually` — Asistencia contextual para notas de voz en Moonbot
+- `future-5966` · `assist_suspicious_files_contextually` — Asistencia contextual para archivos sospechosos en Moonbot
+- `future-5969` · `assist_captcha_decisions_contextually` — Asistencia contextual para decisiones de captcha en Moonbot
+- `future-5972` · `assist_managed_bots_contextually` — Asistencia contextual para bots administrados en Moonbot
+- `future-5975` · `assist_recurring_reminders_contextually` — Asistencia contextual para recordatorios recurrentes en Moonbot
+- `future-5978` · `assist_security_events_contextually` — Asistencia contextual para eventos de seguridad en Moonbot
+- `future-5981` · `assist_regional_maps_contextually` — Asistencia contextual para mapas regionales en Moonbot
+- `future-5984` · `assist_backups_contextually` — Asistencia contextual para copias de seguridad en Moonbot
+- `future-5987` · `assist_ai_learning_data_contextually` — Asistencia contextual para datos de aprendizaje IA en Moonbot
+- `future-5990` · `assist_rich_commands_contextually` — Asistencia contextual para comandos enriquecidos en Moonbot
+- `future-5993` · `assist_hub_notifications_contextually` — Asistencia contextual para notificaciones del Hub en Moonbot
+- `future-5996` · `assist_cookie_policies_contextually` — Asistencia contextual para políticas de cookies en Moonbot
+- `future-5999` · `assist_wayback_history_contextually` — Asistencia contextual para historial Wayback en Moonbot
+- `future-2402` · `ai_workspace` — None
+- `future-2403` · `ai_media` — None
+- `future-2404` · `ai_narrative_report` — None
+- `future-2405` · `ai_alert_escalation` — None
+- `future-2406` · `ai_offline_continuity` — None
+- `future-2407` · `ai_adaptive_trust` — None
+- `future-2408` · `ai_campaign_plan` — None
+- `future-2409` · `ai_intent` — None
+- `future-2410` · `ai_integration` — None
+- `future-2411` · `ai_vault` — None
+- `future-2412` · `ai_easy_read` — None
+- `future-2413` · `ai_sessions` — None
+- `future-2414` · `ai_editorial` — None
+- `future-2415` · `ai_budget` — None
+- `future-2416` · `ai_reputation` — None
+- `future-2417` · `ai_localization` — None
+- `future-2418` · `ai_communication_preferences` — None
+- `future-2419` · `ai_onboarding` — None
+- `future-2420` · `ai_governance` — None
+- `future-2421` · `ai_voice_control` — None
+- `future-2422` · `ai_federated_bridge` — None
+- `future-2423` · `ai_external_event` — None
+- `future-2424` · `ai_digital_twin` — None
+- `future-2425` · `moon_group_incident_correlation` — None
+- `future-2426` · `moon_group_workflow` — None
+- `future-2427` · `moon_group_delegation` — None
+- `future-2428` · `moon_group_coordinated_abuse` — None
+- `future-2429` · `moon_group_copilot` — None
+- `future-2430` · `moon_group_capacity_forecast` — None
+- `future-2431` · `moon_group_batch_plan` — None
+- `future-2432` · `moon_group_workspace` — None
+- `future-2433` · `moon_group_media` — None
+- `future-2434` · `moon_group_narrative_report` — None
+- `future-2435` · `moon_group_alert_escalation` — None
+- `future-2436` · `moon_group_offline_continuity` — None
+- `future-2437` · `moon_group_adaptive_trust` — None
+- `future-2438` · `moon_group_campaign_plan` — None
+- `future-2439` · `moon_group_intent` — None
+- `future-2440` · `moon_group_integration` — None
+- `future-2441` · `moon_group_vault` — None
+- `future-2442` · `moon_group_easy_read` — None
+- `future-2443` · `moon_group_sessions` — None
+- `future-2444` · `moon_group_editorial` — None
+- `future-2445` · `moon_group_budget` — None
+- `future-2446` · `moon_group_reputation` — None
+- `future-2447` · `moon_group_localization` — None
+- `future-2448` · `moon_group_communication_preferences` — None
+- `future-2449` · `moon_group_onboarding` — None
+- `future-2450` · `moon_group_governance` — None
+- `future-2451` · `moon_group_voice_control` — None
+- `future-2452` · `moon_group_federated_bridge` — None
+- `future-2453` · `moon_group_external_event` — None
+- `future-2454` · `moon_group_digital_twin` — None
+- `future-2455` · `moon_channel_incident_correlation` — None
+- `future-2456` · `moon_channel_workflow` — None
+- `future-2457` · `moon_channel_delegation` — None
+- `future-2458` · `moon_channel_coordinated_abuse` — None
+- `future-2459` · `moon_channel_copilot` — None
+- `future-2460` · `moon_channel_capacity_forecast` — None
+- `future-2461` · `moon_channel_batch_plan` — None
+
 <!-- GENERATED_RELEASE_FEATURES_END -->
+
+## v18.23.4 - 2026-07-30 - Registro ampliado a 2.620 funciones verificadas
+
+- Incorpora las 40 funciones finales del horizonte Moonbot: federación, continuidad operativa y asistencia contextual.
+- Añade 60 operaciones WebApp de IA y administración de grupos/canales con roles diferenciados y eventos firmados.
+- La auditoría completa confirma APIs únicas, código no stub, pruebas resolubles, rol, scope y preflight para cada función.
+- La continuidad usa ordenación iterativa para evitar desbordar la pila con grafos grandes.
 
 ## v18.23.3 - 2026-07-30 - Registro ampliado a 2.520 funciones verificadas
 

@@ -45,8 +45,7 @@ def _role(api):
 FEATURES = tuple({
     "id": f"future-{2342 + index}", "api": api, "module": MODULE,
     "role": _role(api), "status": "implemented",
-    "preflight": "api_and_id_absent_from_head", "test": f"test_future_{2342 + index}",
+    "preflight": "api_and_id_absent_from_head", "test": f"tests.test_webapp_moderation_security_ai_operations.WebappModerationSecurityAiTests.test_future_{2342 + index}",
 } for index, api in enumerate(_APIS))
 
 assert len(FEATURES) == 60 and len({x["api"] for x in FEATURES}) == 60
-

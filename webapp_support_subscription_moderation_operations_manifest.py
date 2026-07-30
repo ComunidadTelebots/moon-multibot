@@ -55,11 +55,10 @@ FEATURES = tuple(
         "role": _role(api),
         "status": "implemented",
         "preflight": "api_and_id_absent_from_head",
-        "test": f"test_future_{2282 + index}",
+        "test": f"tests.test_webapp_support_subscription_moderation_operations.WebappSupportSubscriptionModerationTests.test_future_{2282 + index}",
     }
     for index, api in enumerate(_APIS)
 )
 
 assert len(FEATURES) == 60
 assert len({item["api"] for item in FEATURES}) == 60
-
