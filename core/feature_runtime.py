@@ -48,6 +48,7 @@ MANIFEST_MODULES = (
     "resource_temporal_collaborative_manifest",
     "resource_review_accessible_localization_manifest",
     "resource_localization_easy_voice_grouped_manifest",
+    "resource_grouped_routing_cache_rotation_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",

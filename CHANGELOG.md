@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 1.980 funciones verificadas - 2026-07-30
+- Se integran 60 funciones Moonbot de notificaciones agrupadas, routing inteligente, caché reconciliable y rotación segura.
+- La autorización por scope, los límites, las versiones, la aprobación y el rollback se validan antes de producir planes operativos.
+- La redacción recursiva detecta variantes de secretos y los identificadores rechazan traversal, ADS y nombres reservados.
+
 ### Registro ampliado a 1.920 funciones verificadas - 2026-07-30
 - Se incorporan 60 operaciones WebApp de IA, notificaciones, cuentas y herramientas de creadores con roles explícitos.
 - Los eventos externos firman timestamp, identificador y cuerpo, aplican ventana antirreplay, límite de tamaño y secretos robustos.

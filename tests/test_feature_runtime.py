@@ -6,7 +6,7 @@ from core.feature_runtime import execute, list_features, registry
 class FeatureRuntimeTests(unittest.TestCase):
     def test_registry_is_unique_and_callable(self):
         features = list_features()
-        self.assertEqual(1920, len(features))
+        self.assertEqual(1980, len(features))
         self.assertEqual(len(features), len({row["id"] for row in features}))
         self.assertTrue(all(callable(row["callable"]) for row in registry().values()))
         self.assertTrue(all(row["minimum_role"] in {"user", "group_admin", "group_creator", "master"} for row in features))
