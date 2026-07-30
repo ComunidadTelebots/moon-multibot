@@ -33,7 +33,7 @@ jobs:
           node-version: "24"
 
       - name: Install validation tools
-        run: pip install ruff
+        run: pip install ruff requests
 
       # Prioriza errores que pueden romper la ejecución. El estilo histórico se
       # corregirá por lotes sin convertir deuda antigua en falsos negativos.
