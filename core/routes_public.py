@@ -41,6 +41,7 @@ from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from roadmap_engine import RoadmapEngine
 from horizon_full import FullHorizonSuite
+from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
 
 bp = Blueprint("public", __name__)
@@ -2581,31 +2582,7 @@ def _group_suite():
 
 
 def _record_permission_snapshot(chat_id, bot, status, chat_type, missing, actor):
-    """Guarda solo cambios efectivos de permisos, separados por bot y grupo."""
-    key = f"BOT_PERMISSION_HISTORY_{chat_id}"
-    rows = _safe_list(_db.get(key, []))
-    bot_id = str(getattr(bot, "bot_id", ""))
-    missing_names = sorted(str(item.get("permission")) for item in missing if item.get("permission"))
-    previous = next((row for row in reversed(rows) if str(row.get("bot_id")) == bot_id), None)
-    signature = {"status": str(status), "chat_type": str(chat_type), "missing": missing_names}
-    changed = not previous or previous.get("signature") != signature
-    if changed:
-        rows.append({
-            "id": f"perm-{int(time.time() * 1000)}-{bot_id}",
-            "bot_id": bot_id,
-            "bot_username": str(getattr(bot, "bot_username", "MoonBot"))[:100],
-            "actor": str(actor or "system")[:100],
-            "detected_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "healthy": not missing,
-            "status": str(status),
-            "chat_type": str(chat_type),
-            "missing": [{"permission": str(item.get("permission"))[:80],
-                         "label": str(item.get("label"))[:120]} for item in missing],
-            "signature": signature,
-        })
-        _db.set(key, rows[-100:])
-    _db.set(f"BOT_PERMISSION_LAST_CHECK_{chat_id}", datetime.datetime.now(datetime.timezone.utc).isoformat())
-    return list(reversed(rows[-50:])), changed
+    return record_permission_snapshot(_db, chat_id, bot, status, chat_type, missing, actor)
 
 
 @bp.route("/api/public/group/bot-permissions", methods=["POST", "OPTIONS"])
