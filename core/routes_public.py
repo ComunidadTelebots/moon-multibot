@@ -26,7 +26,7 @@ import xml.etree.ElementTree as ET
 from urllib.parse import parse_qsl, urlparse
 
 import jwt
-from flask import Blueprint, Response, request, jsonify, redirect
+from flask import Blueprint, Response, current_app, request, jsonify, redirect
 
 try:
     import psutil
@@ -44,6 +44,7 @@ from horizon_full import FullHorizonSuite
 from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
 from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features
+from core.pb_client import PBError
 
 bp = Blueprint("public", __name__)
 
@@ -3559,7 +3560,11 @@ def ads_templates():
         if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
             return jsonify({"ok": False, "error": "enlace no válido"}), 400
         _channel_stats.save_ad_template(chat_id, name[:80], text[:3500], body.get("image"), target_url, user.get("id"))
-    rows = _channel_stats.ad_templates(chat_id)
+    try:
+        rows = _channel_stats.ad_templates(chat_id)
+    except PBError as exc:
+        current_app.logger.warning("Plantillas publicitarias no disponibles: %s", exc)
+        return jsonify({"ok": False, "error": "plantillas temporalmente no disponibles"}), 503
     return jsonify({"ok": True, "templates": [{"id": row["id"], "name": row.get("name"), "text": row.get("text"), "image": row.get("image"), "target_url": row.get("target_url")} for row in rows]})
 
 

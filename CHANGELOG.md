@@ -1,5 +1,11 @@
 # Changelog - Moon Multibot
 
+## v18.23.8
+
+- Repara automáticamente instalaciones antiguas de `tg_ad_templates` añadiendo los campos que falten en PocketBase.
+- Evita el error 400 al filtrar plantillas publicitarias por `chat_id`.
+- La API devuelve un error JSON controlado si PocketBase no está disponible, sin exponer un traceback al cliente.
+
 ## v18.23.7
 
 - Añade 60 servicios verificados para automatizaciones, multimedia y bots administrados.

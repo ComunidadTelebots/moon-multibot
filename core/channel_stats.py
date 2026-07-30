@@ -129,6 +129,18 @@ def init(pb):
         {"name": "image", "type": "url"}, {"name": "target_url", "type": "url"},
         {"name": "created_by", "type": "number"},
     ])
+    # `ensure_collection` no modifica esquemas existentes. Algunas instalaciones
+    # crearon esta colección antes de incorporar `chat_id`; PocketBase responde
+    # 400 al intentar filtrar por un campo ausente. La migración es idempotente.
+    for field in [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "name", "type": "text", "required": True},
+        {"name": "text", "type": "text", "required": True},
+        {"name": "image", "type": "url"},
+        {"name": "target_url", "type": "url"},
+        {"name": "created_by", "type": "number"},
+    ]:
+        pb.ensure_field(C_AD_TEMPLATES, field)
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────
