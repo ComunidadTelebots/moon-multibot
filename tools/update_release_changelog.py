@@ -24,6 +24,11 @@ RELEASES = {
         "webapp_proxy_dashboard_analytics_operations_manifest",
         "webapp_analytics_privacy_seo_operations_manifest",
     ),
+    "v18.23.1": (
+        "webapp_seo_community_support_operations_manifest",
+        "resource_quality_sandbox_governance_impact_manifest",
+        "webapp_support_subscription_moderation_operations_manifest",
+    ),
 }
 
 

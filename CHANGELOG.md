@@ -429,7 +429,196 @@
 - `future-2220` · `webapp_seo_report` — Informes narrativos automáticos para SEO
 - `future-2221` · `webapp_seo_alert_escalation` — Escalado inteligente de avisos para SEO
 
+### v18.23.1 — 180 funciones incorporadas
+
+- `future-2222` · `webapp_seo_offline_continuity` — Continuidad operativa sin conexión para SEO
+- `future-2223` · `webapp_seo_adaptive_trust` — Acceso de confianza adaptativa para SEO
+- `future-2224` · `webapp_seo_campaign` — Planificador de campañas comunitarias para SEO
+- `future-2225` · `webapp_seo_intent` — Detección de intención y contexto para SEO
+- `future-2226` · `webapp_seo_integration` — Laboratorio de integraciones para SEO
+- `future-2227` · `webapp_seo_vault` — Bóveda de datos personales para SEO
+- `future-2228` · `webapp_seo_easy_read` — Interfaz de lectura fácil para SEO
+- `future-2229` · `webapp_seo_sessions` — Continuidad de sesión multidispositivo para SEO
+- `future-2230` · `webapp_seo_editorial` — Curación editorial asistida para SEO
+- `future-2231` · `webapp_seo_budget` — Control presupuestario de recursos para SEO
+- `future-2232` · `webapp_seo_reputation` — Sistema de reputación transparente para SEO
+- `future-2233` · `webapp_seo_localization` — Localización cultural automática para SEO
+- `future-2234` · `webapp_seo_communication_preferences` — Centro de preferencias de comunicación para SEO
+- `future-2235` · `webapp_seo_onboarding` — Recorridos personalizados de incorporación para SEO
+- `future-2236` · `webapp_seo_governance` — Gobernanza mediante propuestas y votos para SEO
+- `future-2237` · `webapp_seo_voice_control` — Control por voz accesible para SEO
+- `future-2238` · `webapp_seo_federated_bridge` — Puente de datos federado para SEO
+- `future-2239` · `webapp_seo_external_event` — Automatización por eventos externos para SEO
+- `future-2240` · `webapp_seo_digital_twin` — Gemelo digital operativo para SEO
+- `future-2241` · `community_incidents` — Centro de incidencias correlacionadas para comunidades
+- `future-2242` · `community_workflow` — Constructor de flujos sin código para comunidades
+- `future-2243` · `community_delegation` — Delegación temporal de funciones para comunidades
+- `future-2244` · `community_coordinated_abuse` — Protección contra abuso coordinado para comunidades
+- `future-2245` · `community_copilot` — Copiloto de respuesta contextual para comunidades
+- `future-2246` · `community_capacity` — Pronóstico de capacidad y demanda para comunidades
+- `future-2247` · `community_batch_plan` — Centro de operaciones por lotes para comunidades
+- `future-2248` · `community_workspace` — Espacios de trabajo compartidos para comunidades
+- `future-2249` · `community_media` — Biblioteca multimedia inteligente para comunidades
+- `future-2250` · `community_narrative_report` — Informes narrativos automáticos para comunidades
+- `future-2251` · `community_alert_escalation` — Escalado inteligente de avisos para comunidades
+- `future-2252` · `community_offline_continuity` — Continuidad operativa sin conexión para comunidades
+- `future-2253` · `community_adaptive_trust` — Acceso de confianza adaptativa para comunidades
+- `future-2254` · `community_campaign_plan` — Planificador de campañas comunitarias para comunidades
+- `future-2255` · `community_intent` — Detección de intención y contexto para comunidades
+- `future-2256` · `community_integration` — Laboratorio de integraciones para comunidades
+- `future-2257` · `community_vault` — Bóveda de datos personales para comunidades
+- `future-2258` · `community_easy_read` — Interfaz de lectura fácil para comunidades
+- `future-2259` · `community_sessions` — Continuidad de sesión multidispositivo para comunidades
+- `future-2260` · `community_editorial` — Curación editorial asistida para comunidades
+- `future-2261` · `community_budget` — Control presupuestario de recursos para comunidades
+- `future-2262` · `community_reputation` — Sistema de reputación transparente para comunidades
+- `future-2263` · `community_localization` — Localización cultural automática para comunidades
+- `future-2264` · `community_communication_preferences` — Centro de preferencias de comunicación para comunidades
+- `future-2265` · `community_onboarding` — Recorridos personalizados de incorporación para comunidades
+- `future-2266` · `community_governance` — Gobernanza mediante propuestas y votos para comunidades
+- `future-2267` · `community_voice_control` — Control por voz accesible para comunidades
+- `future-2268` · `community_federated_bridge` — Puente de datos federado para comunidades
+- `future-2269` · `community_external_event` — Automatización por eventos externos para comunidades
+- `future-2270` · `community_digital_twin` — Gemelo digital operativo para comunidades
+- `future-2271` · `support_incidents` — Centro de incidencias correlacionadas para soporte
+- `future-2272` · `support_workflow` — Constructor de flujos sin código para soporte
+- `future-2273` · `support_delegation` — Delegación temporal de funciones para soporte
+- `future-2274` · `support_coordinated_abuse` — Protección contra abuso coordinado para soporte
+- `future-2275` · `support_copilot` — Copiloto de respuesta contextual para soporte
+- `future-2276` · `support_capacity_forecast` — Pronóstico de capacidad y demanda para soporte
+- `future-2277` · `support_batch_plan` — Centro de operaciones por lotes para soporte
+- `future-2278` · `support_workspace` — Espacios de trabajo compartidos para soporte
+- `future-2279` · `support_media` — Biblioteca multimedia inteligente para soporte
+- `future-2280` · `support_narrative_report` — Informes narrativos automáticos para soporte
+- `future-2281` · `support_alert_escalation` — Escalado inteligente de avisos para soporte
+- `future-5522` · `review_managed_bots_quality` — Control de calidad para bots administrados en Moonbot
+- `future-5525` · `review_recurring_reminders_quality` — Control de calidad para recordatorios recurrentes en Moonbot
+- `future-5528` · `review_security_events_quality` — Control de calidad para eventos de seguridad en Moonbot
+- `future-5531` · `review_regional_maps_quality` — Control de calidad para mapas regionales en Moonbot
+- `future-5534` · `review_backups_quality` — Control de calidad para copias de seguridad en Moonbot
+- `future-5537` · `review_ai_learning_data_quality` — Control de calidad para datos de aprendizaje IA en Moonbot
+- `future-5540` · `review_rich_commands_quality` — Control de calidad para comandos enriquecidos en Moonbot
+- `future-5543` · `review_hub_notifications_quality` — Control de calidad para notificaciones del Hub en Moonbot
+- `future-5546` · `review_cookie_policies_quality` — Control de calidad para políticas de cookies en Moonbot
+- `future-5549` · `review_wayback_history_quality` — Control de calidad para historial Wayback en Moonbot
+- `future-5552` · `run_temporary_roles_isolated_sandbox` — Sandbox aislado de roles temporales en Moonbot
+- `future-5555` · `run_managed_groups_isolated_sandbox` — Sandbox aislado de grupos administrados en Moonbot
+- `future-5558` · `run_scheduled_messages_isolated_sandbox` — Sandbox aislado de mensajes programados en Moonbot
+- `future-5561` · `run_rss_feeds_isolated_sandbox` — Sandbox aislado de feeds RSS en Moonbot
+- `future-5564` · `run_telegram_videos_isolated_sandbox` — Sandbox aislado de vídeos de Telegram en Moonbot
+- `future-5567` · `run_blocklists_isolated_sandbox` — Sandbox aislado de listas de bloqueo en Moonbot
+- `future-5570` · `run_required_subscriptions_isolated_sandbox` — Sandbox aislado de suscripciones obligatorias en Moonbot
+- `future-5573` · `run_signed_webhooks_isolated_sandbox` — Sandbox aislado de webhooks firmados en Moonbot
+- `future-5576` · `run_quiet_hours_isolated_sandbox` — Sandbox aislado de horarios silenciosos en Moonbot
+- `future-5579` · `run_correlated_incidents_isolated_sandbox` — Sandbox aislado de incidentes correlacionados en Moonbot
+- `future-5582` · `run_accessible_preferences_isolated_sandbox` — Sandbox aislado de preferencias accesibles en Moonbot
+- `future-5585` · `run_integration_secrets_isolated_sandbox` — Sandbox aislado de secretos de integración en Moonbot
+- `future-5588` · `run_contextual_responses_isolated_sandbox` — Sandbox aislado de respuestas contextuales en Moonbot
+- `future-5591` · `run_miniapp_menus_isolated_sandbox` — Sandbox aislado de menús de la MiniApp en Moonbot
+- `future-5594` · `run_bot_statistics_isolated_sandbox` — Sandbox aislado de estadísticas por bot en Moonbot
+- `future-5597` · `run_advertising_preferences_isolated_sandbox` — Sandbox aislado de preferencias publicitarias en Moonbot
+- `future-5600` · `run_processing_queues_isolated_sandbox` — Sandbox aislado de colas de procesamiento en Moonbot
+- `future-5603` · `review_creator_accounts_proposal_governance` — Gobernanza mediante propuestas de cuentas creadoras en Moonbot
+- `future-5606` · `review_associated_channels_proposal_governance` — Gobernanza mediante propuestas de canales asociados en Moonbot
+- `future-5609` · `review_community_campaigns_proposal_governance` — Gobernanza mediante propuestas de campañas comunitarias en Moonbot
+- `future-5612` · `review_editorial_articles_proposal_governance` — Gobernanza mediante propuestas de artículos editoriales en Moonbot
+- `future-5615` · `review_moderated_images_proposal_governance` — Gobernanza mediante propuestas de imágenes moderadas en Moonbot
+- `future-5618` · `review_user_appeals_proposal_governance` — Gobernanza mediante propuestas de apelaciones de usuarios en Moonbot
+- `future-5621` · `review_mtproto_proxies_proposal_governance` — Gobernanza mediante propuestas de proxies MTProto en Moonbot
+- `future-5624` · `review_persistent_tasks_proposal_governance` — Gobernanza mediante propuestas de tareas persistentes en Moonbot
+- `future-5627` · `review_moderation_rules_proposal_governance` — Gobernanza mediante propuestas de reglas de moderación en Moonbot
+- `future-5630` · `review_language_metrics_proposal_governance` — Gobernanza mediante propuestas de métricas lingüísticas en Moonbot
+- `future-5633` · `review_community_translations_proposal_governance` — Gobernanza mediante propuestas de traducciones comunitarias en Moonbot
+- `future-5636` · `review_personal_consents_proposal_governance` — Gobernanza mediante propuestas de consentimientos personales en Moonbot
+- `future-5639` · `review_telegram_reactions_proposal_governance` — Gobernanza mediante propuestas de reacciones Telegram en Moonbot
+- `future-5642` · `review_master_panels_proposal_governance` — Gobernanza mediante propuestas de paneles del master en Moonbot
+- `future-5645` · `review_channel_directories_proposal_governance` — Gobernanza mediante propuestas de directorios de canales en Moonbot
+- `future-5648` · `review_external_links_proposal_governance` — Gobernanza mediante propuestas de enlaces externos en Moonbot
+- `future-5651` · `measure_administrative_sessions_impact` — Métricas de impacto para sesiones administrativas en Moonbot
+- `future-5654` · `measure_community_profiles_impact` — Métricas de impacto para perfiles comunitarios en Moonbot
+- `future-5657` · `measure_telegram_communities_impact` — Métricas de impacto para comunidades Telegram en Moonbot
+- `future-5660` · `measure_house_ads_impact` — Métricas de impacto para anuncios propios en Moonbot
+- `future-5663` · `measure_voice_notes_impact` — Métricas de impacto para notas de voz en Moonbot
+- `future-5666` · `measure_suspicious_files_impact` — Métricas de impacto para archivos sospechosos en Moonbot
+- `future-5669` · `measure_captcha_decisions_impact` — Métricas de impacto para decisiones de captcha en Moonbot
+- `future-5672` · `measure_managed_bots_impact` — Métricas de impacto para bots administrados en Moonbot
+- `future-5675` · `measure_recurring_reminders_impact` — Métricas de impacto para recordatorios recurrentes en Moonbot
+- `future-5678` · `measure_security_events_impact` — Métricas de impacto para eventos de seguridad en Moonbot
+- `future-5681` · `measure_regional_maps_impact` — Métricas de impacto para mapas regionales en Moonbot
+- `future-5684` · `measure_backups_impact` — Métricas de impacto para copias de seguridad en Moonbot
+- `future-5687` · `measure_ai_learning_data_impact` — Métricas de impacto para datos de aprendizaje IA en Moonbot
+- `future-5690` · `measure_rich_commands_impact` — Métricas de impacto para comandos enriquecidos en Moonbot
+- `future-5693` · `measure_hub_notifications_impact` — Métricas de impacto para notificaciones del Hub en Moonbot
+- `future-5696` · `measure_cookie_policies_impact` — Métricas de impacto para políticas de cookies en Moonbot
+- `future-5699` · `measure_wayback_history_impact` — Métricas de impacto para historial Wayback en Moonbot
+- `future-2282` · `support_offline_continuity` — None
+- `future-2283` · `support_adaptive_trust` — None
+- `future-2284` · `support_campaign_plan` — None
+- `future-2285` · `support_intent` — None
+- `future-2286` · `support_integration` — None
+- `future-2287` · `support_vault` — None
+- `future-2288` · `support_easy_read` — None
+- `future-2289` · `support_sessions` — None
+- `future-2290` · `support_editorial` — None
+- `future-2291` · `support_budget` — None
+- `future-2292` · `support_reputation` — None
+- `future-2293` · `support_localization` — None
+- `future-2294` · `support_communication_preferences` — None
+- `future-2295` · `support_onboarding` — None
+- `future-2296` · `support_governance` — None
+- `future-2297` · `support_voice_control` — None
+- `future-2298` · `support_federated_bridge` — None
+- `future-2299` · `support_external_event` — None
+- `future-2300` · `support_digital_twin` — None
+- `future-2301` · `subscription_incidents` — None
+- `future-2302` · `subscription_workflow` — None
+- `future-2303` · `subscription_delegation` — None
+- `future-2304` · `subscription_coordinated_abuse` — None
+- `future-2305` · `subscription_copilot` — None
+- `future-2306` · `subscription_capacity_forecast` — None
+- `future-2307` · `subscription_batch_plan` — None
+- `future-2308` · `subscription_workspace` — None
+- `future-2309` · `subscription_media` — None
+- `future-2310` · `subscription_narrative_report` — None
+- `future-2311` · `subscription_alert_escalation` — None
+- `future-2312` · `subscription_offline_continuity` — None
+- `future-2313` · `subscription_adaptive_trust` — None
+- `future-2314` · `subscription_campaign_plan` — None
+- `future-2315` · `subscription_intent` — None
+- `future-2316` · `subscription_integration` — None
+- `future-2317` · `subscription_vault` — None
+- `future-2318` · `subscription_easy_read` — None
+- `future-2319` · `subscription_sessions` — None
+- `future-2320` · `subscription_editorial` — None
+- `future-2321` · `subscription_budget` — None
+- `future-2322` · `subscription_reputation` — None
+- `future-2323` · `subscription_localization` — None
+- `future-2324` · `subscription_communication_preferences` — None
+- `future-2325` · `subscription_onboarding` — None
+- `future-2326` · `subscription_governance` — None
+- `future-2327` · `subscription_voice_control` — None
+- `future-2328` · `subscription_federated_bridge` — None
+- `future-2329` · `subscription_external_event` — None
+- `future-2330` · `subscription_digital_twin` — None
+- `future-2331` · `accessibility_incidents` — None
+- `future-2332` · `accessibility_workflow` — None
+- `future-2333` · `accessibility_delegation` — None
+- `future-2334` · `accessibility_coordinated_abuse` — None
+- `future-2335` · `moderation_incidents` — None
+- `future-2336` · `moderation_workflow` — None
+- `future-2337` · `moderation_delegation` — None
+- `future-2338` · `moderation_coordinated_abuse` — None
+- `future-2339` · `moderation_copilot` — None
+- `future-2340` · `moderation_capacity_forecast` — None
+- `future-2341` · `moderation_batch_plan` — None
+
 <!-- GENERATED_RELEASE_FEATURES_END -->
+
+## v18.23.1 - 2026-07-30 - Registro ampliado a 2.400 funciones verificadas
+
+- Incorpora funciones menores WebApp de SEO, comunidades, soporte, suscripciones, accesibilidad y moderación, junto con controles Moonbot de calidad, sandbox, gobernanza e impacto.
+- Corrige la separación por dominio/tipo en firmas HMAC y estabiliza métricas numéricas ante valores extremos o no finitos.
+- El inventario generado de esta versión enumera cada ID, API y descripción incorporada.
 
 ## v18.23.0 - 2026-07-30 - Registro ampliado a 2.220 funciones verificadas
 
