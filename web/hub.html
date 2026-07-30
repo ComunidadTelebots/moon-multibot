@@ -785,6 +785,10 @@
         <div class="btnrow"><button class="btn ghost" id="muContext">Ver contexto</button><button class="btn ghost" id="muRoleSave">Asignar rol</button></div><pre id="muOutput" class="muted"></pre>
         <button class="btn ghost" id="msSummary">Generar resumen inteligente</button><pre id="msSummaryOut" class="muted"></pre>
       </div></div>
+      <div class="dropdown"><div class="dhead">Auditoría de cambios sensibles (${(d.sensitive_changes||[]).length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Registro inmutable de cambios de seguridad y moderación realizados desde la MiniApp, la web o una importación.</p>
+        ${(d.sensitive_changes||[]).slice(0,25).map(event=>`<div class="userchip"><span><b>${event.risk==="critical"?"🔴":"🟠"} ${escHtml(event.source||"sistema")}</b> · ${escHtml(event.actor||"sistema")}<br><small>${new Date(event.created_at).toLocaleString()} · ${(event.changes||[]).map(change=>`${escHtml(change.section)}.${escHtml(change.field)}`).join(", ")}</small></span></div>`).join("")||'<p class="muted">Todavía no se han registrado cambios sensibles.</p>'}
+      </div></div>
       <div class="dropdown"><div class="dhead">Plantillas y copia de seguridad <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <input id="mtName" placeholder="Nombre de plantilla"><button class="btn ghost" id="mtSave">Guardar configuración</button>
         ${(d.templates||[]).map(t=>`<div class="userchip"><span>${escHtml(t.name)}</span><span class="minibtn" data-template="${t.id}">Aplicar</span></div>`).join("")||'<p class="muted">Sin plantillas compartidas.</p>'}

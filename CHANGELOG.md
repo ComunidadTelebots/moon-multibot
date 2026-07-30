@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Auditoría de configuración sensible - 2026-07-30
+- Moonbot registra diferencias efectivas de seguridad y moderación por grupo, con autor, origen, fecha y nivel de riesgo.
+- Los cambios idénticos no crean eventos duplicados y el historial queda limitado a 300 entradas por grupo.
+- La API interna y la MiniApp exponen el mismo historial sin incluir credenciales ni datos secretos.
+
 ### Historial efectivo de permisos - 2026-07-30
 - Moonbot registra únicamente cambios reales en los permisos de cada bot y grupo.
 - La MiniApp muestra la cronología, los permisos ausentes, el bot afectado y quién realizó la comprobación.

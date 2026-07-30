@@ -664,7 +664,8 @@ def internal_group_admin(cid):
     if request.method == "POST":
         action = body.get("action")
         if action == "save_config" and isinstance(body.get("config"), dict):
-            config = suite.save_config(cid, body["config"])
+            config = suite.save_config(cid, body["config"], actor="web-master",
+                                       source="todosobrealltech")
         elif action == "save_join_config":
             join_config = _join_config(cid)
             join_config["enabled"] = bool(body.get("enabled", join_config["enabled"]))
@@ -933,7 +934,8 @@ def internal_group_admin(cid):
             source = str(body.get("source_id", ""))
             if not _known_internal_group(source):
                 return jsonify({"ok": False, "error": "source_group_not_found"}), 404
-            config = suite.save_config(cid, suite.config(source))
+            config = suite.save_config(cid, suite.config(source), actor="web-master",
+                                       source=f"copy_config:{source}")
         elif action == "compare_config":
             source = str(body.get("source_id", ""))
             if not _known_internal_group(source):
@@ -990,6 +992,7 @@ def internal_group_admin(cid):
         "permissions": {"healthy": not missing, "status": member.get("status", "unknown"), "missing": missing},
         "permission_changed": permission_changed,
         "permission_history": permission_history,
+        "sensitive_changes": suite.sensitive_changes(cid),
         "repair_steps": repair_steps,
         "config": suite.config(cid),
         "join_config": _join_config(cid),
@@ -1714,7 +1717,9 @@ def internal_integrations():
             payload = bundle.get("payload") or {}; group_id = str(payload.get("group_id", ""))
             if group_id not in _known_internal_group_ids() or not isinstance(payload.get("config"), dict):
                 raise ValueError("grupo o configuración no válidos")
-            result = {"group_id": group_id, "config": GroupSuite(_db).save_config(group_id, payload["config"])}
+            result = {"group_id": group_id, "config": GroupSuite(_db).save_config(
+                group_id, payload["config"], actor="web-master", source="signed_import"
+            )}
         elif action == "incident_link":
             group_id = str(body.get("group_id", ""))
             if group_id not in _known_internal_group_ids(): return jsonify({"ok": False, "error": "group_not_found"}), 404
@@ -2661,7 +2666,10 @@ def group_suite_get():
     _, chat_id = res
     bot = _get_bot_for_chat(chat_id)
     command_menu = bot.command_menu_preview(chat_id) if bot else None
-    return jsonify({"ok": True, **_group_suite().snapshot(chat_id), "command_menu": command_menu})
+    suite = _group_suite()
+    return jsonify({"ok": True, **suite.snapshot(chat_id),
+                    "sensitive_changes": suite.sensitive_changes(chat_id),
+                    "command_menu": command_menu})
 
 
 @bp.route("/api/public/group/suite/settings", methods=["POST", "OPTIONS"])
@@ -2672,8 +2680,11 @@ def group_suite_settings():
     res, err = _group_auth(body)
     if err:
         return err
-    _, chat_id = res
-    config = _group_suite().save_config(chat_id, body.get("config") or {})
+    user, chat_id = res
+    config = _group_suite().save_config(
+        chat_id, body.get("config") or {}, actor=str((user or {}).get("id") or "group-admin"),
+        source="telegram-webapp"
+    )
     bot = _get_bot_for_chat(chat_id)
     if bot:
         bot.sync_command_menu(chat_id)

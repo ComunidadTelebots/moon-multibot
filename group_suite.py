@@ -1,5 +1,6 @@
 """Funciones avanzadas de gestión de grupos, compartidas por web y Mini App."""
 
+import copy
 import datetime
 import re
 import time
@@ -10,6 +11,11 @@ from collections import Counter
 
 class GroupSuite:
     PURPOSES = ("member", "verified", "collaborator", "moderator", "watch", "guest")
+    SENSITIVE_SECTIONS = {
+        "quarantine", "raid", "consensus", "media_security", "content_limits",
+        "channel_senders", "bot_interaction", "flood_control", "media_controls",
+        "plugin_controls", "ad_exchange", "contextual_reactions", "rules",
+    }
 
     def __init__(self, db):
         self.db = db
@@ -166,15 +172,85 @@ class GroupSuite:
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
-    def save_config(self, chat_id, updates):
-        current = self.config(chat_id)
+    @staticmethod
+    def _safe_audit_value(value):
+        if isinstance(value, (bool, int, float)) or value is None:
+            return value
+        if isinstance(value, str):
+            return value[:250]
+        if isinstance(value, list):
+            return [GroupSuite._safe_audit_value(item) for item in value[:30]]
+        if isinstance(value, dict):
+            return {
+                str(key)[:80]: GroupSuite._safe_audit_value(item)
+                for key, item in list(value.items())[:50]
+            }
+        return str(value)[:250]
+
+    def sensitive_changes(self, chat_id, limit=100):
+        events = self.db.get(f"GROUP_CONFIG_SENSITIVE_{self._cid(chat_id)}", []) or []
+        if not isinstance(events, list):
+            return []
+        return list(reversed(events[-max(1, min(int(limit), 300)):]))
+
+    def _record_sensitive_changes(self, chat_id, before, after, actor, source):
+        changes = []
+        for section in sorted(self.SENSITIVE_SECTIONS):
+            old_section, new_section = before.get(section), after.get(section)
+            if old_section == new_section:
+                continue
+            if isinstance(old_section, dict) and isinstance(new_section, dict):
+                keys = sorted(set(old_section) | set(new_section))
+                for key in keys:
+                    if old_section.get(key) != new_section.get(key):
+                        changes.append({
+                            "section": section,
+                            "field": str(key),
+                            "before": self._safe_audit_value(old_section.get(key)),
+                            "after": self._safe_audit_value(new_section.get(key)),
+                        })
+            else:
+                changes.append({
+                    "section": section,
+                    "field": "value",
+                    "before": self._safe_audit_value(old_section),
+                    "after": self._safe_audit_value(new_section),
+                })
+        if not changes:
+            return None
+        critical = any(
+            change["field"] in ("enabled", "scan_photos", "scan_files", "delete_messages")
+            and change["before"] is True and change["after"] is False
+            for change in changes
+        ) or any(change["after"] == "ban" for change in changes)
+        event = {
+            "id": uuid.uuid4().hex,
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "actor": str(actor or "system")[:100],
+            "source": str(source or "runtime")[:80],
+            "risk": "critical" if critical else "high",
+            "changes": changes[:100],
+        }
+        key = f"GROUP_CONFIG_SENSITIVE_{self._cid(chat_id)}"
+        events = self.db.get(key, []) or []
+        if not isinstance(events, list):
+            events = []
+        events.append(event)
+        self.db.set(key, events[-300:])
+        return event
+
+    def save_config(self, chat_id, updates, actor="system", source="runtime"):
+        before = self.config(chat_id)
+        current = copy.deepcopy(before)
         for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls", "ad_exchange", "contextual_reactions"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
         if isinstance(updates.get("rules"), list):
             current["rules"] = updates["rules"][:30]
         self.db.set(f"GROUPSUITE_{self._cid(chat_id)}", current)
-        return self.config(chat_id)
+        after = self.config(chat_id)
+        self._record_sensitive_changes(chat_id, before, after, actor, source)
+        return after
 
     def contextual_reaction(self, chat_id, text, reply_text="", sender_is_bot=False, now=None):
         """Selecciona una reacción conservadora usando el mensaje y el texto al que responde."""
