@@ -1,0 +1,4 @@
+import resource_version_import_engines as e
+APIS=["version_accessible_preferences","version_integration_secrets","version_contextual_responses","version_miniapp_menus","version_bot_statistics","version_ad_preferences","version_processing_queues","import_creator_accounts","import_associated_channels","import_community_campaigns","import_editorial_articles","import_moderated_images","import_user_appeals","import_mtproto_proxies","import_persistent_tasks","import_moderation_rules","import_language_metrics","import_community_translations","import_personal_consents","import_telegram_reactions"]
+MANIFEST=[{"id":fid,"module":"resource_version_import_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_version_import_engines.py","preflight":"Moonbot proposed; no matching semantic release/atomic resource import contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20
