@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 1.700 funciones verificadas - 2026-07-30
+- Se añaden 80 contratos de accesibilidad WebApp, explicaciones accesibles, revisión colaborativa y localización cultural.
+- Seis capacidades existentes se reutilizan desde su implementación canónica sin registrar manifiestos duplicados.
+- La ampliación supera 89 pruebas específicas y conserva el registro protegido para Hub y TodoSobreAllTech.
+
 ### Registro ampliado a 1.620 funciones verificadas - 2026-07-30
 - Se integran 120 contratos nuevos de incidentes, correlación temporal, revisión colaborativa, paneles, analítica y operación offline.
 - El registro protegido confirma IDs, APIs, módulos y funciones únicas antes de permitir su ejecución.
