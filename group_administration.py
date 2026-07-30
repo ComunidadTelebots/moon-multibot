@@ -193,6 +193,16 @@ class GroupAdministration:
                 return item
         return None
 
+    def defer_calendar_action(self, action_id, execute_at, reason="quiet_hours"):
+        rows = self.db.get("GROUP_ADMIN_CALENDAR", [])
+        for item in rows if isinstance(rows, list) else []:
+            if item.get("id") == action_id:
+                item.update({"status": "scheduled", "execute_at": str(execute_at),
+                             "deferred_reason": str(reason), "deferred_at": datetime.datetime.now().isoformat()})
+                self.db.set("GROUP_ADMIN_CALENDAR", rows[-3000:])
+                return item
+        return None
+
     def opening_transitions(self):
         """Devuelve solo cambios de estado para evitar repetir llamadas a Telegram."""
         now, transitions, configs = datetime.datetime.now(), [], self._configs()

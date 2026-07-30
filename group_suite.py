@@ -8,6 +8,8 @@ import unicodedata
 import uuid
 from collections import Counter
 
+from quiet_hours_policy import decide_quiet_hours, validate_quiet_hours_policy
+
 
 class GroupSuite:
     PURPOSES = ("member", "verified", "collaborator", "moderator", "watch", "guest")
@@ -15,6 +17,8 @@ class GroupSuite:
         "quarantine", "raid", "consensus", "media_security", "content_limits",
         "channel_senders", "bot_interaction", "flood_control", "media_controls",
         "plugin_controls", "ad_exchange", "contextual_reactions", "rules",
+        "quiet_hours",
+        "voice_transcription",
     }
 
     def __init__(self, db):
@@ -49,6 +53,24 @@ class GroupSuite:
         plugin_controls = section("plugin_controls")
         ad_exchange = section("ad_exchange")
         contextual_reactions = section("contextual_reactions")
+        quiet_hours = section("quiet_hours")
+        if not quiet_hours:
+            legacy = self.db.get(f"QUIET_HOURS_{cid}", {})
+            quiet_hours = legacy if isinstance(legacy, dict) else {}
+        if quiet_hours.get("timezone") in (None, "", "group"):
+            quiet_hours = {**quiet_hours, "timezone": "Europe/Madrid"}
+        try:
+            quiet_hours = validate_quiet_hours_policy({
+                "enabled": bool(quiet_hours.get("enabled", False)),
+                "timezone": quiet_hours.get("timezone", "Europe/Madrid"),
+                "start": quiet_hours.get("start", "23:00"),
+                "end": quiet_hours.get("end", "07:00"),
+                "allowed_categories": quiet_hours.get("allowed_categories", ["security", "moderation"]),
+                "emergency_bypass": bool(quiet_hours.get("emergency_bypass", True)),
+            })
+        except ValueError:
+            quiet_hours = validate_quiet_hours_policy({"enabled": False, "timezone": "Europe/Madrid", "start": "23:00", "end": "07:00", "allowed_categories": ["security", "moderation"], "emergency_bypass": True})
+        voice_transcription = section("voice_transcription")
         accent = str(appearance.get("accent", "teal"))
         if accent not in ("teal", "blue", "violet", "amber", "rose"):
             accent = "teal"
@@ -169,6 +191,15 @@ class GroupSuite:
                 "max_per_hour": max(1, min(int(contextual_reactions.get("max_per_hour", 20)), 120)),
                 "react_to_bots": bool(contextual_reactions.get("react_to_bots", False)),
             },
+            "quiet_hours": quiet_hours,
+            "voice_transcription": {
+                "enabled": bool(voice_transcription.get("enabled", False)),
+                "provider": "openai",
+                "model": str(voice_transcription.get("model", "whisper-1"))[:80],
+                "language": str(voice_transcription.get("language", ""))[:20],
+                "learn_from_transcript": False,
+                "consent_notice": bool(voice_transcription.get("consent_notice", True)),
+            },
             "rules": raw.get("rules", []) if isinstance(raw.get("rules"), list) else [],
         }
 
@@ -242,9 +273,11 @@ class GroupSuite:
     def save_config(self, chat_id, updates, actor="system", source="runtime"):
         before = self.config(chat_id)
         current = copy.deepcopy(before)
-        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls", "ad_exchange", "contextual_reactions"):
+        for section in ("quarantine", "raid", "welcome", "consensus", "media_security", "appearance", "adaptive_slow", "content_limits", "channel_senders", "bot_interaction", "flood_control", "media_controls", "plugin_controls", "ad_exchange", "contextual_reactions", "quiet_hours", "voice_transcription"):
             if isinstance(updates.get(section), dict):
                 current[section].update(updates[section])
+        if isinstance(updates.get("quiet_hours"), dict):
+            current["quiet_hours"] = validate_quiet_hours_policy(current["quiet_hours"])
         if isinstance(updates.get("rules"), list):
             current["rules"] = updates["rules"][:30]
         self.db.set(f"GROUPSUITE_{self._cid(chat_id)}", current)
@@ -609,8 +642,10 @@ class GroupSuite:
         reports = self.db.get(f"GROUP_REPORTS_{cid}", [])
         consensus = self.db.get(f"CONSENSUS_{cid}", [])
         quarantine = self.db.get(f"QUARANTINE_{cid}", {})
+        config = self.config(cid)
         return {
-            "config": self.config(cid), "raid": self.raid_state(cid),
+            "config": config, "quiet_hours_decision": decide_quiet_hours(config["quiet_hours"]),
+            "raid": self.raid_state(cid),
             "quarantine": quarantine if isinstance(quarantine, dict) else {},
             "reports": list(reversed(reports[-100:])) if isinstance(reports, list) else [],
             "consensus": list(reversed(consensus[-100:])) if isinstance(consensus, list) else [],

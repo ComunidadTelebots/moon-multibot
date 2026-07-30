@@ -675,6 +675,24 @@
     if(!d||!d.ok){host.innerHTML='<p class="muted">No se pudo cargar la suite avanzada.</p>';return;}
     const c=d.config;
     host.innerHTML=`
+      <div class="dropdown"><div class="dhead">Horario silencioso global <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Retiene automatizaciones, RSS y contenido programado; los comandos manuales y avisos de seguridad continúan disponibles.</p>
+        <label class="setrow"><b>Activar horario silencioso</b><input id="mQuietEnabled" type="checkbox" ${c.quiet_hours.enabled?"checked":""}></label>
+        <div class="btnrow"><input id="mQuietStart" type="time" value="${escAttr(c.quiet_hours.start)}"><input id="mQuietEnd" type="time" value="${escAttr(c.quiet_hours.end)}"></div>
+        <input id="mQuietTimezone" value="${escAttr(c.quiet_hours.timezone)}" placeholder="Zona IANA, por ejemplo Europe/Madrid">
+        <input id="mQuietAllowed" value="${escAttr(c.quiet_hours.allowed_categories.join(', '))}" placeholder="Excepciones: security, moderation">
+        <label class="setrow"><b>Permitir avisos de emergencia</b><input id="mQuietEmergency" type="checkbox" ${c.quiet_hours.emergency_bypass?"checked":""}></label>
+        <p class="muted">Estado: ${d.quiet_hours_decision?.held?"automatizaciones retenidas":"automatizaciones activas"} · Próximo cambio: ${escHtml(d.quiet_hours_decision?.next_transition||"sin programar")}</p>
+        <button class="btn teal" id="mQuietSave">Guardar horario</button>
+      </div></div>
+      <div class="dropdown"><div class="dhead">Transcripción segura de voz <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Requiere consentimiento del grupo. El audio se envía a OpenAI, se borra al terminar y la transcripción no se usa para entrenar la IA.</p>
+        <label class="setrow"><b>Activar transcripción</b><input id="mVoiceEnabled" type="checkbox" ${c.voice_transcription.enabled?"checked":""}></label>
+        <input id="mVoiceLanguage" value="${escAttr(c.voice_transcription.language)}" placeholder="Idioma opcional, por ejemplo es">
+        <label class="setrow"><b>Mostrar aviso de consentimiento</b><input id="mVoiceNotice" type="checkbox" ${c.voice_transcription.consent_notice?"checked":""}></label>
+        <p class="muted">Límites: 20 MiB y 10 minutos · Retención temporal máxima: 15 minutos · Proveedor: OpenAI.</p>
+        <button class="btn teal" id="mVoiceSave">Guardar consentimiento</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Protección, acceso y bienvenida <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <label class="setrow"><b>Cuarentena</b><input id="mqEnabled" type="checkbox" ${c.quarantine.enabled?"checked":""}></label>
         <div class="btnrow"><input id="mqHours" type="number" value="${c.quarantine.hours}" placeholder="Horas"><input id="mqMessages" type="number" value="${c.quarantine.messages}" placeholder="Mensajes"></div>
@@ -801,6 +819,8 @@
       </div></div>`;
     host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;h.parentElement.classList.toggle("open",!b.hidden);});
     const save=()=>gp("/group/suite/settings",{config:{quarantine:{enabled:mqEnabled.checked,hours:+mqHours.value,messages:+mqMessages.value,block_links:true},raid:{enabled:mrEnabled.checked,joins:+mrJoins.value,window_seconds:+mrWindow.value,lock_minutes:c.raid.lock_minutes},welcome:{enabled:mwEnabled.checked,message:mwText.value,delete_after:c.welcome.delete_after},consensus:{enabled:mcEnabled.checked,votes_required:+mcVotes.value},rules:c.rules}}).then(()=>{showToast("Suite guardada");loadGroupSuiteMini();});
+    const saveQuiet=()=>gp("/group/suite/settings",{config:{quiet_hours:{enabled:mQuietEnabled.checked,start:mQuietStart.value,end:mQuietEnd.value,timezone:mQuietTimezone.value.trim(),allowed_categories:mQuietAllowed.value.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean),emergency_bypass:mQuietEmergency.checked}}}).then(x=>{showToast(x&&x.ok?"Horario silencioso guardado":((x&&x.error)||"Configuración no válida"));if(x&&x.ok)loadGroupSuiteMini();});
+    const saveVoice=()=>gp("/group/suite/settings",{config:{voice_transcription:{enabled:mVoiceEnabled.checked,language:mVoiceLanguage.value.trim(),consent_notice:mVoiceNotice.checked,model:"whisper-1",learn_from_transcript:false}}}).then(x=>{showToast(x&&x.ok?"Consentimiento de voz guardado":((x&&x.error)||"No se pudo guardar"));if(x&&x.ok)loadGroupSuiteMini();});
     const saveMedia=()=>gp("/group/suite/settings",{config:{media_security:{enabled:mmEnabled.checked,scan_photos:mmPhotos.checked,scan_links:mmLinks.checked,scan_files:mmFiles.checked,ocr:mmOcr.checked,impersonation:mmImpersonation.checked,sensitive:mmSensitive.checked,action:mmAction.value,threshold:+mmThreshold.value,vt_malicious:+mmVt.value}}}).then(()=>{showToast("Política multimedia guardada");loadGroupSuiteMini();});
     const saveChannelSenders=()=>gp("/group/suite/settings",{config:{channel_senders:{ban_external_channels:mcsBan.checked,delete_messages:mcsDelete.checked,notify:mcsNotify.checked}}}).then(()=>{showToast("Protección de canales guardada");loadGroupSuiteMini();});
     const saveBotInteraction=()=>gp("/group/suite/settings",{config:{bot_interaction:{enabled:mbiEnabled.checked,learn:mbiLearn.checked,reply:mbiReply.checked,allowed_usernames:mbiAllowed.value.split(",").map(x=>x.trim()).filter(Boolean),max_replies_per_hour:+mbiLimit.value}}}).then(()=>{showToast("Interacción con bots guardada");loadGroupSuiteMini();});
@@ -813,6 +833,8 @@
     madAction.value=c.content_limits.action;
     const saveAdaptive=()=>gp("/group/suite/settings",{config:{flood_control:{enabled:madFlood.checked,messages:+madFloodMessages.value,window_seconds:+madFloodWindow.value,mute_minutes:+madFloodMute.value,strikes_before_ban:+madFloodBan.value,delete_messages:madFloodDelete.checked},adaptive_slow:{...c.adaptive_slow,enabled:madSlow.checked,base_seconds:+madSlowBase.value,max_seconds:+madSlowMax.value},content_limits:{enabled:madLimits.checked,mentions:+madMentions.value,emojis:+madEmojis.value,uppercase_percent:+madUpper.value,action:madAction.value}}}).then(()=>{showToast("Moderación guardada");loadGroupSuiteMini();});
     msSave.onclick=save;msAddRule.onclick=()=>{c.rules.push({enabled:true,start:msStart.value||"00:00",end:msEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});save();};
+    mQuietSave.onclick=saveQuiet;
+    mVoiceSave.onclick=saveVoice;
     mmSave.onclick=saveMedia;
     mcsSave.onclick=saveChannelSenders;
     mbiSave.onclick=saveBotInteraction;
@@ -2673,7 +2695,7 @@
     const p=data.profile,prefs=data.preferences;
     host.innerHTML=`<div class="card"><h3>${escHtml(p.name)}</h3><p>Nivel ${p.level} · ${p.xp} XP · Karma ${p.karma}</p><textarea id="communityBio" rows="2" placeholder="Tu presentación">${escHtml(p.bio)}</textarea><button class="btn ghost" id="communityBioSave">Guardar perfil</button></div>
       <div class="dropdown"><div class="dhead">Solicitar rol <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><select id="communityRole"><option value="helper">Ayudante</option><option value="mentor">Mentor</option><option value="expert">Experto</option><option value="moderator">Moderador</option></select><input id="communityRoleReason" placeholder="Motivo"><button class="btn ghost" id="communityRoleSend">Enviar solicitud</button></div></div>
-      <div class="dropdown"><div class="dhead">Recordatorio personal <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="communityReminderText" placeholder="Recuérdame…"><input id="communityReminderAt" type="datetime-local"><button class="btn ghost" id="communityReminderSave">Crear recordatorio</button>${(data.reminders||[]).slice(-5).map(x=>`<div class="userchip"><span>${escHtml(x.text)} · ${new Date(x.remind_at).toLocaleString()}</span></div>`).join("")}</div></div>
+      <div class="dropdown"><div class="dhead">Recordatorio personal <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden><input id="communityReminderText" placeholder="Recuérdame…"><input id="communityReminderAt" type="datetime-local"><select id="communityReminderRecurrence"><option value="once">Una vez</option><option value="daily">Cada día</option><option value="weekly">Cada semana</option></select><button class="btn ghost" id="communityReminderSave">Crear recordatorio</button>${(data.reminders||[]).slice(-8).map(x=>`<div class="userchip"><span>${escHtml(x.text)} · ${new Date(x.next_run||x.remind_at).toLocaleString()}${x.recurrence&&x.recurrence!=="once"?` · ${escHtml(x.recurrence)}`:""}</span>${x.next_run&&x.status!=="cancelled"?`<span><button class="minibtn" data-reminder-snooze="${escAttr(x.id)}">+10 min</button><button class="minibtn red" data-reminder-cancel="${escAttr(x.id)}">Cancelar</button></span>`:""}</div>`).join("")}</div></div>
       <div class="dropdown"><div class="dhead">Notificaciones <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
       ${["security","reports","events","reminders"].map(k=>`<label class="setrow"><b>${{security:"Seguridad",reports:"Reportes",events:"Eventos",reminders:"Recordatorios"}[k]}</b><input data-community-pref="${k}" type="checkbox" ${prefs[k]?"checked":""}></label>`).join("")}
       <select id="communityDigest"><option value="off">Sin resumen</option><option value="daily">Resumen diario</option><option value="weekly">Resumen semanal</option></select><button class="btn ghost" id="communityPrefsSave">Guardar avisos</button></div></div>
@@ -2682,7 +2704,9 @@
     communityDigest.value=prefs.digest;
     communityBioSave.onclick=()=>apiPost("/community/me",{initData:tg.initData,profile:{bio:communityBio.value}}).then(()=>showToast("Perfil guardado"));
     communityRoleSend.onclick=()=>apiPost("/community/role-request",{initData:tg.initData,role:communityRole.value,reason:communityRoleReason.value}).then(x=>showToast(x.ok?"Solicitud enviada":(x.error||"Error")));
-    communityReminderSave.onclick=()=>{const date=new Date(communityReminderAt.value);if(!communityReminderText.value.trim()||isNaN(date)){showToast("Completa texto y fecha");return;}apiPost("/community/reminder",{initData:tg.initData,text:communityReminderText.value,remind_at:date.toISOString()}).then(x=>{showToast(x.ok?"Recordatorio creado":(x.error||"Error"));if(x.ok)loadCommunityMini(hostId);});};
+    communityReminderSave.onclick=()=>{if(!communityReminderText.value.trim()||!communityReminderAt.value){showToast("Completa texto y fecha");return;}apiPost("/community/reminder",{initData:tg.initData,text:communityReminderText.value,local_time:communityReminderAt.value,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"Europe/Madrid",recurrence:communityReminderRecurrence.value}).then(x=>{showToast(x.ok?"Recordatorio creado":(x.error||"Error"));if(x.ok)loadCommunityMini(hostId);});};
+    host.querySelectorAll("[data-reminder-snooze]").forEach(button=>button.onclick=()=>apiPost("/community/reminder/action",{initData:tg.initData,action:"snooze",reminder_id:button.dataset.reminderSnooze,minutes:10}).then(x=>{showToast(x.ok?"Recordatorio aplazado":(x.error||"Error"));if(x.ok)loadCommunityMini(hostId);}));
+    host.querySelectorAll("[data-reminder-cancel]").forEach(button=>button.onclick=()=>apiPost("/community/reminder/action",{initData:tg.initData,action:"cancel",reminder_id:button.dataset.reminderCancel}).then(x=>{showToast(x.ok?"Recordatorio cancelado":(x.error||"Error"));if(x.ok)loadCommunityMini(hostId);}));
     communityPrefsSave.onclick=()=>{const preferences={digest:communityDigest.value};host.querySelectorAll("[data-community-pref]").forEach(x=>preferences[x.dataset.communityPref]=x.checked);apiPost("/community/preferences",{initData:tg.initData,preferences}).then(()=>showToast("Notificaciones guardadas"));};
   }
   async function loadEngagementMini(hostId="communityEngagement"){

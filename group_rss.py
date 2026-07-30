@@ -10,6 +10,9 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin, urlparse
 
+from group_suite import GroupSuite
+from quiet_hours_policy import decide_quiet_hours
+
 
 class _SafeRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -245,6 +248,11 @@ class GroupRssManager:
             if chat_filter is not None and str(chat_id) != str(chat_filter):
                 continue
             feeds = self._feeds(chat_id)
+            global_quiet = decide_quiet_hours(
+                GroupSuite(self.db).config(chat_id)["quiet_hours"], category="rss", now=now,
+            )
+            if global_quiet["held"] and not force:
+                continue
             changed = False
             for feed in feeds:
                 if not feed.get("enabled") and not force:

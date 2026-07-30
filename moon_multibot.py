@@ -53,6 +53,8 @@ from token_manager import token_manager
 from ban_manager import BanManager
 from spam_risk import SpamRiskEngine
 from group_suite import GroupSuite
+from quiet_hours_policy import decide_quiet_hours
+from voice_transcription_service import transcribe_telegram_voice
 from group_rss import GroupRssManager
 from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
@@ -137,6 +139,22 @@ def queue_worker():
                     community_members.mark_reminder(
                         reminder["id"], "sent" if result and result.get("ok") else "failed"
                     )
+                for reminder in community_members.due_persistent_reminders(
+                    datetime.datetime.now(datetime.timezone.utc)
+                ):
+                    if not community_members.preferences(reminder["user_id"])["reminders"]:
+                        community_members.mark_persistent_delivery(reminder["id"], "disabled")
+                        continue
+                    reminder_bot = next(
+                        (bot for bot in active_bots if (bot.bot_username or "").lower() == HUB_BOT_USERNAME.lower()),
+                        active_bots[0],
+                    )
+                    result = reminder_bot.send_msg(
+                        reminder["user_id"], f"⏰ **Recordatorio:** {reminder['text']}"
+                    )
+                    community_members.mark_persistent_delivery(
+                        reminder["id"], "sent" if result and result.get("ok") else "failed"
+                    )
                 event_bot = next(
                     (bot for bot in active_bots if (bot.bot_username or "").lower() == HUB_BOT_USERNAME.lower()),
                     active_bots[0],
@@ -149,6 +167,10 @@ def queue_worker():
                                 user_id, f"📅 **{event['title']}**\nEmpieza el {when}. Te esperamos."
                             )
                 for scheduled in group_administration.due_calendar_actions():
+                    quiet = decide_quiet_hours(group_suite.config(scheduled["group_id"])["quiet_hours"], category="automation")
+                    if quiet["held"]:
+                        group_administration.defer_calendar_action(scheduled["id"], quiet["next_transition"])
+                        continue
                     target_bot = get_bot_for_chat(scheduled["group_id"]) if "get_bot_for_chat" in globals() else active_bots[0]
                     payload = scheduled.get("payload") or {}
                     result = None
@@ -193,6 +215,11 @@ def queue_worker():
                     content = content_items.get(scheduled["content_id"])
                     successful = bool(content)
                     for target in scheduled["targets"] if content else []:
+                        quiet = decide_quiet_hours(group_suite.config(target)["quiet_hours"], category="content")
+                        if quiet["held"]:
+                            roadmap_engine.defer_content_schedule(scheduled["id"], quiet["next_transition"])
+                            successful = None
+                            break
                         target_bot = get_bot_for_chat(target) if "get_bot_for_chat" in globals() else active_bots[0]
                         rendered = roadmap_engine.render_template(content["body"], {
                             "group_id": target, "date": datetime.datetime.now().strftime("%d/%m/%Y"),
@@ -200,7 +227,8 @@ def queue_worker():
                         })
                         response = target_bot.send_msg(target, rendered)
                         successful = successful and bool(response and response.get("ok"))
-                    roadmap_engine.complete_content_schedule(scheduled["id"], successful)
+                    if successful is not None:
+                        roadmap_engine.complete_content_schedule(scheduled["id"], successful)
                 for job in roadmap_engine._list("WEBHOOK_QUEUE"):
                     try:
                         if job.get("status") not in ("queued", "retry") or datetime.datetime.fromisoformat(job["next_attempt"]) > datetime.datetime.now():
@@ -6076,14 +6104,16 @@ class MoonBot:
                     if self.enforce_message_threat_policy(cid, uid, uname, msg, text):
                         continue
 
-                    # Voice Transcription Simulation
+                    # Transcripción real, consentida por grupo y sin aprendizaje automático.
                     if "voice" in msg:
                         voice_log.append({"time": datetime.datetime.now().strftime("%H:%M"), "user": uname})
-                        self.send_msg(cid, "ðŸŽ™ï¸ [Voz detectada]: Procesando audio... (Simulado)")
-                        # Simulated transcription
-                        trans = "Parece que estÃ¡s hablando de " + random.choice(["tecnologÃ­a", "el grupo", "el bot", "la luna"])
-                        self.send_msg(cid, f"ðŸ“ **TranscripciÃ³n:** {trans}")
-                        ia_nativa.learn(trans, source=global_chat_names.get(cid, cid))
+                        voice_cfg = group_suite.config(cid)["voice_transcription"]
+                        if voice_cfg["enabled"]:
+                            result = transcribe_telegram_voice(self, msg["voice"], voice_cfg)
+                            if result["ok"]:
+                                self.send_msg(cid, f"🎙️ **Transcripción:** {result['text'][:3800]}")
+                            else:
+                                add_web_log("VOICE", result["error"]["message"])
 
                     # Neural Vision: PercepciÃ³n Binaria Nativa
                     if "photo" in msg:

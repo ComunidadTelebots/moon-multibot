@@ -715,6 +715,16 @@ class RoadmapEngine:
             return item
         return None
 
+    def defer_content_schedule(self, schedule_id, execute_at, reason="quiet_hours"):
+        rows = self._list("CONTENT_SCHEDULE")
+        for item in rows:
+            if item.get("id") == schedule_id:
+                item.update({"status": "scheduled", "execute_at": str(execute_at),
+                             "deferred_reason": str(reason), "deferred_at": self._now().isoformat()})
+                self.db.set("CONTENT_SCHEDULE", rows)
+                return item
+        return None
+
     def editorial_decision(self, content_id, actor, decision, comment=""):
         if decision not in ("approved", "rejected", "changes"):
             raise ValueError("decisión editorial no válida")

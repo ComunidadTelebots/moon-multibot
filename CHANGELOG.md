@@ -1,5 +1,11 @@
 ﻿# Changelog - Moon Multibot
 
+### Automatizaciones personales y de grupo seguras - 2026-07-30
+- Horario silencioso global con zonas IANA, excepciones explicables y diferimiento real de RSS, calendarios y contenido programado.
+- Recordatorios persistentes únicos, diarios o semanales con recurrencia segura ante DST, aplazamiento, cancelación y compatibilidad heredada.
+- Transcripción real mediante OpenAI con consentimiento por grupo, límites previos, archivo temporal opaco, borrado obligatorio y sin aprendizaje automático.
+- El Hub y la web master ofrecen controles equivalentes; se retiraron la transcripción simulada y el comando inseguro basado únicamente en `file_id`.
+
 ### Cuentas avanzadas equiparadas en el Hub - 2026-07-30
 - El centro master incorpora una sección de cuentas avanzadas con accesos al asistente, webhooks, preferencias, plantillas, sandbox, búsqueda semántica, revisiones, aprendizaje, colaboración, métricas y conector interoperable.
 - El destino de TodoSobreAllTech es configurable y se valida como HTTPS, con excepción local para desarrollo.

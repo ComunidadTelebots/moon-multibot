@@ -2681,10 +2681,13 @@ def group_suite_settings():
     if err:
         return err
     user, chat_id = res
-    config = _group_suite().save_config(
-        chat_id, body.get("config") or {}, actor=str((user or {}).get("id") or "group-admin"),
-        source="telegram-webapp"
-    )
+    try:
+        config = _group_suite().save_config(
+            chat_id, body.get("config") or {}, actor=str((user or {}).get("id") or "group-admin"),
+            source="telegram-webapp"
+        )
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
     bot = _get_bot_for_chat(chat_id)
     if bot:
         bot.sync_command_menu(chat_id)
@@ -3708,8 +3711,37 @@ def community_reminder():
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     try:
-        item = _community_members().reminder(user.get("id"), body.get("text", ""), body.get("remind_at"))
+        if body.get("local_time"):
+            item = _community_members().persistent_reminder(
+                user.get("id"), body.get("text", ""), body.get("local_time"),
+                body.get("timezone") or "Europe/Madrid", body.get("recurrence") or "once",
+                body.get("fold"),
+            )
+        else:
+            item = _community_members().reminder(user.get("id"), body.get("text", ""), body.get("remind_at"))
         return jsonify({"ok": True, "reminder": item})
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/public/community/reminder/action", methods=["POST", "OPTIONS"])
+def community_reminder_action():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    action = str(body.get("action") or "")
+    manager = _community_members()
+    try:
+        if action == "snooze":
+            item = manager.snooze_persistent_reminder(user.get("id"), body.get("reminder_id"), body.get("minutes", 10))
+        elif action == "cancel":
+            item = manager.cancel_persistent_reminder(user.get("id"), body.get("reminder_id"))
+        else:
+            return jsonify({"ok": False, "error": "acción no compatible"}), 400
+        return jsonify({"ok": bool(item), "reminder": item}), 200 if item else 404
     except (TypeError, ValueError) as error:
         return jsonify({"ok": False, "error": str(error)}), 400
 

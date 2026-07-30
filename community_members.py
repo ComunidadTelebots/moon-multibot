@@ -4,9 +4,14 @@ import datetime
 import math
 import uuid
 
+from plugins.reminder_store import (
+    add_reminder, calculate_due, cancel_reminder, create_reminder, snooze_reminder,
+)
+
 
 class CommunityMembers:
     ROLES = ("helper", "mentor", "expert", "moderator")
+    REMINDERS_V2_KEY = "COMMUNITY_REMINDERS_V2"
 
     def __init__(self, db):
         self.db = db
@@ -113,8 +118,9 @@ class CommunityMembers:
         text = str(text or "").strip()
         if not text:
             raise ValueError("escribe el recordatorio")
-        when = datetime.datetime.fromisoformat(str(remind_at))
-        if when <= datetime.datetime.now():
+        when = datetime.datetime.fromisoformat(str(remind_at).replace("Z", "+00:00"))
+        now = datetime.datetime.now(when.tzinfo) if when.tzinfo else datetime.datetime.now()
+        if when <= now:
             raise ValueError("la fecha debe estar en el futuro")
         rows = self.db.get("COMMUNITY_REMINDERS", [])
         rows = rows if isinstance(rows, list) else []
@@ -125,10 +131,27 @@ class CommunityMembers:
         self.db.set("COMMUNITY_REMINDERS", rows[-1000:])
         return item
 
+    def persistent_reminder(self, user_id, text, local_time, timezone="Europe/Madrid",
+                            recurrence="once", fold=None):
+        """Crea un recordatorio persistente con zona IANA y recurrencia explícita."""
+        uid = self._uid(user_id)
+        rows = self.db.get(self.REMINDERS_V2_KEY, [])
+        rows = rows if isinstance(rows, list) else []
+        reminder_id = uuid.uuid4().hex[:16]
+        item = create_reminder(
+            reminder_id, text, local_time, timezone, recurrence=recurrence, fold=fold,
+        )
+        item.update({"user_id": uid, "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        self.db.set(self.REMINDERS_V2_KEY, add_reminder(rows, item)[-1000:])
+        return item
+
     def reminders(self, user_id):
         uid = self._uid(user_id)
         rows = self.db.get("COMMUNITY_REMINDERS", [])
-        return [row for row in rows if row.get("user_id") == uid][-100:] if isinstance(rows, list) else []
+        legacy = [row for row in rows if row.get("user_id") == uid] if isinstance(rows, list) else []
+        advanced = self.db.get(self.REMINDERS_V2_KEY, [])
+        advanced = [row for row in advanced if row.get("user_id") == uid] if isinstance(advanced, list) else []
+        return sorted(legacy + advanced, key=lambda row: str(row.get("created_at") or ""))[-100:]
 
     def due_reminders(self):
         rows = self.db.get("COMMUNITY_REMINDERS", [])
@@ -146,6 +169,19 @@ class CommunityMembers:
         self.db.set("COMMUNITY_REMINDERS", rows[-1000:])
         return due
 
+    def due_persistent_reminders(self, now=None):
+        rows = self.db.get(self.REMINDERS_V2_KEY, [])
+        rows = rows if isinstance(rows, list) else []
+        if not rows:
+            return []
+        owners = {row.get("id"): row.get("user_id") for row in rows}
+        occurrences, next_state = calculate_due(
+            rows, now or datetime.datetime.now(datetime.timezone.utc),
+        )
+        self.db.set(self.REMINDERS_V2_KEY, next_state[-1000:])
+        return [{**item, "user_id": owners.get(item.get("id")), "advanced": True}
+                for item in occurrences]
+
     def mark_reminder(self, reminder_id, status):
         rows = self.db.get("COMMUNITY_REMINDERS", [])
         for row in rows if isinstance(rows, list) else []:
@@ -154,6 +190,39 @@ class CommunityMembers:
                 row["delivered_at"] = datetime.datetime.now().isoformat()
                 self.db.set("COMMUNITY_REMINDERS", rows[-1000:])
                 return row
+        return None
+
+    def mark_persistent_delivery(self, reminder_id, status):
+        rows = self.db.get(self.REMINDERS_V2_KEY, [])
+        rows = rows if isinstance(rows, list) else []
+        for index, row in enumerate(rows):
+            if row.get("id") == reminder_id:
+                rows[index] = {**row, "last_delivery_status": str(status),
+                               "last_delivery_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+                self.db.set(self.REMINDERS_V2_KEY, rows[-1000:])
+                return rows[index]
+        return None
+
+    def snooze_persistent_reminder(self, user_id, reminder_id, minutes):
+        uid = self._uid(user_id)
+        rows = self.db.get(self.REMINDERS_V2_KEY, [])
+        rows = rows if isinstance(rows, list) else []
+        for index, row in enumerate(rows):
+            if row.get("id") == reminder_id and row.get("user_id") == uid:
+                rows[index] = snooze_reminder(row, int(minutes), datetime.datetime.now(datetime.timezone.utc))
+                self.db.set(self.REMINDERS_V2_KEY, rows[-1000:])
+                return rows[index]
+        return None
+
+    def cancel_persistent_reminder(self, user_id, reminder_id):
+        uid = self._uid(user_id)
+        rows = self.db.get(self.REMINDERS_V2_KEY, [])
+        rows = rows if isinstance(rows, list) else []
+        for index, row in enumerate(rows):
+            if row.get("id") == reminder_id and row.get("user_id") == uid:
+                rows[index] = cancel_reminder(row, datetime.datetime.now(datetime.timezone.utc))
+                self.db.set(self.REMINDERS_V2_KEY, rows[-1000:])
+                return rows[index]
         return None
 
     def preferences(self, user_id, updates=None):
