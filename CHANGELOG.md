@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.7
+
+- Añade 60 servicios verificados para automatizaciones, multimedia y bots administrados.
+- Los nuevos servicios aparecen automáticamente en los paneles del Hub y TodoSobreAllTech según ámbito y rol.
+- Incorpora en el Hub centros operativos específicos para editorial, automatizaciones y fiabilidad, con navegación de regreso.
+- Permite previsualizar contenido, simular automatizaciones y diagnosticar operaciones sin aplicar cambios destructivos.
+- Mantiene eventos firmados aislados por dominio y operaciones en vista previa sin efectos directos.
+- Amplía el registro operativo a 2.740 funciones comprobadas.
+
 ## v18.23.6
 
 - Agrupa las 2.680 funciones registradas en paneles operativos por ámbito y rol dentro del Hub.
@@ -914,6 +923,69 @@
 - `future-2519` · `moon_automation_copilot` — Copilot para automatizaciones
 - `future-2520` · `moon_automation_capacity_forecast` — Capacity forecast para automatizaciones
 - `future-2521` · `moon_automation_batch_plan` — Batch plan para automatizaciones
+
+### v18.23.7 — 60 funciones incorporadas
+
+- `future-2522` · `moon_automation_workspace` — Workspace para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2523` · `moon_automation_media` — Media para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2524` · `moon_automation_narrative_report` — Narrative report para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2525` · `moon_automation_alert_escalation` — Alert escalation para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2526` · `moon_automation_offline_continuity` — Offline continuity para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2527` · `moon_automation_adaptive_trust` — Adaptive trust para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2528` · `moon_automation_campaign_plan` — Campaign plan para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2529` · `moon_automation_intent` — Intent para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2530` · `moon_automation_integration` — Integration para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2531` · `moon_automation_vault` — Vault para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2532` · `moon_automation_easy_read` — Easy read para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2533` · `moon_automation_sessions` — Sessions para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2534` · `moon_automation_editorial` — Editorial para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2535` · `moon_automation_budget` — Budget para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2536` · `moon_automation_reputation` — Reputation para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2537` · `moon_automation_localization` — Localization para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2538` · `moon_automation_communication_preferences` — Communication preferences para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2539` · `moon_automation_onboarding` — Onboarding para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2540` · `moon_automation_governance` — Governance para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2541` · `moon_automation_voice_control` — Voice control para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2542` · `moon_automation_federated_bridge` — Federated bridge para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2543` · `moon_automation_external_event` — External event para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2544` · `moon_automation_digital_twin` — Digital twin para automatizaciones con vista previa segura y sin efectos directos en Moonbot
+- `future-2545` · `moon_media_incident_correlation` — Incident correlation para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2546` · `moon_media_workflow` — Workflow para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2547` · `moon_media_delegation` — Delegation para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2548` · `moon_media_coordinated_abuse` — Coordinated abuse para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2549` · `moon_media_copilot` — Copilot para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2550` · `moon_media_capacity_forecast` — Capacity forecast para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2551` · `moon_media_batch_plan` — Batch plan para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2552` · `moon_media_workspace` — Workspace para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2553` · `moon_media_library` — Library para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2554` · `moon_media_narrative_report` — Narrative report para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2555` · `moon_media_alert_escalation` — Alert escalation para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2556` · `moon_media_offline_continuity` — Offline continuity para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2557` · `moon_media_adaptive_trust` — Adaptive trust para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2558` · `moon_media_campaign_plan` — Campaign plan para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2559` · `moon_media_intent` — Intent para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2560` · `moon_media_integration` — Integration para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2561` · `moon_media_vault` — Vault para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2562` · `moon_media_easy_read` — Easy read para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2563` · `moon_media_sessions` — Sessions para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2564` · `moon_media_editorial` — Editorial para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2565` · `moon_media_budget` — Budget para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2566` · `moon_media_reputation` — Reputation para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2567` · `moon_media_localization` — Localization para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2568` · `moon_media_communication_preferences` — Communication preferences para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2569` · `moon_media_onboarding` — Onboarding para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2570` · `moon_media_governance` — Governance para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2571` · `moon_media_voice_control` — Voice control para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2572` · `moon_media_federated_bridge` — Federated bridge para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2573` · `moon_media_external_event` — External event para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2574` · `moon_media_digital_twin` — Digital twin para multimedia con vista previa segura y sin efectos directos en Moonbot
+- `future-2575` · `managed_bot_incident_correlation` — Incident correlation para bots administrados con vista previa segura y sin efectos directos en Moonbot
+- `future-2576` · `managed_bot_workflow` — Workflow para bots administrados con vista previa segura y sin efectos directos en Moonbot
+- `future-2577` · `managed_bot_delegation` — Delegation para bots administrados con vista previa segura y sin efectos directos en Moonbot
+- `future-2578` · `managed_bot_coordinated_abuse` — Coordinated abuse para bots administrados con vista previa segura y sin efectos directos en Moonbot
+- `future-2579` · `managed_bot_copilot` — Copilot para bots administrados con vista previa segura y sin efectos directos en Moonbot
+- `future-2580` · `managed_bot_capacity_forecast` — Capacity forecast para bots administrados con vista previa segura y sin efectos directos en Moonbot
+- `future-2581` · `managed_bot_batch_plan` — Batch plan para bots administrados con vista previa segura y sin efectos directos en Moonbot
 
 <!-- GENERATED_RELEASE_FEATURES_END -->
 

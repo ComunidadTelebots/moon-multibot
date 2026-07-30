@@ -1539,6 +1539,7 @@
         <button class="master-action" id="masterAdvancedAccounts"><span class="mai">${svg('users')}</span><b>Cuentas avanzadas</b><small>Herramientas equiparadas con TodoSobreAllTech</small></button>
         <button class="master-action" id="masterGlobalAccess"><span class="mai">${svg('shield')}</span><b>Acceso global</b><small>Canal obligatorio para todos los grupos</small></button>
         <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
+        <button class="master-action" id="masterCapabilityCenters"><span class="mai">${svg('settings')}</span><b>Centros operativos</b><small>Editorial, automatizaciones y fiabilidad</small></button>
         <button class="master-action" id="masterFaq"><span class="mai">${svg('message')}</span><b>Respuestas automáticas</b><small>Preguntas frecuentes del bot</small></button>
         <button class="master-action" id="masterBroadcast"><span class="mai">${svg('megaphone')}</span><b>Comunicado</b><small>Mensaje global a todos los chats</small></button>
         <button class="master-action" id="masterHouseAds"><span class="mai">${svg('newspaper')}</span><b>Anuncios propios</b><small>Canales y grupos cuando AdSense no llena</small></button>
@@ -1569,6 +1570,7 @@
     document.getElementById("masterAdvancedAccounts").onclick=()=>openMasterPage("Cuentas avanzadas","Herramientas de TodoSobreAllTech en un acceso master seguro",loadMasterAdvancedAccounts);
     document.getElementById("masterGlobalAccess").onclick=()=>openMasterPage("Acceso global","Suscripción obligatoria general para todos los grupos",loadMasterGlobalAccess);
     document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
+    document.getElementById("masterCapabilityCenters").onclick=()=>openMasterPage("Centros operativos","Capacidades activas con panel propio",loadMasterCapabilityCenters);
     document.getElementById("masterFaq").onclick=()=>openMasterPage("Respuestas automáticas","Preguntas frecuentes del bot",loadMasterFaq);
     document.getElementById("masterBroadcast").onclick=()=>openMasterPage("Comunicado","Mensaje global a todos los chats",loadMasterBroadcast);
     document.getElementById("masterHouseAds").onclick=()=>openMasterPage("Anuncios propios","Sustitutos configurables para espacios AdSense vacíos",loadMasterHouseAds);
@@ -1609,6 +1611,40 @@
     const bindCards=()=>box.querySelectorAll("[data-account-tool]").forEach(card=>card.onclick=()=>{const configured=advancedAccountsUrl(document.getElementById("advancedAccountsBase").value);if(!configured)return showToast("Configura una URL HTTPS válida");configured.searchParams.set("accountTool",card.dataset.accountTool);openLink(configured.toString());});
     document.getElementById("advancedAccountsSave").onclick=()=>{const input=document.getElementById("advancedAccountsBase"),url=advancedAccountsUrl(input.value),message=document.getElementById("advancedAccountsMessage");if(!url){message.textContent="Usa HTTPS o HTTP solo para localhost.";return;}uxWrite("hub_accounts_web_url",url.toString());input.value=url.toString();message.textContent="Destino guardado en este dispositivo. Las credenciales siguen aisladas.";};
     bindCards();
+  }
+
+  const MASTER_CAPABILITY_CENTERS=[
+    {id:"editorial",title:"Centro editorial",description:"Previsualiza publicaciones y consulta plantillas",loader:loadMasterEditorialCenter},
+    {id:"automations",title:"Automatizaciones",description:"Reglas, formularios, webhooks y simulaciones",loader:loadMasterAutomationCenter},
+    {id:"operations",title:"Fiabilidad y operaciones",description:"Métricas, diagnóstico y despliegues",loader:loadMasterOperationsCenter}
+  ];
+  function loadMasterCapabilityCenters(){
+    masterDetailTitle.textContent="Centros operativos";masterDetailSubtitle.textContent="Capacidades activas con panel propio";masterDetailBack.onclick=closeMasterPage;
+    masterDetail.innerHTML=`<div class="card master-hero"><div class="master-kicker">Primera colección</div><h3>Herramientas listas para usar</h3><p>Paneles conectados a rutas internas existentes.</p></div><div class="master-action-grid">${MASTER_CAPABILITY_CENTERS.map(item=>`<button class="master-action" data-capability-center="${item.id}"><span class="mai">${svg(item.id==="editorial"?"newspaper":item.id==="automations"?"sparkles":"activity")}</span><b>${item.title}</b><small>${item.description}</small></button>`).join("")}</div>`;
+    masterDetail.querySelectorAll("[data-capability-center]").forEach(button=>button.onclick=()=>openMasterCapabilityCenter(button.dataset.capabilityCenter));
+  }
+  async function openMasterCapabilityCenter(id){
+    const center=MASTER_CAPABILITY_CENTERS.find(item=>item.id===id);if(!center)return;
+    masterDetailTitle.textContent=center.title;masterDetailSubtitle.textContent=center.description;masterDetailBack.onclick=loadMasterCapabilityCenters;masterDetail.innerHTML=skel();await center.loader();
+  }
+  async function loadMasterEditorialCenter(){
+    const data=await masterApi("/api/internal/editorial");if(!data||!data.ok){masterDetail.innerHTML='<div class="master-error">No se pudo cargar el centro editorial.</div>';return;}
+    const templates=data.templates||[],series=data.series||[],announcements=data.announcements||[];
+    masterDetail.innerHTML=`<div class="master-grid"><div class="master-metric"><div class="mv">${templates.length}</div><div class="ml">Plantillas</div></div><div class="master-metric"><div class="mv">${series.length}</div><div class="ml">Series</div></div><div class="master-metric"><div class="mv">${announcements.length}</div><div class="ml">Comunicados</div></div></div><div class="card"><b>Previsualizar mensaje enriquecido</b><input id="centerEditorialTitle" maxlength="300" placeholder="Título"><textarea id="centerEditorialBody" maxlength="12000" placeholder="Markdown del mensaje"></textarea><button class="btn teal" id="centerEditorialPreview">Previsualizar</button><div id="centerEditorialResult"></div></div><div class="sec">Plantillas recientes</div>${templates.slice(0,20).map((item,index)=>`<button class="feature-operation" data-editorial-template="${index}"><b>${escHtml(item.name||item.title||"Plantilla")}</b><small>${escHtml((item.body||"").slice(0,100))}</small></button>`).join("")||'<p class="muted">Aún no hay plantillas.</p>'}`;
+    masterDetail.querySelectorAll("[data-editorial-template]").forEach(button=>button.onclick=()=>{const item=templates[Number(button.dataset.editorialTemplate)]||{};centerEditorialTitle.value=item.name||item.title||"";centerEditorialBody.value=item.body||"";});
+    centerEditorialPreview.onclick=async()=>{const response=await masterApi("/api/internal/editorial",{method:"POST",body:JSON.stringify({action:"preview",title:centerEditorialTitle.value,body:centerEditorialBody.value,variables:{}})});centerEditorialResult.innerHTML=response&&response.ok?`<div class="casbox"><b>${escHtml(response.result.title||"Vista previa")}</b><pre style="white-space:pre-wrap">${escHtml(response.result.rendered||"")}</pre></div>`:'<div class="master-error">No se pudo generar la vista previa.</div>';};
+  }
+  async function loadMasterAutomationCenter(){
+    const data=await masterApi("/api/internal/automations");if(!data||!data.ok){masterDetail.innerHTML='<div class="master-error">No se pudieron cargar las automatizaciones.</div>';return;}
+    const rules=data.rules||[],forms=data.forms||[],hooks=data.webhooks||[],templates=data.templates||[];
+    masterDetail.innerHTML=`<div class="master-grid"><div class="master-metric"><div class="mv">${rules.length}</div><div class="ml">Reglas</div></div><div class="master-metric"><div class="mv">${forms.length}</div><div class="ml">Formularios</div></div><div class="master-metric"><div class="mv">${hooks.length}</div><div class="ml">Webhooks</div></div></div><div class="card"><b>Simular respuesta automática</b><input id="centerAutomationGroup" inputmode="numeric" placeholder="ID del grupo"><textarea id="centerAutomationText" placeholder="Mensaje de prueba"></textarea><button class="btn teal" id="centerAutomationSimulate">Simular sin enviar</button><pre id="centerAutomationResult" class="muted" style="white-space:pre-wrap"></pre></div><div class="sec">Plantillas disponibles</div>${templates.map(item=>`<div class="casbox"><b>${escHtml(item.name)}</b><br><span class="muted">${escHtml(item.description)}</span></div>`).join("")||'<p class="muted">Sin plantillas.</p>'}`;
+    centerAutomationSimulate.onclick=async()=>{const response=await masterApi("/api/internal/automations",{method:"POST",body:JSON.stringify({action:"simulate",group_id:centerAutomationGroup.value.trim(),text:centerAutomationText.value,context:{source:"hub-preview"}})});centerAutomationResult.textContent=JSON.stringify(response&&response.result||response,null,2);};
+  }
+  async function loadMasterOperationsCenter(){
+    const data=await masterApi("/api/internal/operations");if(!data||!data.ok){masterDetail.innerHTML='<div class="master-error">No se pudo consultar la fiabilidad.</div>';return;}
+    const metrics=data.metrics||{},diagnosis=data.diagnosis||{},degraded=data.degraded||{},deployments=data.deployments||[];
+    masterDetail.innerHTML=`<div class="master-grid"><div class="master-metric ${Number(metrics.cpu)<80?'good':'warn'}"><div class="mv">${Math.round(metrics.cpu||0)}%</div><div class="ml">CPU</div></div><div class="master-metric ${Number(metrics.memory)<85?'good':'warn'}"><div class="mv">${Math.round(metrics.memory||0)}%</div><div class="ml">RAM</div></div><div class="master-metric ${Number(metrics.disk)<85?'good':'warn'}"><div class="mv">${Math.round(metrics.disk||0)}%</div><div class="ml">Disco</div></div></div><div class="card"><b>Diagnóstico seguro</b><p class="muted">${escHtml(diagnosis.summary||diagnosis.status||"Datos recogidos")}</p><button class="btn teal" id="centerOperationsDiagnose">Actualizar diagnóstico</button><pre id="centerOperationsResult" class="muted" style="white-space:pre-wrap"></pre></div><div class="sec">Estado degradado</div><div class="casbox">${escHtml(degraded.mode||degraded.status||"normal")}</div><div class="sec">Despliegues recientes</div>${deployments.slice(0,15).map(item=>`<div class="casbox"><b>${escHtml(item.version||item.id||"Despliegue")}</b><br><span class="muted">${escHtml(item.status||"planificado")}</span></div>`).join("")||'<p class="muted">No hay despliegues registrados.</p>'}`;
+    centerOperationsDiagnose.onclick=async()=>{const response=await masterApi("/api/internal/operations",{method:"POST",body:JSON.stringify({action:"diagnose",metrics,errors:[]})});centerOperationsResult.textContent=JSON.stringify(response&&response.result||response,null,2);};
   }
 
   async function loadMasterOverview(){

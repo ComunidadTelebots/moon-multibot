@@ -40,6 +40,9 @@ RELEASES = {
     "v18.23.5": (
         "webapp_channel_user_automation_operations_manifest",
     ),
+    "v18.23.7": (
+        "webapp_automation_media_bot_operations_manifest",
+    ),
 }
 
 
