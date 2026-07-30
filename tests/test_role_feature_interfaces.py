@@ -14,7 +14,8 @@ class RoleFeatureInterfaceTests(unittest.TestCase):
         self.assertIn("_bind_feature_group_payload", segment)
         self.assertIn("_bind_feature_actor_payload", segment)
         self.assertIn("request.max_content_length = 128 * 1024", segment)
-        self.assertIn("list_verified_features(actor_role)", segment)
+        self.assertIn("list_verified_features(actor_role, release_channel)", segment)
+        self.assertIn("_miniapp_release_channel(user)", segment)
         self.assertIn("execute_verified_feature", segment)
         self.assertNotIn('body.get("actor_role")', segment)
 

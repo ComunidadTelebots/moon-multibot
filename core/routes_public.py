@@ -44,6 +44,7 @@ from horizon_full import FullHorizonSuite
 from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
 from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features, registry as verified_feature_registry
+from core.feature_access import normalize_release_channel
 from core.pb_client import PBError
 
 bp = Blueprint("public", __name__)
@@ -239,6 +240,7 @@ def internal_verified_features():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     actor_role = request.headers.get("X-Moon-Actor-Role", "master").strip().lower()
     actor_id = request.headers.get("X-Moon-Actor-Id", "").strip()
+    release_channel = normalize_release_channel(request.headers.get("X-Moon-Release-Channel"))
     if actor_role not in {"user", "group_admin", "group_creator", "master"}:
         return jsonify({"ok": False, "error": "invalid actor role"}), 400
     actor = {"id": actor_id}
@@ -250,9 +252,9 @@ def internal_verified_features():
                     "group_creator" if "group_creator" in contextual_roles else
                     "group_admin" if "group_admin" in contextual_roles else "user")
     if request.method == "GET":
-        features = list_verified_features(catalog_role)
+        features = list_verified_features(catalog_role, release_channel)
         return jsonify({"ok": True, "actor_role": catalog_role, "total": len(features),
-                        "features": features, "groups": groups})
+                        "release_channel": release_channel, "features": features, "groups": groups})
     body = request.get_json(silent=True) or {}
     try:
         # El rol lo aporta el proxy interno después de autenticar al usuario;
@@ -272,7 +274,7 @@ def internal_verified_features():
             if not _payload_uses_only_group(payload, selected["chat_id"]):
                 raise PermissionError("el payload referencia otro grupo")
         effective_role = selected["actor_role"] if selected else catalog_role
-        result = execute_verified_feature(body.get("feature_id"), payload, effective_role)
+        result = execute_verified_feature(body.get("feature_id"), payload, effective_role, release_channel)
         return jsonify({"ok": True, "actor_role": effective_role,
                         "group_id": selected and selected["chat_id"],
                         "feature_id": body.get("feature_id"), "result": result})
@@ -3685,6 +3687,21 @@ def _miniapp_feature_context(user, requested_group_id=None):
     return (selected["actor_role"] if selected else "master" if _is_master(user) else "user"), groups, selected
 
 
+def _miniapp_release_channel(user):
+    """Resolve the release channel from the linked web account; fail closed to stable."""
+    if _is_master(user):
+        return "alpha"
+    user_id = str(user.get("id") or "").strip()
+    if not user_id:
+        return "stable"
+    try:
+        pb = getattr(_channel_stats, "_pb", None)
+        record = pb.first("feature_release_access", f"telegram_id='{pb.esc(user_id)}' && enabled=true") if pb else None
+        return normalize_release_channel((record or {}).get("release_channel"))
+    except Exception:
+        return "stable"
+
+
 def _bind_feature_group_payload(item, payload, group_id):
     """Overwrite direct group identifiers so client JSON cannot escape its authorized context."""
     if not isinstance(payload, dict):
@@ -3778,10 +3795,12 @@ def public_role_features():
         actor_role, available_groups, selected_group = _miniapp_feature_context(user, body.get("group_id"))
     except PermissionError as error:
         return jsonify({"ok": False, "error": str(error)}), 403
+    release_channel = _miniapp_release_channel(user)
     if body.get("action", "list") == "list":
-        features = list_verified_features(actor_role)
+        features = list_verified_features(actor_role, release_channel)
         return jsonify({"ok": True, "actor_role": actor_role, "selected_group_id": selected_group and selected_group["chat_id"],
-                        "available_groups": available_groups, "total": len(features), "features": features})
+                        "release_channel": release_channel, "available_groups": available_groups,
+                        "total": len(features), "features": features})
     if body.get("action") != "execute":
         return jsonify({"ok": False, "error": "acción no compatible"}), 400
     try:
@@ -3795,7 +3814,7 @@ def public_role_features():
         if group_scoped and not _payload_uses_only_group(payload, selected_group["chat_id"]):
             return jsonify({"ok": False, "error": "el payload referencia otro grupo"}), 403
         payload = _bind_feature_actor_payload(item, payload, user, actor_role)
-        result = execute_verified_feature(body.get("feature_id"), payload, actor_role)
+        result = execute_verified_feature(body.get("feature_id"), payload, actor_role, release_channel)
         return jsonify({"ok": True, "actor_role": actor_role, "group_id": selected_group and selected_group["chat_id"],
                         "feature_id": body.get("feature_id"), "result": result})
     except KeyError as error:

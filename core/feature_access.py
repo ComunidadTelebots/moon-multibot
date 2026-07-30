@@ -4,6 +4,7 @@ from __future__ import annotations
 
 
 ROLES = ("user", "group_admin", "group_creator", "master")
+RELEASE_CHANNELS = ("stable", "rc", "beta", "alpha")
 
 MASTER_TERMS = (
     "global", "system", "backup", "secret", "incident", "creator_account",
@@ -68,3 +69,14 @@ def can_access_feature(item, actor_role):
         return False
     minimum = item.get("minimum_role") or classify_feature(item)["minimum_role"]
     return ROLES.index(role) >= ROLES.index(minimum)
+
+
+def normalize_release_channel(value):
+    channel = str(value or "stable").strip().lower()
+    return channel if channel in RELEASE_CHANNELS else "stable"
+
+
+def can_access_release(item, actor_channel):
+    required = normalize_release_channel(item.get("release_channel"))
+    granted = normalize_release_channel(actor_channel)
+    return RELEASE_CHANNELS.index(granted) >= RELEASE_CHANNELS.index(required)

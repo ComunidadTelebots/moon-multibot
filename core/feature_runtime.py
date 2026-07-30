@@ -11,7 +11,7 @@ import importlib
 import inspect
 import json
 from functools import lru_cache
-from core.feature_access import ROLES, can_access_feature, classify_feature
+from core.feature_access import ROLES, can_access_feature, can_access_release, classify_feature
 
 
 MANIFEST_MODULES = (
@@ -209,10 +209,12 @@ def feature_contract(item):
     }
 
 
-def list_features(actor_role=None):
+def list_features(actor_role=None, release_channel=None):
     items = registry().values()
     if actor_role is not None:
         items = (item for item in items if can_access_feature(item, actor_role))
+    if release_channel is not None:
+        items = (item for item in items if can_access_release(item, release_channel))
     return [
         {
             **{key: value for key, value in item.items() if key != "callable"},
@@ -222,12 +224,14 @@ def list_features(actor_role=None):
     ]
 
 
-def execute(feature_id, payload, actor_role="master"):
+def execute(feature_id, payload, actor_role="master", release_channel=None):
     item = registry().get(str(feature_id))
     if item is None:
         raise KeyError("Función no registrada")
     if not can_access_feature(item, actor_role):
         raise PermissionError("El rol no puede ejecutar esta función")
+    if release_channel is not None and not can_access_release(item, release_channel):
+        raise PermissionError("Feature unavailable in this release channel")
     if not isinstance(payload, dict):
         raise ValueError("El payload debe ser un objeto")
     args = payload.get("args", [])

@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.13
+
+- Incorpora canales progresivos de funciones `stable`, `rc`, `beta` y `alpha` sin alterar los roles existentes.
+- Vincula el canal del Hub a la cuenta web mediante el `telegram_id` verificado en PocketBase.
+- El master recibe el canal alpha y conserva control completo; las cuentas sin asignaciÃ³n fallan de forma segura a stable.
+- Filtra el catÃ¡logo y vuelve a comprobar el canal al ejecutar para impedir abrir funciones ocultas manipulando la peticiÃ³n.
+- Marca las nuevas operaciones experimentales de integraciones como alpha.
+
 ## v18.23.12
 
 - AÃ±ade correlaciÃ³n temporal y deduplicada de incidencias de integraciones para creadores de grupo y master.

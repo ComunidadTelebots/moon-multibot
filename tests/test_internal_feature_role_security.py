@@ -9,7 +9,8 @@ SEGMENT = SOURCE[SOURCE.index('@bp.route("/api/internal/features"'):SOURCE.index
 class InternalFeatureRoleSecurityTests(unittest.TestCase):
     def test_execution_role_is_derived_from_internal_header_not_body(self):
         self.assertIn('request.headers.get("X-Moon-Actor-Role", "master")', SEGMENT)
-        self.assertIn('execute_verified_feature(body.get("feature_id"), payload, effective_role)', SEGMENT)
+        self.assertIn('execute_verified_feature(body.get("feature_id"), payload, effective_role, release_channel)', SEGMENT)
+        self.assertIn('request.headers.get("X-Moon-Release-Channel")', SEGMENT)
         self.assertIn('request.headers.get("X-Moon-Actor-Id", "")', SEGMENT)
         self.assertIn('selected["actor_role"] if selected else catalog_role', SEGMENT)
         self.assertNotIn('body.get("actor_role")', SEGMENT)
