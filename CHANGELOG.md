@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.23.6
+
+- Agrupa las 2.680 funciones registradas en paneles operativos por ámbito y rol dentro del Hub.
+- Cada panel se abre sobre la vista actual y dispone de una flecha clara para regresar al índice.
+- Cada función cuenta con ficha, riesgo, rol mínimo, editor JSON y ejecución autenticada desde su propia vista.
+- Mantiene el diseño actual del Hub y evita cargar una lista administrativa de miles de filas a la vez.
+
 ## v18.23.5
 
 - Integra 60 servicios WebApp para canales, usuarios y automatizaciones.
