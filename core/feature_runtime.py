@@ -29,6 +29,9 @@ MANIFEST_MODULES = (
     "resource_history_semantic_manifest",
     "resource_semantic_private_summary_manifest",
     "resource_alert_offline_manifest",
+    "resource_offline_autotest_manifest",
+    "resource_autotest_template_manifest",
+    "resource_template_bulk_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -40,6 +43,7 @@ MANIFEST_MODULES = (
     "core.web_privacy_operations_manifest",
     "core.web_seo_features_manifest",
     "core.web_seo_community_manifest",
+    "core.web_community_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -51,6 +55,7 @@ MANIFEST_MODULES = (
     "webapp_sublot_09_manifest",
     "webapp_sublot_10_manifest",
     "webapp_sublot_11_manifest",
+    "webapp_sublot_12_manifest",
 )
 
 
