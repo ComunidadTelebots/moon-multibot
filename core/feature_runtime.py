@@ -23,6 +23,9 @@ MANIFEST_MODULES = (
     "resource_delegation_version_manifest",
     "resource_version_import_manifest",
     "resource_import_export_manifest",
+    "resource_retention_consent_manifest",
+    "resource_consent_diagnostic_manifest",
+    "resource_diagnostic_history_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -31,6 +34,7 @@ MANIFEST_MODULES = (
     "core.web_dashboard_operations_manifest",
     "core.web_analytics_features_manifest",
     "core.web_analytics_privacy_manifest",
+    "core.web_privacy_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -39,6 +43,7 @@ MANIFEST_MODULES = (
     "webapp_sublot_06_manifest",
     "webapp_sublot_07_manifest",
     "webapp_sublot_08_manifest",
+    "webapp_sublot_09_manifest",
 )
 
 
