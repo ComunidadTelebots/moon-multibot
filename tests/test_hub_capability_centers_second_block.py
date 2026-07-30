@@ -48,10 +48,18 @@ class HubCapabilityCentersSecondBlockTests(unittest.TestCase):
         self.assertIn('role="switch"', SEGMENT)
         self.assertIn('aria-checked=', SEGMENT)
 
-    def test_quality_family_gets_a_safe_specific_payload(self):
+    def test_verified_features_use_runtime_input_schema(self):
         self.assertIn("const verifiedPayloadFor", SOURCE)
-        self.assertIn("/^review_.+_quality$/", SOURCE)
-        self.assertIn("threshold:90", SOURCE)
+        self.assertIn("item.input_schema?.parameters", SOURCE)
+        self.assertIn("bindVerifiedSchemaFields", SOURCE)
+        self.assertIn('aria-required="true"', SOURCE)
+        self.assertIn("execute.disabled=!valid", SOURCE)
+
+    def test_role_audiences_are_visible_without_client_side_escalation(self):
+        for role in ("user", "group_admin", "group_creator", "master"):
+            self.assertIn(f'<option value="{role}">', SOURCE)
+        self.assertIn('(item.audience||[]).join', SOURCE)
+        self.assertNotIn('actor_role:verifiedFeatureAudience.value', SOURCE)
 
 
 if __name__ == "__main__":

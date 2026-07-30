@@ -10,6 +10,14 @@ class FeatureRuntimeTests(unittest.TestCase):
         self.assertEqual(len(features), len({row["id"] for row in features}))
         self.assertTrue(all(callable(row["callable"]) for row in registry().values()))
         self.assertTrue(all(row["minimum_role"] in {"user", "group_admin", "group_creator", "master"} for row in features))
+        self.assertTrue(all(isinstance(row.get("input_schema", {}).get("parameters"), list) for row in features))
+        self.assertTrue(all(all(parameter.get("control") in {"text", "number", "boolean", "json"} for parameter in row["input_schema"]["parameters"]) for row in features))
+        variadic_kwargs = [
+            parameter for row in features for parameter in row["input_schema"]["parameters"]
+            if parameter.get("variadic") and parameter.get("binding") == "kwargs"
+        ]
+        self.assertEqual(17, len(variadic_kwargs))
+        self.assertTrue(all(parameter["control"] == "json" for parameter in variadic_kwargs))
         self.assertEqual({"user", "group_admin", "group_creator", "master"}, {row["minimum_role"] for row in features})
 
     def test_executes_only_registered_function(self):

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import json
 from functools import lru_cache
 from core.feature_access import can_access_feature, classify_feature
 
@@ -146,11 +147,69 @@ def registry():
     return result
 
 
+def _json_safe(value):
+    if value is inspect.Parameter.empty:
+        return None
+    try:
+        json.dumps(value)
+        return value
+    except (TypeError, ValueError):
+        return repr(value)
+
+
+def _parameter_contract(parameter):
+    annotation = parameter.annotation
+    annotation_name = ""
+    if annotation is not inspect.Parameter.empty:
+        annotation_name = getattr(annotation, "__name__", str(annotation).replace("typing.", ""))
+    default = parameter.default
+    required = default is inspect.Parameter.empty and parameter.kind not in (
+        inspect.Parameter.VAR_POSITIONAL,
+        inspect.Parameter.VAR_KEYWORD,
+    )
+    lowered = parameter.name.lower()
+    if parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+        control = "json"
+    elif annotation in (bool,) or isinstance(default, bool):
+        control = "boolean"
+    elif annotation in (int, float) or isinstance(default, (int, float)) and not isinstance(default, bool):
+        control = "number"
+    elif any(token in lowered for token in ("items", "events", "records", "rules", "steps", "metrics", "config", "payload", "policy", "schema", "metadata", "options")):
+        control = "json"
+    else:
+        control = "text"
+    return {
+        "name": parameter.name,
+        "label": parameter.name.replace("_", " ").capitalize(),
+        "required": required,
+        "control": control,
+        "binding": "args" if parameter.kind is inspect.Parameter.POSITIONAL_ONLY else "kwargs",
+        "variadic": parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD),
+        "default": None if default is inspect.Parameter.empty else _json_safe(default),
+        "annotation": annotation_name,
+    }
+
+
+def feature_contract(item):
+    signature = inspect.signature(item["callable"])
+    return {
+        "parameters": [_parameter_contract(parameter) for parameter in signature.parameters.values()],
+        "accepts_kwargs": any(parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()),
+        "result": "json",
+    }
+
+
 def list_features(actor_role=None):
     items = registry().values()
     if actor_role is not None:
         items = (item for item in items if can_access_feature(item, actor_role))
-    return [{key: value for key, value in item.items() if key != "callable"} for item in items]
+    return [
+        {
+            **{key: value for key, value in item.items() if key != "callable"},
+            "input_schema": feature_contract(item),
+        }
+        for item in items
+    ]
 
 
 def execute(feature_id, payload, actor_role="master"):

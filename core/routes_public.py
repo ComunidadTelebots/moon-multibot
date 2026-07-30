@@ -237,15 +237,22 @@ def internal_verified_features():
     """Lista o ejecuta exclusivamente funciones verificadas y registradas."""
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
+    actor_role = request.headers.get("X-Moon-Actor-Role", "master").strip().lower()
+    if actor_role not in {"user", "group_admin", "group_creator", "master"}:
+        return jsonify({"ok": False, "error": "invalid actor role"}), 400
     if request.method == "GET":
-        features = list_verified_features()
+        features = list_verified_features(actor_role)
         return jsonify({"ok": True, "total": len(features), "features": features})
     body = request.get_json(silent=True) or {}
     try:
-        result = execute_verified_feature(body.get("feature_id"), body.get("payload", {}))
+        # El rol lo aporta el proxy interno después de autenticar al usuario;
+        # nunca se acepta desde el cuerpo controlado por el navegador.
+        result = execute_verified_feature(body.get("feature_id"), body.get("payload", {}), actor_role)
         return jsonify({"ok": True, "feature_id": body.get("feature_id"), "result": result})
     except KeyError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 404
+    except PermissionError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 403
     except (TypeError, ValueError) as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
 
@@ -3621,6 +3628,45 @@ def public_mine():
         return jsonify({"ok": True, "channels": _channel_stats.get_user_channels(user.get("id"))})
     except Exception as error:
         return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
+
+
+def _miniapp_feature_role(user):
+    if _is_master(user):
+        return "master"
+    user_id = str(user.get("id") or "")
+    try:
+        channels = _channel_stats.get_user_channels(user_id) or []
+    except Exception:
+        channels = []
+    if any(str(row.get("creator_id") or row.get("owner_id") or "") == user_id or row.get("admin_status") == "creator" for row in channels):
+        return "group_creator"
+    return "group_admin" if channels else "user"
+
+
+@bp.route("/api/public/features", methods=["POST", "OPTIONS"])
+def public_role_features():
+    """Interfaz de capacidades limitada al rol real de la Mini App."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.get_json(silent=True) or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    actor_role = _miniapp_feature_role(user)
+    if body.get("action", "list") == "list":
+        features = list_verified_features(actor_role)
+        return jsonify({"ok": True, "actor_role": actor_role, "total": len(features), "features": features})
+    if body.get("action") != "execute":
+        return jsonify({"ok": False, "error": "acción no compatible"}), 400
+    try:
+        result = execute_verified_feature(body.get("feature_id"), body.get("payload", {}), actor_role)
+        return jsonify({"ok": True, "actor_role": actor_role, "feature_id": body.get("feature_id"), "result": result})
+    except KeyError as error:
+        return jsonify({"ok": False, "error": str(error)}), 404
+    except PermissionError as error:
+        return jsonify({"ok": False, "error": str(error)}), 403
+    except (TypeError, ValueError) as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
 
 
 @bp.route("/api/public/notifications", methods=["POST", "OPTIONS"])

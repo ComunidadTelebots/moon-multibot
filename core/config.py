@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-APP_VERSION = "v18.23.10"
+APP_VERSION = "v18.23.11"
 BOT_STORE_PATH = "data/bots.json"
 
 # --- Web / Auth ---

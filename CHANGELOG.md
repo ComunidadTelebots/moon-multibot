@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.11
+
+- Genera contratos de interfaz para las 2.740 funciones verificadas a partir de sus firmas reales.
+- Añade formularios automáticos de texto, número, booleano y JSON en el Hub, manteniendo el editor avanzado.
+- Incorpora `Mis funciones` a la Mini App para usuarios, administradores, creadores de grupo y master.
+- Calcula el rol de la Mini App desde `initData` y los grupos administrados; el navegador nunca puede elegirlo.
+- Aplica el rol efectivo tanto al listar como al ejecutar una función y bloquea escaladas entre roles.
+- Añade validación de campos obligatorios, parámetros variádicos y navegación mediante panel emergente con flecha atrás.
+
 ## v18.23.10
 
 - Elimina la carga insegura de modelos antispam mediante Pickle y conserva el clasificador con entrenamiento determinista.
