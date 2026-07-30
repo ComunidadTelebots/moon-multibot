@@ -22,6 +22,7 @@ MANIFEST_MODULES = (
     "resource_priority_delegation_manifest",
     "resource_delegation_version_manifest",
     "resource_version_import_manifest",
+    "resource_import_export_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -29,6 +30,7 @@ MANIFEST_MODULES = (
     "core.web_proxy_dashboard_manifest",
     "core.web_dashboard_operations_manifest",
     "core.web_analytics_features_manifest",
+    "core.web_analytics_privacy_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
@@ -36,6 +38,7 @@ MANIFEST_MODULES = (
     "webapp_sublot_05_manifest",
     "webapp_sublot_06_manifest",
     "webapp_sublot_07_manifest",
+    "webapp_sublot_08_manifest",
 )
 
 
