@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.16
+
+- Añade `/verificarweb` por chat privado para confirmar códigos administrativos emitidos por TodoSobreAllTech.
+- Envía la identidad real del remitente a la API interna mediante la clave compartida, sin exponerla al navegador ni al Hub.
+- Rechaza códigos malformados, URLs HTTP externas y verificaciones realizadas desde grupos.
+- Reconoce administradores web únicamente por un rol activo vinculado al mismo `telegram_id` en PocketBase.
+- Añade al Hub una pestaña independiente de administración web, sin heredar permisos master ni permisos administrativos de grupos.
+
 ## v18.23.15
 
 - Retira los manifiestos de canales del directorio web público para impedir su descarga directa.

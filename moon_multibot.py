@@ -50,6 +50,7 @@ from core.vt_manager import VirusTotalManager
 from core.media_analyzer import analyze_image as analyze_media_image
 from core.script_security import MAX_SCRIPT_BYTES, SUPPORTED_EXTENSIONS, analyze_script
 from core.task_queue import TaskQueue
+from core.web_admin_verification import confirm_web_admin
 from core.tdlib_client import TDLibClient
 from token_manager import token_manager
 from ban_manager import BanManager
@@ -5034,6 +5035,20 @@ class MoonBot:
             self.send_msg(cid, "💚 **Servicio comunitario gratuito**\n\nMoonbot y TodoSobreAllTech son proyectos sin ánimo de lucro. El acceso a las funciones ofrecidas, la moderación, el captcha y las herramientas comunitarias no tiene coste. Cualquier apoyo o donación es voluntario y no desbloquea privilegios.")
             return True
 
+        if raw_cmd in ["/verificarweb", "/verifyweb"]:
+            if msg.get("chat", {}).get("type") != "private":
+                self.send_msg(cid, "🔐 Por seguridad, envía este comando por privado al bot.")
+                return True
+            if len(args) != 1:
+                self.send_msg(cid, "Uso: `/verificarweb WEB-CODIGO`\nObtén el código desde tu invitación administrativa en TodoSobreAllTech.")
+                return True
+            try:
+                confirm_web_admin(args[0], uid, (msg.get("from") or {}).get("username", ""))
+                self.send_msg(cid, "✅ **Telegram verificado**\n\nTu cuenta ya puede acceder a la administración web. Vuelve a la invitación y pulsa *comprobar*.")
+            except (ValueError, RuntimeError, requests.RequestException) as error:
+                self.send_msg(cid, f"❌ No se pudo completar la verificación: {error}")
+            return True
+
         if raw_cmd in ["/report", "/reportar"]:
             replied = msg.get("reply_to_message") or {}
             target = (replied.get("from") or {}).get("id")
@@ -6463,13 +6478,14 @@ class MoonBot:
                     elif "document" in msg:
                         media_info = {"type": "document", "file_id": msg["document"].get("file_id"), "name": msg["document"].get("file_name")}
 
+                    history_text = ("/verificarweb [OCULTO]" if text.lower().startswith(("/verificarweb ", "/verifyweb ")) else text)
                     _append_chat_hist(cid, {
                         "time": datetime.datetime.now().strftime("%H:%M"),
                         "sender": uname,
                         "uid": uid,
                         "message_id": msg.get("message_id"),
                         "reply_to_message_id": (msg.get("reply_to_message") or {}).get("message_id"),
-                        "text": text,
+                        "text": history_text,
                         "media": media_info
                     })
                     global_chat_names[cid] = msg["chat"].get("title", uname)

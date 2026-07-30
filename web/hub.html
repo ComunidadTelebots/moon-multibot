@@ -341,6 +341,7 @@
     <section class="view" data-view="usuario" id="v-usuario"></section>
     <section class="view" data-view="canales" id="v-canales"></section>
     <section class="view" data-view="admin" id="v-admin" hidden></section>
+    <section class="view" data-view="webadmin" id="v-webadmin" hidden></section>
     <section class="view" data-view="master" id="v-master" hidden></section>
     <section class="view" data-view="directorio" id="v-directorio" hidden></section>
     <section class="view" data-view="red" id="v-red" hidden></section>
@@ -363,6 +364,7 @@
     <button class="tab active" data-tab="usuario" data-ic="users"><span>Para ti</span></button>
     <button class="tab" data-tab="canales" data-ic="megaphone"><span>Mis canales</span></button>
     <button class="tab" data-tab="admin" data-ic="shield" id="adminTab" hidden><span>Administrar</span></button>
+    <button class="tab" data-tab="webadmin" data-ic="globe" id="webAdminTab" hidden><span>Web</span></button>
     <button class="tab" data-tab="master" data-ic="bot" id="masterTab" hidden><span>Master</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
@@ -426,6 +428,7 @@
   if(tg){try{tg.ready();tg.expand();tg.setHeaderColor&&tg.setHeaderColor("#070b14");tg.setBackgroundColor&&tg.setBackgroundColor("#070b14");}catch(e){}}
   const user=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user)||null;
   let master=false;
+  let webAdmin=false;
   let canAdmin=false;
   let masterToken="";
   const BOT="CintiaBot";
@@ -1644,6 +1647,20 @@
   function advancedAccountsUrl(value){
     try{const url=new URL(String(value||"").trim()),local=["localhost","127.0.0.1","::1"].includes(url.hostname);if(url.protocol!=="https:"&&!(local&&url.protocol==="http:"))return null;url.hash="";return url;}
     catch(e){return null;}
+  }
+
+  function loadWebAdmin(){
+    const el=document.getElementById("v-webadmin");
+    if(!webAdmin){el.innerHTML='<div class="master-error">Verifica primero tu cuenta de Telegram desde una invitación administrativa de TodoSobreAllTech.</div>';return;}
+    el.innerHTML=`<div class="vtitle">Administración web</div><div class="vsub">Acceso web verificado mediante tu identidad de Telegram.</div>
+      <div class="card master-hero"><div class="master-kicker">Administrador web verificado</div><h3 style="margin-top:5px">TodoSobreAllTech</h3><p>Este rol administra la plataforma web y es independiente de los permisos de tus grupos.</p><div class="master-status" style="margin-top:10px">Telegram vinculado</div></div>
+      <div class="master-action-grid">
+        <button class="master-action" data-web-admin-link="https://todosobreall.tech/admin"><span class="mai">${svg('users')}</span><b>Panel web</b><small>Usuarios, servicios y actividad</small></button>
+        <button class="master-action" data-web-admin-link="https://todosobreall.tech/dashboard"><span class="mai">${svg('globe')}</span><b>Centro de control</b><small>Herramientas administrativas</small></button>
+        <button class="master-action" data-web-admin-link="https://todosobreall.tech/admin/statistics"><span class="mai">${svg('trendup')}</span><b>Estadísticas</b><small>Métricas de la plataforma</small></button>
+        <button class="master-action" data-web-admin-link="https://todosobreall.tech/admin/onion-webs"><span class="mai">${svg('shield')}</span><b>Onion Webs</b><small>Servicios y dominios activos</small></button>
+      </div>`;
+    el.querySelectorAll('[data-web-admin-link]').forEach(button=>button.onclick=()=>openLink(button.dataset.webAdminLink));
   }
   function loadMasterAdvancedAccounts(){
     const box=document.getElementById("masterDetail"),saved=uxRead("hub_accounts_web_url","https://todosobreall.tech/dashboard"),base=advancedAccountsUrl(saved)||advancedAccountsUrl("https://todosobreall.tech/dashboard");
@@ -2928,7 +2945,7 @@
   function reflectTheme(){document.querySelectorAll("[data-theme-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.themeOpt===curTheme));}
 
   // ── Navegación ──
-  const LOADERS={usuario:loadUserHome,canales:loadCanales,admin:loadAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
+  const LOADERS={usuario:loadUserHome,canales:loadCanales,admin:loadAdmin,webadmin:loadWebAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
   function showView(name,fromHistory=false){
     if(name!=="grupo")applyGroupAppearance({accent:"teal",compact:false});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
@@ -3001,6 +3018,7 @@
     if(tg&&tg.initData){
       const d=await apiPost("/tg_auth",{initData:tg.initData});
       if(d&&d.ok)await applyHubReleaseIdentity(d.release_channel,d.app_version);
+      if(d&&d.ok&&d.is_web_admin){webAdmin=true;document.getElementById("webAdminTab").hidden=false;}
       if(d&&d.ok&&d.is_master){
         master=true;canAdmin=true;masterToken=d.token||"";
         document.getElementById("roleBadge").hidden=false;

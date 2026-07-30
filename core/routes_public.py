@@ -1984,7 +1984,7 @@ def tg_auth():
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     is_master = _master_id is not None and str(user.get("id")) == str(_master_id)
     release_channel = _miniapp_release_channel(user)
-    resp = {"ok": True, "is_master": is_master,
+    resp = {"ok": True, "is_master": is_master, "is_web_admin": _verified_web_admin(user),
             "release_channel": release_channel, "app_version": APP_VERSION,
             "user": {
         "id": user.get("id"), "first_name": user.get("first_name"), "username": user.get("username"),
@@ -3732,6 +3732,19 @@ def _miniapp_release_channel(user):
         return normalize_release_channel((record or {}).get("release_channel"))
     except Exception:
         return "stable"
+
+
+def _verified_web_admin(user):
+    """Resolve a web administrator only from the PB account linked to Telegram."""
+    user_id = str(user.get("id") or "").strip()
+    if not user_id:
+        return False
+    try:
+        pb = getattr(_channel_stats, "_pb", None)
+        record = pb.first("users", f"telegram_id='{pb.esc(user_id)}'") if pb else None
+        return bool(record and record.get("role") in {"admin", "creator"} and not record.get("is_frozen"))
+    except Exception:
+        return False
 
 
 def _bind_feature_group_payload(item, payload, group_id):
