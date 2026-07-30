@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 1.860 funciones verificadas - 2026-07-30
+- Se integran 60 operaciones WebApp de contenido, seguridad e IA con roles y ejecución protegida por el registro central.
+- El preflight confirma IDs y APIs nuevas; 126 pruebas cubren el bloque y sus regresiones de accesibilidad y modo offline.
+- Los nombres de exportación rechazan traversal Unix/Windows, ADS NTFS, dispositivos reservados y terminaciones ambiguas.
+
 ### Refuerzo de autenticación y plugins - 2026-07-30
 - El panel falla de forma cerrada si faltan la contraseña o el secreto JWT y compara credenciales en tiempo constante.
 - La carga y activación de plugins rechazan rutas relativas, absolutas y separadores que pudieran escapar del directorio permitido.

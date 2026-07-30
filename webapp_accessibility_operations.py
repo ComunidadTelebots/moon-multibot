@@ -29,6 +29,19 @@ def _time(value):
     return (parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
+def _safe_transfer_filename(value):
+    """Validate a portable leaf filename before a later storage adapter uses it."""
+    name = _text(value, "file name", 200)
+    # Besides directory separators, ':' creates NTFS alternate data streams.
+    if name in {".", ".."} or any(char in name for char in "/\\:") or any(ord(char) < 32 for char in name):
+        raise ValueError("unsafe file name")
+    stem = name.rstrip(" .").split(".", 1)[0].upper()
+    reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+    if name != name.rstrip(" .") or stem in reserved:
+        raise ValueError("unsafe file name")
+    return name
+
+
 def plan_offline_migration(config, migrations):  # future-1842
     version = int(config.get("version", 0)); ordered = sorted(_list(migrations, "migrations", 100), key=lambda x: int(x["from"]))
     steps, cursor = [], version
@@ -65,7 +78,8 @@ def prepare_offline_storage_transfer(files, provider, quota_bytes):  # future-18
     for item in _list(files,"files",500):
         size=int(item.get("size",-1)); digest=str(item.get("sha256") or "")
         if size<0 or not re.fullmatch(r"[0-9a-f]{64}",digest): raise ValueError("invalid file metadata")
-        total+=size; manifest.append({"name":_text(item.get("name"),"file name",200),"size":size,"sha256":digest})
+        name=_safe_transfer_filename(item.get("name"))
+        total+=size; manifest.append({"name":name,"size":size,"sha256":digest})
     if total>int(quota_bytes): raise ValueError("external quota exceeded")
     return {"provider":provider,"files":manifest,"bytes":total,"encrypted_before_upload":True,"transfer_started":False}
 
