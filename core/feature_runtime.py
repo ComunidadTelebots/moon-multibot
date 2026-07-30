@@ -81,6 +81,8 @@ MANIFEST_MODULES = (
     "webapp_content_security_ai_operations_manifest",
     "webapp_ai_accounts_creator_operations_manifest",
     "webapp_creator_news_proxy_operations_manifest",
+    "webapp_proxy_dashboard_analytics_operations_manifest",
+    "webapp_analytics_privacy_seo_operations_manifest",
     "webapp_future_0668_0687_manifest",
     "webapp_sublot_02_manifest",
     "webapp_sublot_03_manifest",
