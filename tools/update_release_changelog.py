@@ -29,6 +29,10 @@ RELEASES = {
         "resource_quality_sandbox_governance_impact_manifest",
         "webapp_support_subscription_moderation_operations_manifest",
     ),
+    "v18.23.3": (
+        "resource_energy_abuse_migration_federation_manifest",
+        "webapp_moderation_security_ai_operations_manifest",
+    ),
 }
 
 

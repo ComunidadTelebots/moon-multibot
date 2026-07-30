@@ -612,7 +612,136 @@
 - `future-2340` · `moderation_capacity_forecast` — None
 - `future-2341` · `moderation_batch_plan` — None
 
+### v18.23.3 — 120 funciones incorporadas
+
+- `future-5702` · `optimize_temporary_roles_energy` — Optimización energética de roles temporales en Moonbot
+- `future-5705` · `optimize_managed_groups_energy` — Optimización energética de grupos administrados en Moonbot
+- `future-5708` · `optimize_scheduled_messages_energy` — Optimización energética de mensajes programados en Moonbot
+- `future-5711` · `optimize_rss_feeds_energy` — Optimización energética de feeds RSS en Moonbot
+- `future-5714` · `optimize_telegram_videos_energy` — Optimización energética de vídeos de Telegram en Moonbot
+- `future-5717` · `optimize_blocklists_energy` — Optimización energética de listas de bloqueo en Moonbot
+- `future-5720` · `optimize_required_subscriptions_energy` — Optimización energética de suscripciones obligatorias en Moonbot
+- `future-5723` · `optimize_signed_webhooks_energy` — Optimización energética de webhooks firmados en Moonbot
+- `future-5726` · `optimize_quiet_hours_energy` — Optimización energética de horarios silenciosos en Moonbot
+- `future-5729` · `optimize_correlated_incidents_energy` — Optimización energética de incidentes correlacionados en Moonbot
+- `future-5732` · `optimize_accessible_preferences_energy` — Optimización energética de preferencias accesibles en Moonbot
+- `future-5735` · `optimize_integration_secrets_energy` — Optimización energética de secretos de integración en Moonbot
+- `future-5738` · `optimize_contextual_responses_energy` — Optimización energética de respuestas contextuales en Moonbot
+- `future-5741` · `optimize_miniapp_menus_energy` — Optimización energética de menús de la MiniApp en Moonbot
+- `future-5744` · `optimize_bot_statistics_energy` — Optimización energética de estadísticas por bot en Moonbot
+- `future-5747` · `optimize_advertising_preferences_energy` — Optimización energética de preferencias publicitarias en Moonbot
+- `future-5750` · `optimize_processing_queues_energy` — Optimización energética de colas de procesamiento en Moonbot
+- `future-5753` · `limit_creator_accounts_abuse` — Limitación antiabuso de cuentas creadoras en Moonbot
+- `future-5756` · `limit_associated_channels_abuse` — Limitación antiabuso de canales asociados en Moonbot
+- `future-5759` · `limit_community_campaigns_abuse` — Limitación antiabuso de campañas comunitarias en Moonbot
+- `future-5762` · `limit_editorial_articles_abuse` — Limitación antiabuso de artículos editoriales en Moonbot
+- `future-5765` · `limit_moderated_images_abuse` — Limitación antiabuso de imágenes moderadas en Moonbot
+- `future-5768` · `limit_user_appeals_abuse` — Limitación antiabuso de apelaciones de usuarios en Moonbot
+- `future-5771` · `limit_mtproto_proxies_abuse` — Limitación antiabuso de proxies MTProto en Moonbot
+- `future-5774` · `limit_persistent_tasks_abuse` — Limitación antiabuso de tareas persistentes en Moonbot
+- `future-5777` · `limit_moderation_rules_abuse` — Limitación antiabuso de reglas de moderación en Moonbot
+- `future-5780` · `limit_language_metrics_abuse` — Limitación antiabuso de métricas lingüísticas en Moonbot
+- `future-5783` · `limit_community_translations_abuse` — Limitación antiabuso de traducciones comunitarias en Moonbot
+- `future-5786` · `limit_personal_consents_abuse` — Limitación antiabuso de consentimientos personales en Moonbot
+- `future-5789` · `limit_telegram_reactions_abuse` — Limitación antiabuso de reacciones Telegram en Moonbot
+- `future-5792` · `limit_master_panels_abuse` — Limitación antiabuso de paneles del master en Moonbot
+- `future-5795` · `limit_channel_directories_abuse` — Limitación antiabuso de directorios de canales en Moonbot
+- `future-5798` · `limit_external_links_abuse` — Limitación antiabuso de enlaces externos en Moonbot
+- `future-5801` · `plan_administrative_sessions_guided_migration` — Migración guiada de sesiones administrativas en Moonbot
+- `future-5804` · `plan_community_profiles_guided_migration` — Migración guiada de perfiles comunitarios en Moonbot
+- `future-5807` · `plan_telegram_communities_guided_migration` — Migración guiada de comunidades Telegram en Moonbot
+- `future-5810` · `plan_house_ads_guided_migration` — Migración guiada de anuncios propios en Moonbot
+- `future-5813` · `plan_voice_notes_guided_migration` — Migración guiada de notas de voz en Moonbot
+- `future-5816` · `plan_suspicious_files_guided_migration` — Migración guiada de archivos sospechosos en Moonbot
+- `future-5819` · `plan_captcha_decisions_guided_migration` — Migración guiada de decisiones de captcha en Moonbot
+- `future-5822` · `plan_managed_bots_guided_migration` — Migración guiada de bots administrados en Moonbot
+- `future-5825` · `plan_recurring_reminders_guided_migration` — Migración guiada de recordatorios recurrentes en Moonbot
+- `future-5828` · `plan_security_events_guided_migration` — Migración guiada de eventos de seguridad en Moonbot
+- `future-5831` · `plan_regional_maps_guided_migration` — Migración guiada de mapas regionales en Moonbot
+- `future-5834` · `plan_backups_guided_migration` — Migración guiada de copias de seguridad en Moonbot
+- `future-5837` · `plan_ai_learning_data_guided_migration` — Migración guiada de datos de aprendizaje IA en Moonbot
+- `future-5840` · `plan_rich_commands_guided_migration` — Migración guiada de comandos enriquecidos en Moonbot
+- `future-5843` · `plan_hub_notifications_guided_migration` — Migración guiada de notificaciones del Hub en Moonbot
+- `future-5846` · `plan_cookie_policies_guided_migration` — Migración guiada de políticas de cookies en Moonbot
+- `future-5849` · `plan_wayback_history_guided_migration` — Migración guiada de historial Wayback en Moonbot
+- `future-5852` · `verify_temporary_roles_federated_compatibility` — Compatibilidad federada de roles temporales en Moonbot
+- `future-5855` · `verify_managed_groups_federated_compatibility` — Compatibilidad federada de grupos administrados en Moonbot
+- `future-5858` · `verify_scheduled_messages_federated_compatibility` — Compatibilidad federada de mensajes programados en Moonbot
+- `future-5861` · `verify_rss_feeds_federated_compatibility` — Compatibilidad federada de feeds RSS en Moonbot
+- `future-5864` · `verify_telegram_videos_federated_compatibility` — Compatibilidad federada de vídeos de Telegram en Moonbot
+- `future-5867` · `verify_blocklists_federated_compatibility` — Compatibilidad federada de listas de bloqueo en Moonbot
+- `future-5870` · `verify_required_subscriptions_federated_compatibility` — Compatibilidad federada de suscripciones obligatorias en Moonbot
+- `future-5873` · `verify_signed_webhooks_federated_compatibility` — Compatibilidad federada de webhooks firmados en Moonbot
+- `future-5876` · `verify_quiet_hours_federated_compatibility` — Compatibilidad federada de horarios silenciosos en Moonbot
+- `future-5879` · `verify_correlated_incidents_federated_compatibility` — Compatibilidad federada de incidentes correlacionados en Moonbot
+- `future-2342` · `moderation_workspace` — None
+- `future-2343` · `moderation_media` — None
+- `future-2344` · `moderation_narrative_report` — None
+- `future-2345` · `moderation_alert_escalation` — None
+- `future-2346` · `moderation_offline_continuity` — None
+- `future-2347` · `moderation_adaptive_trust` — None
+- `future-2348` · `moderation_campaign_plan` — None
+- `future-2349` · `moderation_intent` — None
+- `future-2350` · `moderation_integration` — None
+- `future-2351` · `moderation_vault` — None
+- `future-2352` · `moderation_easy_read` — None
+- `future-2353` · `moderation_sessions` — None
+- `future-2354` · `moderation_editorial` — None
+- `future-2355` · `moderation_budget` — None
+- `future-2356` · `moderation_reputation` — None
+- `future-2357` · `moderation_localization` — None
+- `future-2358` · `moderation_communication_preferences` — None
+- `future-2359` · `moderation_onboarding` — None
+- `future-2360` · `moderation_governance` — None
+- `future-2361` · `moderation_voice_control` — None
+- `future-2362` · `moderation_federated_bridge` — None
+- `future-2363` · `moderation_external_event` — None
+- `future-2364` · `moderation_digital_twin` — None
+- `future-2365` · `security_incident_correlation` — None
+- `future-2366` · `security_workflow` — None
+- `future-2367` · `security_delegation` — None
+- `future-2368` · `security_coordinated_abuse` — None
+- `future-2369` · `security_copilot` — None
+- `future-2370` · `security_capacity_forecast` — None
+- `future-2371` · `security_batch_plan` — None
+- `future-2372` · `security_workspace` — None
+- `future-2373` · `security_media` — None
+- `future-2374` · `security_narrative_report` — None
+- `future-2375` · `security_alert_escalation` — None
+- `future-2376` · `security_offline_continuity` — None
+- `future-2377` · `security_adaptive_trust` — None
+- `future-2378` · `security_campaign_plan` — None
+- `future-2379` · `security_intent` — None
+- `future-2380` · `security_integration` — None
+- `future-2381` · `security_vault` — None
+- `future-2382` · `security_easy_read` — None
+- `future-2383` · `security_sessions` — None
+- `future-2384` · `security_editorial` — None
+- `future-2385` · `security_budget` — None
+- `future-2386` · `security_reputation` — None
+- `future-2387` · `security_localization` — None
+- `future-2388` · `security_communication_preferences` — None
+- `future-2389` · `security_onboarding` — None
+- `future-2390` · `security_governance` — None
+- `future-2391` · `security_voice_control` — None
+- `future-2392` · `security_federated_bridge` — None
+- `future-2393` · `security_external_event` — None
+- `future-2394` · `security_digital_twin` — None
+- `future-2395` · `ai_incidents` — None
+- `future-2396` · `ai_workflow` — None
+- `future-2397` · `ai_delegation` — None
+- `future-2398` · `ai_coordinated_abuse` — None
+- `future-2399` · `ai_copilot` — None
+- `future-2400` · `ai_capacity_forecast` — None
+- `future-2401` · `ai_batch_plan` — None
+
 <!-- GENERATED_RELEASE_FEATURES_END -->
+
+## v18.23.3 - 2026-07-30 - Registro ampliado a 2.520 funciones verificadas
+
+- Añade 60 funciones Moonbot de eficiencia energética, antiabuso, migración guiada y compatibilidad federada.
+- Añade 60 funciones WebApp de moderación, seguridad e IA con eventos HMAC separados por dominio y acciones en vista previa.
+- El inventario generado enumera los 120 IDs, APIs y descripciones exactas de esta versión.
 
 ## v18.23.2 - 2026-07-30 - Actualizador unificado seguro
 
