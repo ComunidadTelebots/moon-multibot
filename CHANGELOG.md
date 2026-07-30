@@ -1,5 +1,10 @@
 ﻿# Changelog - Moon Multibot
 
+### Registro ampliado a 2.100 funciones verificadas - 2026-07-30
+- Se integran 60 funciones Moonbot de rotación, archivo programado, restauración puntual, observabilidad y calidad.
+- Las operaciones respetan legal hold, checksum, versión esperada, health gates, aprobación y rollback sin ejecutar efectos directos.
+- Los controles de calidad sustituyen identificadores inválidos por referencias seguras para impedir reflexión de HTML malicioso.
+
 ### Registro ampliado a 2.040 funciones verificadas - 2026-07-30
 - Se incorporan 60 operaciones WebApp para creadores, noticias y proxies con roles y estados operativos explícitos.
 - Las firmas HMAC quedan separadas por dominio y tipo de evento para impedir sustituciones con una firma reutilizada.

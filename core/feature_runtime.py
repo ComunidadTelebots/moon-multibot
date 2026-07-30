@@ -49,6 +49,7 @@ MANIFEST_MODULES = (
     "resource_review_accessible_localization_manifest",
     "resource_localization_easy_voice_grouped_manifest",
     "resource_grouped_routing_cache_rotation_manifest",
+    "resource_rotation_archive_restore_observability_quality_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
