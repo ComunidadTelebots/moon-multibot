@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.17
+
+- Añade un directorio interno paginado para que TodoSobreAllTech consulte los baneos registrados por Moonbot.
+- Distingue detecciones CAS registradas, GBAN y baneos locales sin publicar ni recorrer el export completo de CAS.
+- Permite buscar por ID, motivo u origen mediante la conexión interna autenticada.
+- Incorpora una campaña global, exclusiva del master, que inicia la reverificación en todos los grupos para usuarios pendientes.
+- Reutiliza los protocolos existentes de mute, captcha, CAS, canales obligatorios y apelación, y publica progreso agregado y cancelación.
+- Persiste el desglose por grupo y reconstruye la cola de usuarios restantes con el estado de cada protocolo tras cerrar o reabrir el navegador.
+
 ## v18.23.16
 
 - Añade `/verificarweb` por chat privado para confirmar códigos administrativos emitidos por TodoSobreAllTech.

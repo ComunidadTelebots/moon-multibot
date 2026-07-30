@@ -609,7 +609,7 @@ def _known_internal_group_ids():
     return ids
 
 
-def _start_bulk_captcha(bot, cid, actor="admin"):
+def _start_bulk_captcha(bot, cid, actor="admin", only_pending=False):
     """Reverifica en segundo plano a los miembros observados sin bloquear la API."""
     job_key = f"JOIN_BULK_JOB_{cid}"
     current = _db.get(job_key, {}) if _db else {}
@@ -619,9 +619,12 @@ def _start_bulk_captcha(bot, cid, actor="admin"):
     config = _join_config(cid)
     exempt = set(config.get("exempt_user_ids") or [])
     user_ids = [uid for uid in (observed or {}).keys() if str(uid) not in exempt] if isinstance(observed, dict) else []
+    if only_pending:
+        user_ids = [uid for uid in user_ids
+                    if (_db.get(f"CAPTCHA_STATUS_{cid}_{uid}", {}) or {}).get("status") != "passed"]
     job = {"status": "running", "total": len(user_ids), "processed": 0, "muted": 0,
            "private_sent": 0, "private_blocked": 0, "skipped": 0,
-           "started_at": int(time.time()), "actor": str(actor)[:80]}
+           "started_at": int(time.time()), "actor": str(actor)[:80], "only_pending": bool(only_pending)}
     _db.set(job_key, job)
     _db.set(f"JOIN_BULK_LAST_{cid}", job["started_at"])
 
@@ -639,6 +642,8 @@ def _start_bulk_captcha(bot, cid, actor="admin"):
                 member = membership.get("result", {}) if isinstance(membership, dict) and membership.get("ok") else {}
                 user = member.get("user") or {}
                 if member.get("status") not in ("member", "restricted") or user.get("is_bot"):
+                    _db.set(f"CAPTCHA_STATUS_{cid}_{uid}", {"status": "exempt", "at": int(time.time()),
+                            "reason": "bot_or_not_member"})
                     job["skipped"] += 1
                     continue
                 muted = bot.restrict_user(cid, uid, can_send=False)
@@ -1406,6 +1411,137 @@ def _security_snapshot():
         "shield_enabled": bool(_db.get("NEURAL_SHIELD", True)),
         "history": list(reversed(recent)),
     }
+
+
+@bp.route("/api/internal/ban-directory")
+def internal_ban_directory():
+    """Paginated unified view for the trusted TodoSobreAllTech master panel."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    source = str(request.args.get("source", "all")).lower()
+    query = str(request.args.get("q", "")).strip()
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+        per_page = max(1, min(200, int(request.args.get("per_page", 100))))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "invalid_pagination"}), 400
+
+    moon_records = _ban_manager.list_ban_records(query=query, status="all", limit=2000) if _ban_manager else []
+    local_bans = _ban_manager.get_all_local_bans() if _ban_manager else {}
+    local_rows = [{"user_id": str(uid), "source": "moonbot_local", "scope": "group",
+                   "group_id": str(cid), "reason": "Baneo local del grupo", "status": "active"}
+                  for cid, users in local_bans.items() for uid in users]
+    moon_rows = list(moon_records) + local_rows
+    if query:
+        needle = query.lower()
+        moon_rows = [row for row in moon_rows if needle in str(row.get("user_id", "")).lower()
+                     or needle in str(row.get("reason", "")).lower()
+                     or needle in str(row.get("source", "")).lower()]
+    cas_sources = {"cas", "cas_feed", "export.csv", "cas_export"}
+    cas_rows = [row for row in moon_rows if str(row.get("source", "")).lower() in cas_sources]
+    if source == "cas":
+        moon_rows = cas_rows
+    elif source == "moonbot":
+        moon_rows = [row for row in moon_rows if str(row.get("source", "")).lower() not in cas_sources]
+    moon_total = len(moon_rows)
+    start = (page - 1) * per_page
+    moon_page = moon_rows[start:start + per_page]
+    return jsonify({"ok": True, "records": moon_page, "stats": {
+        "cas": len(cas_rows), "moonbot": len(moon_records) + len(local_rows),
+        "global": len(moon_records), "local": len(local_rows),
+    }, "page": page, "per_page": per_page,
+        "has_more": page * per_page < moon_total})
+
+
+def _global_captcha_status():
+    campaign = _db.get("GLOBAL_CAPTCHA_CAMPAIGN", {}) if _db else {}
+    group_ids = [str(cid) for cid in campaign.get("group_ids", [])]
+    jobs = [(_db.get(f"JOIN_BULK_JOB_{cid}", {}) or {}) for cid in group_ids]
+    totals = {key: sum(int(job.get(key, 0) or 0) for job in jobs)
+              for key in ("total", "processed", "muted", "private_sent", "private_blocked", "skipped")}
+    running = sum(job.get("status") in ("running", "cancel_requested") for job in jobs)
+    status = "running" if running else ("completed" if group_ids else "idle")
+    percentage = round((totals["processed"] / totals["total"] * 100), 1) if totals["total"] else 0.0
+    delivery_percentage = round((totals["private_sent"] / totals["processed"] * 100), 1) if totals["processed"] else 0.0
+    names = (_get_global_chat_names() or {}) if _get_global_chat_names else {}
+    profiles = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
+    group_details, remaining_users = [], []
+    for cid, job in zip(group_ids, jobs):
+        observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) or {}
+        remaining = []
+        exempt = set(_join_config(cid).get("exempt_user_ids") or [])
+        for raw_uid in observed.keys() if isinstance(observed, dict) else []:
+            uid = str(raw_uid)
+            if uid in exempt:
+                continue
+            captcha = _db.get(f"CAPTCHA_STATUS_{cid}_{uid}", {}) or {}
+            if captcha.get("status") in ("passed", "exempt"):
+                continue
+            pending = _db.get(f"JOINQ_{cid}_{uid}", {}) or {}
+            appeal = _db.get(f"CAPTCHA_APPEAL_{cid}_{uid}", {}) or {}
+            profile = profiles.get(uid, {}) or profiles.get(raw_uid, {}) or {}
+            row = {"user_id": uid, "name": profile.get("name") or pending.get("first_name") or f"Usuario {uid}",
+                   "group_id": cid, "group_name": str(names.get(cid) or f"Grupo {cid}"),
+                   "protocols": {
+                       "telegram_mute": "applied" if pending.get("telegram_muted") else "pending",
+                       "captcha": captcha.get("status") or "pending",
+                       "cas": "flagged" if pending.get("cas_flagged") else "pending",
+                       "required_channels": "pending" if pending.get("subscription_pending") else
+                           ("configured" if (_join_config(cid)["required_channels"] or _global_join_channel()) else "not_required"),
+                       "appeal": appeal.get("status") or "available",
+                   }}
+            remaining.append(row)
+            if len(remaining_users) < 250:
+                remaining_users.append(row)
+        group_details.append({"group_id": cid, "name": str(names.get(cid) or f"Grupo {cid}"),
+                              "status": job.get("status", "pending"), "total": int(job.get("total", 0) or 0),
+                              "processed": int(job.get("processed", 0) or 0), "remaining": len(remaining)})
+    total_remaining = sum(row["remaining"] for row in group_details)
+    return {**campaign, **totals, "status": status, "running_groups": running,
+            "groups": len(group_ids), "percentage": percentage,
+            "delivery_percentage": delivery_percentage, "total_remaining": total_remaining,
+            "group_details": group_details, "remaining_users": remaining_users,
+            "remaining_truncated": total_remaining > len(remaining_users)}
+
+
+@bp.route("/api/internal/captcha-global", methods=["GET", "POST"])
+def internal_captcha_global():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if request.method == "GET":
+        return jsonify({"ok": True, "campaign": _global_captcha_status()})
+    body = request.json or {}
+    action = str(body.get("action", "start"))
+    if action == "cancel":
+        campaign = _db.get("GLOBAL_CAPTCHA_CAMPAIGN", {}) or {}
+        for cid in campaign.get("group_ids", []):
+            job = _db.get(f"JOIN_BULK_JOB_{cid}", {}) or {}
+            if job.get("status") == "running":
+                job["status"] = "cancel_requested"
+                _db.set(f"JOIN_BULK_JOB_{cid}", job)
+        return jsonify({"ok": True, "campaign": _global_captcha_status()})
+    if action != "start":
+        return jsonify({"ok": False, "error": "invalid_action"}), 400
+    current = _global_captcha_status()
+    if current.get("status") == "running":
+        return jsonify({"ok": True, "started": False, "campaign": current})
+    started_groups = []
+    group_ids = {str(row.get("id")) for row in _admin_group_rows()
+                 if str(row.get("ctype", "")).lower() != "channel"}
+    for cid in sorted(group_ids):
+        bot = _known_internal_group(cid)
+        if not bot:
+            continue
+        _, started = _start_bulk_captcha(bot, cid, "web-master-global", only_pending=True)
+        if started:
+            started_groups.append(str(cid))
+    campaign = {"id": secrets.token_urlsafe(12), "group_ids": started_groups,
+                "started_at": int(time.time()), "mode": "pending_only",
+                "protocols": ["telegram_mute", "captcha", "cas", "required_channels", "appeal"]}
+    _db.set("GLOBAL_CAPTCHA_CAMPAIGN", campaign)
+    if _add_audit_log:
+        _add_audit_log(f"TodoSobreAllTech: captcha global iniciado en {len(started_groups)} grupos")
+    return jsonify({"ok": True, "started": True, "campaign": _global_captcha_status()})
 
 
 @bp.route("/api/internal/security", methods=["GET", "POST"])
