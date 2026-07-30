@@ -11,7 +11,7 @@ import importlib
 import inspect
 import json
 from functools import lru_cache
-from core.feature_access import can_access_feature, classify_feature
+from core.feature_access import ROLES, can_access_feature, classify_feature
 
 
 MANIFEST_MODULES = (
@@ -54,6 +54,7 @@ MANIFEST_MODULES = (
     "resource_quality_sandbox_governance_impact_manifest",
     "resource_energy_abuse_migration_federation_manifest",
     "resource_federation_continuity_assistance_manifest",
+    "integration_operations_manifest",
     "core.web_creator_features_manifest",
     "core.web_creator_news_manifest",
     "core.web_news_operations_manifest",
@@ -131,6 +132,8 @@ def registry():
         manifest = importlib.import_module(manifest_name)
         for raw in _entries(manifest):
             item = dict(raw)
+            if not item.get("minimum_role") and getattr(manifest, "DEFAULT_MINIMUM_ROLE", None):
+                item["minimum_role"] = manifest.DEFAULT_MINIMUM_ROLE
             feature_id = str(item.get("id", ""))
             api_name = str(item.get("api", ""))
             module_name = str(item.get("module") or manifest_name.removesuffix("_manifest")).removesuffix(".py").replace("/", ".")
@@ -141,8 +144,15 @@ def registry():
             target = getattr(importlib.import_module(module_name), api_name, None)
             if not callable(target):
                 raise RuntimeError(f"API no invocable: {module_name}.{api_name}")
+            declared_role = item.get("minimum_role")
+            if declared_role is not None and declared_role not in ROLES:
+                raise RuntimeError(f"Rol mínimo inválido en {manifest_name}: {declared_role}")
             item.update({"module": module_name, "api": api_name, "callable": target})
-            item.update(classify_feature(item))
+            access = classify_feature(item)
+            if declared_role is not None:
+                role_index = ROLES.index(declared_role)
+                access.update({"minimum_role": declared_role, "audience": list(ROLES[role_index:])})
+            item.update(access)
             result[feature_id] = item
     return result
 

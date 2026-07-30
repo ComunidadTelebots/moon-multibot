@@ -43,7 +43,7 @@ from roadmap_engine import RoadmapEngine
 from horizon_full import FullHorizonSuite
 from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
-from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features
+from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features, registry as verified_feature_registry
 from core.pb_client import PBError
 
 bp = Blueprint("public", __name__)
@@ -238,17 +238,44 @@ def internal_verified_features():
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     actor_role = request.headers.get("X-Moon-Actor-Role", "master").strip().lower()
+    actor_id = request.headers.get("X-Moon-Actor-Id", "").strip()
     if actor_role not in {"user", "group_admin", "group_creator", "master"}:
         return jsonify({"ok": False, "error": "invalid actor role"}), 400
+    actor = {"id": actor_id}
+    if actor_role == "master":
+        actor["id"] = str(_master_id or actor_id)
+    groups = _miniapp_feature_groups(actor)
+    contextual_roles = {row.get("actor_role") for row in groups}
+    catalog_role = ("master" if actor_role == "master" else
+                    "group_creator" if "group_creator" in contextual_roles else
+                    "group_admin" if "group_admin" in contextual_roles else "user")
     if request.method == "GET":
-        features = list_verified_features(actor_role)
-        return jsonify({"ok": True, "total": len(features), "features": features})
+        features = list_verified_features(catalog_role)
+        return jsonify({"ok": True, "actor_role": catalog_role, "total": len(features),
+                        "features": features, "groups": groups})
     body = request.get_json(silent=True) or {}
     try:
         # El rol lo aporta el proxy interno después de autenticar al usuario;
         # nunca se acepta desde el cuerpo controlado por el navegador.
-        result = execute_verified_feature(body.get("feature_id"), body.get("payload", {}), actor_role)
-        return jsonify({"ok": True, "feature_id": body.get("feature_id"), "result": result})
+        item = verified_feature_registry().get(body.get("feature_id"))
+        if item is None:
+            raise KeyError(body.get("feature_id"))
+        group_scoped = item.get("scope") in {"group_operation", "group_configuration"}
+        selected = None
+        payload = body.get("payload", {})
+        if group_scoped:
+            requested_group = _feature_payload_group_id(item, payload)
+            selected = next((row for row in groups if row["chat_id"] == requested_group), None)
+            if selected is None:
+                raise PermissionError("grupo no autorizado")
+            payload = _bind_feature_group_payload(item, payload, selected["chat_id"])
+            if not _payload_uses_only_group(payload, selected["chat_id"]):
+                raise PermissionError("el payload referencia otro grupo")
+        effective_role = selected["actor_role"] if selected else catalog_role
+        result = execute_verified_feature(body.get("feature_id"), payload, effective_role)
+        return jsonify({"ok": True, "actor_role": effective_role,
+                        "group_id": selected and selected["chat_id"],
+                        "feature_id": body.get("feature_id"), "result": result})
     except KeyError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 404
     except PermissionError as exc:
@@ -3630,17 +3657,111 @@ def public_mine():
         return jsonify({"ok": False, "error": f"PocketBase no disponible: {error}"}), 503
 
 
-def _miniapp_feature_role(user):
-    if _is_master(user):
-        return "master"
+def _miniapp_feature_groups(user):
+    """Return only server-verified groups and the contextual role in each one."""
     user_id = str(user.get("id") or "")
     try:
-        channels = _channel_stats.get_user_channels(user_id) or []
+        channels = (_channel_stats.get_all_channels() if _is_master(user)
+                    else _channel_stats.get_user_channels(user_id)) or []
     except Exception:
         channels = []
-    if any(str(row.get("creator_id") or row.get("owner_id") or "") == user_id or row.get("admin_status") == "creator" for row in channels):
-        return "group_creator"
-    return "group_admin" if channels else "user"
+    result = []
+    for row in channels:
+        chat_id = str(row.get("chat_id") or "").strip()
+        if not chat_id:
+            continue
+        telegram_role = str(row.get("role") or row.get("admin_status") or "").lower()
+        role = "master" if _is_master(user) else "group_creator" if telegram_role == "creator" else "group_admin"
+        result.append({"chat_id": chat_id, "name": str(row.get("name") or row.get("title") or chat_id)[:160], "actor_role": role})
+    return result
+
+
+def _miniapp_feature_context(user, requested_group_id=None):
+    groups = _miniapp_feature_groups(user)
+    requested = str(requested_group_id or "").strip()
+    selected = next((row for row in groups if row["chat_id"] == requested), None) if requested else None
+    if requested and selected is None:
+        raise PermissionError("grupo no autorizado")
+    return (selected["actor_role"] if selected else "master" if _is_master(user) else "user"), groups, selected
+
+
+def _bind_feature_group_payload(item, payload, group_id):
+    """Overwrite direct group identifiers so client JSON cannot escape its authorized context."""
+    if not isinstance(payload, dict):
+        return payload
+    args = list(payload.get("args") or [])
+    kwargs = dict(payload.get("kwargs") or {})
+    for index, parameter in enumerate((item.get("input_schema") or {}).get("parameters") or []):
+        if parameter.get("name") not in {"group_id", "chat_id", "channel_id"} or parameter.get("variadic"):
+            continue
+        if parameter.get("binding") == "args":
+            if index < len(args):
+                args[index] = group_id
+        else:
+            kwargs[parameter["name"]] = group_id
+    return {"args": args, "kwargs": kwargs}
+
+
+def _feature_payload_group_id(item, payload):
+    """Read the formal group parameter; arbitrary nested IDs never grant access."""
+    if not isinstance(payload, dict):
+        return ""
+    args = list(payload.get("args") or [])
+    kwargs = dict(payload.get("kwargs") or {})
+    for index, parameter in enumerate((item.get("input_schema") or {}).get("parameters") or []):
+        name = parameter.get("name")
+        if name not in {"group_id", "chat_id", "channel_id"} or parameter.get("variadic"):
+            continue
+        value = args[index] if parameter.get("binding") == "args" and index < len(args) else kwargs.get(name)
+        return str(value or "").strip()
+    return ""
+
+
+def _payload_uses_only_group(value, group_id):
+    singular = {"group_id", "chat_id", "channel_id"}
+    plural = {"group_ids", "chat_ids", "channel_ids"}
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            if key in singular and str(nested) != str(group_id):
+                return False
+            if key in plural and (not isinstance(nested, (list, tuple)) or any(str(item) != str(group_id) for item in nested)):
+                return False
+            if not _payload_uses_only_group(nested, group_id):
+                return False
+    elif isinstance(value, (list, tuple)):
+        return all(_payload_uses_only_group(item, group_id) for item in value)
+    return True
+
+
+def _bind_feature_actor_payload(item, payload, user, actor_role):
+    """Prevent public callers from forging the identity or master role consumed by feature engines."""
+    if not isinstance(payload, dict):
+        return payload
+    args = list(payload.get("args") or [])
+    kwargs = dict(payload.get("kwargs") or {})
+    for index, parameter in enumerate((item.get("input_schema") or {}).get("parameters") or []):
+        name, binding = parameter.get("name"), parameter.get("binding")
+        current = args[index] if binding == "args" and index < len(args) else kwargs.get(name)
+        if name == "actor":
+            requested_scopes = current.get("scopes", []) if isinstance(current, dict) else []
+            scopes = [str(scope)[:160] for scope in requested_scopes[:100] if isinstance(scope, str)]
+            value = {"id": str(user.get("id") or "miniapp-user"), "roles": [actor_role], "scopes": scopes}
+        elif name == "actor_id":
+            value = str(user.get("id") or "miniapp-user")
+        elif name == "actor_role":
+            value = actor_role
+        elif name == "is_master":
+            value = actor_role == "master"
+        elif name == "is_admin":
+            value = actor_role in {"group_admin", "group_creator", "master"}
+        else:
+            continue
+        if binding == "args":
+            if index < len(args):
+                args[index] = value
+        else:
+            kwargs[name] = value
+    return {"args": args, "kwargs": kwargs}
 
 
 @bp.route("/api/public/features", methods=["POST", "OPTIONS"])
@@ -3648,19 +3769,35 @@ def public_role_features():
     """Interfaz de capacidades limitada al rol real de la Mini App."""
     if request.method == "OPTIONS":
         return ("", 204)
+    request.max_content_length = 128 * 1024
     body = request.get_json(silent=True) or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
-    actor_role = _miniapp_feature_role(user)
+    try:
+        actor_role, available_groups, selected_group = _miniapp_feature_context(user, body.get("group_id"))
+    except PermissionError as error:
+        return jsonify({"ok": False, "error": str(error)}), 403
     if body.get("action", "list") == "list":
         features = list_verified_features(actor_role)
-        return jsonify({"ok": True, "actor_role": actor_role, "total": len(features), "features": features})
+        return jsonify({"ok": True, "actor_role": actor_role, "selected_group_id": selected_group and selected_group["chat_id"],
+                        "available_groups": available_groups, "total": len(features), "features": features})
     if body.get("action") != "execute":
         return jsonify({"ok": False, "error": "acción no compatible"}), 400
     try:
-        result = execute_verified_feature(body.get("feature_id"), body.get("payload", {}), actor_role)
-        return jsonify({"ok": True, "actor_role": actor_role, "feature_id": body.get("feature_id"), "result": result})
+        item = verified_feature_registry().get(body.get("feature_id"))
+        if item is None:
+            raise KeyError(body.get("feature_id"))
+        group_scoped = item.get("scope") in {"group_operation", "group_configuration"}
+        if group_scoped and selected_group is None:
+            return jsonify({"ok": False, "error": "selecciona un grupo autorizado"}), 400
+        payload = _bind_feature_group_payload(item, body.get("payload", {}), selected_group["chat_id"]) if group_scoped else body.get("payload", {})
+        if group_scoped and not _payload_uses_only_group(payload, selected_group["chat_id"]):
+            return jsonify({"ok": False, "error": "el payload referencia otro grupo"}), 403
+        payload = _bind_feature_actor_payload(item, payload, user, actor_role)
+        result = execute_verified_feature(body.get("feature_id"), payload, actor_role)
+        return jsonify({"ok": True, "actor_role": actor_role, "group_id": selected_group and selected_group["chat_id"],
+                        "feature_id": body.get("feature_id"), "result": result})
     except KeyError as error:
         return jsonify({"ok": False, "error": str(error)}), 404
     except PermissionError as error:

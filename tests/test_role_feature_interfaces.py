@@ -10,7 +10,10 @@ class RoleFeatureInterfaceTests(unittest.TestCase):
         source = (ROOT / "core" / "routes_public.py").read_text(encoding="utf-8")
         segment = source[source.index('@bp.route("/api/public/features"'):source.index('@bp.route("/api/public/notifications"')]
         self.assertIn("_verify_init_data", segment)
-        self.assertIn("_miniapp_feature_role(user)", segment)
+        self.assertIn("_miniapp_feature_context(user, body.get(\"group_id\"))", segment)
+        self.assertIn("_bind_feature_group_payload", segment)
+        self.assertIn("_bind_feature_actor_payload", segment)
+        self.assertIn("request.max_content_length = 128 * 1024", segment)
         self.assertIn("list_verified_features(actor_role)", segment)
         self.assertIn("execute_verified_feature", segment)
         self.assertNotIn('body.get("actor_role")', segment)

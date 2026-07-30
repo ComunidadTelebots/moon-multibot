@@ -32,6 +32,16 @@ def _searchable(item):
 
 
 def classify_feature(item):
+    explicit = str(item.get("minimum_role") or "").strip().lower()
+    if explicit:
+        if explicit not in ROLES:
+            raise ValueError(f"Rol mínimo no válido: {explicit}")
+        defaults = {"user": ("personal", "low"), "group_admin": ("group_operation", "moderate"),
+                    "group_creator": ("group_configuration", "elevated"), "master": ("platform", "high")}
+        scope, risk = defaults[explicit]
+        index = ROLES.index(explicit)
+        return {"minimum_role": explicit, "audience": list(ROLES[index:]),
+                "scope": item.get("scope") or scope, "risk": item.get("risk") or risk}
     text = _searchable(item)
     if any(term in text for term in MASTER_TERMS):
         minimum_role, scope, risk = "master", "platform", "high"

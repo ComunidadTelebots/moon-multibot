@@ -6,7 +6,7 @@ from core.feature_runtime import execute, list_features, registry
 class FeatureRuntimeTests(unittest.TestCase):
     def test_registry_is_unique_and_callable(self):
         features = list_features()
-        self.assertEqual(2740, len(features))
+        self.assertEqual(2742, len(features))
         self.assertEqual(len(features), len({row["id"] for row in features}))
         self.assertTrue(all(callable(row["callable"]) for row in registry().values()))
         self.assertTrue(all(row["minimum_role"] in {"user", "group_admin", "group_creator", "master"} for row in features))
@@ -42,6 +42,12 @@ class FeatureRuntimeTests(unittest.TestCase):
         self.assertNotIn(master_only["id"], user_ids)
         with self.assertRaises(PermissionError):
             execute(master_only["id"], {"args": [], "kwargs": {}}, actor_role="user")
+
+    def test_explicit_manifest_role_is_validated_and_preserved(self):
+        from core.feature_access import classify_feature
+        self.assertEqual("group_creator", classify_feature({"minimum_role": "group_creator", "api": "incident"})["minimum_role"])
+        with self.assertRaises(ValueError):
+            classify_feature({"minimum_role": "root", "api": "unsafe"})
 
 
 if __name__ == "__main__":

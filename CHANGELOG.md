@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.12
+
+- AÃ±ade correlaciÃ³n temporal y deduplicada de incidencias de integraciones para creadores de grupo y master.
+- AÃ±ade delegaciones temporales y revocables de integraciones, con scopes permitidos, caducidad mÃ¡xima de siete dÃ­as y aprobaciÃ³n para configurar.
+- Aplica el rol existente de cada usuario en el grupo seleccionado; las operaciones de grupo ya no heredan permisos de otros grupos.
+- Impide falsificar `actor`, `actor_id`, `actor_role`, `is_admin` o `is_master` desde la Mini App.
+- Limita a 128 KiB las peticiones del registro pÃºblico y valida de forma cerrada cualquier rol explÃ­cito de manifiesto.
+- Expone las 2.742 funciones Ãºnicas mediante formularios automÃ¡ticos en el Hub, sin duplicar paneles.
+
 ## v18.23.11
 
 - Genera contratos de interfaz para las 2.740 funciones verificadas a partir de sus firmas reales.
