@@ -614,6 +614,19 @@
 
 <!-- GENERATED_RELEASE_FEATURES_END -->
 
+## v18.23.2 - 2026-07-30 - Actualizador unificado seguro
+
+### Funciones concretas incorporadas
+- `bash start.sh update all`: valida y actualiza Moonbot y exactamente `mtproxy-1`, `mtproxy-2` y `mtproxy-3`.
+- `bash start.sh update moonbot`: aplica el `.env` existente, reconstruye la imagen con todas las librerías y reinicia solo Moonbot.
+- `bash start.sh update proxies`: aplica el `.env` MTProxy existente y actualiza únicamente las tres instancias configuradas.
+- `bash start.sh update check`: valida archivos, variables, permisos, Compose y servicios sin modificar el sistema.
+
+### Seguridad y conservación
+- Los `.env` nunca se cargan como shell, no se imprimen ni se sustituyen; se pasan con `docker compose --env-file` y requieren permisos `600` o `640`.
+- Git exige repositorio y rama esperados, origen permitido, árbol limpio y avance `--ff-only` al SHA ya obtenido en `FETCH_HEAD`.
+- El proceso usa bloqueo exclusivo, excluye Ollama, conserva volúmenes, evita `down -v` y espera el estado saludable de los contenedores.
+
 ## v18.23.1 - 2026-07-30 - Registro ampliado a 2.400 funciones verificadas
 
 - Incorpora funciones menores WebApp de SEO, comunidades, soporte, suscripciones, accesibilidad y moderación, junto con controles Moonbot de calidad, sandbox, gobernanza e impacto.

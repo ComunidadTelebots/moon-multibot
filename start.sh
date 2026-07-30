@@ -587,6 +587,11 @@ function configure_mtproto_secrets() {
 }
 
 # 1. Instalación automática de dependencias si se solicita
+if [ "$1" == "update" ] || [ "$1" == "system-update" ]; then
+    shift
+    exec bash "$SCRIPT_DIR/update-system.sh" "${1:-all}"
+fi
+
 if [ "$1" == "setup" ]; then
     echo "📦 Iniciando configuración completa..."
     run_migration
@@ -719,7 +724,7 @@ PYTHON_EOF
     echo "Verificando modulos internos..."
     check_core_modules
     if [ $? -ne 0 ]; then
-        echo "ERROR: Modulos internos incompletos. Ejecuta git pull origin master o reconstruye la imagen Docker."
+        echo "ERROR: Modulos internos incompletos. Ejecuta bash start.sh update moonbot."
         exit 1
     fi
 
@@ -765,23 +770,10 @@ if [ "${ENABLE_STARTUP_GIT_CHECK:-false}" = "true" ] && command -v git &>/dev/nu
     fi
     BEHIND_COUNT=$(git rev-list --count HEAD..origin/master 2>/dev/null || echo "0")
     if [ "$BEHIND_COUNT" != "0" ]; then
-        if [ "${AUTO_DOCKER_UPDATE:-true}" = "true" ]; then
-            echo "Auto-update: nueva version detectada (${BEHIND_COUNT} commit/s). Aplicando git pull..."
-            git pull origin master
-            echo "Auto-update: actualizacion aplicada."
-        else
-            echo "Nueva version detectada. Ejecuta bash start.sh update para actualizar."
-        fi
+        echo "Nueva version detectada (${BEHIND_COUNT} commit/s). Ejecuta bash start.sh update para actualizar de forma segura."
     else
         echo "✅ El sistema está al día."
     fi
-fi
-
-if [ "$1" == "update" ]; then
-    echo "🔄 Actualizando desde el repositorio oficial..."
-    git pull origin master
-    echo "✅ Sistema actualizado. Reiniciando..."
-    exit 0
 fi
 
 # Bucle infinito para auto-reiniciar el bot
