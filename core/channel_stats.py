@@ -40,6 +40,11 @@ def init(pb):
         {"name": "bot_token", "type": "text"}, {"name": "added_by", "type": "number"},
         {"name": "active", "type": "bool"}, {"name": "admins_checked", "type": "date"},
         {"name": "listed", "type": "bool"},
+        {"name": "directory_status", "type": "text"},
+        {"name": "directory_submitted_by", "type": "text"},
+        {"name": "directory_reviewed_by", "type": "text"},
+        {"name": "directory_submitted_at", "type": "date"},
+        {"name": "directory_reviewed_at", "type": "date"},
     ], ["CREATE UNIQUE INDEX `idx_tgc_chat` ON `tg_channels` (`chat_id`)"])
     # ensure_collection no modifica una colección existente. Comprobar todos
     # los campos evita dejar instalaciones antiguas con un esquema incompleto.
@@ -54,6 +59,11 @@ def init(pb):
         {"name": "bot_token", "type": "text"}, {"name": "added_by", "type": "number"},
         {"name": "active", "type": "bool"}, {"name": "admins_checked", "type": "date"},
         {"name": "listed", "type": "bool"},
+        {"name": "directory_status", "type": "text"},
+        {"name": "directory_submitted_by", "type": "text"},
+        {"name": "directory_reviewed_by", "type": "text"},
+        {"name": "directory_submitted_at", "type": "date"},
+        {"name": "directory_reviewed_at", "type": "date"},
     ]:
         added = pb.ensure_field(C_CHANNELS, field)
         # Las instalaciones anteriores no tenían `active`. PocketBase asigna
@@ -309,6 +319,11 @@ def _to_dict(r, role=None):
         "collecting": not (r.get("growth30d") or r.get("posts_count")),
         "ctype": r.get("ctype") or "channel",
         "listed": bool(r.get("listed")),
+        "directory_status": r.get("directory_status") or "unreviewed",
+        "directory_submitted_by": r.get("directory_submitted_by") or None,
+        "directory_reviewed_by": r.get("directory_reviewed_by") or None,
+        "directory_submitted_at": r.get("directory_submitted_at") or None,
+        "directory_reviewed_at": r.get("directory_reviewed_at") or None,
         "role": role,
         "owner": role == "creator" if role else None,
         "synced_at": r.get("updated") or r.get("admins_checked") or r.get("created"),
@@ -316,15 +331,40 @@ def _to_dict(r, role=None):
     }
 
 
-def set_listed(chat_id, listed):
-    """El dueño publica/oculta un canal en el directorio público."""
+def request_listing(chat_id, listed, submitted_by=None):
+    """Solicita publicación; ocultar sigue siendo inmediato y recuperable."""
     rec = _pb.first(C_CHANNELS, f"chat_id='{_cid(chat_id)}'")
     if rec:
-        _pb.update(C_CHANNELS, rec["id"], {"listed": bool(listed)})
+        data = ({"listed": False, "directory_status": "pending",
+                 "directory_submitted_by": str(submitted_by or "")[:80],
+                 "directory_submitted_at": _now()}
+                if listed else {"listed": False, "directory_status": "unlisted"})
+        _pb.update(C_CHANNELS, rec["id"], data)
+        return {**_to_dict(rec), **data}
+    return None
+
+
+def review_listing(chat_id, status, reviewed_by=None):
+    """Aprueba o rechaza una solicitud desde un contexto administrativo."""
+    if status not in ("approved", "rejected"):
+        raise ValueError("estado de directorio no válido")
+    rec = _pb.first(C_CHANNELS, f"chat_id='{_cid(chat_id)}'")
+    if not rec:
+        return None
+    data = {"listed": status == "approved", "directory_status": status,
+            "directory_reviewed_by": str(reviewed_by or "")[:80],
+            "directory_reviewed_at": _now()}
+    _pb.update(C_CHANNELS, rec["id"], data)
+    return {**_to_dict(rec), **data}
+
+
+def set_listed(chat_id, listed):
+    """Compatibilidad interna: una publicación explícita equivale a revisión."""
+    return review_listing(chat_id, "approved" if listed else "rejected", "legacy_internal")
 
 
 def _all_active(listed_only=False):
-    f = "active=true && listed=true" if listed_only else "active=true"
+    f = "active=true && ctype='channel' && listed=true && directory_status='approved'" if listed_only else "active=true"
     return _pb.list(C_CHANNELS, filter=f, per_page=500)
 
 
@@ -344,7 +384,7 @@ def get_channels(q="", sort="subscribers", category="all"):
 def get_channel(username):
     key = str(username).lstrip("@")
     # PÚBLICO: la ficha solo es visible si el canal está publicado (listed).
-    r = _pb.first(C_CHANNELS, f"active=true && listed=true && (username='{_pb.esc(key)}' || chat_id='{_pb.esc(key)}')")
+    r = _pb.first(C_CHANNELS, f"active=true && ctype='channel' && listed=true && directory_status='approved' && (username='{_pb.esc(key)}' || chat_id='{_pb.esc(key)}')")
     if not r:
         return None
     d = _to_dict(r)
@@ -375,7 +415,11 @@ def get_channel_meta(chat_id):
     return {"chat_id": r.get("chat_id"), "name": r.get("title") or r.get("username") or "Canal",
             "username": r.get("username"), "ctype": r.get("ctype") or "channel",
             "subscribers": r.get("member_count") or 0, "category": r.get("category") or "",
-            "listed": bool(r.get("listed"))}
+            "listed": bool(r.get("listed")), "directory_status": r.get("directory_status") or "unreviewed",
+            "directory_submitted_by": r.get("directory_submitted_by") or None,
+            "directory_reviewed_by": r.get("directory_reviewed_by") or None,
+            "directory_submitted_at": r.get("directory_submitted_at") or None,
+            "directory_reviewed_at": r.get("directory_reviewed_at") or None}
 
 
 # ── Mensajes programados ────────────────────────────────────────────────────

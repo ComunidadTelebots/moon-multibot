@@ -966,6 +966,14 @@ def internal_group_admin(cid):
                 "community": community_record,
                 "synced_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }})
+        elif action == "directory_review":
+            status = str(body.get("status") or "")
+            record = _channel_stats.review_listing(cid, status, "todosobrealltech-admin")
+            if not record:
+                return jsonify({"ok": False, "error": "channel_not_found"}), 404
+            if _add_audit_log:
+                _add_audit_log(f"TodoSobreAllTech: directorio {status} para {cid}")
+            return jsonify({"ok": True, "group": {"id": str(cid), **record}})
         elif action == "scan_community":
             rows = _admin_group_rows()
             job_key = "TELEGRAM_COMMUNITY_SCAN"
@@ -1073,6 +1081,7 @@ def internal_group_admin(cid):
         "captcha_schedule": {"last_run": int(_db.get(f"JOIN_BULK_LAST_{cid}", 0) or 0)},
         "command_menu": bot.command_menu_preview(cid),
         "administrators": _channel_stats.admins_for_chat(cid),
+        "directory": _channel_stats.get_channel_meta(cid) or {"chat_id": str(cid), "listed": False, "directory_status": "unreviewed"},
         "administrators_checked_at": (_channel_stats.get_stats_by_chat(cid) or {}).get("admins_checked_at"),
         "activity": {"stored_messages": len(history), "warnings": len(_db.get(f"WARNS_{cid}", {}) or {}),
                      "media_events": len(suite.media_events(cid, 100))},
@@ -2226,7 +2235,7 @@ def internal_group_rss(cid):
 
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
 def admin_set_listed():
-    """Publicar/ocultar un canal en el directorio público. Master o dueño del chat."""
+    """Solicitar publicación; el master puede aprobarla directamente."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -2240,8 +2249,12 @@ def admin_set_listed():
     allowed = _is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), chat_id)
     if not allowed:
         return jsonify({"ok": False, "error": "sin permiso sobre ese canal"}), 403
-    _channel_stats.set_listed(chat_id, listed)
-    return jsonify({"ok": True, "chat_id": chat_id, "listed": listed})
+    if listed and _is_master(user):
+        record = _channel_stats.review_listing(chat_id, "approved", user.get("id"))
+    else:
+        record = _channel_stats.request_listing(chat_id, listed, user.get("id"))
+    return jsonify({"ok": True, "chat_id": chat_id, "listed": bool(record and record.get("listed")),
+                    "directory_status": (record or {}).get("directory_status", "unreviewed")})
 
 
 # ─────────────────────── Gestión de grupo (admin/creador) ──────────────────────

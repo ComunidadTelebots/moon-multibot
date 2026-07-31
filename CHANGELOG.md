@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.22
+
+- Convierte la publicación en el directorio de canales en un flujo de solicitud y revisión.
+- Oculta por defecto canales nuevos y registros antiguos sin una aprobación explícita.
+- Permite al master aprobar desde el Hub y a administradores web revisar desde TodoSobreAllTech.
+- Mantiene el retiro inmediato por el administrador del canal y registra autor y fechas de solicitud y revisión.
+- Protege listado, ficha individual, ranking y estadísticas públicas con el estado `approved`.
+
 ## v18.23.21
 
 - Aplica revisión cerrada a todas las campañas nuevas o editadas: nacen pendientes y solo el master puede aprobarlas.

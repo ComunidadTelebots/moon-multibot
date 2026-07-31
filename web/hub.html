@@ -681,8 +681,8 @@
     return `<div class="row tappable" data-chat="${c.chat_id}" data-name="${escAttr(c.name)}">
       <div class="av">${initials(c.name)}</div>
       <div class="meta"><div class="nm">${c.name} <span class="rbadge">${t}</span></div>
-        <div class="un">${uname} · ${fmt(c.subscribers)} subs${channelBotLabel(c)}</div></div>
-      <div class="switch ${c.listed?"on":""}" data-chat="${c.chat_id}" role="switch" aria-label="Publicar en directorio"><span></span></div>
+        <div class="un">${uname} · ${fmt(c.subscribers)} subs${channelBotLabel(c)} · ${c.directory_status==="approved"?"aprobado":c.directory_status==="pending"?"pendiente de revisión":c.directory_status==="rejected"?"rechazado":"no publicado"}</div></div>
+      <div class="switch ${c.directory_status==="approved"?"on":""}" data-chat="${c.chat_id}" role="switch" aria-label="Solicitar publicación en directorio"><span></span></div>
     </div>`;
   }
   function bindSwitches(el){
@@ -692,7 +692,7 @@
       sw.classList.toggle("on",on);
       ev("channel_publish",{listed:on});
       apiPost("/admin/set_listed",{initData:tg&&tg.initData,chat_id:chat,listed:on})
-        .then(d=>{ if(!d||!d.ok) sw.classList.toggle("on",!on); });  // revertir si falla
+        .then(d=>{ if(!d||!d.ok){sw.classList.toggle("on",!on);return;} sw.classList.toggle("on",d.directory_status==="approved");showToast(d.directory_status==="pending"?"Solicitud enviada para revisión":d.directory_status==="approved"?"Canal aprobado y publicado":"Canal retirado del directorio"); });
     });
     bindRowOpen(el);
   }
