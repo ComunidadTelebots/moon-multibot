@@ -4360,6 +4360,10 @@ def _required_channel_suggestions(chat_id=None):
                 allowed_bots = {str(bot.get("id") or bot.get("username") or "").casefold().lstrip("@")
                                 for bot in row.get("bots", [])}
                 break
+    active_bots = [{"id": str(getattr(bot, "bot_id", "")),
+                    "username": str(getattr(bot, "bot_username", "")).lstrip("@")}
+                   for bot in ((_get_active_bots() or []) if _get_active_bots else [])
+                   if getattr(bot, "bot_username", None)]
     suggestions = []
     seen = set()
     for row in rows:
@@ -4375,15 +4379,71 @@ def _required_channel_suggestions(chat_id=None):
         if not channel or key in seen:
             continue
         seen.add(key)
+        review = _channel_candidate_review(row)
+        if not review["eligible"]:
+            continue
+        joined_keys = {str(bot.get("id") or "").casefold() for bot in row.get("bots", [])} | {
+            str(bot.get("username") or "").casefold().lstrip("@") for bot in row.get("bots", [])}
+        missing_bot = next((bot for bot in active_bots if bot["id"].casefold() not in joined_keys
+                            and bot["username"].casefold() not in joined_keys), None)
         suggestions.append({
             "channel": channel,
             "chat_id": str(row.get("id") or ""),
             "title": str(row.get("name") or username or channel)[:160],
             "username": username,
             "url": f"https://t.me/{username}" if username else "",
+            "photo_url": f"https://t.me/i/userpic/320/{username}.jpg" if username else "",
             "bots": row.get("bots", []),
+            "bot_joined": missing_bot is None,
+            "join_bot": missing_bot,
+            "join_bot_url": (f"https://t.me/{missing_bot['username']}?startchannel&admin=post_messages+edit_messages+delete_messages+invite_users+manage_chat"
+                             if missing_bot else ""),
+            "content_review": review,
         })
     return sorted(suggestions, key=lambda item: item["title"].casefold())[:100]
+
+
+def _channel_candidate_review(row):
+    """Revisión explicable del contenido observado; excluye solo señales de alto riesgo."""
+    cid = str(row.get("id") or row.get("chat_id") or "")
+    history = [item for item in _safe_list(_db.get(f"CHAT_HIST_{cid}", []) if _db else [])
+               if isinstance(item, dict) and str(item.get("text") or "").strip()][-100:]
+    texts = [str(item.get("text") or "")[:2000] for item in history]
+    corpus = "\n".join(texts).casefold()
+    reasons = []
+    score = 0
+    severe_groups = {
+        "phishing o robo de credenciales": (("seed phrase", "frase semilla", "verify wallet", "verifica tu wallet", "robar cuenta"), 25),
+        "malware o archivos peligrosos": (("stealer download", "ransomware builder", "cryptominer oculto", "descarga el crack"), 25),
+        "explotación sexual infantil": (("child sexual abuse", "csam", "pornografía infantil"), 70),
+        "captación terrorista": (("únete a la yihad", "join the jihad", "manual de explosivos", "bomb making manual"), 70),
+    }
+    for label, (terms, weight) in severe_groups.items():
+        hits = sum(corpus.count(term) for term in terms)
+        if hits:
+            points = min(70, weight * hits)
+            score += points
+            reasons.append({"signal": label, "hits": hits, "points": points})
+    url_count = sum(len(re.findall(r"https?://|t\.me/", text.casefold())) for text in texts)
+    if len(texts) >= 10 and url_count >= max(12, len(texts) * 2):
+        score += 25
+        reasons.append({"signal": "densidad anómala de enlaces", "hits": url_count, "points": 25})
+    repeated = len(texts) - len({re.sub(r"\s+", " ", text.casefold()).strip() for text in texts})
+    if len(texts) >= 10 and repeated >= max(6, len(texts) // 2):
+        score += 25
+        reasons.append({"signal": "contenido repetitivo", "hits": repeated, "points": 25})
+    score = min(100, score)
+    review = {
+        "eligible": score < 70,
+        "status": "pending" if not texts else ("rejected" if score >= 70 else "approved"),
+        "score": score,
+        "messages_analyzed": len(texts),
+        "reasons": reasons,
+        "reviewed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    if _db:
+        _db.set(f"JOIN_CHANNEL_REVIEW_{cid}", review)
+    return review
 
 
 def _global_join_channels():

@@ -1270,7 +1270,7 @@
       <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">Canales obligatorios de este grupo (separados por comas)
         <input id="gjoinChannels" placeholder="@canal_uno, @canal_dos" value="${escHtml((cfg.required_channels||[]).map(x=>`@${x}`).join(", "))}" style="width:100%;margin-top:6px">
       </label>
-      <div class="casbox" style="margin-top:10px"><b>Canales recomendados</b><p class="muted">Canales donde está unido el mismo bot. Toca una tarjeta para añadirla o quitarla.</p><div class="btnrow" id="gjoinSuggestions">${(d.required_channel_suggestions||[]).map(item=>`<button type="button" class="btn ghost gjoinSuggestion" data-channel="${escHtml(item.channel)}" style="width:auto">${(cfg.required_channels||[]).includes(item.channel)?"✓ ":"＋ "}${escHtml(item.title)}${item.username?` · @${escHtml(item.username)}`:""}</button>`).join("")||'<span class="muted">No hay canales compatibles detectados.</span>'}</div></div>
+      <div class="casbox" style="margin-top:10px"><b>Canales recomendados</b><p class="muted">Moonbot analiza el contenido observado y retira las candidaturas de alto riesgo.</p><div id="gjoinSuggestions">${(d.required_channel_suggestions||[]).map(item=>`<button type="button" class="btn ghost gjoinSuggestion" data-channel="${escHtml(item.channel)}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;margin-top:7px">${item.photo_url?`<img src="${escHtml(item.photo_url)}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:10px;object-fit:cover">`:""}<span style="flex:1;min-width:0"><b style="display:block">${escHtml(item.title)}</b><small class="muted">${item.username?`@${escHtml(item.username)} · `:""}${item.content_review&&item.content_review.messages_analyzed?`${item.content_review.messages_analyzed} mensajes · riesgo ${item.content_review.score}/100`:"análisis pendiente"}</small></span><b>${(cfg.required_channels||[]).includes(item.channel)?"✓ Añadido":"＋ Añadir"}</b></button>`).join("")||'<span class="muted">No hay canales candidatos seguros detectados.</span>'}</div></div>
       ${(d.global_required_channels||[]).length?`<p class="muted">Canales globales aplicados por el master: ${(d.global_required_channels||[]).map(x=>`@${escHtml(x)}`).join(" · ")}</p>`:""}
       <div class="dropdown" id="dd-join-pending"><div class="dhead">Solicitudes pendientes (${pending.length}) <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gjoinPending" hidden></div></div>`;
@@ -1297,7 +1297,7 @@
       let channels=[...new Set(input.value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))];
       channels=channels.includes(channel)?channels.filter(x=>x!==channel):[...channels,channel].slice(0,10);
       input.value=channels.map(x=>`@${x}`).join(", ");
-      button.textContent=`${channels.includes(channel)?"✓ ":"＋ "}${button.textContent.replace(/^[✓＋]\s*/,"")}`;
+      const state=button.querySelector("b:last-child");if(state)state.textContent=channels.includes(channel)?"✓ Añadido":"＋ Añadir";
     });
     document.getElementById("gjoinReverify").onclick=async()=>{
       if(!window.confirm("Se silenciará a todos los miembros conocidos hasta que completen el captcha. ¿Continuar?"))return;
@@ -2402,7 +2402,7 @@
       <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Canales generales (separados por comas)
         <input id="globalAccessChannel" value="${escHtml(globalChannels.map(x=>`@${x}`).join(", "))}" placeholder="@canal_uno, @canal_dos" style="width:100%;margin-top:6px">
       </label>
-      <div class="casbox" style="margin-top:12px"><b>Canales recomendados</b><p class="muted">Solo se muestran canales donde participa alguno de tus bots.</p><div class="btnrow">${(data.suggested_channels||[]).map(item=>`<button type="button" class="btn ghost globalChannelSuggestion" data-channel="${escHtml(item.channel)}" style="width:auto">${globalChannels.includes(item.channel)?"✓ ":"＋ "}${escHtml(item.title)}${item.username?` · @${escHtml(item.username)}`:""}</button>`).join("")||'<span class="muted">No se detectaron canales.</span>'}</div></div>
+      <div class="casbox" style="margin-top:12px"><b>Canales recomendados</b><p class="muted">Moonbot analiza el contenido observado y oculta automáticamente las candidaturas de alto riesgo.</p><input id="globalChannelSearch" placeholder="Buscar por nombre, @usuario o ID" style="width:100%;margin-top:7px"><div id="globalSuggestionList">${(data.suggested_channels||[]).map(item=>`<div class="globalSuggestionRow" data-search="${escHtml(`${item.title} ${item.username||""} ${item.chat_id||""}`.toLowerCase())}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;margin-top:7px;padding:8px;border:1px solid var(--line);border-radius:12px">${item.photo_url?`<img src="${escHtml(item.photo_url)}" alt="" loading="lazy" style="width:42px;height:42px;border-radius:11px;object-fit:cover">`:""}<span style="flex:1;min-width:0"><b style="display:block">${escHtml(item.title)}</b><small class="muted">${item.username?`@${escHtml(item.username)} · `:""}${item.content_review&&item.content_review.messages_analyzed?`${item.content_review.messages_analyzed} mensajes · riesgo ${item.content_review.score}/100`:"análisis pendiente"}</small></span>${item.join_bot_url?`<a class="btn ghost" href="${escHtml(item.join_bot_url)}" target="_blank" style="width:auto">Unir @${escHtml(item.join_bot.username)}</a>`:'<span class="chip">Bots unidos</span>'}<button type="button" class="btn teal globalChannelSuggestion" data-channel="${escHtml(item.channel)}" style="width:auto">${globalChannels.includes(item.channel)?"✓ Quitar":"＋ Añadir"}</button></div>`).join("")||'<span class="muted">No se detectaron canales candidatos seguros.</span>'}</div></div>
       <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Reverificar globalmente cada (horas)
         <input id="globalAccessInterval" type="number" min="1" max="2160" value="${Number(data.reverify_interval_hours||12)}" style="width:100%;margin-top:6px">
       </label>
@@ -2414,6 +2414,7 @@
     const strictToggle=document.getElementById("globalStrictEnabled");
     toggle.onclick=()=>toggle.classList.toggle("on");
     strictToggle.onclick=()=>strictToggle.classList.toggle("on");
+    document.getElementById("globalChannelSearch").oninput=function(){const query=this.value.trim().toLowerCase();document.querySelectorAll(".globalSuggestionRow").forEach(row=>row.hidden=!!query&&!row.dataset.search.includes(query));};
     document.getElementById("globalAccessSave").onclick=async()=>{
       const channels=[...new Set(document.getElementById("globalAccessChannel").value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))].slice(0,10);
       const enabled=toggle.classList.contains("on");
@@ -2428,7 +2429,7 @@
       let channels=[...new Set(input.value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))];
       channels=channels.includes(channel)?channels.filter(x=>x!==channel):[...channels,channel].slice(0,10);
       input.value=channels.map(x=>`@${x}`).join(", ");
-      button.textContent=`${channels.includes(channel)?"✓ ":"＋ "}${button.textContent.replace(/^[✓＋]\s*/,"")}`;
+      button.textContent=channels.includes(channel)?"✓ Quitar":"＋ Añadir";
     });
   }
 

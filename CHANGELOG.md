@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.25
+
+- Muestra la foto pública real del canal en las recomendaciones globales y locales del captcha.
+- Analiza hasta cien mensajes observados por canal con señales explicables de phishing, malware, explotación, captación y spam repetitivo.
+- Retira automáticamente de las candidaturas los canales cuyo riesgo alcanza el umbral de seguridad, sin alterar listas ya configuradas por el master.
+- Expone cantidad de mensajes analizados y puntuación de riesgo en Web y Hub; cuando no existen datos marca el análisis como pendiente.
+- Añade búsqueda por nombre, usuario o ID y un enlace seguro de Telegram para incorporar otro bot como administrador del canal.
+
 ## v18.23.24
 
 - Admite hasta diez canales obligatorios globales y diez canales locales por grupo en el captcha.

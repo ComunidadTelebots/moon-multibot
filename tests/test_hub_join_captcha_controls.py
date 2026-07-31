@@ -37,6 +37,11 @@ class HubJoinCaptchaControlsTests(unittest.TestCase):
         self.assertIn("globalChannelSuggestion", hub)
         self.assertIn("gjoinSuggestion", hub)
         self.assertIn("required_channels:ownChannels", hub)
+        self.assertIn("photo_url", routes)
+        self.assertIn("_channel_candidate_review", routes)
+        self.assertIn("messages_analyzed", hub)
+        self.assertIn("join_bot_url", routes)
+        self.assertIn("globalChannelSearch", hub)
 
 
 if __name__ == "__main__":
