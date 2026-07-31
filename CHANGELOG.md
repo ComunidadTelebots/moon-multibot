@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.18
+
+- Amplía el captcha de entrada con retos rotatorios de iconos, secuencias, formas y cálculo.
+- Añade selección de modalidades por grupo desde el Hub sin alterar los roles administrativos existentes.
+- Aumenta progresivamente la dificultad tras cada fallo y evita repetir consecutivamente el mismo diseño.
+- Vincula cada reto al usuario y al grupo, lo convierte en un solo uso y compara su respuesta mediante firma constante.
+- Deja de guardar la solución del captcha en texto claro y conserva la caducidad, CAS, canales obligatorios y apelaciones.
+- Mejora la accesibilidad móvil con botones semánticos, foco de teclado, instrucciones textuales y etiquetas para las figuras.
+
 ## v18.23.17
 
 - Añade un directorio interno paginado para que TodoSobreAllTech consulte los baneos registrados por Moonbot.

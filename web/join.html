@@ -41,6 +41,17 @@
     display:grid;place-items:center;font-size:30px;color:var(--ink);cursor:pointer;transition:.12s;}
   .cell:active{transform:scale(.95);}
   .cell.sel{border-color:var(--teal);background:rgba(93,202,165,.12);color:var(--teal);}
+  .cell:focus-visible,.btn:focus-visible{outline:3px solid var(--cyan);outline-offset:2px;}
+  .shape{width:38px;height:38px;background:currentColor;display:block;}
+  .shape.circle{border-radius:50%}.shape.square{border-radius:7px}
+  .shape.triangle{width:0;height:0;background:none;border-left:21px solid transparent;border-right:21px solid transparent;border-bottom:38px solid currentColor}
+  .shape.diamond{transform:rotate(45deg);border-radius:6px}
+  .shape.hexagon{clip-path:polygon(25% 7%,75% 7%,100% 50%,75% 93%,25% 93%,0 50%)}
+  .shape.ring{border-radius:50%;background:transparent;border:8px solid currentColor}
+  .teal{color:#5DCAA5}.cyan{color:#22D3EE}.amber{color:#fbbf24}.violet{color:#a78bfa}
+  .sequence{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;margin:8px 0 14px}
+  .sequence span{width:42px;height:42px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;font-size:24px}
+  .difficulty{text-align:center;color:var(--muted);font-size:11px;font-family:var(--mono);margin-top:8px}
   .btn{width:100%;border:1px solid var(--line);font-family:var(--body);font-weight:600;font-size:15px;
     padding:14px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:9px;
     background:var(--card);color:var(--muted);cursor:default;transition:.15s;}
@@ -82,7 +93,7 @@
   async function post(p,b){try{const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});return{status:r.status,data:await r.json()};}catch(e){return{status:0,data:null};}}
   function esc(value){const node=document.createElement("div");node.textContent=String(value||"");return node.innerHTML;}
 
-  let selected=new Set(), timerId=null, deadline=0;
+  let selected=new Set(), selectedOrder=[], currentChallenge=null, timerId=null, deadline=0;
   function tick(){
     const left=Math.max(0,Math.round((deadline-Date.now())/1000));
     const t=document.getElementById("timer");
@@ -105,21 +116,41 @@
       else{out.className="msg err";out.textContent=(data&&data.error)||"No se pudo enviar la apelación.";}
     };
   }
+  const shape=item=>`<span class="shape ${esc(item.shape)} ${esc(item.color)}" role="img" aria-label="${esc(item.shape)} ${esc(item.color)}"></span>`;
+  const challengeItem=(item,type)=>type==="shapes"?shape(item):(type==="math"?`<b>${esc(item)}</b>`:svg(item));
   function renderChallenge(c){
-    selected=new Set();
+    selected=new Set();selectedOrder=[];currentChallenge=c;
+    const type=c.type||"icons";
+    const instructions={
+      icons:`Toca los <b style="color:var(--ink)">${c.required}</b> iconos iguales al modelo.`,
+      sequence:"Repite la secuencia tocando los símbolos en el mismo orden.",
+      shapes:"Selecciona la figura que coincide en forma y color.",
+      math:"Elige el resultado correcto."
+    };
+    const model=type==="icons"?`<div class="target">${svg(c.target)}</div>`:
+      type==="shapes"?`<div class="target">${shape(c.target)}</div>`:
+      type==="math"?`<div class="target" style="width:auto;padding:0 18px;font-size:22px">${esc(c.prompt)}</div>`:
+      `<div class="sequence">${c.sequence.map(n=>`<span>${svg(n)}</span>`).join("")}</div>`;
     app.innerHTML=`
       <div class="head"><div class="title">Verificación</div><div class="sub">Confirma que no eres un bot para entrar al grupo.</div></div>
-      <div class="toprow"><div class="target">${svg(c.target)}</div><div class="timer" id="timer">--:--</div></div>
-      <div class="sub" style="text-align:center;margin-bottom:14px">Toca los <b style="color:var(--ink)">3</b> iconos iguales al de arriba.</div>
-      <div class="grid" id="grid">${c.grid.map((n,i)=>`<div class="cell" data-i="${i}">${svg(n)}</div>`).join("")}</div>
+      <div class="toprow">${model}<div class="timer" id="timer">--:--</div></div>
+      <div class="sub" style="text-align:center;margin-bottom:14px">${instructions[type]}</div>
+      <div class="grid" id="grid">${c.grid.map((n,i)=>`<button class="cell" type="button" data-i="${i}" aria-label="Opción ${i+1}">${challengeItem(n,type)}</button>`).join("")}</div>
       <button class="btn" id="go" disabled>Verificar</button>
-      <div class="msg" id="msg"></div>`;
+      <div class="difficulty">Nivel ${Number(c.difficulty)||1} · reto de un solo uso</div><div class="msg" id="msg"></div>`;
     const grid=document.getElementById("grid"), go=document.getElementById("go");
     grid.querySelectorAll(".cell").forEach(cell=>cell.onclick=()=>{
       const i=+cell.dataset.i;
-      if(selected.has(i)){selected.delete(i);cell.classList.remove("sel");}
-      else{ if(selected.size>=3)return; selected.add(i);cell.classList.add("sel"); }
-      const ready=selected.size===3; go.disabled=!ready; go.classList.toggle("active",ready);
+      if(type==="sequence"){
+        if(selectedOrder.length>=c.required)return;
+        selectedOrder.push(i);cell.classList.add("sel");
+      }else if(c.required===1){
+        grid.querySelectorAll(".cell").forEach(el=>el.classList.remove("sel"));
+        selected=new Set([i]);cell.classList.add("sel");
+      }else if(selected.has(i)){selected.delete(i);cell.classList.remove("sel");}
+      else{if(selected.size>=c.required)return;selected.add(i);cell.classList.add("sel");}
+      const count=type==="sequence"?selectedOrder.length:selected.size;
+      const ready=count===c.required;go.disabled=!ready;go.classList.toggle("active",ready);
     });
     go.onclick=submit; ensureTimer(c.expires_in);
     if(window.gtag)gtag("event","captcha_view");
@@ -127,7 +158,10 @@
   async function submit(){
     const go=document.getElementById("go"); if(go.disabled)return;
     go.disabled=true; go.classList.remove("active"); go.textContent="Comprobando…";
-    const {data}=await post("/join/verify",{initData:tg&&tg.initData,chat,selected:[...selected]});
+    const type=(currentChallenge&&currentChallenge.type)||"icons";
+    const answer=type==="sequence"?selectedOrder:[...selected].sort((a,b)=>a-b);
+    const {data}=await post("/join/verify",{initData:tg&&tg.initData,chat,
+      challenge_id:currentChallenge&&currentChallenge.challenge_id,selected:answer});
     if(data&&data.subscription_required){renderSubscriptions(data.missing_channels||[]);return;}
     if(data&&data.approved){if(window.gtag)gtag("event","captcha_passed");stateScreen('ok','¡Verificado!','Ya puedes entrar al grupo. Puedes cerrar esta ventana.');if(tg&&tg.close)setTimeout(()=>tg.close(),2200);return;}
     if(data&&data.under_review){if(window.gtag)gtag("event","captcha_review");stateScreen('ok','Verificación completada','Tu solicitud necesita una revisión de seguridad. Los administradores ya han sido avisados.');return;}

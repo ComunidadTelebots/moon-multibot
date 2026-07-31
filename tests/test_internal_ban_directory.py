@@ -20,6 +20,10 @@ class InternalBanDirectoryTests(unittest.TestCase):
         self.assertIn('get("status") != "passed"', source)
         self.assertIn('"percentage": percentage', source)
         self.assertIn('"group_details": group_details', source)
+        self.assertIn('in ("group", "supergroup")', source)
+        self.assertIn('.startswith("-")', source)
+        self.assertIn('exempt.add(str(_master_id))', source)
+        self.assertIn('member.get("status") in ("creator", "administrator")', source)
         self.assertIn('"remaining_users": remaining_users', source)
 
 

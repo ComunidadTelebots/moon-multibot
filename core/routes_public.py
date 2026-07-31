@@ -617,7 +617,9 @@ def _start_bulk_captcha(bot, cid, actor="admin", only_pending=False):
         return current, False
     observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) if _db else {}
     config = _join_config(cid)
-    exempt = set(config.get("exempt_user_ids") or [])
+    exempt = {str(uid) for uid in (config.get("exempt_user_ids") or [])}
+    if _master_id is not None:
+        exempt.add(str(_master_id))
     user_ids = [uid for uid in (observed or {}).keys() if str(uid) not in exempt] if isinstance(observed, dict) else []
     if only_pending:
         user_ids = [uid for uid in user_ids
@@ -641,9 +643,12 @@ def _start_bulk_captcha(bot, cid, actor="admin", only_pending=False):
                 membership = bot.api_call("getChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
                 member = membership.get("result", {}) if isinstance(membership, dict) and membership.get("ok") else {}
                 user = member.get("user") or {}
-                if member.get("status") not in ("member", "restricted") or user.get("is_bot"):
+                if (str(uid) == str(_master_id)
+                        or member.get("status") in ("creator", "administrator")
+                        or member.get("status") not in ("member", "restricted")
+                        or user.get("is_bot")):
                     _db.set(f"CAPTCHA_STATUS_{cid}_{uid}", {"status": "exempt", "at": int(time.time()),
-                            "reason": "bot_or_not_member"})
+                            "reason": "protected_role_bot_or_not_member"})
                     job["skipped"] += 1
                     continue
                 muted = bot.restrict_user(cid, uid, can_send=False)
@@ -1526,8 +1531,12 @@ def internal_captcha_global():
     if current.get("status") == "running":
         return jsonify({"ok": True, "started": False, "campaign": current})
     started_groups = []
+    # Solo grupos reales de Telegram. El inventario administrativo también
+    # contiene chats privados e identidades con ID positivo; nunca deben
+    # convertirse en destinos de una campaña global.
     group_ids = {str(row.get("id")) for row in _admin_group_rows()
-                 if str(row.get("ctype", "")).lower() != "channel"}
+                 if str(row.get("ctype", "")).lower() in ("group", "supergroup")
+                 and str(row.get("id", "")).startswith("-")}
     for cid in sorted(group_ids):
         bot = _known_internal_group(cid)
         if not bot:
@@ -4225,6 +4234,9 @@ def community_form_submit():
 # ─────────────────────────── Captcha de entrada (Join Request Queries) ──────────
 # Pool de iconos del captcha (los mismos nombres que join.html mapea a SVG).
 _JOIN_ICONS = ["star", "heart", "bolt", "moon", "cloud", "leaf"]
+_JOIN_SHAPES = ["circle", "square", "triangle", "diamond", "hexagon", "ring"]
+_JOIN_COLORS = ["teal", "cyan", "amber", "violet"]
+_JOIN_CHALLENGE_TYPES = ("icons", "sequence", "shapes", "math")
 
 
 def _bounded_int(value, default, minimum, maximum):
@@ -4248,6 +4260,10 @@ def _join_config(chat_id):
         "strict_enforcement": bool(raw.get("strict_enforcement", False)),
         "max_attempts": _bounded_int(raw.get("max_attempts"), 3, 1, 10),
         "challenge_ttl": _bounded_int(raw.get("challenge_ttl"), 120, 30, 600),
+        "challenge_types": [
+            value for value in (raw.get("challenge_types") or _JOIN_CHALLENGE_TYPES)
+            if value in _JOIN_CHALLENGE_TYPES
+        ] or list(_JOIN_CHALLENGE_TYPES),
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
         "reverify_interval_days": _bounded_int(raw.get("reverify_interval_days"), 0, 0, 90),
         "exempt_user_ids": [str(value).strip() for value in exempt if str(value).strip().isdigit()][:100],
@@ -4482,7 +4498,7 @@ def group_join_settings():
     if "global_required_channel" in body and not _is_master(res[0]):
         return jsonify({"ok": False, "error": "solo el master puede cambiar el canal global"}), 403
     config = _join_config(chat_id)
-    for key in ("enabled", "mute_until_verified", "strict_enforcement", "max_attempts", "challenge_ttl", "request_ttl", "reverify_interval_days", "exempt_user_ids", "required_channels"):
+    for key in ("enabled", "mute_until_verified", "strict_enforcement", "max_attempts", "challenge_ttl", "challenge_types", "request_ttl", "reverify_interval_days", "exempt_user_ids", "required_channels"):
         if key in body:
             config[key] = body[key]
     required = config.get("required_channels") or []
@@ -4497,6 +4513,10 @@ def group_join_settings():
         "strict_enforcement": bool(config["strict_enforcement"]),
         "max_attempts": _bounded_int(config["max_attempts"], 3, 1, 10),
         "challenge_ttl": _bounded_int(config["challenge_ttl"], 120, 30, 600),
+        "challenge_types": [
+            value for value in (config.get("challenge_types") or [])
+            if value in _JOIN_CHALLENGE_TYPES
+        ] or list(_JOIN_CHALLENGE_TYPES),
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
         "reverify_interval_days": _bounded_int(config["reverify_interval_days"], 0, 0, 90),
         "exempt_user_ids": [str(value).strip() for value in exempt if str(value).strip().isdigit()][:100],
@@ -4560,14 +4580,63 @@ def group_join_decide():
     return jsonify({"ok": True, "action": action})
 
 
-def _new_join_challenge():
-    """9 celdas con EXACTAMENTE 3 iconos objetivo. Devuelve (target, grid, correct)."""
+def _challenge_digest(chat_id, user_id, challenge_id, salt, answer):
+    """Firma la solución vinculándola al usuario, grupo y reto sin guardarla en claro."""
+    canonical = json.dumps(answer, separators=(",", ":"), ensure_ascii=True)
+    secret = str(_jwt_secret or current_app.config.get("SECRET_KEY") or "moonbot-captcha")
+    payload = f"{chat_id}|{user_id}|{challenge_id}|{salt}|{canonical}".encode()
+    return hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+
+
+def _new_join_challenge(challenge_type=None, difficulty=1):
+    """Genera un reto accesible. Devuelve únicamente datos públicos y la solución."""
     rnd = secrets.SystemRandom()
-    target = rnd.choice(_JOIN_ICONS)
-    others = [i for i in _JOIN_ICONS if i != target]
-    correct = sorted(rnd.sample(range(9), 3))
-    grid = [target if i in correct else rnd.choice(others) for i in range(9)]
-    return target, grid, correct
+    kind = challenge_type if challenge_type in _JOIN_CHALLENGE_TYPES else rnd.choice(_JOIN_CHALLENGE_TYPES)
+    difficulty = max(1, min(int(difficulty or 1), 3))
+    if kind == "icons":
+        target = rnd.choice(_JOIN_ICONS)
+        count = 3 if difficulty < 3 else 4
+        size = 9 if difficulty < 2 else 12
+        correct = sorted(rnd.sample(range(size), count))
+        others = [icon for icon in _JOIN_ICONS if icon != target]
+        grid = [target if index in correct else rnd.choice(others) for index in range(size)]
+        return {"type": kind, "target": target, "grid": grid, "required": count}, correct
+    if kind == "sequence":
+        size = 6 if difficulty < 3 else 8
+        options = rnd.sample(_JOIN_ICONS, min(size, len(_JOIN_ICONS)))
+        length = 2 if difficulty == 1 else 3
+        sequence = rnd.sample(options, length)
+        return {"type": kind, "sequence": sequence, "grid": options, "required": length}, [
+            options.index(icon) for icon in sequence
+        ]
+    if kind == "shapes":
+        size = 9 if difficulty < 3 else 12
+        target = {"shape": rnd.choice(_JOIN_SHAPES), "color": rnd.choice(_JOIN_COLORS)}
+        correct_index = rnd.randrange(size)
+        grid = []
+        for index in range(size):
+            if index == correct_index:
+                grid.append(target)
+                continue
+            candidate = target
+            while candidate == target:
+                candidate = {"shape": rnd.choice(_JOIN_SHAPES), "color": rnd.choice(_JOIN_COLORS)}
+            grid.append(candidate)
+        return {"type": kind, "target": target, "grid": grid, "required": 1}, [correct_index]
+    upper = (9, 20, 50)[difficulty - 1]
+    left, right = rnd.randint(2, upper), rnd.randint(1, upper)
+    operator = rnd.choice(["+", "-"])
+    if operator == "-" and right > left:
+        left, right = right, left
+    result = left + right if operator == "+" else left - right
+    options = {result}
+    while len(options) < 4:
+        options.add(max(0, result + rnd.choice((-7, -5, -3, -2, -1, 1, 2, 3, 5, 7))))
+    options = list(options)
+    rnd.shuffle(options)
+    return {
+        "type": kind, "prompt": f"{left} {operator} {right}", "grid": options, "required": 1
+    }, [options.index(result)]
 
 
 @bp.route("/api/public/join/challenge", methods=["POST", "OPTIONS"])
@@ -4595,9 +4664,34 @@ def join_challenge():
         if missing:
             return jsonify({"ok": False, "subscription_required": True, "missing_channels": missing}), 423
         return jsonify({"ok": True, "resume": True})
-    target, grid, correct = _new_join_challenge()
-    _db.set(f"JOINC_{cid}_{uid}", {"correct": correct, "exp": int(time.time()) + config["challenge_ttl"]})
-    return jsonify({"ok": True, "target": target, "grid": grid, "expires_in": config["challenge_ttl"]})
+    challenge_key = f"JOINC_{cid}_{uid}"
+    existing = _db.get(challenge_key, {}) if _db else {}
+    now = int(time.time())
+    if existing.get("exp", 0) > now and isinstance(existing.get("public"), dict):
+        return jsonify({"ok": True, **existing["public"],
+                        "expires_in": max(1, existing["exp"] - now)})
+    attempts = int(pend.get("attempts", 0))
+    difficulty = min(3, 1 + attempts)
+    enabled_types = config["challenge_types"]
+    previous_type = str(pend.get("last_challenge_type") or "")
+    candidates = [kind for kind in enabled_types if kind != previous_type] or enabled_types
+    public, answer = _new_join_challenge(secrets.choice(candidates), difficulty)
+    challenge_id = secrets.token_urlsafe(18)
+    salt = secrets.token_hex(16)
+    public.update({"challenge_id": challenge_id, "difficulty": difficulty})
+    expires_at = now + config["challenge_ttl"]
+    _db.set(challenge_key, {
+        "challenge_id": challenge_id,
+        "answer_digest": _challenge_digest(cid, uid, challenge_id, salt, answer),
+        "salt": salt,
+        "public": public,
+        "exp": expires_at,
+        "used": False,
+    })
+    pend["last_challenge_type"] = public["type"]
+    pend["challenge_issued_at"] = now
+    _db.set(f"JOINQ_{cid}_{uid}", pend)
+    return jsonify({"ok": True, **public, "expires_in": config["challenge_ttl"]})
 
 
 @bp.route("/api/public/join/verify", methods=["POST", "OPTIONS"])
@@ -4616,7 +4710,7 @@ def join_verify():
     if not body.get("resume") and (not chal or chal.get("exp", 0) < time.time()):
         return jsonify({"ok": False, "expired": True, "error": "reto expirado"})
     try:
-        sel = sorted(int(i) for i in (body.get("selected") or []))
+        sel = [int(i) for i in (body.get("selected") or [])]
     except (TypeError, ValueError):
         sel = []
     bot = _hub_bot()
@@ -4625,7 +4719,17 @@ def join_verify():
     config = _join_config(cid)
     # ── ÉXITO ──
     resumed = bool(body.get("resume") and pend.get("captcha_passed"))
-    if resumed or (sel and sel == sorted(chal.get("correct", []))):
+    challenge_matches = False
+    if not resumed and chal:
+        supplied_id = str(body.get("challenge_id") or "")
+        stored_id = str(chal.get("challenge_id") or "")
+        if supplied_id and hmac.compare_digest(supplied_id, stored_id) and not chal.get("used"):
+            expected = str(chal.get("answer_digest") or "")
+            actual = _challenge_digest(cid, uid, stored_id, chal.get("salt", ""), sel)
+            challenge_matches = bool(expected) and hmac.compare_digest(actual, expected)
+        # El reto se consume incluso si la respuesta es errónea: impide repetición.
+        _db.delete(f"JOINC_{cid}_{uid}")
+    if resumed or challenge_matches:
         missing = _missing_required_channels(bot, cid, uid)
         if missing:
             pend["captcha_passed"] = True
