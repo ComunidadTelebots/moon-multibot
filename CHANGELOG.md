@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.23.21
+
+- Aplica revisión cerrada a todas las campañas nuevas o editadas: nacen pendientes y solo el master puede aprobarlas.
+- Exige estado `approved` explícito antes de incluir publicidad en web, canal o respuestas de bots.
+- Mantiene aprobadas exclusivamente las campañas oficiales versionadas y conserva la aprobación al pausar una campaña.
+- Impide reactivar una campaña pendiente o rechazada hasta completar su revisión.
+
 ## v18.23.20
 
 - Añade publicidad comunitaria rotatoria a respuestas informativas de comandos en grupos.

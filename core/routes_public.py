@@ -142,7 +142,7 @@ def public_news_instant():
                                             "background", "foreground", "accent", "community_id", "display_format",
                                             "community_items")}
            for row in _house_ads_payload("inline")[:12]
-           if row.get("enabled", True) and row.get("approval_status", "approved") == "approved"
+           if row.get("enabled", True) and row.get("approval_status") == "approved"
            and str(row.get("url") or "").startswith(("https://", "http://"))]
     return jsonify({"ok": True, "mode": "instant_view", "articles": articles[:60], "ads": ads,
                     "cached": stale and bool(articles), "source": "NoticiasWeb3 2026"})
@@ -2626,7 +2626,7 @@ def _sync_master_channel_ads():
                 "url": f"https://t.me/{username}", "image": previous.get("image", ""), "placement": "all",
                 "cta": "Suscribirme", "background": previous.get("background", "#edfdf8"),
                 "foreground": previous.get("foreground", "#123c35"), "accent": previous.get("accent", "#0f9f7a"),
-                "starts_at": "", "ends_at": "", "approval_status": "approved", "submitted_by": str(_master_id),
+                "starts_at": "", "ends_at": "", "approval_status": previous.get("approval_status", "pending"), "submitted_by": str(_master_id),
                 "max_clicks": 0, "goal_reached": False, "enabled": previous.get("enabled", True), "priority": 45,
                 "clicks": int(previous.get("clicks", 0) or 0), "impressions": int(previous.get("impressions", 0) or 0),
                 "clicks_by_placement": dict(previous.get("clicks_by_placement") or {}),
@@ -2657,6 +2657,12 @@ def _house_ads_update(body):
             if str(row.get("id")) == ad_id:
                 row["approval_status"] = "approved" if action == "approve" else "rejected"
                 row["enabled"] = action == "approve"
+    elif action == "toggle":
+        for row in rows:
+            if str(row.get("id")) == ad_id:
+                if body.get("enabled") and row.get("approval_status") != "approved":
+                    raise ValueError("la campaña debe aprobarse antes de activarla")
+                row["enabled"] = bool(body.get("enabled"))
     elif action == "clone":
         source = next((row for row in rows if str(row.get("id")) == ad_id), None)
         if not source: raise ValueError("campaña no encontrada")
@@ -2710,7 +2716,7 @@ def _house_ads_update(body):
                 "accent": str(raw.get("accent") or "#1982d1")[:32],
                 "starts_at": str(raw.get("starts_at") or "")[:40],
                 "ends_at": str(raw.get("ends_at") or "")[:40],
-                "approval_status": str(raw.get("approval_status") or "approved")[:16],
+                "approval_status": "pending",
                 "submitted_by": str(raw.get("submitted_by") or "")[:64],
                 "max_clicks": max(0, int(raw.get("max_clicks", 0) or 0)),
                 "goal_reached": bool(raw.get("goal_reached", False)),

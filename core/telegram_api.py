@@ -132,7 +132,7 @@ def append_community_ad(markdown, command, ads, chat_id, now=None,
         return str(markdown or "")
     candidates = [row for row in (ads or []) if isinstance(row, dict)
                   and row.get("enabled", True)
-                  and row.get("approval_status", "approved") == "approved"
+                  and row.get("approval_status") == "approved"
                   and row.get("id") and row.get("url")]
     if not candidates:
         return str(markdown or "")

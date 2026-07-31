@@ -20,7 +20,8 @@ class BotCommunityAdsTests(unittest.TestCase):
         self.assertEqual("Ayuda", append_community_ad("Ayuda", "/help", ADS, "123", now=1))
 
     def test_disabled_or_unapproved_ads_are_ignored(self):
-        rows = [{**ADS[0], "enabled": False}, {**ADS[0], "approval_status": "pending"}]
+        rows = [{**ADS[0], "enabled": False}, {**ADS[0], "approval_status": "pending"},
+                {key: value for key, value in ADS[0].items() if key != "approval_status"}]
         self.assertEqual("Info", append_community_ad("Info", "/info", rows, "-100123", now=1))
 
 
