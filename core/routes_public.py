@@ -748,6 +748,8 @@ def internal_group_admin(cid):
             if "exempt_user_ids" in body:
                 values = body.get("exempt_user_ids") or []
                 join_config["exempt_user_ids"] = [str(value).strip() for value in values if str(value).strip().isdigit()][:100]
+            if "required_channels" in body:
+                join_config["required_channels"] = _normalize_required_channels(body.get("required_channels"))
             _db.set(f"JOINCFG_{cid}", join_config)
             return jsonify({"ok": True, "join_config": _join_config(cid)})
         elif action == "reverify_all":
@@ -1076,6 +1078,8 @@ def internal_group_admin(cid):
         "repair_steps": repair_steps,
         "config": suite.config(cid),
         "join_config": _join_config(cid),
+        "required_channel_suggestions": _required_channel_suggestions(cid),
+        "global_required_channels": _global_join_channels(),
         "captcha_job": _db.get(f"JOIN_BULK_JOB_{cid}", {}),
         "captcha_history": list(reversed(_safe_list(_db.get(f"JOIN_BULK_HISTORY_{cid}", []))))[:10],
         "captcha_schedule": {"last_run": int(_db.get(f"JOIN_BULK_LAST_{cid}", 0) or 0)},
@@ -1541,14 +1545,17 @@ def internal_captcha_global():
     body = request.json or {}
     action = str(body.get("action", "start"))
     if action == "settings":
-        if "channel" in body:
-            channel = str(body.get("channel") or "").strip().lstrip("@")[:100]
-            _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", channel)
+        if "channels" in body or "channel" in body:
+            channels = _normalize_required_channels(
+                body.get("channels") if "channels" in body else [body.get("channel")]
+            )
+            _db.set("JOIN_GLOBAL_REQUIRED_CHANNELS", channels)
+            _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", channels[0] if channels else "")
         current = _global_join_settings()
         if "enabled" in body:
             enabled = bool(body.get("enabled"))
-            if enabled and not (str(body.get("channel") or current["channel"]).strip()):
-                return jsonify({"ok": False, "error": "configura primero un canal"}), 400
+            if enabled and not current["channels"]:
+                return jsonify({"ok": False, "error": "configura al menos un canal"}), 400
             _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", enabled)
         if "strict_enforcement" in body:
             _db.set("JOIN_GLOBAL_STRICT_ENFORCEMENT", bool(body.get("strict_enforcement")))
@@ -4322,40 +4329,106 @@ def _join_config(chat_id):
         "request_ttl": _bounded_int(raw.get("request_ttl"), 86400, 300, 604800),
         "reverify_interval_days": _bounded_int(raw.get("reverify_interval_days"), 0, 0, 90),
         "exempt_user_ids": [str(value).strip() for value in exempt if str(value).strip().isdigit()][:100],
-        "required_channels": [str(value).strip().lstrip("@")[:100] for value in required if str(value).strip()][:1],
+        "required_channels": _normalize_required_channels(required),
     }
 
 
-def _global_join_channel():
+def _normalize_required_channels(values, limit=10):
+    if not isinstance(values, list):
+        values = [values]
+    result = []
+    seen = set()
+    for value in values:
+        channel = str(value or "").strip().lstrip("@")[:100]
+        key = channel.casefold()
+        if not channel or key in seen:
+            continue
+        seen.add(key)
+        result.append(channel)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _required_channel_suggestions(chat_id=None):
+    """Canales donde participa un bot activo; opcionalmente limita al bot del grupo."""
+    rows = _admin_group_rows()
+    allowed_bots = set()
+    if chat_id is not None:
+        for row in rows:
+            if str(row.get("id")) == str(chat_id):
+                allowed_bots = {str(bot.get("id") or bot.get("username") or "").casefold().lstrip("@")
+                                for bot in row.get("bots", [])}
+                break
+    suggestions = []
+    seen = set()
+    for row in rows:
+        if str(row.get("ctype", "")).lower() != "channel":
+            continue
+        row_bots = {str(bot.get("id") or bot.get("username") or "").casefold().lstrip("@")
+                    for bot in row.get("bots", [])}
+        if allowed_bots and not allowed_bots.intersection(row_bots):
+            continue
+        username = str(row.get("username") or "").strip().lstrip("@")
+        channel = username or str(row.get("id") or "").strip()
+        key = channel.casefold()
+        if not channel or key in seen:
+            continue
+        seen.add(key)
+        suggestions.append({
+            "channel": channel,
+            "chat_id": str(row.get("id") or ""),
+            "title": str(row.get("name") or username or channel)[:160],
+            "username": username,
+            "url": f"https://t.me/{username}" if username else "",
+            "bots": row.get("bots", []),
+        })
+    return sorted(suggestions, key=lambda item: item["title"].casefold())[:100]
+
+
+def _global_join_channels():
     _ensure_global_join_defaults()
-    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech") if _db else ""
-    channel = str(value or "").strip().lstrip("@")[:100]
-    enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
-    return channel if enabled else ""
+    values = _db.get("JOIN_GLOBAL_REQUIRED_CHANNELS", []) if _db else []
+    channels = _normalize_required_channels(values)
+    enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channels))) if _db else False
+    return channels if enabled else []
+
+
+def _global_join_channel():
+    """Compatibilidad con clientes antiguos que esperan un único canal."""
+    channels = _global_join_channels()
+    return channels[0] if channels else ""
 
 
 def _global_join_settings():
     _ensure_global_join_defaults()
-    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech") if _db else ""
-    channel = str(value or "").strip().lstrip("@")[:100]
-    enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
+    channels = _normalize_required_channels(_db.get("JOIN_GLOBAL_REQUIRED_CHANNELS", []) if _db else [])
+    channel = channels[0] if channels else ""
+    enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channels))) if _db else False
     strict_enforcement = bool(_db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False)) if _db else False
     reverify_interval_hours = _bounded_int(
         _db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS", 12) if _db else 12, 12, 0, 2160
     )
-    return {"enabled": enabled, "channel": channel, "strict_enforcement": strict_enforcement,
+    return {"enabled": enabled, "channel": channel, "channels": channels,
+            "suggested_channels": _required_channel_suggestions(),
+            "strict_enforcement": strict_enforcement,
             "reverify_interval_hours": reverify_interval_hours,
             "reverify_interval_days": round(reverify_interval_hours / 24, 2) if reverify_interval_hours else 0}
 
 
 def _ensure_global_join_defaults():
     """Aplica una sola vez los valores globales seguros solicitados por el master."""
-    if not _db or _db.get("JOIN_GLOBAL_DEFAULTS_V3", False):
+    if not _db:
         return
-    _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech")
-    _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", True)
-    _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS", 12)
-    _db.set("JOIN_GLOBAL_DEFAULTS_V3", True)
+    if not _db.get("JOIN_GLOBAL_DEFAULTS_V3", False):
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech")
+        _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", True)
+        _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS", 12)
+        _db.set("JOIN_GLOBAL_DEFAULTS_V3", True)
+    if not _db.get("JOIN_GLOBAL_DEFAULTS_V4", False):
+        previous = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech")
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNELS", _normalize_required_channels([previous]))
+        _db.set("JOIN_GLOBAL_DEFAULTS_V4", True)
 
 
 def _set_join_member_muted(bot, chat_id, user_id, muted):
@@ -4383,14 +4456,17 @@ def admin_join_global():
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     if not _is_master(user):
         return jsonify({"ok": False, "error": "solo el master puede cambiar el acceso global"}), 403
-    if "channel" in body:
-        channel = str(body.get("channel") or "").strip().lstrip("@")[:100]
-        _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", channel)
+    if "channels" in body or "channel" in body:
+        channels = _normalize_required_channels(
+            body.get("channels") if "channels" in body else [body.get("channel")]
+        )
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNELS", channels)
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", channels[0] if channels else "")
     settings = _global_join_settings()
     if "enabled" in body:
         enabled = bool(body.get("enabled"))
-        if enabled and not settings["channel"]:
-            return jsonify({"ok": False, "error": "configura primero un canal"}), 400
+        if enabled and not settings["channels"]:
+            return jsonify({"ok": False, "error": "configura al menos un canal"}), 400
         _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", enabled)
     if "strict_enforcement" in body:
         _db.set("JOIN_GLOBAL_STRICT_ENFORCEMENT", bool(body.get("strict_enforcement")))
@@ -4405,11 +4481,12 @@ def admin_join_global():
 
 def _missing_required_channels(bot, chat_id, user_id):
     missing = []
-    group_channels = _join_config(chat_id)["required_channels"][:1]
-    global_channel = _global_join_channel()
+    group_channels = _join_config(chat_id)["required_channels"]
+    global_channels = _global_join_channels()
     channels = [(channel, "group") for channel in group_channels]
-    if global_channel and global_channel not in group_channels:
-        channels.append((global_channel, "global"))
+    group_keys = {channel.casefold() for channel in group_channels}
+    channels.extend((channel, "global") for channel in global_channels
+                    if channel.casefold() not in group_keys)
     for channel, scope in channels:
         target = channel if channel.startswith("-100") else f"@{channel}"
         result = bot.api_call("getChatMember", {"chat_id": target, "user_id": user_id}, silent=True)
@@ -4516,6 +4593,8 @@ def group_join_get():
     pending.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
     return jsonify({"ok": True, "config": _join_config(chat_id),
                     "global_required_channel": _global_join_channel(),
+                    "global_required_channels": _global_join_channels(),
+                    "required_channel_suggestions": _required_channel_suggestions(chat_id),
                     "global_strict_enforcement": _global_join_settings()["strict_enforcement"],
                     "can_manage_global": _is_master(res[0]),
                     "stats": _join_stats(chat_id), "pending": pending,
@@ -4598,15 +4677,18 @@ def group_join_settings():
         "request_ttl": _bounded_int(config["request_ttl"], 86400, 300, 604800),
         "reverify_interval_days": _bounded_int(config["reverify_interval_days"], 0, 0, 90),
         "exempt_user_ids": [str(value).strip() for value in exempt if str(value).strip().isdigit()][:100],
-        "required_channels": [str(value).strip().lstrip("@")[:100] for value in required if str(value).strip()][:1],
+        "required_channels": _normalize_required_channels(required),
     }
     _db.set(f"JOINCFG_{chat_id}", config)
     if "global_required_channel" in body:
         global_channel = str(body.get("global_required_channel") or "").strip().lstrip("@")[:100]
+        _db.set("JOIN_GLOBAL_REQUIRED_CHANNELS", [global_channel] if global_channel else [])
         _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", global_channel)
         _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", bool(global_channel))
     return jsonify({"ok": True, "config": config,
-                    "global_required_channel": _global_join_channel()})
+                    "global_required_channel": _global_join_channel(),
+                    "global_required_channels": _global_join_channels(),
+                    "required_channel_suggestions": _required_channel_suggestions(chat_id)})
 
 
 @bp.route("/api/public/group/join/decide", methods=["POST", "OPTIONS"])

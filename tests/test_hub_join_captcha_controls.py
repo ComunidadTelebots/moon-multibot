@@ -27,6 +27,17 @@ class HubJoinCaptchaControlsTests(unittest.TestCase):
         self.assertIn('/group/join/reverify-all', block)
         self.assertIn('/group/join/reverify-control', block)
 
+    def test_global_and_group_captcha_support_joined_channel_recommendations(self):
+        hub = pathlib.Path("web/hub.html").read_text(encoding="utf-8")
+        routes = pathlib.Path("core/routes_public.py").read_text(encoding="utf-8")
+        self.assertIn("suggested_channels", routes)
+        self.assertIn("required_channel_suggestions", routes)
+        self.assertIn("JOIN_GLOBAL_REQUIRED_CHANNELS", routes)
+        self.assertIn("_normalize_required_channels(required)", routes)
+        self.assertIn("globalChannelSuggestion", hub)
+        self.assertIn("gjoinSuggestion", hub)
+        self.assertIn("required_channels:ownChannels", hub)
+
 
 if __name__ == "__main__":
     unittest.main()

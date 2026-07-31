@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.23.24
+
+- Admite hasta diez canales obligatorios globales y diez canales locales por grupo en el captcha.
+- Recomienda mediante tarjetas únicamente canales donde participa un bot activo; en cada grupo filtra por el bot que lo administra.
+- Mantiene compatibilidad con la configuración histórica de canal único y migra sus datos sin perderlos.
+- El Hub permite seleccionar, retirar y guardar canales desde tarjetas o mediante una lista manual.
+
 ## v18.23.23
 
 - El captcha global muestra `Sí/No` por usuario y un estado general verificado/no verificado en Web y Hub.
