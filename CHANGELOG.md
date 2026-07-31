@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.19
+
+- Mueve el canal obligatorio general a `Master > Acceso global`, sin necesidad de abrir ningún grupo.
+- Añade una periodicidad global de reverificación entre 1 y 90 días, comprobada cada quince minutos.
+- Conserva el canal obligatorio local de cada grupo; cuando existen ambos, el usuario debe pertenecer a los dos.
+- Expone el ajuste global mediante la API interna autenticada para mantener sincronizados el Hub y TodoSobreAllTech.
+- Retira del panel local el campo global duplicado y corrige manejadores obsoletos del panel master.
+
 ## v18.23.18
 
 - Amplía el captcha de entrada con retos rotatorios de iconos, secuencias, formas y cálculo.

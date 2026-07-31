@@ -5573,9 +5573,13 @@ class MoonBot:
             db.set(schedule_key, now_s)
             try:
                 from core.routes_public import _start_bulk_captcha
+                global_interval = max(0, min(int(db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS", 0) or 0), 90))
                 for scheduled_cid in db.get(f"CHATS_{self.token}", []) or []:
                     scheduled_cfg = db.get(f"JOINCFG_{scheduled_cid}", {}) or {}
-                    interval_days = max(0, min(int(scheduled_cfg.get("reverify_interval_days", 0) or 0), 90))
+                    # El calendario master se aplica a todos los grupos. Si está
+                    # desactivado se conserva la programación local existente.
+                    interval_days = global_interval or max(0, min(int(
+                        scheduled_cfg.get("reverify_interval_days", 0) or 0), 90))
                     if not interval_days:
                         continue
                     last_run = int(db.get(f"JOIN_BULK_LAST_{scheduled_cid}", 0) or 0)

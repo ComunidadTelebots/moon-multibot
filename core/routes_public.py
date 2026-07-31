@@ -1514,9 +1514,29 @@ def internal_captcha_global():
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     if request.method == "GET":
-        return jsonify({"ok": True, "campaign": _global_captcha_status()})
+        return jsonify({"ok": True, "campaign": _global_captcha_status(),
+                        "settings": _global_join_settings()})
     body = request.json or {}
     action = str(body.get("action", "start"))
+    if action == "settings":
+        if "channel" in body:
+            channel = str(body.get("channel") or "").strip().lstrip("@")[:100]
+            _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", channel)
+        current = _global_join_settings()
+        if "enabled" in body:
+            enabled = bool(body.get("enabled"))
+            if enabled and not (str(body.get("channel") or current["channel"]).strip()):
+                return jsonify({"ok": False, "error": "configura primero un canal"}), 400
+            _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", enabled)
+        if "strict_enforcement" in body:
+            _db.set("JOIN_GLOBAL_STRICT_ENFORCEMENT", bool(body.get("strict_enforcement")))
+        if "reverify_interval_days" in body:
+            _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS",
+                    _bounded_int(body.get("reverify_interval_days"), 0, 0, 90))
+        if _add_audit_log:
+            _add_audit_log("TodoSobreAllTech: configuración global de acceso actualizada")
+        return jsonify({"ok": True, "campaign": _global_captcha_status(),
+                        "settings": _global_join_settings()})
     if action == "cancel":
         campaign = _db.get("GLOBAL_CAPTCHA_CAMPAIGN", {}) or {}
         for cid in campaign.get("group_ids", []):
@@ -4283,7 +4303,11 @@ def _global_join_settings():
     channel = str(value or "").strip().lstrip("@")[:100]
     enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
     strict_enforcement = bool(_db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False)) if _db else False
-    return {"enabled": enabled, "channel": channel, "strict_enforcement": strict_enforcement}
+    reverify_interval_days = _bounded_int(
+        _db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS", 0) if _db else 0, 0, 0, 90
+    )
+    return {"enabled": enabled, "channel": channel, "strict_enforcement": strict_enforcement,
+            "reverify_interval_days": reverify_interval_days}
 
 
 def _set_join_member_muted(bot, chat_id, user_id, muted):
@@ -4322,6 +4346,9 @@ def admin_join_global():
         _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", enabled)
     if "strict_enforcement" in body:
         _db.set("JOIN_GLOBAL_STRICT_ENFORCEMENT", bool(body.get("strict_enforcement")))
+    if "reverify_interval_days" in body:
+        _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS",
+                _bounded_int(body.get("reverify_interval_days"), 0, 0, 90))
     return jsonify({"ok": True, **_global_join_settings()})
 
 
