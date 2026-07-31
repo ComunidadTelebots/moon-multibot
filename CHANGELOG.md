@@ -1,5 +1,11 @@
 # Changelog - Moon Multibot
 
+## v18.23.23
+
+- El captcha global muestra `Sí/No` por usuario y un estado general verificado/no verificado en Web y Hub.
+- `@TodoSobreAllTech` queda activado como canal obligatorio global mediante una migración única.
+- La reverificación global pasa a intervalos por horas y se ejecuta cada 12 horas de forma predeterminada.
+
 ## v18.23.22
 
 - Convierte la publicación en el directorio de canales en un flujo de solicitud y revisión.

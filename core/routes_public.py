@@ -1468,6 +1468,7 @@ def internal_ban_directory():
 
 
 def _global_captcha_status():
+    _ensure_global_join_defaults()
     campaign = _db.get("GLOBAL_CAPTCHA_CAMPAIGN", {}) if _db else {}
     group_ids = [str(cid) for cid in campaign.get("group_ids", [])]
     jobs = [(_db.get(f"JOIN_BULK_JOB_{cid}", {}) or {}) for cid in group_ids]
@@ -1479,7 +1480,9 @@ def _global_captcha_status():
     delivery_percentage = round((totals["private_sent"] / totals["processed"] * 100), 1) if totals["processed"] else 0.0
     names = (_get_global_chat_names() or {}) if _get_global_chat_names else {}
     profiles = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
-    group_details, remaining_users = [], []
+    group_details, remaining_users, user_details = [], [], []
+    verified_users = 0
+    unverified_users = 0
     for cid, job in zip(group_ids, jobs):
         observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) or {}
         remaining = []
@@ -1489,24 +1492,30 @@ def _global_captcha_status():
             if uid in exempt:
                 continue
             captcha = _db.get(f"CAPTCHA_STATUS_{cid}_{uid}", {}) or {}
-            if captcha.get("status") in ("passed", "exempt"):
-                continue
+            captcha_status = captcha.get("status") or "pending"
+            verified = captcha_status in ("passed", "exempt")
+            verified_users += int(verified)
+            unverified_users += int(not verified)
             pending = _db.get(f"JOINQ_{cid}_{uid}", {}) or {}
             appeal = _db.get(f"CAPTCHA_APPEAL_{cid}_{uid}", {}) or {}
             profile = profiles.get(uid, {}) or profiles.get(raw_uid, {}) or {}
             row = {"user_id": uid, "name": profile.get("name") or pending.get("first_name") or f"Usuario {uid}",
                    "group_id": cid, "group_name": str(names.get(cid) or f"Grupo {cid}"),
+                   "verified": verified, "verification": "yes" if verified else "no",
                    "protocols": {
                        "telegram_mute": "applied" if pending.get("telegram_muted") else "pending",
-                       "captcha": captcha.get("status") or "pending",
+                       "captcha": captcha_status,
                        "cas": "flagged" if pending.get("cas_flagged") else "pending",
                        "required_channels": "pending" if pending.get("subscription_pending") else
                            ("configured" if (_join_config(cid)["required_channels"] or _global_join_channel()) else "not_required"),
                        "appeal": appeal.get("status") or "available",
                    }}
-            remaining.append(row)
-            if len(remaining_users) < 250:
-                remaining_users.append(row)
+            if len(user_details) < 500:
+                user_details.append(row)
+            if not verified:
+                remaining.append(row)
+                if len(remaining_users) < 250:
+                    remaining_users.append(row)
         group_details.append({"group_id": cid, "name": str(names.get(cid) or f"Grupo {cid}"),
                               "status": job.get("status", "pending"), "total": int(job.get("total", 0) or 0),
                               "processed": int(job.get("processed", 0) or 0), "remaining": len(remaining)})
@@ -1514,8 +1523,12 @@ def _global_captcha_status():
     return {**campaign, **totals, "status": status, "running_groups": running,
             "groups": len(group_ids), "percentage": percentage,
             "delivery_percentage": delivery_percentage, "total_remaining": total_remaining,
+            "verified_users": verified_users, "unverified_users": unverified_users,
+            "all_verified": unverified_users == 0 and verified_users > 0,
             "group_details": group_details, "remaining_users": remaining_users,
-            "remaining_truncated": total_remaining > len(remaining_users)}
+            "user_details": user_details,
+            "remaining_truncated": total_remaining > len(remaining_users),
+            "users_truncated": verified_users + unverified_users > len(user_details)}
 
 
 @bp.route("/api/internal/captcha-global", methods=["GET", "POST"])
@@ -1542,6 +1555,9 @@ def internal_captcha_global():
         if "reverify_interval_days" in body:
             _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS",
                     _bounded_int(body.get("reverify_interval_days"), 0, 0, 90))
+        if "reverify_interval_hours" in body:
+            _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS",
+                    _bounded_int(body.get("reverify_interval_hours"), 12, 0, 2160))
         if _add_audit_log:
             _add_audit_log("TodoSobreAllTech: configuración global de acceso actualizada")
         return jsonify({"ok": True, "campaign": _global_captcha_status(),
@@ -4311,22 +4327,35 @@ def _join_config(chat_id):
 
 
 def _global_join_channel():
-    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "") if _db else ""
+    _ensure_global_join_defaults()
+    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech") if _db else ""
     channel = str(value or "").strip().lstrip("@")[:100]
     enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
     return channel if enabled else ""
 
 
 def _global_join_settings():
-    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "") if _db else ""
+    _ensure_global_join_defaults()
+    value = _db.get("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech") if _db else ""
     channel = str(value or "").strip().lstrip("@")[:100]
     enabled = bool(_db.get("JOIN_GLOBAL_REQUIRED_ENABLED", bool(channel))) if _db else False
     strict_enforcement = bool(_db.get("JOIN_GLOBAL_STRICT_ENFORCEMENT", False)) if _db else False
-    reverify_interval_days = _bounded_int(
-        _db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS", 0) if _db else 0, 0, 0, 90
+    reverify_interval_hours = _bounded_int(
+        _db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS", 12) if _db else 12, 12, 0, 2160
     )
     return {"enabled": enabled, "channel": channel, "strict_enforcement": strict_enforcement,
-            "reverify_interval_days": reverify_interval_days}
+            "reverify_interval_hours": reverify_interval_hours,
+            "reverify_interval_days": round(reverify_interval_hours / 24, 2) if reverify_interval_hours else 0}
+
+
+def _ensure_global_join_defaults():
+    """Aplica una sola vez los valores globales seguros solicitados por el master."""
+    if not _db or _db.get("JOIN_GLOBAL_DEFAULTS_V3", False):
+        return
+    _db.set("JOIN_GLOBAL_REQUIRED_CHANNEL", "TodoSobreAllTech")
+    _db.set("JOIN_GLOBAL_REQUIRED_ENABLED", True)
+    _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS", 12)
+    _db.set("JOIN_GLOBAL_DEFAULTS_V3", True)
 
 
 def _set_join_member_muted(bot, chat_id, user_id, muted):
@@ -4368,7 +4397,10 @@ def admin_join_global():
     if "reverify_interval_days" in body:
         _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS",
                 _bounded_int(body.get("reverify_interval_days"), 0, 0, 90))
-    return jsonify({"ok": True, **_global_join_settings()})
+    if "reverify_interval_hours" in body:
+        _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS",
+                _bounded_int(body.get("reverify_interval_hours"), 12, 0, 2160))
+    return jsonify({"ok": True, **_global_join_settings(), "captcha": _global_captcha_status()})
 
 
 def _missing_required_channels(bot, chat_id, user_id):

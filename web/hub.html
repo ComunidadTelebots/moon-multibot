@@ -2385,16 +2385,18 @@
     const box=document.getElementById("masterDetail");
     const data=await apiPost("/admin/join-global",{initData:tg&&tg.initData});
     if(!data||!data.ok){box.innerHTML=`<div class="master-error">${escHtml((data&&data.error)||"No se pudo cargar la configuración")}</div>`;return;}
+    const captcha=data.captcha||{}, verified=Number(captcha.verified_users||0), unverified=Number(captcha.unverified_users||0);
     box.innerHTML=`<div class="card">
+      <div class="casbox" style="border-color:${captcha.all_verified?'#34d399':'#fb7185'}"><b>${captcha.all_verified?'✓ Todos los usuarios verificados':'✕ Quedan usuarios sin verificar'}</b><p>${verified} verificados · ${unverified} no verificados</p><div style="max-height:220px;overflow:auto">${(captcha.user_details||[]).slice(0,100).map(user=>`<div class="userchip"><span>${escHtml(user.name)} · ${escHtml(user.group_name)}</span><b style="color:${user.verified?'#34d399':'#fb7185'}">${user.verified?'✓ Sí':'✕ No'}</b></div>`).join('')||'<p class="muted">Inicia una comprobación para crear el inventario.</p>'}</div></div>
       <div class="setrow"><div><b>Suscripción global obligatoria</b><span>Se aplicará al captcha de todos los grupos administrados</span></div><div class="switch ${data.enabled?"on":""}" id="globalAccessEnabled"><span></span></div></div>
       <div class="setrow"><div><b>Captcha estricto global</b><span>Ningún pendiente podrá escribir: Moonbot reaplicará el mute y volverá a enviar el desafío</span></div><div class="switch ${data.strict_enforcement?"on":""}" id="globalStrictEnabled"><span></span></div></div>
       <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Canal general
         <input id="globalAccessChannel" value="${escHtml(data.channel?`@${data.channel}`:"")}" placeholder="@canal_general" style="width:100%;margin-top:6px">
       </label>
-      <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Reverificar globalmente cada (días; 0 desactiva)
-        <input id="globalAccessInterval" type="number" min="0" max="90" value="${Number(data.reverify_interval_days||0)}" style="width:100%;margin-top:6px">
+      <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Reverificar globalmente cada (horas)
+        <input id="globalAccessInterval" type="number" min="1" max="2160" value="${Number(data.reverify_interval_hours||12)}" style="width:100%;margin-top:6px">
       </label>
-      ${data.reverify_interval_days?`<p class="muted">Moonbot comprobará cada 15 minutos si corresponde iniciar la reverificación de los grupos.</p>`:""}
+      <p class="muted">Configuración predeterminada: @TodoSobreAllTech y comprobación cada 12 horas.</p>
       <p class="muted" style="margin-top:10px">Moonbot debe ser administrador del canal para comprobar las suscripciones.</p>
       <button class="btn teal" id="globalAccessSave" style="margin-top:14px">Guardar configuración</button>
     </div>`;
@@ -2406,8 +2408,8 @@
       const channel=document.getElementById("globalAccessChannel").value.trim().replace(/^@/,"");
       const enabled=toggle.classList.contains("on");
       const strict_enforcement=strictToggle.classList.contains("on");
-      const reverify_interval_days=Math.max(0,Math.min(90,Number(document.getElementById("globalAccessInterval").value)||0));
-      const result=await apiPost("/admin/join-global",{initData:tg&&tg.initData,channel,enabled,strict_enforcement,reverify_interval_days});
+      const reverify_interval_hours=Math.max(1,Math.min(2160,Number(document.getElementById("globalAccessInterval").value)||12));
+      const result=await apiPost("/admin/join-global",{initData:tg&&tg.initData,channel,enabled,strict_enforcement,reverify_interval_hours});
       if(result&&result.ok){showToast(enabled?"Acceso global activado":"Acceso global desactivado");loadMasterGlobalAccess();}
       else showToast((result&&result.error)||"No se pudo guardar");
     };

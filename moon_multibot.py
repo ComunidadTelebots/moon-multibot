@@ -5582,18 +5582,28 @@ class MoonBot:
             db.set(schedule_key, now_s)
             try:
                 from core.routes_public import _start_bulk_captcha
-                global_interval = max(0, min(int(db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_DAYS", 0) or 0), 90))
+                global_interval_hours = max(0, min(int(db.get("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS", 12) or 0), 2160))
+                scheduled_global_groups = []
                 for scheduled_cid in db.get(f"CHATS_{self.token}", []) or []:
                     scheduled_cfg = db.get(f"JOINCFG_{scheduled_cid}", {}) or {}
                     # El calendario master se aplica a todos los grupos. Si está
                     # desactivado se conserva la programación local existente.
-                    interval_days = global_interval or max(0, min(int(
-                        scheduled_cfg.get("reverify_interval_days", 0) or 0), 90))
-                    if not interval_days:
+                    local_interval_days = max(0, min(int(scheduled_cfg.get("reverify_interval_days", 0) or 0), 90))
+                    interval_seconds = global_interval_hours * 3600 if global_interval_hours else local_interval_days * 86400
+                    if not interval_seconds:
                         continue
                     last_run = int(db.get(f"JOIN_BULK_LAST_{scheduled_cid}", 0) or 0)
-                    if now_s - last_run >= interval_days * 86400:
-                        _start_bulk_captcha(self, scheduled_cid, "scheduled")
+                    if now_s - last_run >= interval_seconds:
+                        _, started = _start_bulk_captcha(self, scheduled_cid, "scheduled", only_pending=True)
+                        if global_interval_hours and started:
+                            scheduled_global_groups.append(str(scheduled_cid))
+                if scheduled_global_groups:
+                    db.set("GLOBAL_CAPTCHA_CAMPAIGN", {
+                        "id": f"scheduled-{now_s}", "group_ids": scheduled_global_groups,
+                        "started_at": now_s, "mode": "pending_only",
+                        "protocols": ["telegram_mute", "captcha", "cas", "required_channels", "appeal"],
+                        "scheduled": True,
+                    })
             except Exception as error:
                 add_web_log("ERROR", f"Programador de captcha: {error}")
 
