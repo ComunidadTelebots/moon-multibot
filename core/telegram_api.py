@@ -1,6 +1,8 @@
 import re
 import time
 import requests
+import hashlib
+from urllib.parse import quote
 
 
 TELEGRAM_BOT_API_VERSION = "10.2"
@@ -9,6 +11,13 @@ RICH_MARKDOWN_MODES = {"richmarkdown", "rich_markdown", "rich-markdown"}
 RICH_MESSAGE_MAX_CHARS = 32768
 RICH_MESSAGE_MAX_BLOCKS = 500
 RICH_MESSAGE_MAX_MEDIA = 50
+
+COMMUNITY_AD_COMMANDS = {
+    "help", "alternativa", "calc", "calculadora", "clima", "conv", "diccionario",
+    "distro", "get", "getgif", "getweb", "google", "hora", "huracan", "info",
+    "isos", "kernel", "man", "mapa", "meme", "ping", "rae", "reglas", "sera",
+    "stack", "terremoto", "top", "tr", "wiki", "proxy",
+}
 
 DEPRECATED_METHOD_ALIASES = {
     "kickChatMember": "banChatMember",
@@ -112,6 +121,40 @@ def format_command_rich_markdown(command, text):
             body = value
         state = "`INFORMACIÓN`"
     return f"## {title}\n\n{state}\n\n{body}\n\n---\n_Respuesta enriquecida de Moonbot_"
+
+
+def append_community_ad(markdown, command, ads, chat_id, now=None,
+                        api_base="https://api.todosobreall.tech",
+                        directory_base="https://canales.todosobreall.tech"):
+    """Añade una tarjeta comunitaria medible solo a respuestas informativas."""
+    name = str(command or "").split("@", 1)[0].lstrip("/").lower()
+    if name not in COMMUNITY_AD_COMMANDS or not str(chat_id).startswith("-"):
+        return str(markdown or "")
+    candidates = [row for row in (ads or []) if isinstance(row, dict)
+                  and row.get("enabled", True)
+                  and row.get("approval_status", "approved") == "approved"
+                  and row.get("id") and row.get("url")]
+    if not candidates:
+        return str(markdown or "")
+    highest = max(int(row.get("priority", 0) or 0) for row in candidates)
+    candidates = sorted((row for row in candidates if int(row.get("priority", 0) or 0) == highest),
+                        key=lambda row: str(row.get("id")))
+    bucket = int((now if now is not None else time.time()) // 600)
+    digest = hashlib.sha256(f"{chat_id}:{bucket}".encode()).digest()
+    ad = candidates[int.from_bytes(digest[:4], "big") % len(candidates)]
+    ad_id = quote(str(ad["id"])[:100], safe="")
+    tracked = f"{str(api_base).rstrip('/')}/house-ads/{ad_id}/click?placement=bot_reply"
+    username_match = re.match(r"^https://t\.me/([A-Za-z0-9_]{5,64})/?$", str(ad.get("url", "")))
+    title = re.sub(r"[\[\]*_`]", "", str(ad.get("title") or "Comunidad Telegram"))[:80]
+    description = re.sub(r"[\[\]*_`]", "", str(ad.get("description") or "Descubre esta comunidad"))[:160]
+    links = f"[Unirme]({tracked})"
+    if username_match:
+        directory = f"{str(directory_base).rstrip('/')}/canal/{username_match.group(1)}"
+        links += f"  ·  [Ver ficha]({directory})"
+    card = ("### 📣 Comunidad recomendada\n"
+            f"> **{title}**\n> {description}\n\n"
+            f"{links}\n\n_Publicidad comunitaria · servicio gratuito y sin ánimo de lucro_")
+    return f"{str(markdown or '').rstrip()}\n\n---\n{card}"
 
 
 def build_input_rich_message(markdown=None, html=None, blocks=None, media=None,

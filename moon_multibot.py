@@ -37,6 +37,7 @@ from core.telegram_api import (
     DEFAULT_ALLOWED_UPDATES,
     TELEGRAM_BOT_API_VERSION,
     build_input_rich_message,
+    append_community_ad,
     format_command_rich_markdown,
     build_get_updates_payload,
     is_rich_markdown_mode,
@@ -3378,11 +3379,19 @@ class MoonBot:
             rich_text = format_command_rich_markdown(
                 getattr(self._response_context, "command_name", ""), safe_text
             )
+            rich_text = append_community_ad(
+                rich_text,
+                getattr(self._response_context, "command_name", ""),
+                db.get("HOUSE_ADS", []) or [],
+                chat_id,
+                api_base=os.getenv("PUBLIC_API_URL", "https://api.todosobreall.tech"),
+                directory_base=os.getenv("CHANNEL_DIRECTORY_URL", "https://canales.todosobreall.tech"),
+            )
             return self.send_rich_message(
                 chat_id, markdown=rich_text, business_connection_id=business_connection_id,
                 message_thread_id=message_thread_id, direct_messages_topic_id=direct_messages_topic_id,
                 reply_parameters=reply_parameters, reply_markup=reply_markup,
-                fallback_text=safe_text, disable_notification=disable_notification,
+                fallback_text=rich_text, disable_notification=disable_notification,
                 protect_content=protect_content,
             )
 

@@ -4870,7 +4870,18 @@ def public_channels():
         sort=request.args.get("sort", "subscribers"),
         category=request.args.get("category", "all"),
     )
-    return jsonify({"ok": True, "channels": rows})
+    registry = _db.get("TELEGRAM_COMMUNITIES", {}) or {}
+    public_rows = []
+    for row in rows:
+        chat_id = str(row.get("chat_id") or row.get("id") or "")
+        record = registry.get(chat_id) or {}
+        community = record.get("community") or {}
+        public_rows.append({**row, "community": {
+            "id": str(record.get("community_id") or community.get("id") or ""),
+            "title": str(community.get("title") or community.get("name") or "")[:120],
+            "active": bool(record.get("active")),
+        } if record.get("active") else None})
+    return jsonify({"ok": True, "channels": public_rows})
 
 
 @bp.route("/api/public/stats/channels/<username>")
@@ -4878,7 +4889,27 @@ def public_channel(username):
     ch = _channel_stats.get_channel(username)
     if not ch:
         return jsonify({"ok": False, "error": "not found"}), 404
-    return jsonify({"ok": True, "channel": ch})
+    registry = _db.get("TELEGRAM_COMMUNITIES", {}) or {}
+    chat_id = str(ch.get("chat_id") or ch.get("id") or "")
+    record = registry.get(chat_id) or {}
+    community = record.get("community") or {}
+    public_community = None
+    if record.get("active"):
+        community_id = str(record.get("community_id") or community.get("id") or "")
+        peers = []
+        for row in _channel_stats.get_channels():
+            peer_id = str(row.get("chat_id") or row.get("id") or "")
+            peer_record = registry.get(peer_id) or {}
+            if peer_id == chat_id or not peer_record.get("active") or str(peer_record.get("community_id") or "") != community_id:
+                continue
+            peers.append({"name": row.get("name") or row.get("username"), "username": row.get("username")})
+        public_community = {
+            "id": community_id,
+            "title": str(community.get("title") or community.get("name") or f"Comunidad {community_id}")[:120],
+            "active": True,
+            "channels": peers[:24],
+        }
+    return jsonify({"ok": True, "channel": {**ch, "community": public_community}})
 
 
 @bp.route("/api/public/stats/ranking")

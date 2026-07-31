@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.20
+
+- Añade publicidad comunitaria rotatoria a respuestas informativas de comandos en grupos.
+- Excluye chats privados y comandos de moderación, seguridad, captcha, alertas y sanciones.
+- Mide la apertura mediante el enlace propio de TodoSobreAllTech e incorpora acceso a la ficha pública del canal.
+- Expone en el directorio público la comunidad real detectada por Bot API y sus canales relacionados.
+- Mantiene el anuncio en el fallback compatible cuando Rich Markdown no está disponible.
+
 ## v18.23.19
 
 - Mueve el canal obligatorio general a `Master > Acceso global`, sin necesidad de abrir ningún grupo.
