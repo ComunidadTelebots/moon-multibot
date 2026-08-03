@@ -43,6 +43,19 @@ class HubJoinCaptchaControlsTests(unittest.TestCase):
         self.assertIn("join_bot_url", routes)
         self.assertIn("globalChannelSearch", hub)
 
+    def test_global_and_group_recommendations_have_horizontal_banners_and_safe_join_actions(self):
+        hub = pathlib.Path("web/hub.html").read_text(encoding="utf-8")
+        self.assertIn("required-channel-strip", hub)
+        self.assertIn("required-channel-banner", hub)
+        self.assertIn('id="globalSelectedChannels"', hub)
+        self.assertIn('id="gjoinSelectedChannels"', hub)
+        self.assertIn('id="gjoinChannelSearch"', hub)
+        self.assertIn("gjoinSuggestionRow", hub)
+        self.assertIn("gjoinRemoveChannel", hub)
+        self.assertIn("globalRemoveChannel", hub)
+        self.assertIn('rel="noopener"', hub)
+        self.assertIn("channelAvatar(item)", hub)
+
 
 if __name__ == "__main__":
     unittest.main()

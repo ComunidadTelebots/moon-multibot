@@ -319,6 +319,14 @@
   #app-classic .c-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--card);margin-bottom:12px;}
   #app-classic h2{font-family:var(--display);font-weight:600;font-size:16px;margin-bottom:4px;}
   .backnew{margin-top:18px;}
+  .required-channel-strip{display:flex;gap:9px;overflow-x:auto;padding:8px 1px 4px;scroll-snap-type:x proximity}
+  .required-channel-banner{scroll-snap-align:start;display:flex;align-items:center;gap:9px;min-width:245px;max-width:310px;padding:9px 10px;border:1px solid rgba(93,202,165,.3);border-radius:14px;background:linear-gradient(110deg,rgba(93,202,165,.13),rgba(34,211,238,.06))}
+  .required-channel-banner img,.channel-avatar-fallback{width:42px;height:42px;border-radius:12px;flex:0 0 42px;object-fit:cover}
+  .channel-avatar-fallback{display:grid;place-items:center;background:var(--grad);color:#04121f;font-family:var(--display);font-weight:800}
+  .required-channel-banner .channel-copy{min-width:0;flex:1}.required-channel-banner .channel-copy b,.required-channel-banner .channel-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.required-channel-banner .channel-copy small{color:var(--muted);font-size:10px}
+  .required-channel-banner button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;width:29px;height:29px;cursor:pointer}
+  .channel-recommendation{width:100%;display:flex;align-items:center;gap:10px;text-align:left;margin-top:7px;padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  .channel-recommendation[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -522,6 +530,19 @@
 
   function escAttr(s){return String(s||"").replace(/"/g,"").replace(/</g,"");}
   function escHtml(s){return String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+  function channelAvatar(item={}){
+    const title=String(item.title||item.username||item.channel||"Canal");
+    return item.photo_url
+      ? `<img src="${escAttr(item.photo_url)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+      : `<span class="channel-avatar-fallback" aria-hidden="true">${escHtml(title.slice(0,2).toUpperCase())}</span>`;
+  }
+  function requiredChannelBanners(channels=[],suggestions=[],removeClass=""){
+    const byChannel=new Map((suggestions||[]).map(item=>[String(item.channel||"").replace(/^@/,""),item]));
+    return `<div class="required-channel-strip">${(channels||[]).map(raw=>{
+      const channel=String(raw||"").replace(/^@/,""),item=byChannel.get(channel)||{channel,title:`@${channel}`};
+      return `<div class="required-channel-banner">${channelAvatar(item)}<span class="channel-copy"><b>${escHtml(item.title||`@${channel}`)}</b><small>@${escHtml(item.username||channel)} · obligatorio</small></span><button type="button" class="${removeClass}" data-channel="${escAttr(channel)}" aria-label="Quitar ${escAttr(channel)}">×</button></div>`;
+    }).join("")||'<span class="muted">Todavía no hay canales obligatorios seleccionados.</span>'}</div>`;
+  }
   function channelBotNames(channel){
     const names=(channel&&Array.isArray(channel.bots)?channel.bots:[]).map(bot=>bot&&bot.username).filter(Boolean);
     if(!names.length&&channel&&channel.bot_username)names.push(channel.bot_username);
@@ -1270,7 +1291,8 @@
       <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">Canales obligatorios de este grupo (separados por comas)
         <input id="gjoinChannels" placeholder="@canal_uno, @canal_dos" value="${escHtml((cfg.required_channels||[]).map(x=>`@${x}`).join(", "))}" style="width:100%;margin-top:6px">
       </label>
-      <div class="casbox" style="margin-top:10px"><b>Canales recomendados</b><p class="muted">Moonbot analiza el contenido observado y retira las candidaturas de alto riesgo.</p><div id="gjoinSuggestions">${(d.required_channel_suggestions||[]).map(item=>`<button type="button" class="btn ghost gjoinSuggestion" data-channel="${escHtml(item.channel)}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;margin-top:7px">${item.photo_url?`<img src="${escHtml(item.photo_url)}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:10px;object-fit:cover">`:""}<span style="flex:1;min-width:0"><b style="display:block">${escHtml(item.title)}</b><small class="muted">${item.username?`@${escHtml(item.username)} · `:""}${item.content_review&&item.content_review.messages_analyzed?`${item.content_review.messages_analyzed} mensajes · riesgo ${item.content_review.score}/100`:"análisis pendiente"}</small></span><b>${(cfg.required_channels||[]).includes(item.channel)?"✓ Añadido":"＋ Añadir"}</b></button>`).join("")||'<span class="muted">No hay canales candidatos seguros detectados.</span>'}</div></div>
+      <div id="gjoinSelectedChannels">${requiredChannelBanners(cfg.required_channels||[],d.required_channel_suggestions||[],"gjoinRemoveChannel")}</div>
+      <div class="casbox" style="margin-top:10px"><b>Canales recomendados</b><p class="muted">Moonbot analiza el contenido observado y retira las candidaturas de alto riesgo.</p><input id="gjoinChannelSearch" placeholder="Buscar por nombre, @usuario o ID" style="width:100%;margin-top:7px"><div id="gjoinSuggestions">${(d.required_channel_suggestions||[]).map(item=>`<div class="channel-recommendation gjoinSuggestionRow" data-search="${escAttr(`${item.title} ${item.username||""} ${item.chat_id||""}`.toLowerCase())}">${channelAvatar(item)}<span style="flex:1;min-width:0"><b style="display:block">${escHtml(item.title)}</b><small class="muted">${item.username?`@${escHtml(item.username)} · `:""}${item.content_review&&item.content_review.messages_analyzed?`${item.content_review.messages_analyzed} mensajes · riesgo ${item.content_review.score}/100`:"análisis pendiente"}</small></span>${item.join_bot_url?`<a class="btn ghost" href="${escAttr(item.join_bot_url)}" target="_blank" rel="noopener" style="width:auto">Unir @${escHtml((item.join_bot||{}).username||"bot")}</a>`:'<span class="chip">Bot unido</span>'}<button type="button" class="btn teal gjoinSuggestion" data-channel="${escAttr(item.channel)}" style="width:auto">${(cfg.required_channels||[]).includes(item.channel)?"✓ Quitar":"＋ Añadir"}</button></div>`).join("")||'<span class="muted">No hay canales candidatos seguros detectados.</span>'}</div></div>
       ${(d.global_required_channels||[]).length?`<p class="muted">Canales globales aplicados por el master: ${(d.global_required_channels||[]).map(x=>`@${escHtml(x)}`).join(" · ")}</p>`:""}
       <div class="dropdown" id="dd-join-pending"><div class="dhead">Solicitudes pendientes (${pending.length}) <span class="chev">${svg('chevron')}</span></div>
         <div class="dbody" id="gjoinPending" hidden></div></div>`;
@@ -1292,13 +1314,22 @@
       const r=await gp("/group/join/settings",payload);
       if(r&&r.ok){showToast("Captcha configurado");loadJoinCaptcha();}else showToast((r&&r.error)||"No se pudo guardar");
     };
+    const localChannelInput=document.getElementById("gjoinChannels");
+    const readLocalChannels=()=>[...new Set(localChannelInput.value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))].slice(0,10);
+    const paintLocalChannels=channels=>{
+      localChannelInput.value=channels.map(x=>`@${x}`).join(", ");
+      document.getElementById("gjoinSelectedChannels").innerHTML=requiredChannelBanners(channels,d.required_channel_suggestions||[],"gjoinRemoveChannel");
+      document.querySelectorAll(".gjoinRemoveChannel").forEach(button=>button.onclick=()=>paintLocalChannels(readLocalChannels().filter(x=>x!==button.dataset.channel)));
+      document.querySelectorAll(".gjoinSuggestion").forEach(button=>button.textContent=channels.includes(button.dataset.channel)?"✓ Quitar":"＋ Añadir");
+    };
+    document.getElementById("gjoinChannelSearch").oninput=function(){const query=this.value.trim().toLowerCase();document.querySelectorAll(".gjoinSuggestionRow").forEach(row=>row.hidden=!!query&&!row.dataset.search.includes(query));};
     document.querySelectorAll(".gjoinSuggestion").forEach(button=>button.onclick=()=>{
-      const input=document.getElementById("gjoinChannels"), channel=button.dataset.channel;
-      let channels=[...new Set(input.value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))];
+      const channel=button.dataset.channel;
+      let channels=readLocalChannels();
       channels=channels.includes(channel)?channels.filter(x=>x!==channel):[...channels,channel].slice(0,10);
-      input.value=channels.map(x=>`@${x}`).join(", ");
-      const state=button.querySelector("b:last-child");if(state)state.textContent=channels.includes(channel)?"✓ Añadido":"＋ Añadir";
+      paintLocalChannels(channels);
     });
+    paintLocalChannels(readLocalChannels());
     document.getElementById("gjoinReverify").onclick=async()=>{
       if(!window.confirm("Se silenciará a todos los miembros conocidos hasta que completen el captcha. ¿Continuar?"))return;
       const r=await gp("/group/join/reverify-all",{});
@@ -2402,7 +2433,8 @@
       <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Canales generales (separados por comas)
         <input id="globalAccessChannel" value="${escHtml(globalChannels.map(x=>`@${x}`).join(", "))}" placeholder="@canal_uno, @canal_dos" style="width:100%;margin-top:6px">
       </label>
-      <div class="casbox" style="margin-top:12px"><b>Canales recomendados</b><p class="muted">Moonbot analiza el contenido observado y oculta automáticamente las candidaturas de alto riesgo.</p><input id="globalChannelSearch" placeholder="Buscar por nombre, @usuario o ID" style="width:100%;margin-top:7px"><div id="globalSuggestionList">${(data.suggested_channels||[]).map(item=>`<div class="globalSuggestionRow" data-search="${escHtml(`${item.title} ${item.username||""} ${item.chat_id||""}`.toLowerCase())}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;margin-top:7px;padding:8px;border:1px solid var(--line);border-radius:12px">${item.photo_url?`<img src="${escHtml(item.photo_url)}" alt="" loading="lazy" style="width:42px;height:42px;border-radius:11px;object-fit:cover">`:""}<span style="flex:1;min-width:0"><b style="display:block">${escHtml(item.title)}</b><small class="muted">${item.username?`@${escHtml(item.username)} · `:""}${item.content_review&&item.content_review.messages_analyzed?`${item.content_review.messages_analyzed} mensajes · riesgo ${item.content_review.score}/100`:"análisis pendiente"}</small></span>${item.join_bot_url?`<a class="btn ghost" href="${escHtml(item.join_bot_url)}" target="_blank" style="width:auto">Unir @${escHtml(item.join_bot.username)}</a>`:'<span class="chip">Bots unidos</span>'}<button type="button" class="btn teal globalChannelSuggestion" data-channel="${escHtml(item.channel)}" style="width:auto">${globalChannels.includes(item.channel)?"✓ Quitar":"＋ Añadir"}</button></div>`).join("")||'<span class="muted">No se detectaron canales candidatos seguros.</span>'}</div></div>
+      <div id="globalSelectedChannels">${requiredChannelBanners(globalChannels,data.suggested_channels||[],"globalRemoveChannel")}</div>
+      <div class="casbox" style="margin-top:12px"><b>Canales recomendados</b><p class="muted">Moonbot analiza el contenido observado y oculta automáticamente las candidaturas de alto riesgo.</p><input id="globalChannelSearch" placeholder="Buscar por nombre, @usuario o ID" style="width:100%;margin-top:7px"><div id="globalSuggestionList">${(data.suggested_channels||[]).map(item=>`<div class="channel-recommendation globalSuggestionRow" data-search="${escAttr(`${item.title} ${item.username||""} ${item.chat_id||""}`.toLowerCase())}">${channelAvatar(item)}<span style="flex:1;min-width:0"><b style="display:block">${escHtml(item.title)}</b><small class="muted">${item.username?`@${escHtml(item.username)} · `:""}${item.content_review&&item.content_review.messages_analyzed?`${item.content_review.messages_analyzed} mensajes · riesgo ${item.content_review.score}/100`:"análisis pendiente"}</small></span>${item.join_bot_url?`<a class="btn ghost" href="${escAttr(item.join_bot_url)}" target="_blank" rel="noopener" style="width:auto">Unir @${escHtml((item.join_bot||{}).username||"bot")}</a>`:'<span class="chip">Bots unidos</span>'}<button type="button" class="btn teal globalChannelSuggestion" data-channel="${escAttr(item.channel)}" style="width:auto">${globalChannels.includes(item.channel)?"✓ Quitar":"＋ Añadir"}</button></div>`).join("")||'<span class="muted">No se detectaron canales candidatos seguros.</span>'}</div></div>
       <label style="display:block;margin-top:16px;font-size:12px;color:var(--muted)">Reverificar globalmente cada (horas)
         <input id="globalAccessInterval" type="number" min="1" max="2160" value="${Number(data.reverify_interval_hours||12)}" style="width:100%;margin-top:6px">
       </label>
@@ -2415,6 +2447,14 @@
     toggle.onclick=()=>toggle.classList.toggle("on");
     strictToggle.onclick=()=>strictToggle.classList.toggle("on");
     document.getElementById("globalChannelSearch").oninput=function(){const query=this.value.trim().toLowerCase();document.querySelectorAll(".globalSuggestionRow").forEach(row=>row.hidden=!!query&&!row.dataset.search.includes(query));};
+    const globalChannelInput=document.getElementById("globalAccessChannel");
+    const readGlobalChannels=()=>[...new Set(globalChannelInput.value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))].slice(0,10);
+    const paintGlobalChannels=channels=>{
+      globalChannelInput.value=channels.map(x=>`@${x}`).join(", ");
+      document.getElementById("globalSelectedChannels").innerHTML=requiredChannelBanners(channels,data.suggested_channels||[],"globalRemoveChannel");
+      document.querySelectorAll(".globalRemoveChannel").forEach(button=>button.onclick=()=>paintGlobalChannels(readGlobalChannels().filter(x=>x!==button.dataset.channel)));
+      document.querySelectorAll(".globalChannelSuggestion").forEach(button=>button.textContent=channels.includes(button.dataset.channel)?"✓ Quitar":"＋ Añadir");
+    };
     document.getElementById("globalAccessSave").onclick=async()=>{
       const channels=[...new Set(document.getElementById("globalAccessChannel").value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))].slice(0,10);
       const enabled=toggle.classList.contains("on");
@@ -2425,12 +2465,12 @@
       else showToast((result&&result.error)||"No se pudo guardar");
     };
     document.querySelectorAll(".globalChannelSuggestion").forEach(button=>button.onclick=()=>{
-      const input=document.getElementById("globalAccessChannel"), channel=button.dataset.channel;
-      let channels=[...new Set(input.value.split(",").map(x=>x.trim().replace(/^@/,"")).filter(Boolean))];
+      const channel=button.dataset.channel;
+      let channels=readGlobalChannels();
       channels=channels.includes(channel)?channels.filter(x=>x!==channel):[...channels,channel].slice(0,10);
-      input.value=channels.map(x=>`@${x}`).join(", ");
-      button.textContent=channels.includes(channel)?"✓ Quitar":"＋ Añadir";
+      paintGlobalChannels(channels);
     });
+    paintGlobalChannels(readGlobalChannels());
   }
 
   async function loadMasterGroupAdministration(){

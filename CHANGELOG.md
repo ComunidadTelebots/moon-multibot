@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.26
+
+- Corrige la coincidencia de canales por todas las identidades del bot, tanto ID como nombre de usuario.
+- Almacena en caché el análisis de candidaturas y lo invalida únicamente cuando cambia el historial observado.
+- Valida de forma atómica la lista global para que una petición inválida no borre canales antes de responder con error.
+- Conserva listas multicanal existentes durante la migración desde el antiguo ajuste de canal único.
+- Completa en el Hub los banners horizontales, fotos, búsqueda, riesgo, unión del bot y selección tanto global como por grupo.
+
 ## v18.23.25
 
 - Muestra la foto pública real del canal en las recomendaciones globales y locales del captcha.
