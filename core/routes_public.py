@@ -41,6 +41,7 @@ from community_members import CommunityMembers
 from community_engagement import CommunityEngagement
 from roadmap_engine import RoadmapEngine
 from horizon_full import FullHorizonSuite
+from horizon_completion import HorizonCompletion, FEATURES as HORIZON_COMPLETION_FEATURES
 from permission_history import record_permission_snapshot
 from core.language_map import aggregate_language_map
 from core.feature_runtime import execute as execute_verified_feature, list_features as list_verified_features, registry as verified_feature_registry
@@ -290,6 +291,43 @@ def internal_verified_features():
         return jsonify({"ok": False, "error": str(exc)}), 403
     except (TypeError, ValueError) as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+_TELEGRAM_EXPERIENCE_SLUGS = tuple(
+    slug for slug, (_, category) in HORIZON_COMPLETION_FEATURES.items()
+    if category == "telegram"
+)
+
+
+@bp.route("/api/internal/telegram-experience", methods=["GET", "POST"])
+def internal_telegram_experience():
+    """Expone al master las capacidades Telegram ya implementadas y auditadas."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    if _db is None:
+        return jsonify({"ok": False, "error": "storage unavailable"}), 503
+    service = HorizonCompletion(_db)
+    catalog = [row for row in service.catalog() if row["slug"] in _TELEGRAM_EXPERIENCE_SLUGS]
+    if request.method == "GET":
+        return jsonify({"ok": True, "total": len(catalog), "features": catalog})
+    if request.content_length and request.content_length > 65536:
+        return jsonify({"ok": False, "error": "payload too large"}), 413
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"ok": False, "error": "invalid payload"}), 400
+    slug = str(body.get("slug") or "").strip()
+    if slug not in _TELEGRAM_EXPERIENCE_SLUGS:
+        return jsonify({"ok": False, "error": "unknown feature"}), 400
+    payload = body.get("payload", {})
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "payload must be an object"}), 400
+    try:
+        result = service.execute(slug, payload)
+    except (ValueError, TypeError, KeyError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    if _add_audit_log:
+        _add_audit_log(f"Experiencia Telegram ejecutada por master: {slug}")
+    return jsonify({"ok": True, "feature": slug, "result": result})
 
 
 def _safe_list(value):

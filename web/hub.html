@@ -1740,7 +1740,8 @@
     {id:"operations",title:"Fiabilidad y operaciones",description:"Métricas, diagnóstico y despliegues",loader:loadMasterOperationsCenter},
     {id:"ai-center",title:"IA avanzada",description:"Modelos, fuentes, revisiones y preguntas",loader:loadMasterAdvancedAiCenter},
     {id:"integrations",title:"Integraciones y API",description:"Módulos, tokens, cuotas y exportación firmada",loader:loadMasterIntegrationsCenter},
-    {id:"experience",title:"Experiencia",description:"Accesibilidad y preferencias del Hub",loader:loadMasterExperienceCenter}
+    {id:"experience",title:"Experiencia",description:"Accesibilidad y preferencias del Hub",loader:loadMasterExperienceCenter},
+    {id:"telegram-experience",title:"Experiencia Telegram",description:"Temas, atajos, eventos y acciones auditadas",loader:loadMasterTelegramExperienceCenter}
   ];
   function loadMasterCapabilityCenters(){
     masterDetailTitle.textContent="Centros operativos";masterDetailSubtitle.textContent="Capacidades activas con panel propio";masterDetailBack.onclick=closeMasterPage;
@@ -1788,6 +1789,24 @@
     masterDetail.innerHTML=`<div class="master-grid"><div class="master-metric"><div class="mv">${notifications.length}</div><div class="ml">Avisos</div></div><div class="master-metric"><div class="mv">${Object.keys(themes).length}</div><div class="ml">Temas de grupo</div></div></div><div class="card"><b>Accesibilidad del Hub</b><div class="setrow"><div><b>Vista compacta</b><span>Reduce espacios sin ocultar acciones</span></div><button type="button" class="switch ${preferences.compact?'on':''}" id="centerExperienceCompact" role="switch" aria-checked="${preferences.compact?'true':'false'}" aria-label="Vista compacta"><span></span></button></div><div class="setrow"><div><b>Contraste alto</b><span>Refuerza bordes y textos</span></div><button type="button" class="switch ${preferences.high_contrast?'on':''}" id="centerExperienceContrast" role="switch" aria-checked="${preferences.high_contrast?'true':'false'}" aria-label="Contraste alto"><span></span></button></div><label class="muted">Tamaño de texto <input id="centerExperienceFont" type="range" min="80" max="140" value="${Math.max(80,Math.min(140,Number(preferences.font_scale||100)))}"></label><button class="btn teal" id="centerExperienceSave">Guardar preferencias</button></div><div class="sec">Avisos pendientes</div>${notifications.slice(0,20).map(item=>`<div class="casbox"><b>${escHtml(item.title||item.id||"Aviso")}</b><br><span class="muted">${Number(item.count||1)} pendiente(s)</span></div>`).join("")||'<p class="muted">No hay avisos pendientes.</p>'}`;
     const toggleExperienceSwitch=button=>{button.classList.toggle("on");button.setAttribute("aria-checked",String(button.classList.contains("on")));};centerExperienceCompact.onclick=()=>toggleExperienceSwitch(centerExperienceCompact);centerExperienceContrast.onclick=()=>toggleExperienceSwitch(centerExperienceContrast);
     centerExperienceSave.onclick=async()=>{const response=await masterApi("/api/internal/experience",{method:"POST",body:JSON.stringify({action:"preferences",preferences:{compact:centerExperienceCompact.classList.contains("on"),high_contrast:centerExperienceContrast.classList.contains("on"),font_scale:Number(centerExperienceFont.value)}})});showToast(response&&response.ok?"Preferencias guardadas":"No se pudieron guardar");};
+  }
+
+  const TELEGRAM_EXPERIENCE_EXAMPLES={
+    pending_topics_inbox:{topics:[]},personal_shortcuts:{user_id:"",shortcuts:{}},
+    message_side_panel:{message_id:"",actions:["report","quote","context"],context:{}},
+    ephemeral_operations:{receiver_user_id:"",callback_query_id:"",text:""},
+    linked_communities:{parent:"",children:[],permissions:[]},
+    adaptive_entry_forms:{fields:[],answers:{}},admin_guided_routes:{completed:[]},
+    temporary_event_mode:{group_id:"",mode:"event",starts_at:"",ends_at:"",settings:{}},
+    bulk_preview_undo:{actions:[],confirm:false},impact_notifications:{notifications:[]}
+  };
+  async function loadMasterTelegramExperienceCenter(){
+    const data=await masterApi("/api/internal/telegram-experience");if(!data||!data.ok){masterDetail.innerHTML='<div class="master-error">No se pudo cargar la experiencia Telegram.</div>';return;}
+    const features=data.features||[];
+    masterDetail.innerHTML=`<div class="master-grid"><div class="master-metric good"><div class="mv">${features.length}</div><div class="ml">Funciones verificadas</div></div></div><div class="card"><label for="centerTelegramFeature"><b>Capacidad</b></label><select id="centerTelegramFeature">${features.map(item=>`<option value="${escAttr(item.slug)}">${escHtml(item.title)}</option>`).join("")}</select><label for="centerTelegramPayload"><b>Datos de entrada (JSON)</b></label><textarea id="centerTelegramPayload" spellcheck="false"></textarea><p class="muted">La ejecución queda registrada en la auditoría de Moonbot.</p><button class="btn teal" id="centerTelegramExecute">Ejecutar</button><pre id="centerTelegramResult" class="muted" style="white-space:pre-wrap"></pre></div>`;
+    const fill=()=>{centerTelegramPayload.value=JSON.stringify(TELEGRAM_EXPERIENCE_EXAMPLES[centerTelegramFeature.value]||{},null,2);centerTelegramResult.textContent="";};
+    centerTelegramFeature.onchange=fill;fill();
+    centerTelegramExecute.onclick=async()=>{try{const payload=JSON.parse(centerTelegramPayload.value||"{}");const response=await masterApi("/api/internal/telegram-experience",{method:"POST",body:JSON.stringify({slug:centerTelegramFeature.value,payload})});centerTelegramResult.textContent=JSON.stringify(response&&response.result||response,null,2);}catch(error){showToast(error.message||"JSON no válido");}};
   }
 
   async function loadMasterOverview(){

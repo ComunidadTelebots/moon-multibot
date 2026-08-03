@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.23.27
+
+- Publica en una ruta interna autenticada diez capacidades verificadas de experiencia Telegram: temas pendientes, atajos personales, panel contextual, respuestas efímeras, comunidades enlazadas, formularios adaptativos, guía de administradores, modo evento, acciones masivas y avisos por impacto.
+- Añade un panel exclusivo del master en los centros operativos del Hub, conservando la navegación, tarjetas y estilos existentes.
+- Valida una lista cerrada de operaciones, limita el tamaño del JSON y registra cada ejecución en la auditoría persistente.
+- Incorpora pruebas que ejecutan las diez capacidades y comprueban autorización, allowlist, límites, escape de contenido y navegación de regreso.
+
 ## v18.23.26
 
 - Corrige la coincidencia de canales por todas las identidades del bot, tanto ID como nombre de usuario.
