@@ -791,6 +791,7 @@ app.register_blueprint(_setup_public(
     }),
     task_queue=task_queue,
     group_administration=group_administration,
+    tdlib_client=tdlib_client,
 ))
 app.register_blueprint(_setup_security(
     check_jwt=check_jwt,

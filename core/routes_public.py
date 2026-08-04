@@ -70,6 +70,7 @@ _get_ai_runtime_config = None
 _set_ai_runtime_config = None
 _task_queue = None
 _group_administration = None
+_tdlib_client = None
 _community_api_usage = {}
 _instant_news_cache = {"at": 0, "articles": []}
 
@@ -78,11 +79,11 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
           hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None,
           add_audit_log=None, vt_manager=None, get_ai_runtime_config=None, set_ai_runtime_config=None,
-          task_queue=None, group_administration=None):
+          task_queue=None, group_administration=None, tdlib_client=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
     global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log, _vt_manager
-    global _get_ai_runtime_config, _set_ai_runtime_config, _task_queue, _group_administration
+    global _get_ai_runtime_config, _set_ai_runtime_config, _task_queue, _group_administration, _tdlib_client
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -101,6 +102,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _set_ai_runtime_config = set_ai_runtime_config
     _task_queue = task_queue
     _group_administration = group_administration
+    _tdlib_client = tdlib_client
     return bp
 
 
@@ -2674,6 +2676,7 @@ def _sync_master_channel_ads():
                 "impressions_by_placement": dict(previous.get("impressions_by_placement") or {}),
                 "clicks_by_country": dict(previous.get("clicks_by_country") or {}),
                 "impressions_by_country": dict(previous.get("impressions_by_country") or {}),
+                "relationship_type": "official", "community_verified": True,
             })
         generated = []
         suppressed = set(str(value) for value in _safe_list(_db.get("HOUSE_ADS_SUPPRESSED_CHANNELS", [])))
@@ -2704,12 +2707,35 @@ def _sync_master_channel_ads():
                 "clicks_by_country": dict(previous.get("clicks_by_country") or {}),
                 "impressions_by_country": dict(previous.get("impressions_by_country") or {}),
                 "source": "master_channel", "source_chat_id": chat_id, "automatic": True,
+                "relationship_type": "official", "community_verified": True,
             })
         manual = [row for row in rows if row.get("source") not in ("master_channel", "official_channel")]
         _db.set("HOUSE_ADS", manual + official_generated + generated)
         return {"ok": True, "channels": len(generated) + len(official_generated), "official": len(official_generated)}
     except Exception as error:
         return {"ok": False, "error": str(error)[:200]}
+
+
+def _telegram_campaign_verification(raw, previous=None):
+    """Lee Telegram con TDLib; el navegador no puede autodeclarar este distintivo."""
+    previous = previous or {}
+    if str(raw.get("relationship_type") or "affiliate") != "verified":
+        return {"telegram_verified": False, "telegram_verification_status": "not_requested",
+                "telegram_verification_checked_at": ""}
+    if not _tdlib_client:
+        return {"telegram_verified": bool(previous.get("telegram_verified", False)),
+                "telegram_verification_status": "tdlib_unavailable",
+                "telegram_verification_checked_at": str(previous.get("telegram_verification_checked_at") or "")}
+    result = _tdlib_client.get_chat_verification(raw.get("source_chat_id") or raw.get("url"))
+    if not result.get("checked"):
+        return {"telegram_verified": bool(previous.get("telegram_verified", False)),
+                "telegram_verification_status": str(result.get("status") or "unavailable")[:40],
+                "telegram_verification_checked_at": str(result.get("checked_at") or ""),
+                "telegram_verification_error": str(result.get("error") or "")[:160]}
+    return {"telegram_verified": result.get("verified") is True,
+            "telegram_verification_status": str(result.get("status") or "not_verified")[:40],
+            "telegram_verification_checked_at": str(result.get("checked_at") or ""),
+            "telegram_chat_id": str(result.get("chat_id") or "")[:32]}
 
 
 def _house_ads_update(body):
@@ -2764,8 +2790,16 @@ def _house_ads_update(body):
         for row in rows:
             if str(row.get("id")) == ad_id:
                 row.update({"clicks": 0, "impressions": 0, "clicks_by_placement": {}, "impressions_by_placement": {}, "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {}})
+    elif action == "verify_telegram":
+        target = next((row for row in rows if str(row.get("id")) == ad_id), None)
+        if not target:
+            raise ValueError("campaña no encontrada")
+        if target.get("relationship_type") != "verified":
+            raise ValueError("la campaña no está marcada para verificación")
+        target.update(_telegram_campaign_verification(target, target))
     else:
         raw = body.get("ad") or body
+        previous = next((row for row in rows if str(row.get("id")) == str(raw.get("id") or "")), None)
         url = str(raw.get("url") or "").strip()
         if not url.startswith(("https://", "tg://")): raise ValueError("enlace no válido")
         community_items = []
@@ -2799,7 +2833,10 @@ def _house_ads_update(body):
                 "display_format": str(raw.get("display_format") or "auto") if str(raw.get("display_format") or "auto") in ("auto", "mosaic", "compact", "cards", "spotlight", "ticker") else "auto",
                 "community_id": str(raw.get("community_id") or "")[:64],
                 "community_items": community_items,
-                "clicks_by_item": dict(raw.get("clicks_by_item") or {})}
+                "clicks_by_item": dict(raw.get("clicks_by_item") or {}),
+                "relationship_type": str(raw.get("relationship_type") or "affiliate") if str(raw.get("relationship_type") or "affiliate") in ("official", "verified", "affiliate") else "affiliate",
+                "community_verified": bool(raw.get("community_verified", False)),
+                **_telegram_campaign_verification(raw, previous)}
         if item["placement"] not in ("all", "top", "right", "inline"): raise ValueError("ubicación no válida")
         if not item["title"]: raise ValueError("título obligatorio")
         rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]
