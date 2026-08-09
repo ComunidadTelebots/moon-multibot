@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.28 - 2026-08-09 - Métricas y segmentación publicitaria completa
+
+- **Métricas Telegram persistentes:** las impresiones y los clics recibidos desde TodoSobreAllTech se agregan por `chat_id` y `bot_id`, validando ambos identificadores antes de almacenarlos.
+- **Presupuesto diario:** cada campaña conserva contadores UTC de clics e impresiones del día para aplicar límites diarios sin mezclar jornadas.
+- **Objetivos y contexto:** el catálogo conserva objetivos totales, límites diarios, categorías, palabras incluidas/excluidas y destinos concretos de canal o grupo.
+- **Hub master:** el editor de campañas incorpora controles de segmentación contextual, canales, grupos y presupuesto sin alterar el diseño general del Hub.
+- **Compatibilidad:** duplicar o reiniciar una campaña limpia todas las métricas nuevas y las campañas antiguas reciben valores seguros por defecto.
+- **Seguridad:** los IDs Telegram se aceptan únicamente con formato numérico válido; no se guardan usuarios, mensajes ni credenciales en las métricas.
+
 ## v18.23.27
 
 - Publica en una ruta interna autenticada diez capacidades verificadas de experiencia Telegram: temas pendientes, atajos personales, panel contextual, respuestas efímeras, comunidades enlazadas, formularios adaptativos, guía de administradores, modo evento, acciones masivas y avisos por impacto.

@@ -73,6 +73,67 @@ _group_administration = None
 _tdlib_client = None
 _community_api_usage = {}
 _instant_news_cache = {"at": 0, "articles": []}
+_community_campaign_cache = {}
+
+
+def _community_campaigns_for_audience(owner_verified=False):
+    """Fetch approved community campaigns without exposing audience decisions to JS."""
+    audience = "channel_owner" if owner_verified else "general"
+    cached = _community_campaign_cache.get(audience) or {}
+    if time.time() - float(cached.get("at", 0) or 0) < 120:
+        return cached.get("ads", [])
+    endpoint = os.getenv("COMMUNITY_CARDS_URL", "https://todosobreall.tech/hcgi/api/community-cards").rstrip("/")
+    query = f"placement=hub&site=hub&audience={audience}"
+    internal_key = str(os.getenv("MOON_ADMIN_API_KEY") or "").strip()
+    headers = {"Accept": "application/json", "User-Agent": "MoonMultibot-Hub/1.0"}
+    if internal_key:
+        headers["X-Moon-Admin-Key"] = internal_key
+    req = urllib.request.Request(f"{endpoint}?{query}", headers=headers)
+    with urllib.request.urlopen(req, timeout=5) as response:
+        payload = json.loads(response.read(512 * 1024))
+    rows = payload.get("ads", []) if isinstance(payload, dict) else []
+    normalized = []
+    for raw in rows[:20]:
+        if not isinstance(raw, dict) or raw.get("enabled") is False:
+            continue
+        item_audience = str(raw.get("audience") or "general").strip().lower()
+        if item_audience == "channel_owner" and not owner_verified:
+            continue
+        if item_audience not in {"general", "channel_owner", "all"}:
+            continue
+        ad_id = re.sub(r"[^A-Za-z0-9_-]", "", str(raw.get("id") or ""))[:80]
+        destination = str(raw.get("url") or "").strip()
+        parsed = urlparse(destination)
+        if not ad_id or parsed.scheme != "https" or not parsed.netloc:
+            continue
+        tracking_url = f"{endpoint}/{ad_id}/click?placement=hub&site=hub"
+        normalized.append({
+            "id": ad_id, "title": str(raw.get("title") or "Comunidad recomendada")[:160],
+            "description": str(raw.get("description") or "")[:500],
+            "cta": str(raw.get("cta") or "Abrir en Telegram")[:40],
+            "image": str(raw.get("image") or "")[:500], "url": destination,
+            "click_url": tracking_url, "audience": item_audience,
+            "source": "todosobrealltech", "campaign_type": str(raw.get("campaign_type") or "community")[:40],
+        })
+    owner_rows = [row for row in normalized if row["audience"] == "channel_owner"]
+    selected = owner_rows if owner_verified and owner_rows else [row for row in normalized if row["audience"] in {"general", "all"}]
+    _community_campaign_cache[audience] = {"at": time.time(), "ads": selected}
+    return selected
+
+
+def _has_verified_channel_ownership(user):
+    """Only Telegram-backed creator records prove channel ownership; master is not ownership."""
+    user_id = str((user or {}).get("id") or "").strip()
+    if not user_id or not _channel_stats:
+        return False
+    try:
+        rows = _channel_stats.get_user_channels(user_id) or []
+    except Exception:
+        return False
+    return any(
+        str(row.get("role") or row.get("status") or row.get("admin_status") or "").strip().lower() == "creator"
+        for row in rows if isinstance(row, dict)
+    )
 
 
 def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_bots=None,
@@ -149,6 +210,24 @@ def public_news_instant():
            and str(row.get("url") or "").startswith(("https://", "http://"))]
     return jsonify({"ok": True, "mode": "instant_view", "articles": articles[:60], "ads": ads,
                     "cached": stale and bool(articles), "source": "NoticiasWeb3 2026"})
+
+
+@bp.route("/api/public/community-campaigns", methods=["POST", "OPTIONS"])
+def public_community_campaigns():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    user = _verify_init_data((request.json or {}).get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    # La propiedad se resuelve exclusivamente con roles que Moonbot obtuvo del backend.
+    # Nunca se acepta una bandera owner procedente del navegador.
+    owner_verified = _has_verified_channel_ownership(user)
+    try:
+        ads = _community_campaigns_for_audience(owner_verified)
+    except Exception:
+        # Fail closed: si el catálogo no responde no inventamos destinos ni elevamos audiencia.
+        ads = []
+    return jsonify({"ok": True, "ads": ads, "audience": "channel_owner" if owner_verified else "general"})
 
 
 # Desfase máximo (s) permitido hacia el futuro: un auth_date muy adelantado
@@ -762,6 +841,35 @@ def internal_groups():
     start = (page - 1) * per_page
     return jsonify({"ok": True, "groups": rows[start:start + per_page], "total": total,
                     "page": page, "per_page": per_page, "total_pages": total_pages, "type": kind})
+
+
+@bp.route("/api/internal/get_user_channels")
+def internal_get_user_channels():
+    """Contract used by TodoSobreAllTech to verify Telegram channel ownership."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    telegram_id = str(request.args.get("telegram_id") or "").strip()
+    if not re.fullmatch(r"[1-9][0-9]{4,19}", telegram_id):
+        return jsonify({"ok": False, "error": "invalid_telegram_id"}), 400
+    try:
+        rows = _channel_stats.get_user_channels(telegram_id) or []
+    except Exception as error:
+        return jsonify({"ok": False, "error": "channel_directory_unavailable", "detail": str(error)[:160]}), 503
+    channels = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        role = str(row.get("role") or row.get("status") or row.get("admin_status") or "").strip().lower()
+        if role not in {"creator", "administrator", "member"}:
+            role = "unknown"
+        channels.append({
+            "chat_id": str(row.get("chat_id") or row.get("id") or "")[:32],
+            "title": str(row.get("title") or row.get("name") or "")[:160],
+            "username": str(row.get("username") or "").lstrip("@")[0:64],
+            "role": role, "is_owner": role == "creator",
+        })
+    return jsonify({"ok": True, "telegram_id": telegram_id, "channels": channels,
+                    "owner_verified": any(row["is_owner"] for row in channels)})
 
 
 @bp.route("/api/internal/groups/<cid>", methods=["GET", "POST"])
@@ -2634,6 +2742,23 @@ def _house_ads_payload(placement=None):
     return sorted(rows, key=lambda row: (-int(row.get("priority", 0) or 0), str(row.get("title", ""))))
 
 
+def _house_ad_metric_context(row, body, metric):
+    """Actualiza contadores diarios y dimensiones Telegram sin guardar datos personales."""
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    if row.get("metrics_day") != today:
+        row.update({"metrics_day": today, "clicks_today": 0, "impressions_today": 0})
+    daily_key = "clicks_today" if metric == "click" else "impressions_today"
+    row[daily_key] = int(row.get(daily_key, 0) or 0) + 1
+    for body_key, field in (("chat_id", f"{metric}s_by_chat"), ("bot_id", f"{metric}s_by_bot")):
+        raw = str(body.get(body_key) or "").strip()
+        pattern = r"-?\d{5,24}" if body_key == "chat_id" else r"\d{5,24}"
+        if not re.fullmatch(pattern, raw):
+            continue
+        values = dict(row.get(field) or {})
+        values[raw] = int(values.get(raw, 0) or 0) + 1
+        row[field] = values
+
+
 def _official_house_ads():
     """Catálogo versionado que se instala automáticamente con Moonbot."""
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "official_house_ads.json")
@@ -2766,12 +2891,15 @@ def _house_ads_update(body):
         item.update({"id": secrets.token_hex(8), "title": f"{source.get('title', 'Campaña')} (copia)"[:80],
                      "enabled": False, "approval_status": "pending", "clicks": 0, "impressions": 0,
                      "clicks_by_placement": {}, "impressions_by_placement": {},
-                     "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {}})
+                     "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {},
+                     "clicks_by_chat": {}, "impressions_by_chat": {}, "clicks_by_bot": {}, "impressions_by_bot": {},
+                     "clicks_today": 0, "impressions_today": 0, "metrics_day": ""})
         rows.append(item)
     elif action == "click":
         for row in rows:
             if str(row.get("id")) == ad_id:
                 row["clicks"] = int(row.get("clicks", 0) or 0) + 1
+                _house_ad_metric_context(row, body, "click")
                 place = str(body.get("placement") or "unknown"); by = dict(row.get("clicks_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["clicks_by_placement"] = by
                 country = str(body.get("country") or "UNK").upper(); country = country if re.fullmatch(r"[A-Z]{2}", country) else "UNK"; by_country = dict(row.get("clicks_by_country") or {}); by_country[country] = int(by_country.get(country, 0)) + 1; row["clicks_by_country"] = by_country
                 item_id = str(body.get("item_id") or "")[:64]
@@ -2784,12 +2912,13 @@ def _house_ads_update(body):
         for row in rows:
             if str(row.get("id")) == ad_id:
                 row["impressions"] = int(row.get("impressions", 0) or 0) + 1
+                _house_ad_metric_context(row, body, "impression")
                 place = str(body.get("placement") or "unknown"); by = dict(row.get("impressions_by_placement") or {}); by[place] = int(by.get(place, 0)) + 1; row["impressions_by_placement"] = by
                 country = str(body.get("country") or "UNK").upper(); country = country if re.fullmatch(r"[A-Z]{2}", country) else "UNK"; by_country = dict(row.get("impressions_by_country") or {}); by_country[country] = int(by_country.get(country, 0)) + 1; row["impressions_by_country"] = by_country
     elif action == "reset_metrics":
         for row in rows:
             if str(row.get("id")) == ad_id:
-                row.update({"clicks": 0, "impressions": 0, "clicks_by_placement": {}, "impressions_by_placement": {}, "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {}})
+                row.update({"clicks": 0, "impressions": 0, "clicks_by_placement": {}, "impressions_by_placement": {}, "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {}, "clicks_by_chat": {}, "impressions_by_chat": {}, "clicks_by_bot": {}, "impressions_by_bot": {}, "clicks_today": 0, "impressions_today": 0, "metrics_day": ""})
     elif action == "verify_telegram":
         target = next((row for row in rows if str(row.get("id")) == ad_id), None)
         if not target:
@@ -2823,11 +2952,23 @@ def _house_ads_update(body):
                 "approval_status": "pending",
                 "submitted_by": str(raw.get("submitted_by") or "")[:64],
                 "max_clicks": max(0, int(raw.get("max_clicks", 0) or 0)),
+                "max_impressions": max(0, int(raw.get("max_impressions", 0) or 0)),
+                "daily_click_cap": max(0, min(1000000, int(raw.get("daily_click_cap", 0) or 0))),
+                "daily_impression_cap": max(0, min(10000000, int(raw.get("daily_impression_cap", 0) or 0))),
                 "goal_reached": bool(raw.get("goal_reached", False)),
                 "enabled": bool(raw.get("enabled", True)), "priority": max(0, min(100, int(raw.get("priority", 50) or 0))),
                 "clicks": int(raw.get("clicks", 0) or 0), "impressions": int(raw.get("impressions", 0) or 0),
                 "clicks_by_placement": dict(raw.get("clicks_by_placement") or {}), "impressions_by_placement": dict(raw.get("impressions_by_placement") or {}),
                 "clicks_by_country": dict(raw.get("clicks_by_country") or {}), "impressions_by_country": dict(raw.get("impressions_by_country") or {}),
+                "clicks_by_chat": dict(raw.get("clicks_by_chat") or {}), "impressions_by_chat": dict(raw.get("impressions_by_chat") or {}),
+                "clicks_by_bot": dict(raw.get("clicks_by_bot") or {}), "impressions_by_bot": dict(raw.get("impressions_by_bot") or {}),
+                "clicks_today": max(0, int(raw.get("clicks_today", 0) or 0)), "impressions_today": max(0, int(raw.get("impressions_today", 0) or 0)),
+                "metrics_day": str(raw.get("metrics_day") or "")[:10],
+                "content_categories": [str(value).strip().lower()[:48] for value in _safe_list(raw.get("content_categories")) if str(value).strip()][:30],
+                "include_keywords": [str(value).strip().lower()[:64] for value in _safe_list(raw.get("include_keywords")) if str(value).strip()][:40],
+                "exclude_keywords": [str(value).strip().lower()[:64] for value in _safe_list(raw.get("exclude_keywords")) if str(value).strip()][:40],
+                "target_channel_ids": [str(value) for value in _safe_list(raw.get("target_channel_ids")) if re.fullmatch(r"-?\d{5,24}", str(value))][:500],
+                "target_group_ids": [str(value) for value in _safe_list(raw.get("target_group_ids")) if re.fullmatch(r"-?\d{5,24}", str(value))][:500],
                 "source": str(raw.get("source") or "manual")[:32], "source_chat_id": str(raw.get("source_chat_id") or "")[:32],
                 "automatic": bool(raw.get("automatic", False)),
                 "display_format": str(raw.get("display_format") or "auto") if str(raw.get("display_format") or "auto") in ("auto", "mosaic", "compact", "cards", "spotlight", "ticker") else "auto",
@@ -2837,7 +2978,7 @@ def _house_ads_update(body):
                 "relationship_type": str(raw.get("relationship_type") or "affiliate") if str(raw.get("relationship_type") or "affiliate") in ("official", "verified", "affiliate") else "affiliate",
                 "community_verified": bool(raw.get("community_verified", False)),
                 **_telegram_campaign_verification(raw, previous)}
-        if item["placement"] not in ("all", "top", "right", "inline"): raise ValueError("ubicación no válida")
+        if item["placement"] not in ("all", "top", "right", "left", "inline", "telegram_channel", "telegram_react_channel", "hub"): raise ValueError("ubicación no válida")
         if not item["title"]: raise ValueError("título obligatorio")
         rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]
     _db.set("HOUSE_ADS", rows)
