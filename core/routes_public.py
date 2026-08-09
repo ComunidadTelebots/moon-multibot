@@ -49,6 +49,8 @@ from core.feature_access import normalize_release_channel
 from core.config import APP_VERSION
 from core.hub_release_assets import read_hub_release_asset
 from core.pb_client import PBError
+from plugins.todo_manager import add_task, list_tasks, update_task
+from plugins.url_tools import inspect_url
 
 bp = Blueprint("public", __name__)
 
@@ -4401,6 +4403,37 @@ def _miniapp_feature_context(user, requested_group_id=None):
     if requested and selected is None:
         raise PermissionError("grupo no autorizado")
     return (selected["actor_role"] if selected else "master" if _is_master(user) else "user"), groups, selected
+
+
+@bp.route("/api/public/personal/tasks", methods=["POST", "OPTIONS"])
+def public_personal_tasks():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None: return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
+    try:
+        _, groups, selected = _miniapp_feature_context(user, body.get("chat_id"))
+    except PermissionError:
+        return jsonify({"ok": False, "error": "grupo no autorizado"}), 403
+    chat_id = selected and selected["chat_id"]
+    action = str(body.get("action") or "list"); user_id = str(user.get("id"))
+    try:
+        if action == "add": rows = add_task(_db, user_id, chat_id, body.get("title"))
+        elif action == "complete": rows = update_task(_db, user_id, chat_id, body.get("id"), done=body.get("done", True))
+        elif action == "delete": rows = update_task(_db, user_id, chat_id, body.get("id"), delete=True)
+        elif action == "list": rows = list_tasks(_db, user_id, chat_id)
+        else: return jsonify({"ok": False, "error": "acciÃ³n no vÃ¡lida"}), 400
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    return jsonify({"ok": True, "tasks": rows, "selected_chat_id": chat_id,
+                    "available_groups": groups, "scope": "group" if chat_id else "personal"})
+
+
+@bp.route("/api/internal/security/url-inspect", methods=["POST"])
+def internal_security_url_inspect():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    result = inspect_url((request.json or {}).get("url"))
+    return jsonify(result), (200 if result.get("ok") else 400)
 
 
 def _miniapp_release_channel(user):

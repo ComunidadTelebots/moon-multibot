@@ -593,6 +593,7 @@
       <div class="proxy-out" id="userProxyOut"></div>
       <div class="sec">Mi perfil y comunidad</div><div id="userCommunityProfile">${skel()}</div>
       <div class="sec">Participar</div><div id="userCommunityEngagement">${skel()}</div>
+      <div class="sec">Mis tareas</div><div id="userPersonalTasks">${skel()}</div>
       <div class="sec">Mi bloc privado</div><div class="card"><p class="muted">Se guarda únicamente en este dispositivo.</p><textarea id="userScratchpad" rows="4" placeholder="Ideas, enlaces o recordatorios personales…"></textarea><div class="btnrow"><button class="btn teal" id="userScratchSave">Guardar</button><button class="btn ghost" id="userScratchClear">Borrar</button></div></div>`;
     userDirectory.onclick=()=>showView("directorio");
     userProxy.onclick=()=>fetchProxy(false,document.getElementById("userProxyOut"));
@@ -604,6 +605,19 @@
     userScratchClear.onclick=()=>{userScratchpad.value="";uxWrite("hub_user_scratchpad","");showToast("Bloc borrado");};
     loadCommunityMini("userCommunityProfile");
     loadEngagementMini("userCommunityEngagement");
+    loadPersonalTasks();
+  }
+
+  async function loadPersonalTasks(chatId=""){
+    const host=document.getElementById("userPersonalTasks");if(!host)return;
+    const call=payload=>apiPost("/personal/tasks",{initData:tg&&tg.initData,chat_id:chatId||"",...payload}),data=await call({action:"list"});
+    if(!data||!data.ok){host.innerHTML='<p class="muted">No se pudieron cargar tus tareas.</p>';return;}
+    const tasks=data.tasks||[],groups=data.available_groups||[];
+    host.innerHTML=`<div class="card"><label><b>Contexto</b><select id="personalTaskContext"><option value="">Solo para mí</option>${groups.map(group=>`<option value="${escAttr(group.chat_id)}" ${String(data.selected_chat_id||"")===String(group.chat_id)?"selected":""}>${escHtml(group.name)}</option>`).join("")}</select></label><p class="muted">Un grupo solo aparece si el servidor confirma que lo administras. Las tareas nunca se comparten con otros usuarios.</p><div class="btnrow"><input id="personalTaskTitle" maxlength="240" placeholder="Nueva tarea"><button class="btn teal" id="personalTaskAdd" style="width:auto">Añadir</button></div>${tasks.map(task=>`<div class="userchip"><span><b style="${task.done?'text-decoration:line-through;opacity:.65':''}">${escHtml(task.title)}</b></span><span><button class="minibtn" data-task-done="${escAttr(task.id)}" data-done="${task.done?1:0}">${task.done?'Reabrir':'Completar'}</button><button class="minibtn red" data-task-delete="${escAttr(task.id)}">Borrar</button></span></div>`).join("")||'<p class="muted">No hay tareas en este contexto.</p>'}</div>`;
+    personalTaskContext.onchange=()=>loadPersonalTasks(personalTaskContext.value);
+    personalTaskAdd.onclick=()=>{const title=personalTaskTitle.value.trim();if(!title)return showToast("Escribe una tarea");call({action:"add",title}).then(()=>loadPersonalTasks(chatId));};
+    host.querySelectorAll("[data-task-done]").forEach(button=>button.onclick=()=>call({action:"complete",id:button.dataset.taskDone,done:button.dataset.done!=="1"}).then(()=>loadPersonalTasks(chatId)));
+    host.querySelectorAll("[data-task-delete]").forEach(button=>button.onclick=()=>call({action:"delete",id:button.dataset.taskDelete}).then(()=>loadPersonalTasks(chatId)));
   }
 
   let roleFeatureSelectedGroup="";
@@ -1201,6 +1215,7 @@
 
     loadStats(); loadAds(); loadJoinCaptcha(); loadSpamRisk();
   }
+
 
   async function loadSpamRisk(){
     const box=document.getElementById("gspamRisk");if(!box)return;
@@ -2275,6 +2290,10 @@
       <input id="masterVtValue" placeholder="Pega un hash, URL o dominio…" style="margin-top:8px">
       <input id="masterVtFile" type="file" style="margin-top:8px" hidden>
       <button class="btn teal" id="masterVtAnalyze" style="margin-top:8px">Analizar con VirusTotal</button><div id="masterVtResult"></div>
+      <div class="gsec">Inspector de URL y dominio</div>
+      <p class="muted">Analiza la estructura sin abrir el enlace ni conectar con el destino.</p>
+      <div class="btnrow"><input id="masterUrlInspectValue" type="url" placeholder="https://ejemplo.com/ruta"><button class="btn ghost" id="masterUrlInspect" style="width:auto">Inspeccionar</button></div>
+      <div id="masterUrlInspectResult"></div>
       <div class="gsec">Wayback Machine</div>
       <p class="muted">Busca la copia archivada más cercana; la fecha es opcional y usa YYYYMMDD.</p>
       <input id="masterWaybackUrl" placeholder="https://ejemplo.com">
@@ -2295,8 +2314,15 @@
       document.getElementById("masterVtFile").hidden=!file;document.getElementById("masterVtValue").hidden=file;
     };
     document.getElementById("masterVtAnalyze").onclick=analyzeMasterVirusTotal;
+    document.getElementById("masterUrlInspect").onclick=inspectMasterUrl;
     document.getElementById("masterWaybackCheck").onclick=checkMasterWayback;
     document.getElementById("masterCasCheck").onclick=checkMasterCas;
+  }
+  async function inspectMasterUrl(){
+    const value=document.getElementById("masterUrlInspectValue").value.trim(),out=document.getElementById("masterUrlInspectResult");if(!value)return showToast("Introduce una URL");
+    const result=await masterApi("/api/security/url/inspect",{method:"POST",body:JSON.stringify({url:value})}),info=result&&result.inspection;
+    if(!info){out.innerHTML=`<div class="master-error" style="margin-top:9px">${escHtml(result&&result.error||"URL no válida")}</div>`;return;}
+    out.innerHTML=`<div class="casbox" style="margin-top:9px"><b>${escHtml(info.host)}</b> <span class="rbadge">${escHtml(info.scheme)}</span><br><span class="k">Ruta:</span> ${escHtml(info.path)}<br><span class="k">Parámetros:</span> ${fmt(info.query_parameters)}${info.port?` · puerto ${fmt(info.port)}`:""}<br><span class="${info.safe_to_fetch?'clean':'banned'}">${info.safe_to_fetch?'Destino público':'Destino local o privado'}</span>${(info.signals||[]).length?`<br>${info.signals.map(signal=>`<span class="rbadge">${escHtml(signal)}</span>`).join(" ")}`:""}</div>`;
   }
   function renderMasterThreatResult(result){
     if(!result||!result.ok)return `<div class="master-error" style="margin-top:9px">${escHtml(result&&result.error||"No se pudo completar el análisis")}</div>`;

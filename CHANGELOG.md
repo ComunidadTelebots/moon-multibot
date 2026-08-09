@@ -1,5 +1,21 @@
 # Changelog - Moon Multibot
 
+## v18.23.34 - 2026-08-09 - Tareas personales vinculadas a grupos
+
+- Lleva al Hub las tareas del plugin `/todo` sin crear un segundo almacén, conservando compatibilidad con las tareas antiguas.
+- Permite usar un contexto personal o vincular opcionalmente una tarea a un grupo que el servidor haya confirmado que administra el usuario.
+- Aísla cada lista por identidad de Telegram y por contexto; ningún usuario puede solicitar tareas de otro usuario ni enlazar grupos ajenos.
+- Añade creación, cierre, reapertura y eliminación en la interfaz existente para usuarios, con validación y límites en el servidor.
+- Expone el inspector URL a TodoSobreAllTech mediante `/api/internal/security/url-inspect`, protegido por `MOON_ADMIN_API_KEY` y reutilizando el mismo motor offline.
+
+## v18.23.33 - 2026-08-09 - Inspector seguro de URL y dominio
+
+- Añade una inspección estructural offline de enlaces que no abre la URL ni realiza conexiones con el destino.
+- Detecta credenciales incrustadas, dominios Punycode, direcciones IP literales, destinos privados, puertos no estándar y enlaces excesivamente largos.
+- Integra el resultado en Seguridad del Hub master con los componentes visuales existentes y mejora el comando `/domain` con las mismas señales.
+- Mantiene el endpoint protegido por la autenticación administrativa y limita longitud, esquema y campos devueltos.
+- Documenta en el roadmap la auditoría que confirma que tareas personales, notas, resumen local, Wayback, cola gestionada y listas nombradas ya estaban implementadas.
+
 ## v18.23.32 - 2026-08-09 - Diagnóstico operativo de campañas
 
 - Añade al Hub master un resumen de impresiones, clics, CTR, campañas activas y actividad diaria usando los componentes visuales existentes.

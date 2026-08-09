@@ -5,6 +5,7 @@ import time
 import requests as _requests
 
 from flask import Blueprint, request, jsonify
+from plugins.url_tools import inspect_url
 from werkzeug.utils import secure_filename
 
 from core.media_analyzer import analyze_image
@@ -37,6 +38,14 @@ def setup(check_jwt, db, vt_mgr, add_web_log, check_cas_status, wayback):
     _check_cas_status = check_cas_status
     _wayback = wayback
     return bp
+
+
+@bp.route("/api/security/url/inspect", methods=["POST"])
+def api_url_inspect():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    result = inspect_url((request.json or {}).get("url"))
+    return jsonify(result), (200 if result.get("ok") else 400)
 
 
 @bp.route("/api/security/wayback/lookup", methods=["POST"])
