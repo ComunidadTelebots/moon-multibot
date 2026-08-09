@@ -11,6 +11,9 @@ class InternalBanDirectoryTests(unittest.TestCase):
         self.assertIn('cas_sources = {"cas", "cas_feed", "export.csv", "cas_export"}', section)
         self.assertNotIn("cas_export_ids", section)
         self.assertIn("_internal_admin_authorized", section)
+        self.assertIn("_get_global_user_stats", section)
+        self.assertIn('row["name"]', section)
+        self.assertIn('row["username"]', section)
 
     def test_global_captcha_reuses_group_protocol_and_only_targets_pending_users(self):
         source = (pathlib.Path(__file__).parents[1] / "core" / "routes_public.py").read_text(encoding="utf-8")

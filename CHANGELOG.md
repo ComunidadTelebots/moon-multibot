@@ -1,5 +1,11 @@
 # Changelog - Moon Multibot
 
+## v18.23.30 - 2026-08-09 - Identidad en el directorio de bloqueos
+
+- Enriquece los bloqueos CAS, GBAN y locales con el nombre, alias, idioma, última actividad y volumen de mensajes ya conocidos por Moonbot.
+- Amplía la búsqueda interna para localizar registros por nombre y usuario además de ID, motivo y origen.
+- Conserva los campos vacíos cuando Telegram no proporcionó esa información, sin inventar identidades ni realizar consultas externas masivas.
+
 ## v18.23.29 - 2026-08-09 - Suscripciones oficiales de canales
 
 - Crea enlaces oficiales de suscripción para canales mediante `createChatSubscriptionInviteLink`, con cobro recurrente en Telegram Stars.

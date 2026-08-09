@@ -1698,10 +1698,24 @@ def internal_ban_directory():
     local_rows = [{"user_id": str(uid), "source": "moonbot_local", "scope": "group",
                    "group_id": str(cid), "reason": "Baneo local del grupo", "status": "active"}
                   for cid, users in local_bans.items() for uid in users]
+    profiles = (_get_global_user_stats() or {}) if _get_global_user_stats else {}
     moon_rows = list(moon_records) + local_rows
+    for row in moon_rows:
+        uid = str(row.get("user_id") or row.get("id") or "")
+        profile = profiles.get(uid, {}) or {}
+        if not isinstance(profile, dict):
+            profile = {}
+        row["user_id"] = uid
+        row["name"] = str(row.get("name") or profile.get("name") or profile.get("first_name") or "")[:160]
+        row["username"] = str(row.get("username") or profile.get("username") or "").lstrip("@")[:64]
+        row["language"] = str(row.get("language") or profile.get("language_code") or "")[:16]
+        row["last_seen"] = row.get("last_seen") or profile.get("last_seen")
+        row["messages"] = int(row.get("messages") or profile.get("count") or 0)
     if query:
         needle = query.lower()
         moon_rows = [row for row in moon_rows if needle in str(row.get("user_id", "")).lower()
+                     or needle in str(row.get("name", "")).lower()
+                     or needle in str(row.get("username", "")).lower()
                      or needle in str(row.get("reason", "")).lower()
                      or needle in str(row.get("source", "")).lower()]
     cas_sources = {"cas", "cas_feed", "export.csv", "cas_export"}
