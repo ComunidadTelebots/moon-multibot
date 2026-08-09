@@ -773,6 +773,12 @@ app.register_blueprint(_setup_public(
     hub_bot_username=HUB_BOT_USERNAME,
     get_global_user_stats=lambda: global_user_stats,
     get_global_chat_names=lambda: global_chat_names,
+    get_cas_export_status=lambda: {
+        "loaded": cas_export_loaded,
+        "count": len(cas_export_ids),
+        "feed_loaded": cas_feed_loaded,
+        "feed_count": len(cas_feed_ids),
+    },
     add_audit_log=add_audit_log,
     vt_manager=vt_mgr,
     get_ai_runtime_config=lambda: {

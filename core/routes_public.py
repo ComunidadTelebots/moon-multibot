@@ -64,6 +64,7 @@ _check_cas = None
 _hub_bot_username = "cintiabot"
 _get_global_user_stats = None
 _get_global_chat_names = None
+_get_cas_export_status = None
 _add_audit_log = None
 _vt_manager = None
 _get_ai_runtime_config = None
@@ -140,11 +141,11 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
           db=None, ban_manager=None, get_bot_for_chat=None, check_cas=None,
           hub_bot_username="cintiabot", get_global_user_stats=None, get_global_chat_names=None,
           add_audit_log=None, vt_manager=None, get_ai_runtime_config=None, set_ai_runtime_config=None,
-          task_queue=None, group_administration=None, tdlib_client=None):
+          task_queue=None, group_administration=None, tdlib_client=None, get_cas_export_status=None):
     global _channel_stats, _proxy_mgr, _master_id, _jwt_secret, _get_active_bots
     global _db, _ban_manager, _get_bot_for_chat, _check_cas
     global _hub_bot_username, _get_global_user_stats, _get_global_chat_names, _add_audit_log, _vt_manager
-    global _get_ai_runtime_config, _set_ai_runtime_config, _task_queue, _group_administration, _tdlib_client
+    global _get_ai_runtime_config, _set_ai_runtime_config, _task_queue, _group_administration, _tdlib_client, _get_cas_export_status
     _check_cas = check_cas
     _channel_stats = channel_stats
     _proxy_mgr = proxy_mgr
@@ -164,6 +165,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _task_queue = task_queue
     _group_administration = group_administration
     _tdlib_client = tdlib_client
+    _get_cas_export_status = get_cas_export_status
     return bp
 
 
@@ -1732,6 +1734,19 @@ def internal_ban_directory():
         "global": len(moon_records), "local": len(local_rows),
     }, "page": page, "per_page": per_page,
         "has_more": page * per_page < moon_total})
+
+
+@bp.route("/api/internal/cas-sources/status")
+def internal_cas_sources_status():
+    """Estado agregado, sin exponer la lista CAS ni rutas internas del servidor."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    status = _get_cas_export_status() if _get_cas_export_status else {}
+    count = max(0, int((status or {}).get("count", 0) or 0))
+    loaded = bool((status or {}).get("loaded")) and count > 0
+    return jsonify({"ok": True, "local_export": {"available": loaded, "loaded": loaded, "records": count},
+                    "feed": {"available": bool((status or {}).get("feed_loaded")),
+                             "records": max(0, int((status or {}).get("feed_count", 0) or 0))}})
 
 
 def _global_captcha_status():

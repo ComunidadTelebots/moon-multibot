@@ -1,5 +1,11 @@
 # Changelog - Moon Multibot
 
+## v18.23.31 - 2026-08-09 - Estado real de las fuentes CAS
+
+- Publica para la API interna el estado y los contadores del export CAS local y del feed reciente sin exponer ningún ID ni ruta del servidor.
+- Permite que TodoSobreAllTech distinga la disponibilidad real de Moonbot de una caída de la API remota de CAS.
+- Evita que el panel marque CAS como inactivo cuando el export local ya está cargado y operativo.
+
 ## v18.23.30 - 2026-08-09 - Identidad en el directorio de bloqueos
 
 - Enriquece los bloqueos CAS, GBAN y locales con el nombre, alias, idioma, última actividad y volumen de mensajes ya conocidos por Moonbot.

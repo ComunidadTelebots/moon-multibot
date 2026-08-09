@@ -29,6 +29,14 @@ class InternalBanDirectoryTests(unittest.TestCase):
         self.assertIn('member.get("status") in ("creator", "administrator")', source)
         self.assertIn('"remaining_users": remaining_users', source)
 
+    def test_internal_cas_status_reports_local_export_without_exposing_ids(self):
+        source = (pathlib.Path(__file__).parents[1] / "core" / "routes_public.py").read_text(encoding="utf-8")
+        section = source.split('@bp.route("/api/internal/cas-sources/status")', 1)[1].split('@bp.route(', 1)[0]
+        self.assertIn("_internal_admin_authorized", section)
+        self.assertIn('"local_export"', section)
+        self.assertIn('"records": count', section)
+        self.assertNotIn("cas_export_ids", section)
+
 
 if __name__ == "__main__":
     unittest.main()
