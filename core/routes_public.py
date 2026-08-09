@@ -2960,6 +2960,70 @@ def _house_ad_metric_context(row, body, metric):
         row[field] = values
 
 
+def _house_ads_insights(rows):
+    """Resume la entrega para el master sin exponer datos personales."""
+    totals = {"campaigns": len(rows), "enabled": 0, "clicks": 0, "impressions": 0,
+              "clicks_today": 0, "impressions_today": 0}
+    chats, bots, campaigns = {}, {}, []
+    for row in rows:
+        clicks = int(row.get("clicks", 0) or 0)
+        impressions = int(row.get("impressions", 0) or 0)
+        clicks_today = int(row.get("clicks_today", 0) or 0)
+        impressions_today = int(row.get("impressions_today", 0) or 0)
+        enabled = bool(row.get("enabled", True) and row.get("approval_status", "approved") == "approved")
+        totals["enabled"] += int(enabled)
+        totals["clicks"] += clicks; totals["impressions"] += impressions
+        totals["clicks_today"] += clicks_today; totals["impressions_today"] += impressions_today
+        for dimension, destination in (("chat", chats), ("bot", bots)):
+            for metric in ("clicks", "impressions"):
+                values = row.get(f"{metric}_by_{dimension}") or {}
+                if not isinstance(values, dict):
+                    continue
+                for identifier, value in values.items():
+                    if not re.fullmatch(r"-?\d{5,24}", str(identifier)):
+                        continue
+                    item = destination.setdefault(str(identifier), {"id": str(identifier), "clicks": 0, "impressions": 0})
+                    item[metric] += int(value or 0)
+        daily_click_cap = int(row.get("daily_click_cap", 0) or 0)
+        daily_impression_cap = int(row.get("daily_impression_cap", 0) or 0)
+        max_clicks = int(row.get("max_clicks", 0) or 0)
+        max_impressions = int(row.get("max_impressions", 0) or 0)
+        diagnostics = []
+        if not enabled: diagnostics.append("paused_or_unapproved")
+        if max_clicks and clicks >= max_clicks: diagnostics.append("click_goal_reached")
+        if max_impressions and impressions >= max_impressions: diagnostics.append("impression_goal_reached")
+        if daily_click_cap and clicks_today >= daily_click_cap: diagnostics.append("daily_click_cap_reached")
+        if daily_impression_cap and impressions_today >= daily_impression_cap: diagnostics.append("daily_impression_cap_reached")
+        if not row.get("url"): diagnostics.append("missing_destination")
+        campaigns.append({
+            "id": str(row.get("id") or "")[:80], "title": str(row.get("title") or "CampaÃ±a")[:80],
+            "enabled": enabled, "clicks": clicks, "impressions": impressions,
+            "ctr": round(clicks * 100 / impressions, 2) if impressions else 0,
+            "clicks_today": clicks_today, "impressions_today": impressions_today,
+            "daily_click_cap": daily_click_cap, "daily_impression_cap": daily_impression_cap,
+            "max_clicks": max_clicks, "max_impressions": max_impressions,
+            "diagnostics": diagnostics,
+        })
+    rank = lambda values: sorted(values.values(), key=lambda item: (-item["clicks"], -item["impressions"], item["id"]))[:20]
+    totals["ctr"] = round(totals["clicks"] * 100 / totals["impressions"], 2) if totals["impressions"] else 0
+    return {"totals": totals, "campaigns": campaigns, "top_chats": rank(chats), "top_bots": rank(bots)}
+
+
+def _house_ads_insights_csv(insights):
+    def csv_cell(value):
+        text = str(value or "").replace("\r", " ").replace("\n", " ")
+        if text.lstrip().startswith(("=", "+", "-", "@")):
+            text = "'" + text
+        return '"' + text.replace('"', '""') + '"'
+    lines = ["campaign_id,title,enabled,clicks,impressions,ctr,clicks_today,impressions_today,diagnostics"]
+    for row in insights.get("campaigns", []):
+        values = [row.get("id"), row.get("title"), str(bool(row.get("enabled"))).lower(), row.get("clicks"),
+                  row.get("impressions"), row.get("ctr"), row.get("clicks_today"), row.get("impressions_today"),
+                  "|".join(row.get("diagnostics") or [])]
+        lines.append(",".join(csv_cell(value) for value in values))
+    return "\n".join(lines)
+
+
 def _official_house_ads():
     """Catálogo versionado que se instala automáticamente con Moonbot."""
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "official_house_ads.json")
@@ -5621,7 +5685,14 @@ def public_house_ads_manage():
     if user is None or not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
     try:
         _sync_master_channel_ads()
-        if body.get("action") and body.get("action") != "list": _house_ads_update(body)
+        action = str(body.get("action") or "list")
+        if action in {"insights", "export_metrics"}:
+            insights = _house_ads_insights(_house_ads_payload())
+            if action == "export_metrics":
+                return jsonify({"ok": True, "filename": "moonbot-house-ads-metrics.csv",
+                                "content_type": "text/csv;charset=utf-8", "csv": _house_ads_insights_csv(insights)})
+            return jsonify({"ok": True, "insights": insights})
+        if action != "list": _house_ads_update(body)
         grouped = {}
         for row in _admin_group_rows():
             record = row.get("community") or {}

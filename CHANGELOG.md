@@ -1,5 +1,13 @@
 # Changelog - Moon Multibot
 
+## v18.23.32 - 2026-08-09 - Diagnóstico operativo de campañas
+
+- Añade al Hub master un resumen de impresiones, clics, CTR, campañas activas y actividad diaria usando los componentes visuales existentes.
+- Detecta campañas pausadas, pendientes, sin destino o con objetivos y límites diarios alcanzados antes de que el master investigue una entrega detenida.
+- Agrupa métricas anónimas por chat y bot sin recopilar nombres, mensajes ni identificadores de usuarios.
+- Permite exportar las métricas de cada campaña en CSV desde la misma interfaz de administración.
+- Mantiene la consulta, el diagnóstico y la exportación protegidos por la verificación exclusiva del rol master.
+
 ## v18.23.31 - 2026-08-09 - Estado real de las fuentes CAS
 
 - Publica para la API interna el estado y los contadores del export CAS local y del feed reciente sin exponer ningún ID ni ruta del servidor.
