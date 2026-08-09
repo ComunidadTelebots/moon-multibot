@@ -938,6 +938,17 @@
     loadGroup();
   }
 
+  async function loadPaidSubscriptions(){
+    const host=document.getElementById("gPaidSubscriptions");if(!host)return;
+    const data=await gp("/group/paid-subscriptions",{action:"list"});
+    if(!data||!data.ok){host.innerHTML=`<p class="muted">${escHtml((data&&data.error)||"No se pudieron cargar las suscripciones")}</p>`;return;}
+    host.innerHTML=`<p class="muted">Enlaces oficiales con cobro recurrente en Telegram Stars. El periodo actual de Telegram es fijo: 30 días.</p><input id="gPaidName" maxlength="32" value="Acceso mensual" placeholder="Nombre interno"><input id="gPaidPrice" type="number" min="1" max="10000" value="100" placeholder="Stars al mes"><button class="btn teal" id="gPaidCreate">Crear enlace oficial</button><small class="muted" style="display:block;margin-top:8px">1–10.000 ⭐ al mes. Para cambiar el precio, revoca el enlace y crea uno nuevo.</small><div style="margin-top:10px">${(data.links||[]).map(link=>`<div class="userchip"><span style="min-width:0"><b>${escHtml(link.name||"Suscripción mensual")}</b><small style="display:block;color:var(--muted)">${link.subscription_price} ⭐ / 30 días · ${link.is_revoked?"Revocado":"Activo"}</small><small style="display:block;overflow:hidden;text-overflow:ellipsis">${escHtml(link.invite_link)}</small></span><span><button class="btn ghost" data-paid-copy="${escAttr(link.invite_link)}" ${link.is_revoked?"disabled":""}>Copiar</button><button class="btn ghost" data-paid-rename="${escAttr(link.invite_link)}" data-paid-name="${escAttr(link.name||"")}" ${link.is_revoked?"disabled":""}>Renombrar</button><button class="btn danger" data-paid-revoke="${escAttr(link.invite_link)}" ${link.is_revoked?"disabled":""}>Revocar</button></span></div>`).join("")||'<p class="muted">Todavía no hay enlaces creados por el bot.</p>'}</div>`;
+    gPaidCreate.onclick=()=>{const price=Number(gPaidPrice.value);if(!Number.isInteger(price)||price<1||price>10000)return showToast("El precio debe estar entre 1 y 10.000 Stars");gp("/group/paid-subscriptions",{action:"create",name:gPaidName.value.trim(),subscription_price:price}).then(x=>{showToast(x.ok?"Enlace de pago creado":x.error);if(x.ok)loadPaidSubscriptions();});};
+    host.querySelectorAll("[data-paid-copy]").forEach(btn=>btn.onclick=()=>navigator.clipboard.writeText(btn.dataset.paidCopy).then(()=>showToast("Enlace copiado")));
+    host.querySelectorAll("[data-paid-rename]").forEach(btn=>btn.onclick=()=>{const name=prompt("Nuevo nombre interno",btn.dataset.paidName||"");if(name!==null)gp("/group/paid-subscriptions",{action:"rename",invite_link:btn.dataset.paidRename,name}).then(x=>{showToast(x.ok?"Nombre actualizado":x.error);if(x.ok)loadPaidSubscriptions();});});
+    host.querySelectorAll("[data-paid-revoke]").forEach(btn=>btn.onclick=()=>confirm("¿Revocar este enlace de suscripción?")&&gp("/group/paid-subscriptions",{action:"revoke",invite_link:btn.dataset.paidRevoke}).then(x=>{showToast(x.ok?"Enlace revocado":x.error);if(x.ok)loadPaidSubscriptions();}));
+  }
+
   async function loadGroupRss(){
     const host=document.getElementById("gRss");if(!host)return;
     const data=await gp("/group/rss",{action:"list"});
@@ -1035,6 +1046,7 @@
         <div class="dbody" id="gspamRisk">${skel()}</div></div>
       <div class="gsec">Suite avanzada de grupos</div>
       <div id="gGroupSuite">${skel()}</div>
+      ${m.ctype==="channel"?`<div class="gsec">Suscripciones de pago</div><div class="dropdown open"><div class="dhead">Telegram Stars · acceso mensual <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gPaidSubscriptions">${skel()}</div></div>`:""}
       <div class="gsec">Fuentes RSS del grupo</div>
       <div class="dropdown open"><div class="dhead">Publicación RSS automática <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gRss">${skel()}</div></div>
       <div class="gsec">Acceso automático</div>
@@ -1058,6 +1070,7 @@
     loadGroupBotPermissions();
     loadGroupSuiteMini();
     loadGroupRss();
+    if(m.ctype==="channel")loadPaidSubscriptions();
     document.getElementById("gback").onclick=()=>showView("canales");
     if(document.getElementById("gopen"))document.getElementById("gopen").onclick=()=>openTg(`https://t.me/${m.username}`);
     document.getElementById("gshare").onclick=()=>{

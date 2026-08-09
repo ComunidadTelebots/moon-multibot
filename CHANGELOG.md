@@ -1,5 +1,14 @@
 # Changelog - Moon Multibot
 
+## v18.23.29 - 2026-08-09 - Suscripciones oficiales de canales
+
+- Crea enlaces oficiales de suscripción para canales mediante `createChatSubscriptionInviteLink`, con cobro recurrente en Telegram Stars.
+- Valida que el destino sea un canal, que el bot conserve `can_invite_users`, que el nombre no supere 32 caracteres y que el precio esté entre 1 y 10.000 Stars.
+- Permite copiar, renombrar y revocar enlaces; el periodo se fija en los 30 días exigidos actualmente por Telegram.
+- Incorpora `/suscripcion`, `/suscripciones` y `/suscripcion_revocar` al menú de administradores de canales.
+- Conserva un registro administrativo local de los enlaces creados por cada bot y canal, sin almacenar credenciales ni datos de pago.
+- Añade el panel al Hub para el creador y los administradores autorizados del canal, con auditoría de cada operación.
+
 ## v18.23.28 - 2026-08-09 - Métricas y segmentación publicitaria completa
 
 - **Métricas Telegram persistentes:** las impresiones y los clics recibidos desde TodoSobreAllTech se agregan por `chat_id` y `bot_id`, validando ambos identificadores antes de almacenarlos.

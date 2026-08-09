@@ -1244,6 +1244,107 @@ def internal_group_admin(cid):
     })
 
 
+def _paid_subscription_links(cid):
+    """Return only the fields needed by the administration interfaces."""
+    rows = _safe_list(_db.get(f"PAID_SUBSCRIPTION_LINKS_{cid}", []))
+    return [{
+        "invite_link": str(row.get("invite_link") or "")[:512],
+        "name": str(row.get("name") or "")[:32],
+        "subscription_period": int(row.get("subscription_period") or 2592000),
+        "subscription_price": int(row.get("subscription_price") or 0),
+        "is_revoked": bool(row.get("is_revoked")),
+        "created_at": str(row.get("created_at") or "")[:40],
+        "updated_at": str(row.get("updated_at") or "")[:40],
+    } for row in rows if isinstance(row, dict) and row.get("invite_link")]
+
+
+@bp.route("/api/internal/groups/<cid>/paid-subscriptions", methods=["GET", "POST"])
+def internal_paid_subscriptions(cid):
+    """Manage Telegram's official paid channel invite links (Telegram Stars)."""
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    bot = _known_internal_group(cid)
+    if not bot:
+        return jsonify({"ok": False, "error": "channel_not_found"}), 404
+
+    chat_response = bot.api_call("getChat", {"chat_id": cid}, silent=True)
+    chat = chat_response.get("result", {}) if isinstance(chat_response, dict) and chat_response.get("ok") else {}
+    if chat.get("type") != "channel":
+        return jsonify({"ok": False, "error": "paid_subscriptions_require_channel"}), 400
+    member_response = bot.api_call("getChatMember", {"chat_id": cid, "user_id": bot.bot_id}, silent=True)
+    member = member_response.get("result", {}) if isinstance(member_response, dict) and member_response.get("ok") else {}
+    if member.get("status") != "creator" and not member.get("can_invite_users"):
+        return jsonify({"ok": False, "error": "bot_missing_invite_permission"}), 403
+
+    key = f"PAID_SUBSCRIPTION_LINKS_{cid}"
+    links = _paid_subscription_links(cid)
+    if request.method == "GET":
+        return jsonify({"ok": True, "channel_id": str(cid), "currency": "XTR",
+                        "period_seconds": 2592000, "links": links})
+
+    body = request.json or {}
+    action = str(body.get("action") or "").strip().lower()
+    invite_link = str(body.get("invite_link") or "").strip()
+    name = str(body.get("name") or "").strip()
+    if len(name) > 32:
+        return jsonify({"ok": False, "error": "name_too_long"}), 400
+
+    if action == "create":
+        try:
+            price = int(body.get("subscription_price"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "invalid_subscription_price"}), 400
+        if not 1 <= price <= 10000:
+            return jsonify({"ok": False, "error": "invalid_subscription_price"}), 400
+        result = bot.api_call("createChatSubscriptionInviteLink", {
+            "chat_id": cid, "name": name, "subscription_period": 2592000,
+            "subscription_price": price,
+        }, silent=True)
+        if not isinstance(result, dict) or not result.get("ok"):
+            return jsonify({"ok": False, "error": "telegram_subscription_link_failed",
+                            "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+        telegram_link = result.get("result") or {}
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        links.insert(0, {"invite_link": telegram_link.get("invite_link"),
+                         "name": telegram_link.get("name") or name,
+                         "subscription_period": telegram_link.get("subscription_period") or 2592000,
+                         "subscription_price": telegram_link.get("subscription_price") or price,
+                         "is_revoked": bool(telegram_link.get("is_revoked")), "created_at": now,
+                         "updated_at": now})
+    elif action == "rename":
+        if not invite_link:
+            return jsonify({"ok": False, "error": "invite_link_required"}), 400
+        result = bot.api_call("editChatSubscriptionInviteLink", {
+            "chat_id": cid, "invite_link": invite_link, "name": name,
+        }, silent=True)
+        if not isinstance(result, dict) or not result.get("ok"):
+            return jsonify({"ok": False, "error": "telegram_subscription_link_failed",
+                            "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        for row in links:
+            if row["invite_link"] == invite_link:
+                row["name"], row["updated_at"] = name, now
+    elif action == "revoke":
+        if not invite_link:
+            return jsonify({"ok": False, "error": "invite_link_required"}), 400
+        result = bot.api_call("revokeChatInviteLink", {"chat_id": cid, "invite_link": invite_link}, silent=True)
+        if not isinstance(result, dict) or not result.get("ok"):
+            return jsonify({"ok": False, "error": "telegram_subscription_link_failed",
+                            "detail": (result or {}).get("description") if isinstance(result, dict) else None}), 502
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        for row in links:
+            if row["invite_link"] == invite_link:
+                row["is_revoked"], row["updated_at"] = True, now
+    else:
+        return jsonify({"ok": False, "error": "invalid_action"}), 400
+
+    _db.set(key, links[:100])
+    if _add_audit_log:
+        _add_audit_log(f"Suscripcion Telegram Stars: {action} en canal {cid}")
+    return jsonify({"ok": True, "channel_id": str(cid), "currency": "XTR",
+                    "period_seconds": 2592000, "links": _paid_subscription_links(cid)})
+
+
 @bp.route("/api/internal/groups/<cid>/photo")
 def internal_group_photo(cid):
     """Entrega la foto de una comunidad sin revelar el token del bot."""
@@ -2514,6 +2615,77 @@ def group_rss():
     user, chat_id = res
     payload, status = _rss_action(chat_id, body, user.get("id"))
     return jsonify(payload), status
+
+
+@bp.route("/api/public/group/paid-subscriptions", methods=["POST", "OPTIONS"])
+def group_paid_subscriptions():
+    """Official Telegram Stars subscription links for channel administrators."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    user, chat_id = res
+    bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    chat_response = bot.api_call("getChat", {"chat_id": chat_id}, silent=True)
+    chat = chat_response.get("result", {}) if isinstance(chat_response, dict) and chat_response.get("ok") else {}
+    if chat.get("type") != "channel":
+        return jsonify({"ok": False, "error": "Las suscripciones de pago solo están disponibles en canales"}), 400
+    member_response = bot.api_call("getChatMember", {"chat_id": chat_id, "user_id": bot.bot_id}, silent=True)
+    member = member_response.get("result", {}) if isinstance(member_response, dict) and member_response.get("ok") else {}
+    if member.get("status") != "creator" and not member.get("can_invite_users"):
+        return jsonify({"ok": False, "error": "El bot necesita permiso para invitar usuarios"}), 403
+    action = str(body.get("action") or "list").lower()
+    links = _paid_subscription_links(chat_id)
+    if action == "list":
+        return jsonify({"ok": True, "currency": "XTR", "period_seconds": 2592000, "links": links})
+    name = str(body.get("name") or "").strip()
+    invite_link = str(body.get("invite_link") or "").strip()
+    if len(name) > 32:
+        return jsonify({"ok": False, "error": "El nombre no puede superar 32 caracteres"}), 400
+    if action == "create":
+        try:
+            price = int(body.get("subscription_price"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Precio no válido"}), 400
+        if not 1 <= price <= 10000:
+            return jsonify({"ok": False, "error": "El precio debe estar entre 1 y 10.000 Stars"}), 400
+        result = bot.api_call("createChatSubscriptionInviteLink", {"chat_id": chat_id, "name": name,
+            "subscription_period": 2592000, "subscription_price": price}, silent=True)
+        if not isinstance(result, dict) or not result.get("ok"):
+            return jsonify({"ok": False, "error": (result or {}).get("description", "Telegram rechazó el enlace")}), 502
+        item = result.get("result") or {}
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        links.insert(0, {"invite_link": item.get("invite_link"), "name": item.get("name") or name,
+            "subscription_period": item.get("subscription_period") or 2592000,
+            "subscription_price": item.get("subscription_price") or price, "is_revoked": False,
+            "created_at": now, "updated_at": now})
+    elif action in {"rename", "revoke"}:
+        if not invite_link:
+            return jsonify({"ok": False, "error": "Falta el enlace"}), 400
+        method = "editChatSubscriptionInviteLink" if action == "rename" else "revokeChatInviteLink"
+        params = {"chat_id": chat_id, "invite_link": invite_link}
+        if action == "rename":
+            params["name"] = name
+        result = bot.api_call(method, params, silent=True)
+        if not isinstance(result, dict) or not result.get("ok"):
+            return jsonify({"ok": False, "error": (result or {}).get("description", "Telegram rechazó la operación")}), 502
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        for item in links:
+            if item["invite_link"] == invite_link:
+                item["updated_at"] = now
+                if action == "rename": item["name"] = name
+                else: item["is_revoked"] = True
+    else:
+        return jsonify({"ok": False, "error": "Acción no válida"}), 400
+    _db.set(f"PAID_SUBSCRIPTION_LINKS_{chat_id}", links[:100])
+    if _add_audit_log:
+        _add_audit_log(f"Suscripcion Telegram Stars: {action} en canal {chat_id} por {user.get('id')}")
+    return jsonify({"ok": True, "currency": "XTR", "period_seconds": 2592000,
+                    "links": _paid_subscription_links(chat_id)})
 
 
 _SETTING_KEYS = {"auto_mod", "welcome", "ia_learning", "security_shield"}

@@ -3876,7 +3876,9 @@ class MoonBot:
         public.update(plugins["public"])
         admin = {**public, "mute": "Silenciar un miembro", "unmute": "Restaurar un miembro",
                  "warn": "Advertir a un miembro", "ban": "Banear localmente", "unban": "Retirar ban local",
-                 "resumen": "Resumir la conversación"}
+                 "resumen": "Resumir la conversación", "suscripcion": "Crear enlace de pago del canal",
+                 "suscripciones": "Ver enlaces de pago del canal",
+                 "suscripcion_revocar": "Revocar enlace de pago"}
         admin.update(plugins["admin"])
         master = {**admin, "gban": "Aplicar ban global", "ungban": "Retirar ban global",
                   "resync": "Forzar sincronización", "backup_db": "Crear copia de la base de datos"}
@@ -5293,6 +5295,63 @@ class MoonBot:
             # Detectar si es una respuesta (Reply)
             target_uid = arg_str if arg_str else (str(msg.get("reply_to_message", {}).get("from", {}).get("id", "")) if msg.get("reply_to_message") else None)
             target_name = msg.get("reply_to_message", {}).get("from", {}).get("first_name", target_uid) if msg.get("reply_to_message") else target_uid
+
+            if raw_cmd in ["/suscripcion", "/suscripciones", "/suscripcion_revocar"]:
+                chat_info = self.api_call("getChat", {"chat_id": cid}, silent=True)
+                chat = chat_info.get("result", {}) if isinstance(chat_info, dict) and chat_info.get("ok") else {}
+                if chat.get("type") != "channel":
+                    self.send_msg(cid, "⚠️ Las suscripciones oficiales de pago solo se pueden crear para canales.")
+                    return True
+                key = f"PAID_SUBSCRIPTION_LINKS_{cid}"
+                links = db.get(key, [])
+                links = links if isinstance(links, list) else []
+                if raw_cmd == "/suscripciones":
+                    active = [row for row in links if isinstance(row, dict) and not row.get("is_revoked")]
+                    if not active:
+                        self.send_msg(cid, "⭐ Este bot todavía no ha creado enlaces de suscripción activos.")
+                    else:
+                        lines = [f"• **{row.get('name') or 'Acceso mensual'}** — `{row.get('subscription_price', 0)} ⭐/mes`\n{row.get('invite_link')}" for row in active[:20]]
+                        self.send_msg(cid, "⭐ **Suscripciones oficiales del canal**\n\n" + "\n\n".join(lines))
+                    return True
+                if raw_cmd == "/suscripcion_revocar":
+                    link = arg_str.strip()
+                    if not link:
+                        self.send_msg(cid, "Uso: `/suscripcion_revocar https://t.me/+enlace`.")
+                        return True
+                    result = self.api_call("revokeChatInviteLink", {"chat_id": cid, "invite_link": link}, silent=True)
+                    if not isinstance(result, dict) or not result.get("ok"):
+                        self.send_msg(cid, f"❌ Telegram no pudo revocar el enlace: {(result or {}).get('description', 'error desconocido')}")
+                        return True
+                    for row in links:
+                        if isinstance(row, dict) and row.get("invite_link") == link:
+                            row["is_revoked"] = True
+                            row["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    db.set(key, links[:100])
+                    self.send_msg(cid, "✅ Enlace de suscripción revocado.")
+                    return True
+                parts = arg_str.strip().split(maxsplit=1)
+                if not parts or not parts[0].isdigit():
+                    self.send_msg(cid, "Uso: `/suscripcion 100 Acceso mensual` (precio entre 1 y 10.000 Stars).")
+                    return True
+                price = int(parts[0])
+                name = (parts[1] if len(parts) > 1 else "Acceso mensual").strip()[:32]
+                if not 1 <= price <= 10000:
+                    self.send_msg(cid, "⚠️ El precio debe estar entre 1 y 10.000 Telegram Stars.")
+                    return True
+                result = self.api_call("createChatSubscriptionInviteLink", {"chat_id": cid, "name": name,
+                    "subscription_period": 2592000, "subscription_price": price}, silent=True)
+                if not isinstance(result, dict) or not result.get("ok"):
+                    self.send_msg(cid, f"❌ Telegram no pudo crear el enlace: {(result or {}).get('description', 'error desconocido')}")
+                    return True
+                item = result.get("result") or {}
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                links.insert(0, {"invite_link": item.get("invite_link"), "name": item.get("name") or name,
+                    "subscription_period": item.get("subscription_period") or 2592000,
+                    "subscription_price": item.get("subscription_price") or price, "is_revoked": False,
+                    "created_at": now, "updated_at": now})
+                db.set(key, links[:100])
+                self.send_msg(cid, f"⭐ **Suscripción oficial creada**\n\n**{name}** · `{price} ⭐ / 30 días`\n{item.get('invite_link')}")
+                return True
 
             if raw_cmd in ["/ia_programar", "/ia_code", "/programar_ia"]:
                 if rk != "Master":
