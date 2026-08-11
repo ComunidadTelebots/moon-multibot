@@ -2,8 +2,8 @@
   "version": "Roadmap",
   "generated_at": "2026-07-28T11:33:42.447Z",
   "status": "in_progress",
-  "implemented": 37,
-  "routed": 971,
+  "implemented": 45,
+  "routed": 963,
   "completed": 1000,
   "proposed": 992,
   "totals": {
@@ -5096,7 +5096,7 @@
       "priority": "medium",
       "difficulty": "medium",
       "dependency": "snapshots",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0340",
@@ -5111,7 +5111,7 @@
       "priority": "medium",
       "difficulty": "advanced",
       "dependency": "auditorÃ­a",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0341",
@@ -5261,7 +5261,7 @@
       "priority": "high",
       "difficulty": "advanced",
       "dependency": "telemetrÃ­a",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0351",
@@ -5516,7 +5516,7 @@
       "priority": "high",
       "difficulty": "medium",
       "dependency": "motor de eventos",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0368",
@@ -5606,7 +5606,7 @@
       "priority": "medium",
       "difficulty": "advanced",
       "dependency": "Ã­ndice vectorial",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0374",
@@ -5621,7 +5621,7 @@
       "priority": "high",
       "difficulty": "advanced",
       "dependency": "modelo de lenguaje",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0375",
@@ -5696,7 +5696,7 @@
       "priority": "critical",
       "difficulty": "advanced",
       "dependency": "polÃ­ticas de retenciÃ³n",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0380",
@@ -5816,7 +5816,7 @@
       "priority": "critical",
       "difficulty": "advanced",
       "dependency": "lÃ­nea base",
-      "status": "routed"
+      "status": "implemented"
     },
     {
       "id": "future-0388",
