@@ -890,6 +890,12 @@
         <div class="btnrow"><button class="btn ghost" id="muContext">Ver contexto</button><button class="btn ghost" id="muRoleSave">Asignar rol</button></div><pre id="muOutput" class="muted"></pre>
         <button class="btn ghost" id="msSummary">Generar resumen inteligente</button><pre id="msSummaryOut" class="muted"></pre>
       </div></div>
+      <div class="dropdown"><div class="dhead">Diagnóstico e historial de moderación <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
+        <p class="muted">Compara capturas reales del grupo, prioriza alertas y permite exportar un historial firmado sin ejecutar sanciones.</p>
+        <div id="mInsights">${skel()}</div>
+        <button class="btn ghost" id="mInsightsRefresh">Actualizar diagnóstico</button>
+        <button class="btn ghost" id="mInsightsExport">Exportar historial firmado</button>
+      </div></div>
       <div class="dropdown"><div class="dhead">Auditoría de cambios sensibles (${(d.sensitive_changes||[]).length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" hidden>
         <p class="muted">Registro inmutable de cambios de seguridad y moderación realizados desde la MiniApp, la web o una importación.</p>
         ${(d.sensitive_changes||[]).slice(0,25).map(event=>`<div class="userchip"><span><b>${event.risk==="critical"?"🔴":"🟠"} ${escHtml(event.source||"sistema")}</b> · ${escHtml(event.actor||"sistema")}<br><small>${new Date(event.created_at).toLocaleString()} · ${(event.changes||[]).map(change=>`${escHtml(change.section)}.${escHtml(change.field)}`).join(", ")}</small></span></div>`).join("")||'<p class="muted">Todavía no se han registrado cambios sensibles.</p>'}
@@ -900,6 +906,18 @@
         <button class="btn ghost" id="msBackup">${svg('download')} Descargar copia JSON</button>
       </div></div>`;
     host.querySelectorAll(".dhead").forEach(h=>h.onclick=()=>{const b=h.nextElementSibling;b.hidden=!b.hidden;h.parentElement.classList.toggle("open",!b.hidden);});
+    const renderInsights=async()=>{
+      const result=await gp("/group/moderation/insights",{}),target=document.getElementById("mInsights");
+      if(!target)return;
+      if(!result||!result.ok){target.innerHTML='<p class="muted">No se pudo generar el diagnóstico.</p>';return;}
+      const current=result.current||{},comparison=result.comparison||{},diagnostics=result.diagnostics||{},delta=comparison.delta||{};
+      target.innerHTML=`<div class="statrow"><span><b>${Number(current.warning_total||0)}</b><small>Avisos</small></span><span><b>${Number(current.local_bans||0)}</b><small>Baneos</small></span><span><b>${Number(current.spam_events||0)}</b><small>Spam</small></span></div>
+        <p class="muted">Variación: ${Number(delta.warning_total||0)>=0?"+":""}${Number(delta.warning_total||0)} avisos · ${Number(delta.spam_events||0)>=0?"+":""}${Number(delta.spam_events||0)} spam · ${(result.history||[]).length} capturas.</p>
+        ${(diagnostics.alerts||[]).map(alert=>`<div class="userchip"><span><b>${alert.severity==="critical"?"🔴":alert.severity==="high"?"🟠":"🟡"} ${escHtml(alert.title)}</b><small style="display:block;color:var(--muted)">${escHtml(alert.detail)}</small></span></div>`).join("")||'<p class="clean">Sin alertas prioritarias.</p>'}`;
+    };
+    mInsightsRefresh.onclick=renderInsights;
+    mInsightsExport.onclick=async()=>{const result=await gp("/group/moderation/insights",{action:"export"});if(!result||!result.ok){showToast((result&&result.error)||"No se pudo exportar");return;}downloadText(`moderacion-firmada-${curChat}-${Date.now()}.json`,JSON.stringify(result.export,null,2),"application/json");showToast("Historial firmado exportado");};
+    renderInsights();
     const save=()=>gp("/group/suite/settings",{config:{quarantine:{enabled:mqEnabled.checked,hours:+mqHours.value,messages:+mqMessages.value,block_links:true},raid:{enabled:mrEnabled.checked,joins:+mrJoins.value,window_seconds:+mrWindow.value,lock_minutes:c.raid.lock_minutes},welcome:{enabled:mwEnabled.checked,message:mwText.value,delete_after:c.welcome.delete_after},consensus:{enabled:mcEnabled.checked,votes_required:+mcVotes.value},rules:c.rules}}).then(()=>{showToast("Suite guardada");loadGroupSuiteMini();});
     const saveQuiet=()=>gp("/group/suite/settings",{config:{quiet_hours:{enabled:mQuietEnabled.checked,start:mQuietStart.value,end:mQuietEnd.value,timezone:mQuietTimezone.value.trim(),allowed_categories:mQuietAllowed.value.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean),emergency_bypass:mQuietEmergency.checked}}}).then(x=>{showToast(x&&x.ok?"Horario silencioso guardado":((x&&x.error)||"Configuración no válida"));if(x&&x.ok)loadGroupSuiteMini();});
     const saveVoice=()=>gp("/group/suite/settings",{config:{voice_transcription:{enabled:mVoiceEnabled.checked,language:mVoiceLanguage.value.trim(),consent_notice:mVoiceNotice.checked,model:"whisper-1",learn_from_transcript:false}}}).then(x=>{showToast(x&&x.ok?"Consentimiento de voz guardado":((x&&x.error)||"No se pudo guardar"));if(x&&x.ok)loadGroupSuiteMini();});
@@ -2271,8 +2289,8 @@
   }
   async function loadMasterSecurity(){
     const box=document.getElementById("masterDetail");box.innerHTML=skel();
-    const [vision,audit,threats]=await Promise.all([masterApi("/api/vision/stats"),masterApi("/api/security/audit"),masterApi("/api/security/threat-history")]);
-    const logs=(audit&&audit.logs)||[],history=(threats&&threats.history)||[];
+    const [vision,audit,insights]=await Promise.all([masterApi("/api/vision/stats"),masterApi("/api/security/audit"),masterApi("/api/security/threat-insights")]);
+    const logs=(audit&&audit.logs)||[],history=(insights&&insights.results)||[],securitySummary=(insights&&insights.summary)||{},securityAnomalies=(insights&&insights.anomalies)||{},securityAlerts=(insights&&insights.alerts)||[],securityPrefs=(insights&&insights.preferences)||{};
     box.innerHTML=`<div class="dropdown open"><div class="dhead">Seguridad <span class="rbadge">${vision&&vision.shield_enabled?"escudo activo":"escudo inactivo"}</span></div><div class="dbody">
       <div class="master-grid" style="margin-top:8px">
         <div class="master-metric"><div class="mv">${fmt(vision&&vision.photos)}</div><div class="ml">Fotos analizadas</div></div>
@@ -2302,8 +2320,17 @@
       <div class="gsec">Consultar CAS</div>
       <div class="btnrow"><input id="masterCasUid" inputmode="numeric" placeholder="ID de Telegram"><button class="btn ghost" id="masterCasCheck" style="width:auto">Consultar</button></div>
       <div id="masterCasResult"></div>
+      <div class="gsec">Inteligencia del historial</div>
+      <p class="muted">Busca por intención en los análisis guardados y revisa anomalías entre ventanas, sin enviar datos a servicios externos.</p>
+      <div class="master-grid" style="margin-top:8px"><div class="master-metric"><div class="mv">${fmt(securitySummary.total||0)}</div><div class="ml">Análisis</div></div><div class="master-metric warn"><div class="mv">${fmt(securitySummary.suspicious||0)}</div><div class="ml">Sospechosos</div></div></div>
+      <label class="setrow"><span><b>Privacidad reforzada</b><small>Oculta nombres, URLs y valores desde la respuesta del servidor.</small></span><input id="masterThreatPrivacy" type="checkbox" ${securityPrefs.privacy_mode!==false?"checked":""}></label>
+      <div class="btnrow"><select id="masterThreatSeverity"><option value="low">Avisos bajos</option><option value="medium">Avisos medios</option><option value="high">Solo altos</option><option value="critical">Solo críticos</option></select><button class="btn ghost" id="masterThreatPreferencesSave" style="width:auto">Guardar alertas</button></div>
+      ${securityAlerts.filter(item=>!item.acknowledged).map(item=>`<div class="casbox"><b>${item.severity==="critical"?"🔴":item.severity==="high"?"🟠":"🟡"} ${escHtml(item.title)}</b><br><span class="muted">${escHtml(item.detail)}</span><br><button class="minibtn" data-threat-ack="${escAttr(item.id)}">Marcar revisada</button></div>`).join("")||'<p class="clean">No hay alertas nuevas con esta prioridad.</p>'}
+      ${(securityAnomalies.anomalies||[]).map(item=>`<div class="casbox"><b>${item.severity==="high"?"🔴":"🟠"} ${escHtml(item.code==="risk_spike"?"Pico de riesgo":"Pico por fuente")}</b><br><span class="muted">${escHtml(item.detail)} · ${fmt(item.baseline)} → ${fmt(item.current)}</span></div>`).join("")||(securityAnomalies.ready?'<p class="clean">Sin anomalías en la ventana reciente.</p>':`<p class="muted">${escHtml(securityAnomalies.reason||"Esperando más análisis.")}</p>`)}
+      <div class="btnrow"><input id="masterThreatSearch" placeholder="malware, phishing, imagen, dominio…"><button class="btn ghost" id="masterThreatSearchButton" style="width:auto">Buscar</button></div>
+      <div id="masterThreatSearchResult"></div>
       <div class="gsec">Historial de análisis</div>
-      ${history.length?history.slice(0,10).map(x=>`<div class="casbox"><b>${escHtml(x.filename||x.value||x.kind)}</b> <span class="rbadge">${escHtml(x.source)}</span><br><span class="k">${escHtml(x.risk||"pendiente")} · ${x.malicious!=null?fmt(x.malicious)+" detecciones":fmt(x.score||0)+"/100"}</span></div>`).join(""):`<p class="muted">Aún no hay análisis manuales.</p>`}
+      ${history.length?history.slice(0,10).map(x=>`<div class="casbox"><b>${escHtml(x.filename||x.value||(x.redacted?`Elemento protegido · ${x.fingerprint}`:x.kind))}</b> <span class="rbadge">${escHtml(x.source)}</span><br><span class="k">${escHtml(x.risk||"pendiente")} · ${x.malicious!=null?fmt(x.malicious)+" detecciones":fmt(x.score||0)+"/100"}</span></div>`).join(""):`<p class="muted">Aún no hay análisis manuales.</p>`}
       <div class="gsec">Auditoría reciente</div>
       ${logs.length?logs.slice(-5).reverse().map(x=>`<div class="casbox">${escHtml(typeof x==="string"?x:(x.message||x.action||JSON.stringify(x)))}</div>`).join(""):`<p class="muted">Sin incidencias recientes.</p>`}
     </div></div>`;
@@ -2317,6 +2344,23 @@
     document.getElementById("masterUrlInspect").onclick=inspectMasterUrl;
     document.getElementById("masterWaybackCheck").onclick=checkMasterWayback;
     document.getElementById("masterCasCheck").onclick=checkMasterCas;
+    document.getElementById("masterThreatSearchButton").onclick=searchMasterThreats;
+    document.getElementById("masterThreatSeverity").value=securityPrefs.minimum_severity||"medium";
+    document.getElementById("masterThreatPreferencesSave").onclick=saveMasterThreatPreferences;
+    box.querySelectorAll("[data-threat-ack]").forEach(button=>button.onclick=()=>ackMasterThreat(button.dataset.threatAck));
+  }
+  async function saveMasterThreatPreferences(){
+    const result=await masterApi("/api/security/threat-preferences",{method:"POST",body:JSON.stringify({minimum_severity:document.getElementById("masterThreatSeverity").value,privacy_mode:document.getElementById("masterThreatPrivacy").checked})});
+    if(result&&result.ok){showToast("Preferencias de seguridad guardadas");loadMasterSecurity();}else showToast((result&&result.error)||"No se pudieron guardar");
+  }
+  async function ackMasterThreat(alertId){
+    const result=await masterApi("/api/security/threat-alerts/ack",{method:"POST",body:JSON.stringify({alert_id:alertId})});
+    if(result&&result.ok){showToast("Alerta revisada");loadMasterSecurity();}else showToast((result&&result.error)||"No se pudo revisar");
+  }
+  async function searchMasterThreats(){
+    const query=document.getElementById("masterThreatSearch").value.trim(),out=document.getElementById("masterThreatSearchResult");
+    const result=await masterApi(`/api/security/threat-insights?q=${encodeURIComponent(query)}&limit=30`),rows=(result&&result.results)||[];
+    out.innerHTML=rows.map(item=>`<div class="casbox"><b>${escHtml(item.filename||item.value||(item.redacted?`Elemento protegido · ${item.fingerprint}`:item.kind)||"Análisis")}</b> <span class="rbadge">${escHtml(item.source||"local")}</span><br><span class="k">${escHtml(item.risk||"pendiente")}${item.match_score?` · coincidencia ${fmt(item.match_score)}`:""}</span>${(item.matched_terms||[]).length?`<br><small class="muted">${item.matched_terms.map(escHtml).join(" · ")}</small>`:""}</div>`).join("")||'<p class="muted">No hay análisis que coincidan.</p>';
   }
   async function inspectMasterUrl(){
     const value=document.getElementById("masterUrlInspectValue").value.trim(),out=document.getElementById("masterUrlInspectResult");if(!value)return showToast("Introduce una URL");

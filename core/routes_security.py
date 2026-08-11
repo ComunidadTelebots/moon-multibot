@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import time
 
@@ -9,6 +10,7 @@ from plugins.url_tools import inspect_url
 from werkzeug.utils import secure_filename
 
 from core.media_analyzer import analyze_image
+from core.security_insights import build_alerts, detect_anomalies, redact_results, search_history, summarize_history
 
 bp = Blueprint("security", __name__)
 
@@ -200,6 +202,73 @@ def api_security_threat_history():
         return jsonify({"ok": False}), 401
     rows = _db.get("THREAT_ANALYSIS_HISTORY", [])
     return jsonify({"ok": True, "history": list(reversed(rows[-100:])) if isinstance(rows, list) else []})
+
+
+@bp.route("/api/security/threat-insights")
+def api_security_threat_insights():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    query = str(request.args.get("q") or "").strip()[:200]
+    try:
+        limit = max(1, min(100, int(request.args.get("limit", 30))))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "límite inválido"}), 400
+    rows = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    rows = rows if isinstance(rows, list) else []
+    preferences = _db.get("SECURITY_INSIGHT_PREFERENCES", {})
+    preferences = preferences if isinstance(preferences, dict) else {}
+    preferences = {"minimum_severity": preferences.get("minimum_severity", "medium"),
+                   "privacy_mode": bool(preferences.get("privacy_mode", True))}
+    acknowledged = _db.get("SECURITY_INSIGHT_ACKNOWLEDGED", [])
+    acknowledged = acknowledged if isinstance(acknowledged, list) else []
+    anomalies = detect_anomalies(rows)
+    results = search_history(rows, query, limit)
+    return jsonify({
+        "ok": True,
+        "query": query,
+        "results": redact_results(results, preferences["privacy_mode"]),
+        "summary": summarize_history(rows),
+        "anomalies": anomalies,
+        "alerts": build_alerts(rows, anomalies, preferences["minimum_severity"], acknowledged),
+        "preferences": preferences,
+    })
+
+
+@bp.route("/api/security/threat-preferences", methods=["POST"])
+def api_security_threat_preferences():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    severity = str(body.get("minimum_severity") or "medium").lower()
+    if severity not in ("low", "medium", "high", "critical"):
+        return jsonify({"ok": False, "error": "severidad inválida"}), 400
+    preferences = {"minimum_severity": severity, "privacy_mode": bool(body.get("privacy_mode", True))}
+    _db.set("SECURITY_INSIGHT_PREFERENCES", preferences)
+    return jsonify({"ok": True, "preferences": preferences})
+
+
+@bp.route("/api/security/threat-alerts/ack", methods=["POST"])
+def api_security_threat_alert_ack():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    alert_id = str((request.json or {}).get("alert_id") or "").lower()
+    if not re.fullmatch(r"[a-f0-9]{20}", alert_id):
+        return jsonify({"ok": False, "error": "alerta inválida"}), 400
+    rows = _db.get("SECURITY_INSIGHT_ACKNOWLEDGED", [])
+    rows = rows if isinstance(rows, list) else []
+    threats = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    threats = threats if isinstance(threats, list) else []
+    preferences = _db.get("SECURITY_INSIGHT_PREFERENCES", {})
+    preferences = preferences if isinstance(preferences, dict) else {}
+    active_ids = {item["id"] for item in build_alerts(
+        threats, detect_anomalies(threats), preferences.get("minimum_severity", "medium"), rows
+    )}
+    if alert_id not in active_ids:
+        return jsonify({"ok": False, "error": "alerta no encontrada"}), 404
+    if alert_id not in rows:
+        rows.append(alert_id)
+        _db.set("SECURITY_INSIGHT_ACKNOWLEDGED", rows[-200:])
+    return jsonify({"ok": True, "alert_id": alert_id})
 
 
 @bp.route("/api/security/cas/check/<uid>")

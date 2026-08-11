@@ -51,6 +51,7 @@ from core.hub_release_assets import read_hub_release_asset
 from core.pb_client import PBError
 from plugins.todo_manager import add_task, list_tasks, update_task
 from plugins.url_tools import inspect_url
+from core.moderation_insights import build_snapshot, compare_snapshots, diagnose, signed_export
 
 bp = Blueprint("public", __name__)
 
@@ -3444,6 +3445,45 @@ def group_suite_get():
     return jsonify({"ok": True, **suite.snapshot(chat_id),
                     "sensitive_changes": suite.sensitive_changes(chat_id),
                     "command_menu": command_menu})
+
+
+@bp.route("/api/public/group/moderation/insights", methods=["POST", "OPTIONS"])
+def group_moderation_insights():
+    """Versioned, explainable moderation health for an authorized group admin."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    cid = str(chat_id)
+    suite_state = _group_suite().snapshot(cid)
+    current = build_snapshot(
+        suite_state,
+        _db.get(f"WARNS_{cid}", {}),
+        _db.get(f"BANS_{cid}", {}),
+        _db.get(f"SPAMEVENTS_{cid}", []),
+    )
+    key = f"MODERATION_INSIGHTS_{cid}"
+    history = _safe_list(_db.get(key, []))
+    comparable = lambda row: {k: v for k, v in row.items() if k != "captured_at"}
+    if not history or comparable(history[-1]) != comparable(current):
+        history.append(current)
+        history = history[-30:]
+        _db.set(key, history)
+    else:
+        current = history[-1]
+    previous = history[-2] if len(history) > 1 else {}
+    comparison = compare_snapshots(previous, current)
+    diagnostics = diagnose(current, comparison)
+    if body.get("action") == "export":
+        if not _jwt_secret:
+            return jsonify({"ok": False, "error": "firma no configurada"}), 503
+        return jsonify({"ok": True, "export": signed_export(cid, history, _jwt_secret)})
+    return jsonify({"ok": True, "current": current, "previous": previous or None,
+                    "comparison": comparison, "diagnostics": diagnostics,
+                    "history": list(reversed(history))})
 
 
 @bp.route("/api/public/group/suite/settings", methods=["POST", "OPTIONS"])

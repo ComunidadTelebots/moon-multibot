@@ -1,5 +1,29 @@
 # Changelog - Moon Multibot
 
+## v18.23.37 - 2026-08-11 - Alertas adaptativas y privacidad de seguridad
+
+- Completa las alertas adaptativas del historial de seguridad con prioridad mínima configurable y agrupación de picos o análisis de riesgo alto.
+- Permite al master reconocer alertas de forma persistente sin borrar el evento original ni alterar las decisiones de los analizadores.
+- Añade privacidad reforzada activa por defecto: la API elimina nombres de archivo, URLs y valores antes de responder, sustituyéndolos por una huella corta no reversible.
+- Integra los controles en Seguridad del Hub mediante los componentes existentes y mantiene todas las rutas protegidas por el JWT administrativo.
+- Marca `future-0367` y `future-0379` como implementadas tras verificar almacenamiento, redacción en servidor, interfaz y pruebas.
+
+## v18.23.36 - 2026-08-11 - Inteligencia explicable del historial de seguridad
+
+- Completa la búsqueda por intención sobre análisis de seguridad almacenados, con expansión local de términos y puntuación explicable sin llamadas externas.
+- Incorpora un resumen determinista por riesgo, fuente, formato y señal que indica expresamente la ventana y los datos utilizados.
+- Detecta anomalías comparando dos ventanas consecutivas de 25 análisis y destaca picos de riesgo o de una fuente concreta sin ejecutar acciones automáticas.
+- Integra búsqueda, resumen y anomalías en el panel Seguridad del Hub exclusivo del master, reutilizando sus métricas, tarjetas y botones.
+- Marca `future-0373`, `future-0374` y `future-0387` como implementadas únicamente después de añadir ruta autenticada, interfaz y pruebas.
+
+## v18.23.35 - 2026-08-11 - Diagnóstico temporal de moderación
+
+- Completa el comparador temporal de moderación con hasta 30 capturas persistentes por grupo y diferencias de avisos, baneos, spam, cuarentena y módulos activos.
+- Añade un diagnóstico automático que prioriza anti-raid, acumulación de reportes, decisiones por consenso y aumentos anómalos de spam o avisos sin ejecutar sanciones.
+- Permite descargar desde el Hub un historial JSON firmado con HMAC-SHA256 para detectar modificaciones posteriores del informe.
+- Conserva la autorización de administrador del grupo, limita los datos al grupo validado y reutiliza desplegables, botones, métricas y colores existentes.
+- Marca `future-0339`, `future-0340` y `future-0350` como implementadas tras incorporar backend, interfaz y pruebas verificables.
+
 ## v18.23.34 - 2026-08-09 - Tareas personales vinculadas a grupos
 
 - Lleva al Hub las tareas del plugin `/todo` sin crear un segundo almacén, conservando compatibilidad con las tareas antiguas.
