@@ -200,6 +200,7 @@ def public_news_instant():
                     "title": value("title")[:240], "summary": description[:1200],
                     "category": value("category")[:80] or "Tecnología",
                     "date": value("pubDate")[:100], "url": link,
+                    "views": max(0, int(value("views") or 0)),
                 })
             if parsed:
                 articles = parsed
@@ -215,6 +216,30 @@ def public_news_instant():
            and str(row.get("url") or "").startswith(("https://", "http://"))]
     return jsonify({"ok": True, "mode": "instant_view", "articles": articles[:60], "ads": ads,
                     "cached": stale and bool(articles), "source": "NoticiasWeb3 2026"})
+
+
+@bp.route("/api/public/news/view", methods=["POST", "OPTIONS"])
+def public_news_view():
+    """Suma en NoticiasWeb3 la misma visita que muestra el Hub."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    slug = str((request.json or {}).get("slug") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,159}", slug):
+        return jsonify({"ok": False, "error": "Noticia no válida"}), 400
+    try:
+        upstream = urllib.request.Request(
+            f"https://api.todosobreall.tech/noticias/view/{slug}",
+            data=json.dumps({"source": "hub"}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "User-Agent": "MoonMultibot-InstantNews/1.0"},
+            method="POST",
+        )
+        with urllib.request.urlopen(upstream, timeout=8) as response:
+            result = json.loads(response.read(64 * 1024))
+        return jsonify({"ok": True, "visitas": max(0, int(result.get("visitas") or 0))})
+    except urllib.error.HTTPError as exc:
+        return jsonify({"ok": False, "error": "Noticia no encontrada"}), exc.code
+    except Exception:
+        return jsonify({"ok": False, "error": "No se pudo registrar la visualización"}), 502
 
 
 @bp.route("/api/public/community-campaigns", methods=["POST", "OPTIONS"])
