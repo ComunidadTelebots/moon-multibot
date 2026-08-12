@@ -78,6 +78,26 @@ _tdlib_client = None
 _community_api_usage = {}
 _instant_news_cache = {"at": 0, "articles": []}
 _community_campaign_cache = {}
+_NOTICIAS_API_ENDPOINTS = tuple(dict.fromkeys((
+    os.environ.get("NOTICIAS_API_INTERNAL_URL", "http://todosobrealltech-api:3001").rstrip("/"),
+    "https://api.todosobreall.tech",
+)))
+
+
+def _noticias_api_read(path, *, data=None, timeout=12, limit=2 * 1024 * 1024):
+    last_error = None
+    for endpoint in _NOTICIAS_API_ENDPOINTS:
+        try:
+            headers = {"User-Agent": "MoonMultibot-InstantNews/1.0"}
+            if data is not None:
+                headers["Content-Type"] = "application/json"
+            req = urllib.request.Request(endpoint + path, data=data, headers=headers,
+                                         method="POST" if data is not None else "GET")
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return response.read(limit)
+        except Exception as exc:
+            last_error = exc
+    raise last_error or RuntimeError("NoticiasWeb3 API unavailable")
 
 
 def _community_campaigns_for_audience(owner_verified=False):
@@ -180,12 +200,7 @@ def public_news_instant():
     stale = now - float(_instant_news_cache.get("at", 0) or 0) > 600
     if stale:
         try:
-            req = urllib.request.Request(
-                "https://api.todosobreall.tech/noticias/rss",
-                headers={"User-Agent": "MoonMultibot-InstantNews/1.0"},
-            )
-            with urllib.request.urlopen(req, timeout=8) as response:
-                payload = response.read(2 * 1024 * 1024)
+            payload = _noticias_api_read("/noticias/rss")
             root = ET.fromstring(payload)
             parsed = []
             for item in root.findall("./channel/item")[:60]:
@@ -205,8 +220,8 @@ def public_news_instant():
             if parsed:
                 articles = parsed
                 _instant_news_cache.update({"at": now, "articles": articles})
-        except Exception:
-            pass
+        except Exception as exc:
+            current_app.logger.warning("NoticiasWeb3 instant feed unavailable: %s", exc)
     _sync_master_channel_ads()
     ads = [{key: row.get(key) for key in ("id", "title", "description", "url", "image", "cta",
                                             "background", "foreground", "accent", "community_id", "display_format",
@@ -227,14 +242,11 @@ def public_news_view():
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,159}", slug):
         return jsonify({"ok": False, "error": "Noticia no válida"}), 400
     try:
-        upstream = urllib.request.Request(
-            f"https://api.todosobreall.tech/noticias/view/{slug}",
+        result = json.loads(_noticias_api_read(
+            f"/noticias/view/{slug}",
             data=json.dumps({"source": "hub"}).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": "MoonMultibot-InstantNews/1.0"},
-            method="POST",
-        )
-        with urllib.request.urlopen(upstream, timeout=8) as response:
-            result = json.loads(response.read(64 * 1024))
+            limit=64 * 1024,
+        ))
         return jsonify({"ok": True, "visitas": max(0, int(result.get("visitas") or 0))})
     except urllib.error.HTTPError as exc:
         return jsonify({"ok": False, "error": "Noticia no encontrada"}), exc.code
