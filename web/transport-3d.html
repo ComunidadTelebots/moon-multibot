@@ -724,7 +724,7 @@
           }
           for (const child of g.children) if (child !== detailedTruckExterior) child.visible = false;
         }
-        const modeledCabin = emergency ? null : createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel, referenceTextureUrl: "./generated-textures/aster-viento-interior-reference-v1.png" });
+        const modeledCabin = emergency ? null : createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel });
         if (modeledCabin) {
           g.add(modeledCabin);
           g.userData.cockpitSteering = modeledCabin.userData.steering;

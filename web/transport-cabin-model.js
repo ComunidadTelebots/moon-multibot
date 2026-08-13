@@ -1,4 +1,4 @@
-export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLevel = 2, referenceTextureUrl = "./generated-textures/aster-viento-interior-reference-v1.png" }) {
+export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLevel = 2 }) {
   const root = new T.Group(); root.name = "aster_original_cabin";
   const cabinTextures = [];
   const texture = (name, base, detail, lines = false) => {
@@ -21,23 +21,6 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const fabric = material("woven_seat_fabric", 0xffffff, .98, 0, { map:fabricMap,bumpMap:fabricMap,bumpScale:.035,sheen: .32, sheenColor: new T.Color(0x53626a) });
   const headliner = material("woven_headliner", 0xffffff, .96, 0, { map:headlinerMap,bumpMap:headlinerMap,bumpScale:.022,sheen: .12, sheenColor: new T.Color(0xd8d4c8) });
   const sleeperFabric = material("sleeper_textile", 0xffffff, .94, 0, { map:sleeperMap,bumpMap:sleeperMap,bumpScale:.032,sheen: .28, sheenColor: new T.Color(0x63868c) });
-  // The generated cabin artwork is a perspective reference, not a UV atlas. Extract
-  // small material swatches from it so the rendered geometry keeps correct parallax.
-  if (referenceTextureUrl) {
-    new T.ImageLoader().load(referenceTextureUrl, image => {
-      const swatch = (name, crop, target, repeat = [2, 2]) => {
-        const canvas = document.createElement("canvas"); canvas.width = canvas.height = qualityLevel > 1 ? 512 : 256;
-        canvas.getContext("2d").drawImage(image, crop[0] * image.width, crop[1] * image.height, crop[2] * image.width, crop[3] * image.height, 0, 0, canvas.width, canvas.height);
-        const map = new T.CanvasTexture(canvas); map.name = `aster_reference_${name}`; map.colorSpace = T.SRGBColorSpace;
-        map.wrapS = map.wrapT = T.RepeatWrapping; map.repeat.set(...repeat); map.anisotropy = qualityLevel > 2 ? 16 : 8;
-        cabinTextures.push(map); target.map = map; target.bumpMap = map; target.bumpScale = name === "seat" ? .018 : .01; target.needsUpdate = true;
-      };
-      swatch("dashboard", [.28, .48, .34, .20], soft, [1.6, 1.2]);
-      swatch("seat", [.64, .43, .18, .31], fabric, [1.4, 1.8]);
-      swatch("headliner", [.35, .02, .28, .18], headliner, [1.8, 1.3]);
-      swatch("sleeper", [.80, .34, .18, .28], sleeperFabric, [1.5, 1.5]);
-    }, undefined, () => {});
-  }
   const screenMaterial = new T.MeshBasicMaterial({ name: "live_instrument_display", color: 0xffffff, toneMapped: false });
   const accent = new T.MeshBasicMaterial({ color: 0x57e5d0, toneMapped: false });
   const add = (geometry, mat, name, position, rotation = [0, 0, 0], parent = root) => {
