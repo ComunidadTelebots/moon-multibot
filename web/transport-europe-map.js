@@ -1,6 +1,6 @@
 import { EUROPE_CITIES, EUROPE_ROADS, findShortestRoute } from "./transport-europe-data.js";
 
-export function mountEuropeRoadMap(canvas, output) {
+export function mountEuropeRoadMap(canvas, output, options = {}) {
   const ctx = canvas.getContext("2d"), state = { from: null, to: null, route: null, vehicle: null };
   const project = city => ({ x: 34 + ((city.x + 100) / 200) * (canvas.width - 68), y: 28 + ((city.z + 82) / 164) * (canvas.height - 56) });
   const cityById = id => EUROPE_CITIES.find(city => city.id === id);
@@ -31,6 +31,6 @@ export function mountEuropeRoadMap(canvas, output) {
     ctx.fillStyle="#d7e6ee";ctx.font="700 13px system-ui";ctx.fillText("EUROPA · RED DE CARRETERAS",16,20);
   }
   function describe(){if(!state.from){output.textContent="Selecciona la ciudad de origen";return}if(!state.to){output.textContent=`Origen: ${cityById(state.from).name} · selecciona destino`;return}if(!state.route){output.textContent="No existe conexión disponible";return}output.textContent=`${state.route.cities.map(c=>c.name).join(" → ")} · ${state.route.distanceKm.toLocaleString("es-ES")} km`;}
-  canvas.addEventListener("pointerdown",event=>{const rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*canvas.width/rect.width,y=(event.clientY-rect.top)*canvas.height/rect.height;const nearest=EUROPE_CITIES.map(city=>({city,d:Math.hypot(project(city).x-x,project(city).y-y)})).sort((a,b)=>a.d-b.d)[0];if(!nearest||nearest.d>24)return;if(!state.from||state.to){state.from=nearest.city.id;state.to=null;state.route=null}else if(nearest.city.id!==state.from){state.to=nearest.city.id;state.route=findShortestRoute(state.from,state.to)}describe();draw()});
+  canvas.addEventListener("pointerdown",async event=>{const rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*canvas.width/rect.width,y=(event.clientY-rect.top)*canvas.height/rect.height;const nearest=EUROPE_CITIES.map(city=>({city,d:Math.hypot(project(city).x-x,project(city).y-y)})).sort((a,b)=>a.d-b.d)[0];if(!nearest||nearest.d>24)return;if(!state.from||state.to){state.from=nearest.city.id;state.to=null;state.route=null}else if(nearest.city.id!==state.from){state.to=nearest.city.id;state.route=findShortestRoute(state.from,state.to);describe();draw();if(options.onRouteSelected){output.textContent="Calculando ruta real con OpenStreetMap…";try{state.realRoute=await options.onRouteSelected(state.from,state.to);output.textContent=`${cityById(state.from).name} → ${cityById(state.to).name} · ${state.realRoute.distanceKm.toFixed(0)} km · ${state.realRoute.durationHours.toFixed(1)} h · OSM/OSRM`;}catch(error){output.textContent=`Ruta local disponible · conexión OSM: ${error.message}`;}}return}describe();draw()});
   draw();describe();return { state, draw, setVehicleProgress(distanceKm){const vehicle=locateVehicle(distanceKm);if(vehicle)output.textContent=`Posición: ${vehicle.from.name} → ${vehicle.to.name} · ${Math.round(vehicle.progress*100)}% · PK ${distanceKm.toFixed(1)}`;draw();return vehicle;} };
 }

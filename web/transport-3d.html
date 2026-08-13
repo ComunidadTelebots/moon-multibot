@@ -178,6 +178,7 @@
       import { createDetailedTruckExterior } from "./transport-truck-exterior.js";
       import { createOsmScenery } from "./transport-osm-scenery.js";
       import { createEmergencyFleet } from "./transport-emergency-fleet.js";
+      import { createOsmRoutePlanner, projectRouteToWorld } from "./transport-osm-routing.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -199,6 +200,8 @@
       R.toneMappingExposure = qualityLevel >= 2 ? 1.15 : 1;
       applyRealisticRendererSettings(T, R, qualityLevel);
       const career = createTransportCareer();
+      const osmRoutePlanner = createOsmRoutePlanner();
+      let activeOsmRoute = null, activeWorldRoute = [];
       const textures = createProceduralTransportTextures(T, qualityLevel);
       const vehicleTextures = createVehicleTextureSystem({
         THREE: T, qualityLevel,
@@ -961,7 +964,7 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"));
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
