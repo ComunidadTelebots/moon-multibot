@@ -767,9 +767,9 @@
           targetLook.set(p.x + steer * 1.1, p.y + 2.45, p.z - 8); targetFov = 55 + Math.min(7, speed * 0.045);
         } else if (view === 1) {
           const cockpit = V.userData.cockpitOffset;
-          targetPosition.set(p.x + (cockpit?.[0] ?? -1.04), p.y + (cockpit?.[1] ?? 3.08) + bob, p.z + (cockpit?.[2] ?? -(kind === "bus" ? 5.34 : 5.17)));
+          targetPosition.set(p.x + (cockpit?.[0] ?? -1.04), p.y + (cockpit?.[1] ?? 3.36) + bob, p.z + (cockpit?.[2] ?? -(kind === "bus" ? 4.48 : 4.24)));
           const lookDistance = 38, forward = -Math.cos(headYaw), lateral = Math.sin(headYaw);
-          targetLook.set(targetPosition.x + lateral * lookDistance, targetPosition.y + Math.sin(headPitch) * lookDistance - .7, targetPosition.z + forward * Math.cos(headPitch) * lookDistance); targetFov = 66;
+          targetLook.set(targetPosition.x + lateral * lookDistance, targetPosition.y + Math.sin(headPitch) * lookDistance - 1.25, targetPosition.z + forward * Math.cos(headPitch) * lookDistance); targetFov = 62;
         } else if (view === 2) {
           targetPosition.set(p.x + (kind === "bus" ? 1.1 : 0.72), p.y + 3.12 + bob, p.z + (kind === "bus" ? 3.6 : -2.05));
           targetLook.set(p.x, p.y + 2.55, p.z - 28); targetFov = kind === "bus" ? 78 : 74;

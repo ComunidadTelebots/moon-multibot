@@ -146,7 +146,9 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   root.userData.steering = wheel;
   root.userData.instrument = { canvas: displayCanvas, context: displayCanvas.getContext("2d"), texture: displayTexture };
   root.userData.navigation = { canvas: navCanvas, context: navCanvas.getContext("2d"), texture: navTexture };
-  root.userData.cockpitOffset = [-1.04, 3.08, frontZ + .62];
+  // Eye point of a seated driver. It must remain behind and above the wheel;
+  // placing it near the steering column makes the rim fill the whole viewport.
+  root.userData.cockpitOffset = [-1.04, 3.36, frontZ + 1.55];
   root.userData.dispose = () => { cabinTextures.forEach(map=>map.dispose()); root.traverse((object) => { object.geometry?.dispose?.(); if (Array.isArray(object.material)) object.material.forEach((m) => m.dispose()); else object.material?.dispose?.(); }); };
   return root;
 }
