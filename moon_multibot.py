@@ -6778,15 +6778,18 @@ proxy_bot = None
 
 if __name__ == "__main__":
     start_time, bots_data = time.time(), []
-    # Cargar bots con soporte para encriptaciÃ³n
-    bots_data = token_manager.load_bots_from_file(BOT_STORE_PATH, encrypted=True)
+    run_bot_workers = MOON_ROLE not in {"web", "frontend"}
+    # Las réplicas web no deben hacer polling: Telegram solo permite un
+    # consumidor coherente por bot y duplicarlo repetiría mensajes/tareas.
+    if run_bot_workers:
+        bots_data = token_manager.load_bots_from_file(BOT_STORE_PATH, encrypted=True)
     
     active_bots = []
     
     # Solo iniciamos hilos si NO es el reloader de Flask (para evitar duplicados)
     is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or MOON_ENV != "dev"
     
-    if bots_data and is_main_process:
+    if bots_data and is_main_process and run_bot_workers:
         for i, b_info in enumerate(bots_data):
             token = b_info.get("token")
             if token:
@@ -6880,7 +6883,7 @@ if __name__ == "__main__":
         else:
             add_web_log("ERROR", "No se pudo iniciar ningÃºn bot. Verifica data/bots.json")
     
-    add_web_log("INFO", f"ðŸš€ Moon Multibot Core listo ({MOON_ENV.upper()}). Iniciando Dashboard...")
+    add_web_log("INFO", f"Moon Multibot listo ({MOON_ENV.upper()} / rol {MOON_ROLE}). Iniciando Dashboard...")
     if MOON_ENV == "dev":
         app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
     else:
