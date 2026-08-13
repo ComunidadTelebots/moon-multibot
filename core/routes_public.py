@@ -82,6 +82,8 @@ _instant_channel_cache = {}
 _community_campaign_cache = {}
 _royale_lock = threading.Lock()
 _royale_rooms = {}
+_convoy_lock = threading.Lock()
+_convoy_rooms = {}
 _NOTICIAS_API_ENDPOINTS = tuple(dict.fromkeys((
     os.environ.get("NOTICIAS_API_INTERNAL_URL", "http://todosobrealltech-api:3001").rstrip("/"),
     "https://api.todosobreall.tech",
@@ -166,6 +168,42 @@ def public_block_royale():
             room["bullets"].append({"x": player["x"], "y": player["y"], "vx": math.cos(angle)*330, "vy": math.sin(angle)*330, "owner": uid, "ttl": 1.8})
         players = [{key: (round(value, 1) if key in ("x", "y", "hp") else value) for key, value in row.items() if key not in ("shot_at", "seen")} for row in room["players"].values() if now-row.get("seen", now) < 30]
         return jsonify({"ok": True, "room": room["id"], "you": uid, "zone": round(room["zone"], 1), "players": players, "bullets": room["bullets"], "winner": room.get("winner", "")})
+
+
+@bp.route("/api/public/games/convoy", methods=["POST", "OPTIONS"])
+def public_games_convoy():
+    """Sincroniza convoyes y operaciones multimodales entre juegos del Hub."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None: return jsonify({"ok": False, "error": "Abre el juego desde Telegram"}), 401
+    uid, now = str(user.get("id")), time.time(); action = str(body.get("action") or "state")
+    requested = re.sub(r"[^A-Z0-9]", "", str(body.get("room") or "").upper())[:8]
+    with _convoy_lock:
+        for key in list(_convoy_rooms):
+            room = _convoy_rooms[key]
+            room["players"] = {pid: row for pid, row in room["players"].items() if now-row.get("seen", now) < 45}
+            if not room["players"] and now-room.get("updated", now) > 300: _convoy_rooms.pop(key, None)
+        room = next((value for value in _convoy_rooms.values() if uid in value["players"]), None)
+        if action == "join" and room is None:
+            rid = requested or secrets.token_hex(3).upper()
+            room = _convoy_rooms.setdefault(rid, {"id": rid, "created": now, "updated": now, "players": {}, "cargo": [], "seed": secrets.randbelow(999999)})
+            if len(room["players"]) >= 16: return jsonify({"ok": False, "error": "Convoy completo"}), 409
+            room["players"][uid] = {"id": uid, "name": str(user.get("first_name") or "Conductor")[:24], "game": "truck", "x": 0.0, "y": 0.0, "speed": 0.0, "heading": 0.0, "cargo": "", "seen": now}
+        if room is None: return jsonify({"ok": False, "error": "Únete a un convoy"}), 409
+        player = room["players"][uid]; player["seen"] = now; room["updated"] = now
+        if action == "update":
+            player["game"] = str(body.get("game") or player["game"])[:16]
+            for key in ("x", "y", "speed", "heading"):
+                try: player[key] = max(-100000.0, min(100000.0, float(body.get(key, player[key]))))
+                except (TypeError, ValueError): pass
+            player["cargo"] = str(body.get("cargo") or "")[:80]
+        elapsed = now-room["created"]
+        ai = []
+        for index, game in enumerate(("truck", "rail", "air", "sea")):
+            phase = elapsed * (0.18 + index * 0.035) + room["seed"] * 0.001 + index * 1.7
+            ai.append({"id": f"ai-{index}", "name": ("Aster IA", "Expreso IA", "CargoJet IA", "Marina IA")[index], "game": game, "x": round(math.sin(phase)*260, 1), "y": round(math.cos(phase*.73)*420, 1), "speed": 55+index*18, "heading": round(phase % (math.pi*2), 3), "ai": True})
+        players = [{key: value for key, value in row.items() if key != "seen"} for row in room["players"].values()]
+        return jsonify({"ok": True, "room": room["id"], "you": uid, "players": players, "ai": ai, "serverTime": round(now, 3)})
 
 
 def _community_campaigns_for_audience(owner_verified=False):

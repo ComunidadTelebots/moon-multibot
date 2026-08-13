@@ -123,6 +123,7 @@
       <div class="pill">Física <b id="physicsState">Asfalto seco</b></div>
       <div class="pill">Transmisión <b id="transmissionState">N · 600 rpm</b></div>
       <div class="pill">Límite <b id="limitState">90 km/h</b></div>
+      <div class="pill">Convoy <b id="convoyState">Desconectado</b></div>
     </div>
     <div class="controls">
       <button id="truck" class="on">Camión</button
@@ -131,7 +132,7 @@
       ><button id="parking" class="on">Freno P</button><button id="mapButton">Mapa</button
       ><button id="workMode">Ir al almacén</button><button id="toolButton">Traspaleta</button
       ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
-      <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button>
+      <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -144,7 +145,7 @@
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div></div>
       <div class="dash-buttons"><button data-cockpit="lights">💡 Luces</button><button data-cockpit="wipers">🌧 Limpia</button><button data-cockpit="hazard">⚠ Emergencia</button><button data-cockpit="retarder">R Retarder</button><button data-cockpit="cruise">◉ Crucero</button><button data-cockpit="parking">P Freno</button></div></div>
     </section>
-    <script src="/games-logistics-network.js"></script><script type="module">
+    <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script type="module">
       import * as T from "./vendor/three.module.min.js";
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
       import { createTransportCareer } from "./transport-career.js";
@@ -738,6 +739,16 @@
         if (speed > 1) { document.querySelector("#workState").textContent = "Detén el camión para entrar al taller"; return; }
         career.refuel(); career.repair(100); updateCareerHud(); document.querySelector("#workState").textContent = "Servicio completado";
       };
+      const convoyMarkers = new Map();
+      document.querySelector("#convoyButton").onclick = () => window.MoonConvoy.join(prompt("Código del convoy (vacío para crear)") || "");
+      window.MoonConvoy.onChange(state => {
+        document.querySelector("#convoyState").textContent = state.joined ? `${state.room} · ${state.players.length} jugadores · ${state.ai.length} IA` : "Desconectado";
+        for (const peer of [...state.players, ...state.ai].filter(row => row.id !== state.you)) {
+          let marker = convoyMarkers.get(peer.id);
+          if (!marker) { marker = part(S, peer.game === "truck" ? 3 : 1.8, 1.5, peer.game === "truck" ? 6 : 3, peer.ai ? 0xf0b83c : 0x53d9c1, 0, 1, 0); marker.userData.convoy = true; convoyMarkers.set(peer.id, marker); }
+          marker.position.set(Number(peer.x || 0), 1, Number(peer.y || 0)); marker.rotation.y = Number(peer.heading || 0); marker.visible = peer.game === "truck";
+        }
+      });
       updateCareerHud();
       document.querySelector("#rest").onclick = () => {
         if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
@@ -768,6 +779,7 @@
         const accelerating = keys.w || keys.arrowup, braking = keys.s || keys.arrowdown,
           left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
+        window.MoonConvoy.update({ game: "truck", x: V.position.x, y: V.position.z, speed, heading: steer, cargo: career.activeContract?.cargo?.name || "" });
         if (worldState.totalFines > lastWorldFine) {
           const fineDelta = worldState.totalFines - lastWorldFine; career.applyFine({ amount: fineDelta, reason: "Exceso de velocidad" }); lastWorldFine = worldState.totalFines; updateCareerHud();
         }
