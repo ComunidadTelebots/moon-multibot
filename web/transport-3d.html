@@ -1240,7 +1240,8 @@
           wheelButton.textContent = "Volante: buscar";
           wheelButton.classList.remove("on");
         }
-        const worldState = worldEvents.update({ position: V.position, speed, dt, weather: currentWeather(), synchronizedTime: window.MoonConvoy.now() / 1000 });
+        const convoyNow = typeof window.MoonConvoy?.now === "function" ? window.MoonConvoy.now() : Date.now();
+        const worldState = worldEvents.update({ position: V.position, speed, dt, weather: currentWeather(), synchronizedTime: convoyNow / 1000 });
         nearestRoadsideService = activeOsmRoute ? (osmRoutePois.nearest(V.position) || routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null) : roadsideServices.update(V.position);
         const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso", charging: "Carga eléctrica" };
         document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
