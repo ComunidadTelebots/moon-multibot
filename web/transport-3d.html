@@ -93,11 +93,15 @@
       <div class="pill">Velocidad <b id="speed">0 km/h</b></div>
       <div class="pill">Ciudad <b id="city">Nova Liria</b></div>
       <div class="pill">Carretera <b id="roadEvent">Sin incidencias</b></div>
+      <div class="pill">Asistencia <b id="assistState">AEBS listo</b></div>
+      <div class="pill">Conductor <b id="fatigueState">Descansado</b></div>
+      <div class="pill">Daños <b id="damageState">0%</b></div>
     </div>
     <div class="controls">
       <button id="truck" class="on">Camión</button
       ><button id="bus">Autobús</button><button id="cam">Vista</button
-      ><button id="full">⛶</button>
+      ><button id="cruise">Crucero</button><button id="rest">Descansar</button
+      ><button id="parking" class="on">Freno P</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -190,7 +194,13 @@
         view = 0,
         speed = 0,
         steer = 0,
-        keys = {};
+        keys = {},
+        cruiseEnabled = false,
+        cruiseTarget = 80,
+        fatigue = 0,
+        damage = 0,
+        parkingBrake = true,
+        bumpTime = 0;
       const tire = mat(0x090b0e, 0.92),
         glass = new T.MeshPhysicalMaterial({
           color: 0x17445d,
@@ -394,11 +404,33 @@
           b.addEventListener(v, () => (keys[k] = 0)),
         );
       });
-      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); keys[k] = 1; };
+      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); keys[k] = 1; };
       onkeyup = (e) => (keys[e.key.toLowerCase()] = 0);
       addEventListener("blur", () => (keys = {}));
       truck.onclick = () => build("truck");
       document.querySelector("#bus").onclick = () => build("bus");
+      document.querySelector("#cruise").onclick = () => {
+        cruiseEnabled = !cruiseEnabled;
+        cruiseTarget = Math.max(45, Math.round(speed || 80));
+        document.querySelector("#cruise").classList.toggle("on", cruiseEnabled);
+        document.querySelector("#cruise").textContent = cruiseEnabled ? `Crucero ${cruiseTarget}` : "Crucero";
+      };
+      document.querySelector("#parking").onclick = () => {
+        parkingBrake = !parkingBrake;
+        document.querySelector("#parking").classList.toggle("on", parkingBrake);
+        document.querySelector("#parking").textContent = parkingBrake ? "Freno P activo" : "Freno P";
+      };
+      document.querySelector("#rest").onclick = () => {
+        if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
+        fatigue = 0; parkingBrake = true; cruiseEnabled = false;
+        document.querySelector("#cruise").classList.remove("on"); document.querySelector("#cruise").textContent = "Crucero";
+        document.querySelector("#fatigueState").textContent = "Descanso completado";
+      };
+      document.querySelector("#rescue").onclick = () => {
+        speed = 0; steer = 0; V.position.x = -5.5; V.rotation.set(0, 0, 0); parkingBrake = true;
+        damage = Math.max(0, damage - 15); cruiseEnabled = false;
+        document.querySelector("#assistState").textContent = "Vehículo recuperado";
+      };
       cam.onclick = () => {
         view = (view + 1) % 3;
         document.querySelector("#view").textContent = [
@@ -417,7 +449,24 @@
         last = now;
         const accelerating = keys.w || keys.arrowup, braking = keys.s || keys.arrowdown,
           left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
-        speed += ((accelerating ? 34 : 0) - (braking ? 55 : 7)) * dt;
+        if (accelerating || braking) { parkingBrake = false; document.querySelector("#parking").classList.remove("on"); document.querySelector("#parking").textContent = "Freno P"; }
+        const threats = traffic3d
+          .map((o) => ({ o, gap: V.position.z - o.position.z, lateral: Math.abs(V.position.x - o.position.x) }))
+          .filter((item) => item.gap > 0 && item.lateral < 2.8)
+          .sort((a, b) => a.gap - b.gap), nearest = threats[0];
+        let desired = cruiseEnabled ? cruiseTarget : 0;
+        if (cruiseEnabled && nearest && nearest.gap < 75) desired = Math.min(desired, Math.max(18, nearest.gap * 1.05));
+        const emergency = nearest && nearest.gap < Math.max(9, speed * 0.18);
+        if (emergency) {
+          speed = Math.max(0, speed - 95 * dt); cruiseEnabled = false;
+          document.querySelector("#cruise").classList.remove("on");
+          document.querySelector("#assistState").textContent = "AEBS frenando";
+        } else {
+          const cruisePower = cruiseEnabled ? (speed < desired ? 24 : speed > desired + 2 ? -30 : 0) : 0;
+          speed += ((accelerating ? 34 : cruisePower) - (braking ? 55 : !cruiseEnabled ? 7 : 0)) * dt;
+          document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC · ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
+        }
+        if (parkingBrake) speed = Math.max(0, speed - 80 * dt);
         speed = T.MathUtils.clamp(speed, 0, kind === "bus" ? 92 : 112);
         steer += (left ? -1 : right ? 1 : 0) * dt * 1.7;
         steer *= Math.pow(0.28, dt);
@@ -427,6 +476,18 @@
           10.5,
         );
         V.position.z -= speed * dt * 0.17;
+        fatigue = Math.min(100, fatigue + speed * dt * 0.00065);
+        if (fatigue > 82) {
+          steer += Math.sin(now * 0.0017) * dt * 0.08;
+          document.querySelector("#fatigueState").textContent = `Crítica ${Math.round(fatigue)}%`;
+        } else document.querySelector("#fatigueState").textContent = fatigue > 55 ? `Cansancio ${Math.round(fatigue)}%` : `Descanso ${Math.round(100 - fatigue)}%`;
+        if (nearest && nearest.gap < 4.5 && nearest.lateral < 2.4) {
+          speed *= 0.18; damage = Math.min(100, damage + 8); nearest.o.position.x += nearest.o.position.x > V.position.x ? 2 : -2;
+          document.querySelector("#assistState").textContent = "Colisión detectada";
+        }
+        if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); }
+        if (bumpTime > 0) { bumpTime -= dt; V.position.y = Math.abs(Math.sin(bumpTime * 34)) * 0.12; } else V.position.y *= 0.72;
+        document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
         if (V.position.z < -400) V.position.z = 400;
         V.rotation.z = steer * 0.07;
         document.querySelector("#speed").textContent =
