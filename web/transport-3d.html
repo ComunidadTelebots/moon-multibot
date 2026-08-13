@@ -75,6 +75,7 @@
       .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
       .map-panel h3 { margin: 0; }
       #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
+      .europe-panel{width:min(780px,calc(100vw - 28px));inset:70px 14px 80px auto}.europe-panel canvas{width:100%;height:auto;border-radius:12px}.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;color:#9db0bd;font-size:11px}.map-legend i{width:18px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px}.route-output{padding:9px;border-radius:9px;background:#0b1720;color:#62e8d2;line-height:1.4}
       .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(820px,96vw); height:205px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272ddd,#080b0eee); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
       .cockpit-panel[hidden]{display:none}.cockpit-grid{height:100%;display:grid;grid-template-columns:190px 1fr 190px;align-items:center;gap:16px}.steering-wheel{width:166px;height:166px;margin:auto;border:16px solid #171a1d;border-radius:50%;box-shadow:inset 0 0 0 4px #44515a,0 8px 18px #000;position:relative;transition:transform .08s linear}.steering-wheel:before,.steering-wheel:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:17px;border-radius:9px;background:#252c31;transform-origin:0 50%}.steering-wheel:before{transform:rotate(25deg)}.steering-wheel:after{transform:rotate(155deg)}.wheel-hub{position:absolute;inset:43px;border:4px solid #56636b;border-radius:50%;background:radial-gradient(circle,#34434a,#111619);display:grid;place-items:center;color:#50e5d0;font-weight:900;z-index:2}.dash-screen{border:2px solid #425765;border-radius:18px;padding:10px 14px;background:linear-gradient(145deg,#071a23,#020609);box-shadow:inset 0 0 26px #1ec6bc18}.dash-main{display:flex;align-items:end;justify-content:center;gap:8px;color:#dff}.dash-speed{font-size:56px;font-weight:800;line-height:.9}.dash-unit{color:#7f9ba8}.dash-row{display:flex;justify-content:space-between;margin-top:12px;color:#8edfd4}.rpm-track{height:7px;margin-top:10px;border-radius:5px;background:#15262b;overflow:hidden}.rpm-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de1bd,#e8d64b,#ef4b48);transition:width .1s}.dash-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.dash-buttons button{padding:8px 5px;font-size:11px;background:#11191e}.dash-buttons button.on{background:#143b37;border-color:#45d8c2}.warning{color:#ff725f!important}
       @media (max-width: 700px) {
@@ -135,6 +136,7 @@
       ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
       <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
       <button id="achievementsButton">Logros</button>
+      <button id="europeMapButton">Mapa de Europa</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -143,6 +145,7 @@
     </div>
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Ruta del Continente</h3><button id="mapClose">×</button></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
+    <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Red europea de carreteras</h3><button id="europeMapClose">×</button></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Ruta elegida</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div></div>
@@ -156,6 +159,7 @@
       import { createTruckPhysics } from "./transport-physics.js";
       import { createProceduralTransportTextures } from "./transport-textures.js";
       import { createWorldEvents } from "./transport-world-events.js";
+      import { mountEuropeRoadMap } from "./transport-europe-map.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -723,6 +727,10 @@
       const mapPanel = document.querySelector("#mapPanel"), mapCanvas = document.querySelector("#routeMap"), mapCtx = mapCanvas.getContext("2d");
       document.querySelector("#mapButton").onclick = () => { mapPanel.hidden = !mapPanel.hidden; drawRouteMap(); };
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
+      const europeMapPanel=document.querySelector("#europeMapPanel");
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"));
+      document.querySelector("#europeMapButton").onclick=()=>{mapPanel.hidden=true;achievementsPanel.hidden=true;europeMapPanel.hidden=false;europeMap.draw()};
+      document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
       function drawRouteMap() {
         const w = mapCanvas.width, h = mapCanvas.height, routeX = w / 2;
         mapCtx.clearRect(0, 0, w, h); mapCtx.fillStyle = "#0b1822"; mapCtx.fillRect(0, 0, w, h);
