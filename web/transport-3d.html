@@ -144,7 +144,7 @@
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div></div>
       <div class="dash-buttons"><button data-cockpit="lights">💡 Luces</button><button data-cockpit="wipers">🌧 Limpia</button><button data-cockpit="hazard">⚠ Emergencia</button><button data-cockpit="retarder">R Retarder</button><button data-cockpit="cruise">◉ Crucero</button><button data-cockpit="parking">P Freno</button></div></div>
     </section>
-    <script type="module">
+    <script src="/games-logistics-network.js"></script><script type="module">
       import * as T from "./vendor/three.module.min.js";
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
       import { createTransportCareer } from "./transport-career.js";
@@ -323,6 +323,7 @@
         workTool = "palletJack",
         heldPallet = null,
         loadedPallets = 0,
+        networkShipmentCreated = false,
         headlightsOn = false,
         manualWipers = false,
         hazardsOn = false,
@@ -697,6 +698,10 @@
           heldPallet.userData.loaded = true; heldPallet.visible = false; heldPallet = null; loadedPallets++;
           document.querySelector("#cargoState").textContent = `${loadedPallets}/${warehousePallets.length} palés`;
           document.querySelector("#workState").textContent = loadedPallets === warehousePallets.length ? "Carga completa · vuelve a conducir" : "Palé cargado · recoge otro";
+          if (loadedPallets === warehousePallets.length && !networkShipmentCreated) {
+            const shipment = window.MoonLogistics?.create("Rutas del Continente 3D"); networkShipmentCreated = true;
+            if (shipment) document.querySelector("#cargoState").textContent = `${shipment.cargo} · lista para ferrocarril`;
+          }
         }
         syncWorkTool();
       }
