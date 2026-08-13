@@ -121,6 +121,7 @@
       <div class="pill">Nivel <b id="levelState">1</b></div>
       <div class="pill">Convoy <b id="convoyState">Desconectado</b></div>
       <div class="pill">Especial <b id="specialState">Sin carga</b></div>
+      <div class="pill">Servicio <b id="nearService">En ruta</b></div>
     </div>
     <div class="controls">
       <button id="truck" class="on">Camión</button
@@ -165,6 +166,7 @@
       import { loadPhotorealAtlas } from "./transport-photoreal-atlas.js";
       import { createRouteScenery } from "./transport-route-scenery.js";
       import { createRoadSurfaceEnhancements } from "./transport-road-surface.js";
+      import { createRoadsideServices } from "./transport-roadside-services.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -212,6 +214,11 @@
         };
       const worldLength = 6000;
       const detailedRoad = createRoadSurfaceEnhancements({ THREE: T, scene: S, qualityLevel, roadLength: worldLength });
+      const roadsideServices = createRoadsideServices({
+        THREE: T, scene: S, qualityLevel, roadLength: worldLength,
+        atlasUrl: "./generated-textures/roadside-services-atlas-v1.png",
+      });
+      roadsideServices.ready.catch(error => console.warn("No se pudo cargar el atlas de servicios", error));
       let x = box(500, 1, worldLength, 0x4d8943);
       x.position.y = -0.6;
       S.add(x);
@@ -365,7 +372,8 @@
         headlightsOn = false,
         manualWipers = false,
         hazardsOn = false,
-        retarderOn = false;
+        retarderOn = false,
+        nearestRoadsideService = null;
       const tire = new T.MeshStandardMaterial({ color: 0x222222, ...textures.maps.tyre, roughness: 0.92 }),
         glass = new T.MeshPhysicalMaterial({
           color: 0x17445d,
@@ -849,6 +857,7 @@
         mapCtx.setLineDash([]); mapCtx.font = "600 11px system-ui"; mapCtx.textBaseline = "middle";
         cityData.forEach((city) => { const x = mapX(0), y = mapY(city.z); if (y < -20 || y > h + 20) return; mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(x, y, 6, 0, Math.PI * 2); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = "left"; mapCtx.fillText(`${city.name} · ${Math.round(Math.abs(city.z - V.position.z))} m`, x + 11, y); });
         const markers = [{ x: roadworks.position.x, z: roadworks.position.z + 70, color: "#ff9d32", label: "Obras" }, { x: 0, z: -250, color: "#a9b7c3", label: "Túnel" }];
+        roadsideServices.services.forEach(service => markers.push({ x: service.side * 39, z: service.z, color: service.type === "fuel" ? "#47dfc7" : service.type === "workshop" ? "#f1ad45" : "#69aaf2", label: service.type === "fuel" ? "Gasolinera" : service.type === "workshop" ? "Taller" : "Descanso" }));
         traffic3d.forEach((vehicle) => markers.push({ x: vehicle.position.x, z: vehicle.position.z, color: "#e8eef2", label: "Tráfico" }));
         markers.forEach((marker) => { const x = mapX(marker.x), y = mapY(marker.z); if (x < 0 || x > w || y < 0 || y > h) return; mapCtx.fillStyle = marker.color; mapCtx.fillRect(x - 4, y - 6, 8, 12); if (range <= 280) { mapCtx.fillStyle = "#b9cbd3"; mapCtx.textAlign = "left"; mapCtx.fillText(marker.label, x + 7, y); } });
         mapCtx.save(); mapCtx.translate(cx, cy); mapCtx.rotate(-V.rotation.y); mapCtx.fillStyle = "#55f0c8"; mapCtx.shadowColor = "#55f0c8"; mapCtx.shadowBlur = 10; mapCtx.beginPath(); mapCtx.moveTo(0, -13); mapCtx.lineTo(-8, 10); mapCtx.lineTo(0, 6); mapCtx.lineTo(8, 10); mapCtx.closePath(); mapCtx.fill(); mapCtx.restore();
@@ -869,7 +878,10 @@
       };
       document.querySelector("#serviceButton").onclick = () => {
         if (speed > 1) { document.querySelector("#workState").textContent = "Detén el camión para entrar al taller"; return; }
-        career.refuel(); career.repair(100); updateCareerHud(); document.querySelector("#workState").textContent = "Servicio completado";
+        if (!nearestRoadsideService || nearestRoadsideService.distance > 72 || !["workshop", "fuel"].includes(nearestRoadsideService.type)) { document.querySelector("#workState").textContent = "Acércate a un taller o gasolinera"; return; }
+        if (nearestRoadsideService.type === "fuel") { career.refuel(); document.querySelector("#workState").textContent = "Depósito lleno"; }
+        else { career.repair(100); document.querySelector("#workState").textContent = "Reparación completada"; }
+        updateCareerHud();
       };
       const achievementsPanel = document.querySelector("#achievementsPanel"), achievementList = document.querySelector("#achievementList");
       function renderAchievements() { achievementList.innerHTML = window.TransportAchievements.list().map(item => `<div class="achievement-row ${item.unlocked ? "done" : ""}"><i>${item.icon}</i><span><b>${item.name}</b><small style="display:block">${item.unlocked ? "Desbloqueado" : "Pendiente"}</small></span></div>`).join(""); }
@@ -889,6 +901,7 @@
       updateCareerHud();
       document.querySelector("#rest").onclick = () => {
         if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
+        if (!nearestRoadsideService || nearestRoadsideService.type !== "rest" || nearestRoadsideService.distance > 72) { document.querySelector("#fatigueState").textContent = "Busca un área de descanso"; return; }
         fatigue = 0; parkingBrake = true; cruiseEnabled = false;
         document.querySelector("#cruise").classList.remove("on"); document.querySelector("#cruise").textContent = "Crucero";
         document.querySelector("#fatigueState").textContent = "Descanso completado";
@@ -930,6 +943,11 @@
           wheelButton.classList.remove("on");
         }
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
+        nearestRoadsideService = roadsideServices.update(V.position);
+        const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso" };
+        document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
+          ? `${serviceNames[nearestRoadsideService.type]} · ${Math.round(nearestRoadsideService.distance)} m`
+          : "En ruta";
         const specialFrame = specialTransport.update({ dt, speed, laneOffset: V.position.x });
         window.MoonConvoy.update({ game: "truck", x: V.position.x, y: V.position.z, speed, heading: steer, cargo: career.activeContract?.cargo?.name || "" });
         window.TransportAchievements.update({ distance: career.state.progress.distanceKm, speed, loaded: loadedPallets, rain: weatherMode === 1, night: weatherMode === 2, convoyPlayers: window.MoonConvoy.state.players.length, damage: Math.round(damage) });
