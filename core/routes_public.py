@@ -331,6 +331,7 @@ def public_network_instant(service):
                     "id": str(row.get("id") or hashlib.sha256(url.encode()).hexdigest()[:16]),
                     "text": str(row.get("text") or "")[:5000], "date": str(row.get("date") or "")[:100],
                     "views": str(row.get("views") or "")[:30], "image": str(row.get("photoUrl") or "")[:1000],
+                    "mediaType": str(row.get("mediaType") or ("photo" if row.get("hasPhoto") else ""))[:20],
                     "url": url,
                 })
             payload = {"ok": True, "mode": "network_instant", "service": service, "channel": channel,
