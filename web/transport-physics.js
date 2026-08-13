@@ -29,6 +29,10 @@ export function createTruckPhysics(options = {}) {
   let steerAngle = 0;
   let suspension = 0;
   let suspensionVelocity = 0;
+  let suspensionPitch = 0;
+  let suspensionPitchVelocity = 0;
+  let suspensionRoll = 0;
+  let suspensionRollVelocity = 0;
   let gear = 1;
   let rpm = 600;
   let shiftTimer = 0;
@@ -40,6 +44,7 @@ export function createTruckPhysics(options = {}) {
   function reset(speedKmh = 0) {
     velocity = Math.max(0, speedKmh / 3.6);
     acceleration = yawRate = steerAngle = suspension = suspensionVelocity = 0;
+    suspensionPitch = suspensionPitchVelocity = suspensionRoll = suspensionRollVelocity = 0;
     trailerAngle = trailerYawRate = filteredCrosswind = shiftTimer = 0;
     gear = 1;
     rpm = 600;
@@ -64,14 +69,32 @@ export function createTruckPhysics(options = {}) {
     const steering = clamp(input.steering || 0, -1, 1);
     const wetness = clamp(input.wetness || 0, 0, 1);
     const offroad = Boolean(input.offroad);
+    const surface = offroad ? "offroad" : String(input.surface || "asphalt").toLowerCase();
     const roadGrade = clamp(input.roadGrade ?? input.slope ?? 0, -0.18, 0.18);
     const damage = clamp(input.damage || 0, 0, 100);
     const cargoMass = clamp(input.cargoMass ?? options.cargoMass ?? 0, 0, 40000);
     const cargoHeight = clamp(input.cargoHeight ?? options.cargoHeight ?? 1.15, 0.4, 2.8);
     const mass = tractorMass + cargoMass;
     const loadRatio = cargoMass / Math.max(1, mass);
-    // Approximate dry/wet/off-road friction, reduced progressively rather than abruptly.
-    const grip = clamp((offroad ? 0.5 : 0.86) * (1 - wetness * 0.35), 0.24, 0.9);
+    // Original approximate surface coefficients; callers may add surfaces without breaking defaults.
+    const surfaceGrip = {
+      asphalt: 0.88,
+      concrete: 0.92,
+      cobblestone: 0.7,
+      gravel: 0.55,
+      dirt: 0.48,
+      mud: 0.34,
+      snow: 0.3,
+      ice: 0.14,
+      offroad: 0.48,
+    }[surface] ?? 0.82;
+    const waterDepth = clamp(input.waterDepth ?? wetness * 0.006, 0, 0.02);
+    // Water-film lift grows smoothly with speed/depth; no sudden binary aquaplaning switch.
+    const aquaplaningSpeed = 25.5 * Math.sqrt(0.006 / Math.max(0.001, waterDepth));
+    const aquaplaning = wetness * clamp((velocity - aquaplaningSpeed) / 16, 0, 1);
+    const wetGripLoss = wetness * (surface === "asphalt" || surface === "concrete" ? 0.22 : 0.3);
+    const gripFactor = clamp((1 - wetGripLoss) * (1 - aquaplaning * 0.68), 0.18, 1);
+    const grip = clamp(surfaceGrip * gripFactor, 0.08, 0.92);
     const engineHealth = clamp(1 - damage * 0.006, 0.25, 1);
 
     const wheelRpm = velocity / (2 * Math.PI * wheelRadius) * 60;
@@ -97,7 +120,11 @@ export function createTruckPhysics(options = {}) {
     const tractionLimit = mass * 9.81 * grip * drivenLoadShare;
     const tractionForce = Math.min(drivenForce, tractionLimit);
 
-    const rollingCoefficient = offroad ? 0.04 : 0.0065 + wetness * 0.001;
+    const surfaceRolling = {
+      asphalt: 0.0065, concrete: 0.006, cobblestone: 0.012, gravel: 0.026,
+      dirt: 0.032, mud: 0.06, snow: 0.035, ice: 0.008, offroad: 0.04,
+    }[surface] ?? 0.008;
+    const rollingCoefficient = surfaceRolling + wetness * (surface === "mud" ? 0.018 : 0.001);
     const rollingForce = mass * 9.81 * rollingCoefficient;
     const aeroForce = 0.5 * airDensity * dragArea * velocity * velocity;
     const gradeForce = mass * 9.81 * roadGrade;
@@ -146,16 +173,31 @@ export function createTruckPhysics(options = {}) {
     trailerAngle -= trailerAngle * Math.min(1, dt * (0.22 + velocity * 0.018));
     trailerAngle = clamp(trailerAngle, -0.82, 0.82);
 
-    const bump = Math.sin((input.distance || 0) * (offroad ? 5.5 : 1.7)) * (offroad ? 0.16 : 0.025);
+    const roughness = {
+      asphalt: 0.022, concrete: 0.018, cobblestone: 0.065, gravel: 0.09,
+      dirt: 0.12, mud: 0.1, snow: 0.055, ice: 0.018, offroad: 0.16,
+    }[surface] ?? 0.03;
+    const bumpFrequency = surface === "cobblestone" ? 8.5 : offroad ? 5.5 : 1.7;
+    const bump = Math.sin((input.distance || 0) * bumpFrequency) * roughness;
     suspensionVelocity += (bump - suspension) * (28 - loadRatio * 7) * dt;
     suspensionVelocity *= Math.pow(0.08, dt);
     suspension += suspensionVelocity * dt;
     const lateralG = Math.abs(lateralAcceleration) / 9.81;
     const centreOfGravity = 1.05 + loadRatio * cargoHeight;
+    // Damped cab/chassis response: braking pitches forward, cornering rolls outward.
+    const pitchTarget = clamp(-acceleration / 9.81 * (0.11 + loadRatio * 0.035) - roadGrade * 0.16, -0.13, 0.11);
+    suspensionPitchVelocity += (pitchTarget - suspensionPitch) * (18 - loadRatio * 3.5) * dt;
+    suspensionPitchVelocity *= Math.pow(0.055, dt);
+    suspensionPitch += suspensionPitchVelocity * dt;
+    const signedLateralG = lateralAcceleration / 9.81;
+    const rollTarget = clamp(-signedLateralG * centreOfGravity * 0.09, -0.17, 0.17);
+    suspensionRollVelocity += (rollTarget - suspensionRoll) * (15 - loadRatio * 3) * dt;
+    suspensionRollVelocity *= Math.pow(0.07, dt);
+    suspensionRoll += suspensionRollVelocity * dt;
     // Static-stability-factor approximation, softened for suspension/compliance.
     const rolloverThreshold = clamp(trackWidth / (2 * centreOfGravity) * 0.78, 0.28, 0.78);
     const rolloverRisk = clamp(lateralG / rolloverThreshold, 0, 1.5);
-    const bodyRoll = -Math.sign(yawRate || steering) * clamp(lateralG * centreOfGravity * 0.052, 0, 0.16);
+    const bodyRoll = suspensionRoll;
 
     return {
       speedKmh: velocity * 3.6,
@@ -164,7 +206,11 @@ export function createTruckPhysics(options = {}) {
       lateralMovement: lateralAcceleration * dt * 0.34,
       bodyRoll,
       suspension,
+      suspensionPitch,
+      suspensionRoll,
       grip,
+      gripFactor,
+      aquaplaning,
       lateralG,
       gear,
       rpm,
