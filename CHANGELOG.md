@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## v18.25.1 - 2026-08-13 - Envolvente interior de cabina corregida
+
+- Sustituye las cuatro superficies rectangulares que cerraban el interior por un techo abovedado, una pared trasera arqueada y dos revestimientos laterales contorneados.
+- Marca de forma semántica la piel exterior de la cabina y la oculta únicamente en las cámaras interiores 1 y 2, evitando que techo, parabrisas, pilares y puertas exteriores tapen el puesto de conducción.
+- Mantiene visibles el interior modelado, cristales interiores, espejos, vehículo, remolque y entorno; las cámaras exteriores conservan la carrocería completa.
+- Verificación local: sintaxis válida y respuestas HTTP 200 para el simulador, modelo interior, carrocería exterior y acristalamiento.
+
 ## v18.25.0 - 2026-08-13 - Red logística mundial y hubs de carga 3D
 
 ### Auditoría previa

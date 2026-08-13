@@ -9,7 +9,7 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   const resources = [dark, rubber, lamp, amber, red, trailerWhite];
   const add = (geometry, material, name, position, rotation = [0,0,0], parent = root) => {
     resources.push(geometry); const mesh = new T.Mesh(geometry, material); mesh.name = name;
-    mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.castShadow = mesh.receiveShadow = true; parent.add(mesh); return mesh;
+    mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.castShadow = mesh.receiveShadow = true; mesh.userData.exteriorCabSkin = parent === root && /cab|roof|windshield|pillar|door|visor/.test(name); parent.add(mesh); return mesh;
   };
   const box = (size, material, name, position, rotation) => add(new T.BoxGeometry(...size), material, name, position, rotation);
   function taperedCabGeometry() {

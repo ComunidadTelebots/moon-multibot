@@ -44,6 +44,21 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     const geometry = new T.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSegments: qualityLevel > 1 ? 3 : 1, bevelSize: .035, bevelThickness: .035, curveSegments: qualityLevel > 1 ? 12 : 5 });
     geometry.center(); return add(geometry, mat, name, position, rotation, parent);
   };
+  const curvedRoofGeometry = (width, length, rise, segments = 12) => {
+    const positions=[],uvs=[],indices=[];
+    for(let row=0;row<2;row++)for(let column=0;column<=segments;column++){
+      const t=column/segments,x=(t-.5)*width,y=Math.cos((t-.5)*Math.PI)*rise,z=(row-.5)*length;
+      positions.push(x,y,z);uvs.push(t,row);
+    }
+    for(let column=0;column<segments;column++){const a=column,b=column+1,c=segments+1+column,d=c+1;indices.push(a,c,b,b,c,d)}
+    const geometry=new T.BufferGeometry();geometry.setAttribute("position",new T.Float32BufferAttribute(positions,3));geometry.setAttribute("uv",new T.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);geometry.computeVertexNormals();return geometry;
+  };
+  const rearShellGeometry = (width,height,depth,segments=12) => {
+    const shape=new T.Shape();shape.moveTo(-width*.5,0);shape.lineTo(-width*.5,height*.72);
+    for(let i=0;i<=segments;i++){const t=i/segments,x=-width*.5+t*width,y=height*.72+Math.sin(t*Math.PI)*height*.28;shape.lineTo(x,y)}
+    shape.lineTo(width*.5,0);shape.closePath();const geometry=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:.04,bevelThickness:.035,bevelSegments:qualityLevel>1?3:1,curveSegments:segments});geometry.center();return geometry;
+  };
+  const sideLinerGeometry = (length,height,depth) => { const shape=new T.Shape();shape.moveTo(-length*.5,-height*.5);shape.lineTo(length*.5,-height*.42);shape.quadraticCurveTo(length*.56,height*.1,length*.34,height*.5);shape.lineTo(-length*.38,height*.5);shape.quadraticCurveTo(-length*.55,height*.05,-length*.5,-height*.5);const geometry=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:.025,bevelThickness:.02,bevelSegments:qualityLevel>1?2:1});geometry.center();return geometry; };
   const frontZ = bus ? -5.93 : -5.79;
   roundedPanel("dashboard_swept_shell", bus ? 4.72 : 4.42, .68, .72, .18, [0, 2.22, frontZ], soft, [-.06, 0, 0]);
   roundedPanel("dashboard_upper_pad", bus ? 4.82 : 4.52, .18, 1.25, .09, [0, 2.63, frontZ + .12], polymer, [-.04, 0, 0]);
@@ -140,9 +155,9 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   root.userData.updateMirrors = glazing.userData.update;
   box("rubber_floor", [4.1, .04, 3.4], [0, .47, frontZ + 1.12], rubber);
   roundedPanel("central_engine_tunnel", 1.12, .38, 2.25, .18, [0,.68,frontZ+1.5], polymer);
-  box("cab_rear_wall", [4.55,3.72,.14], [0,2.5,frontZ+4.2], soft);
-  box("cab_ceiling_headliner", [4.38,.12,4.5], [0,4.73,frontZ+1.68], headliner);
-  for (const side of [-1,1]) box("sleeper_side_liner", [.12,2.4,1.55], [side*2.2,2.55,frontZ+3.45], headliner);
+  add(rearShellGeometry(4.42,3.72,.14),soft,"sculpted_cab_rear_shell",[0,2.5,frontZ+4.2]);
+  add(curvedRoofGeometry(4.34,4.55,.34,qualityLevel>1?18:10),headliner,"curved_cab_headliner",[0,4.46,frontZ+1.68]);
+  for (const side of [-1,1]) add(sideLinerGeometry(1.72,2.5,.1),headliner,"contoured_sleeper_side_liner",[side*2.13,2.62,frontZ+3.37],[0,side*Math.PI/2,0]);
   if (!bus) {
     roundedPanel("sleeper_mattress", 4.05, .38, 1.42, .17, [0,1.05,frontZ+3.55], sleeperFabric);
     for(let seam=-1.5;seam<=1.5;seam+=.5) box("mattress_quilt_seam",[.018,.012,1.2],[seam,1.255,frontZ+3.55],aluminium);
