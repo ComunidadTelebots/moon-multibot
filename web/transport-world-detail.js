@@ -10,6 +10,7 @@ export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {}
     soil: new T.MeshStandardMaterial({ color: 0x443426, roughness: 1 }),
     barkDark: new T.MeshStandardMaterial({ color: 0x402a1d, roughness: 1 }),
   };
+  mats.tyre.userData.vehicleSurface = "tyre";
   mats.leaves = [0x245f39, 0x2d7042, 0x397d48, 0x1e5134].map(color => new T.MeshStandardMaterial({ color, roughness: .94 }));
   const mesh = (geometry, material, name, position, parent) => { const item = new T.Mesh(geometry, material); item.name = name; item.position.set(...position); item.castShadow = item.receiveShadow = true; parent.add(item); return item; };
   function createBuilding({ width, height, depth, color, roadSide = 1, seed = 0 }) {
@@ -90,6 +91,7 @@ export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {}
     const root = new T.Group(); root.name = "detailed_traffic_vehicle";
     const type = ["sedan", "suv", "van"][index % 3], length = type === "van" ? 5.6 : type === "suv" ? 4.9 : 4.65, height = type === "van" ? 2.25 : type === "suv" ? 1.72 : 1.42;
     const paint = new T.MeshPhysicalMaterial({ color, roughness: .24, metalness: .38, clearcoat: .92, clearcoatRoughness: .13 });
+    paint.userData.vehicleSurface = type === "sedan" ? "paint" : "commercial";
     const lower = mesh(new T.BoxGeometry(2.22, .76, length - .45, 2, 2, qualityLevel > 1 ? 5 : 2), paint, "sculpted_body", [0, .78, 0], root);
     const hoodLength = type === "van" ? .72 : 1.28;
     const hood = mesh(new T.BoxGeometry(2.12, .48, hoodLength, 2, 2, 2), paint, "bonnet", [0, 1.12, -length / 2 + hoodLength * .55], root);

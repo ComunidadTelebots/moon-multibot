@@ -64,6 +64,7 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
   const dark = material({ color: 0x101318, roughness: 0.68 });
   const glass = material({ color: 0x9edfff, roughness: 0.08, metalness: 0.12, transparent: true, opacity: 0.58 });
   const grass = material({ color: 0x526d3d, roughness: 1 });
+  yellow.userData.vehicleSurface = "machinery";
 
   function canvasMaterial(draw, width = 256, height = 256) {
     if (typeof document === "undefined") return white;
@@ -218,6 +219,7 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     addBox(group, [0.18, 1.4, 0.18], [-2, 0.7, -10], steel);
     addBox(group, [0.18, 1.4, 0.18], [2, 0.7, -10], steel);
     const excavator = new T.Group();
+    excavator.name = "roadwork_excavator";
     addBox(excavator, [2.4, 0.65, 1.5], [0, 0.55, 0], yellow);
     addBox(excavator, [1.2, 1.1, 1.2], [-0.25, 1.35, 0], glass);
     const arm = addBox(excavator, [0.28, 0.28, 3.2], [0.6, 1.45, -1.35], yellow);
@@ -235,6 +237,7 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
   function accident(x, z) {
     const group = new T.Group();
     const car = new T.Group();
+    car.name = "accident_vehicle";
     addBox(car, [2, 0.65, 4.2], [0, 0.65, 0], red, 0.13);
     addBox(car, [1.65, 0.72, 1.9], [0, 1.25, -0.2], glass, 0.13);
     car.rotation.y = 0.42;
@@ -258,6 +261,7 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
 
   function police(x, z) {
     const group = new T.Group();
+    group.name = "police_vehicle";
     addBox(group, [2.15, 0.7, 4.5], [0, 0.65, 0], white);
     addBox(group, [1.7, 0.7, 2], [0, 1.28, -0.25], glass);
     addBox(group, [2.18, 0.2, 2.2], [0, 0.72, 0.2], blue);
