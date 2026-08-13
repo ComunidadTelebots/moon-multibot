@@ -264,13 +264,29 @@
         const patch = box(5.2, 0.025, 14, 0x20252a);
         patch.position.set(z % 240 ? -5.5 : 5.5, 0.145, z); S.add(patch);
       }
-      for (const data of [{ z: 215, side: 1 }, { z: -35, side: -1 }, { z: -285, side: 1 }]) {
+      function directionSignMaterial(data) {
+        const canvas = document.createElement("canvas"); canvas.width = 768; canvas.height = 352;
+        const x = canvas.getContext("2d"); x.fillStyle = "#075a9b"; x.fillRect(0, 0, canvas.width, canvas.height);
+        x.strokeStyle = "#f5f7f3"; x.lineWidth = 14; x.strokeRect(9, 9, canvas.width - 18, canvas.height - 18);
+        x.fillStyle = "#f5f7f3"; x.textAlign = "left"; x.textBaseline = "middle";
+        x.font = "700 66px system-ui"; x.fillText(data.destination, 42, 104);
+        x.font = "600 45px system-ui"; x.fillText(data.secondary, 42, 202);
+        x.textAlign = "right"; x.font = "800 72px system-ui"; x.fillText("↑", 704, 95);
+        x.font = "700 42px system-ui"; x.fillText(`${data.distance} km`, 704, 202);
+        x.fillStyle = "#ffffff"; x.fillRect(42, 269, 150, 55); x.fillStyle = "#075a9b"; x.textAlign = "center"; x.font = "800 37px system-ui"; x.fillText(data.road, 117, 297);
+        const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = qualityLevel > 1 ? 8 : 2;
+        return new T.MeshStandardMaterial({ map: texture, roughness: .42, metalness: .08 });
+      }
+      for (const data of [
+        { z: 215, side: 1, destination: "NOVA LIRIA", secondary: "Puerto Alba", distance: 3, road: "A-10" },
+        { z: -35, side: -1, destination: "VALLEVERDE", secondary: "Centro urbano", distance: 2, road: "E-27" },
+        { z: -285, side: 1, destination: "BAHÍA SOLAR", secondary: "Puerto · Logística", distance: 1, road: "A-42" },
+      ]) {
         const sign = new T.Group();
-        const pole = new T.Mesh(new T.CylinderGeometry(0.08, 0.11, 3.4, 10), mat(0x8c989e, 0.3, 0.75));
-        pole.position.y = 1.7; sign.add(pole);
-        const board = box(2.8, 1.4, 0.12, 0x176b48); board.position.y = 3.25; sign.add(board);
-        const inset = box(2.45, 0.12, 0.14, 0xf4f6e9); inset.position.set(0, 3.25, -0.1); sign.add(inset);
-        sign.position.set(data.side * 20.5, 0, data.z); sign.rotation.y = data.side < 0 ? Math.PI : 0; S.add(sign);
+        for (const px of [-1.9, 1.9]) { const pole = new T.Mesh(new T.CylinderGeometry(0.09, 0.13, 4.25, 12), mat(0x8c989e, 0.3, 0.75)); pole.position.set(px, 2.13, 0); pole.castShadow = true; sign.add(pole); }
+        const board = new T.Mesh(new T.BoxGeometry(5.5, 2.55, .18), mat(0x064879, .42, .16)); board.position.y = 5.35; board.castShadow = true; sign.add(board);
+        const face = new T.Mesh(new T.PlaneGeometry(5.28, 2.32), directionSignMaterial(data)); face.position.set(0, 5.35, .101); sign.add(face);
+        sign.position.set(data.side * 20.5, 0.12, data.z); S.add(sign);
       }
       const cityRadius = [3, 5, 7, 9][qualityLevel], cityRows = [3, 4, 6, 8][qualityLevel];
       for (let n = -cityRadius; n <= cityRadius; n++)
