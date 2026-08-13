@@ -61,6 +61,7 @@
       body:not(.controls-expanded) .hud .pill:nth-child(n+5) { display:none; }
       body:not(.controls-expanded) .controls:not(.drive) button:not(#truck):not(#bus):not(#cam):not(#cruise):not(#parking):not(#mapButton):not(#moreControls) { display:none; }
       #moreControls { border-color:#4ce6d0;color:#4ce6d0; }
+      .osm-attribution{position:fixed;z-index:2;right:8px;bottom:7px;padding:3px 7px;border-radius:6px;background:#07101dcc;color:#b9cbd3;font-size:10px;text-decoration:none}.osm-attribution:hover{color:#4ce6d0}
       .map-panel {
         position: fixed;
         z-index: 8;
@@ -146,6 +147,7 @@
       ><button data-key="s">Freno</button><button data-key="w">Acelerar</button
       ><button class="mobile" data-key="d">▶</button>
     </div>
+    <a class="osm-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posición</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">−</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">×</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
     <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa · posición del camión</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">×</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posición/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
@@ -173,6 +175,7 @@
       import { createRoadsideServices } from "./transport-roadside-services.js";
       import { createVehicleTextureSystem } from "./transport-vehicle-textures.js";
       import { createDetailedTruckExterior } from "./transport-truck-exterior.js";
+      import { createOsmScenery } from "./transport-osm-scenery.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -231,6 +234,10 @@
         atlasUrl: "./generated-textures/roadside-services-atlas-v1.png",
       });
       roadsideServices.ready.catch(error => console.warn("No se pudo cargar el atlas de servicios", error));
+      const osmScenery = createOsmScenery({ THREE:T, scene:S, qualityLevel, city:"madrid" });
+      osmScenery.load().then(counts => {
+        document.querySelector("#roadEvent").title = `OSM: ${counts.trees} árboles, ${counts.gardens} jardines y ${counts.roundabouts} rotondas`;
+      }).catch(error => console.warn("OpenStreetMap no disponible; se mantiene el escenario local", error));
       let x = box(500, 1, worldLength, 0x4d8943);
       x.position.y = -0.6;
       S.add(x);
