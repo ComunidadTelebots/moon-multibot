@@ -180,6 +180,7 @@
       import { createEmergencyFleet } from "./transport-emergency-fleet.js";
       import { createOsmRoutePlanner, projectRouteToWorld } from "./transport-osm-routing.js";
       import { createRouteNavigation } from "./transport-route-navigation.js";
+      import { createOsmCorridor } from "./transport-osm-corridor.js";
       import { createOsmRoadMesh } from "./transport-osm-road-mesh.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
@@ -205,6 +206,7 @@
       const osmRoutePlanner = createOsmRoutePlanner();
       let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
       const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
+      const osmCorridor = createOsmCorridor({THREE:T,scene:S,qualityLevel});
       const routeNavigation = createRouteNavigation();
       let routeRuntime;
       const textures = createProceduralTransportTextures(T, qualityLevel);
@@ -986,7 +988,7 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute);routeRuntime.setRoute(activeWorldRoute);routeNavigation.setRoute(route);physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`).catch(error=>console.warn("Corredor OSM no disponible",error));physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
@@ -1111,9 +1113,11 @@
           .map((o) => ({ o, gap: V.position.z - o.position.z, lateral: Math.abs(V.position.x - o.position.x) }))
           .filter((item) => item.gap > 0 && item.lateral < 2.8)
           .sort((a, b) => a.gap - b.gap), nearest = threats[0];
+        const osmThreat = activeOsmRoute ? routeRuntime.actors.threat : null;
         let desired = cruiseEnabled ? cruiseTarget : 0;
+        if (cruiseEnabled && osmThreat) desired = Math.min(desired, Math.max(12, osmThreat.distance * .95));
         if (cruiseEnabled && nearest && nearest.gap < 75) desired = Math.min(desired, Math.max(18, nearest.gap * 1.05));
-        const emergency = nearest && nearest.gap < Math.max(9, speed * 0.18);
+        const emergency = nearest && nearest.gap < Math.max(9, speed * 0.18) || osmThreat?.level === "critical";
         let physicalFrame = null;
         if (emergency) {
           speed = Math.max(0, speed - 95 * dt); cruiseEnabled = false;
@@ -1149,7 +1153,8 @@
           routeLaneOffset = T.MathUtils.clamp(routeLaneOffset + (physicalFrame?.lateralMovement || steer * speed * dt * .025), -10, 10);
           const routePose = routeRuntime.sampleAt(Math.min(physicalDistance, routeRuntime.length), routeLaneOffset);
           if (routePose) { V.position.x=routePose.x; V.position.z=routePose.z; V.rotation.y=routePose.heading; }
-          routeRuntime.update(dt,{playerDistance:physicalDistance,speed});
+          routeRuntime.update(dt,{playerDistance:physicalDistance,playerSpeed:speed/3.6,playerDirection:1});
+          osmCorridor.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[450,700,1100,1600][qualityLevel]});
         } else {
           V.position.x = T.MathUtils.clamp(V.position.x + (physicalFrame?.lateralMovement || steer * speed * dt * .025),-17.5,17.5);
           if (!onFoot) V.position.z -= physicalFrame?.forwardMeters || speed * dt / 3.6;
