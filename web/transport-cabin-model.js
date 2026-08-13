@@ -21,6 +21,7 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const aluminium = material("brushed_aluminium", 0xffffff, .28, .76, { map:aluminiumMap,bumpMap:aluminiumMap,bumpScale:.008,clearcoat: .22 });
   const piano = material("black_glass_controls", 0x050708, .12, .22, { clearcoat: 1, clearcoatRoughness: .08 });
   const fabric = material("woven_seat_fabric", 0xffffff, .98, 0, { map:fabricMap,bumpMap:fabricMap,bumpScale:.035,sheen: .32, sheenColor: new T.Color(0x53626a) });
+  const seatLeather = material("seat_side_leather", 0xffffff, .72, .01, { map:leatherMap,bumpMap:leatherMap,bumpScale:.02,clearcoat:.06 });
   const headliner = material("woven_headliner", 0xffffff, .96, 0, { map:headlinerMap,bumpMap:headlinerMap,bumpScale:.022,sheen: .12, sheenColor: new T.Color(0xd8d4c8) });
   const sleeperFabric = material("sleeper_textile", 0xffffff, .94, 0, { map:sleeperMap,bumpMap:sleeperMap,bumpScale:.032,sheen: .28, sheenColor: new T.Color(0x63868c) });
   const rubber = material("ribbed_cabin_rubber", 0xffffff, 1, 0, { map:rubberMap,bumpMap:rubberMap,bumpScale:.045 });
@@ -31,14 +32,14 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
   };
   const box = (name, size, position, mat = soft, rotation) => add(new T.BoxGeometry(...size, 3, 2, 3), mat, name, position, rotation);
-  const roundedPanel = (name, width, height, depth, radius, position, mat, rotation = [0, 0, 0]) => {
+  const roundedPanel = (name, width, height, depth, radius, position, mat, rotation = [0, 0, 0], parent = root) => {
     const shape = new T.Shape(); const x = -width / 2, y = -height / 2;
     shape.moveTo(x + radius, y); shape.lineTo(x + width - radius, y); shape.quadraticCurveTo(x + width, y, x + width, y + radius);
     shape.lineTo(x + width, y + height - radius); shape.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
     shape.lineTo(x + radius, y + height); shape.quadraticCurveTo(x, y + height, x, y + height - radius);
     shape.lineTo(x, y + radius); shape.quadraticCurveTo(x, y, x + radius, y);
     const geometry = new T.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSegments: qualityLevel > 1 ? 3 : 1, bevelSize: .035, bevelThickness: .035, curveSegments: qualityLevel > 1 ? 12 : 5 });
-    geometry.center(); return add(geometry, mat, name, position, rotation);
+    geometry.center(); return add(geometry, mat, name, position, rotation, parent);
   };
   const frontZ = bus ? -5.93 : -5.79, sideX = bus ? 2.35 : 2.18;
   roundedPanel("dashboard_swept_shell", bus ? 4.72 : 4.42, .68, .72, .18, [0, 2.22, frontZ], soft, [-.06, 0, 0]);
@@ -91,14 +92,24 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   add(new T.SphereGeometry(.1, 16, 12), leather, "selector_grip", [selector.position.x + .12, selector.position.y + .31, selector.position.z], [0, 0, 0]);
   for (const x of [-1.04, 1.08]) {
     const seat = new T.Group(); seat.name = x < 0 ? "driver_air_seat" : "passenger_air_seat";
-    add(new T.CapsuleGeometry(.43, .48, 8, qualityLevel > 1 ? 20 : 12), fabric, "seat_cushion", [0, 1.05, frontZ + 2.25], [Math.PI / 2, 0, 0], seat);
-    add(new T.CapsuleGeometry(.46, .8, 8, qualityLevel > 1 ? 20 : 12), fabric, "seat_back", [0, 1.71, frontZ + 2.54], [-.13, 0, 0], seat);
-    add(new T.CapsuleGeometry(.3, .16, 8, 16), leather, "head_rest", [0, 2.51, frontZ + 2.64], [0, 0, 0], seat);
-    for (const sx of [-.29, .29]) add(new T.BoxGeometry(.014, .82, .018), aluminium, "seat_stitching", [sx, 1.73, frontZ + 2.13], [0, 0, 0], seat);
+    roundedPanel("seat_pan_side_shell",1.02,.28,.9,.12,[0,.88,frontZ+2.27],seatLeather,[Math.PI/2,0,0],seat);
+    const cushion=add(new T.CapsuleGeometry(.43,.56,10,qualityLevel>1?24:14),fabric,"extendable_multi_zone_cushion",[0,1.08,frontZ+2.18],[Math.PI/2,0,0],seat);cushion.scale.set(1.08,1,.78);
+    for(const side of[-1,1]){const bolster=add(new T.CapsuleGeometry(.12,.56,7,14),seatLeather,"cushion_side_bolster",[side*.43,1.14,frontZ+2.18],[Math.PI/2,0,0],seat);bolster.rotation.z=side*.1;}
+    const back=add(new T.CapsuleGeometry(.43,.88,10,qualityLevel>1?24:14),fabric,"anatomical_backrest",[0,1.83,frontZ+2.53],[-.12,0,0],seat);back.scale.set(1.05,1,.5);
+    for(const side of[-1,1]){const wing=add(new T.CapsuleGeometry(.13,.68,7,14),seatLeather,"pneumatic_side_bolster",[side*.43,1.84,frontZ+2.48],[-.12,0,side*.08],seat);wing.scale.z=.72;}
+    const lumbar=add(new T.CapsuleGeometry(.31,.18,7,16),fabric,"pneumatic_lumbar_support",[0,1.68,frontZ+2.23],[-.12,0,0],seat);lumbar.scale.z=.45;
+    add(new T.CapsuleGeometry(.31,.18,8,18),seatLeather,"integrated_adjustable_headrest",[0,2.69,frontZ+2.65],[0,0,0],seat);
+    for (const sx of [-.3, .3]) add(new T.BoxGeometry(.014, 1.05, .018), aluminium, "seat_double_stitching", [sx, 1.88, frontZ + 2.18], [0, 0, sx*.1], seat);
+    for(const side of[-1,1]) roundedPanel("folding_armrest",.17,.2,.76,.07,[side*.57,1.91,frontZ+2.27],seatLeather,[Math.PI/2,0,0],seat);
     seat.position.x = x; root.add(seat);
-    box("seat_suspension_base", [.78,.48,.82], [x,.63,frontZ+2.35], polymer);
+    box("seat_upper_suspension_frame", [.88,.12,.8], [x,.78,frontZ+2.35], aluminium);
+    box("seat_lower_slide_rail", [.92,.08,.88], [x,.44,frontZ+2.35], aluminium);
+    for(const sx of[-.3,.3]){const scissorA=box("air_suspension_scissor",[.07,.62,.08],[x+sx,.61,frontZ+2.35],aluminium);scissorA.rotation.z=sx<0?.52:-.52;}
+    const airBellows=add(new T.CylinderGeometry(.3,.34,.3,24),rubber,"air_suspension_bellows",[x,.61,frontZ+2.35]);
+    for(let control=0;control<4;control++) add(new T.CylinderGeometry(.055,.055,.05,14),control===0?accent:polymer,"seat_adjustment_control",[x-.53,.72+control*.12,frontZ+2.15],[0,0,Math.PI/2]);
     const belt = box("three_point_seatbelt", [.045,1.38,.035], [x + (x < 0 ? -.32 : .32),1.72,frontZ+2.15], material("seatbelt_webbing",0x090b0c,.9));
     belt.rotation.z = x < 0 ? -.16 : .16;
+    box("belt_upper_guide",[.11,.16,.08],[x+(x<0?-.38:.38),2.48,frontZ+2.54],polymer);
   }
   for (const side of [-1, 1]) {
     roundedPanel("door_card", 2.45, 1.8, .1, .18, [side * sideX, 2.0, frontZ + 1.02], soft, [0, Math.PI / 2, 0]);
