@@ -27,6 +27,9 @@ export function createVehicleTextureSystem({ THREE: T, qualityLevel = 2, fleetAt
   const textureFor = object => {
     const name = String(object.name || "").toLowerCase();
     const semantic = object.material?.userData?.vehicleSurface;
+    // The hero truck already owns purpose-built PBR tyre/rim maps. Replacing them
+    // with a colour-atlas tile made tread, sidewalls and polished rims equally flat.
+    if (ancestor(object, node => node.name === "detailed_road_wheel")) return null;
     if (semantic && textures[semantic]) return textures[semantic];
     if (/tyre|wheel/.test(name) && !/steering/.test(name)) return textures.tyre;
     if (/crawler|track_pad|hydraulic_hose/.test(name)) return textures.heavySteel;

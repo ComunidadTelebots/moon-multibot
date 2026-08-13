@@ -72,6 +72,11 @@ export function createOsmRoadMesh({ THREE, scene, roadWidth = 15 } = {}) {
     if(roadWidth>=14){marking(-roadWidth/4,.13,materials.white,true);marking(roadWidth/4,.13,materials.white,true)}furniture(metadata);return true;
   }
   function update(deltaSeconds=0){elapsed+=Math.max(0,deltaSeconds);return{active:group.visible,points:route.length,elapsed}}
+  function applyMaterials(regional={}){
+    const source=regional.materials||regional;
+    const copyMaps=(target,value)=>{if(!target||!value)return;for(const key of ["map","normalMap","roughnessMap","bumpMap","aoMap"]){if(value[key]?.isTexture)target[key]=value[key]}if(Number.isFinite(value.roughness))target.roughness=value.roughness;if(Number.isFinite(value.bumpScale))target.bumpScale=value.bumpScale;target.needsUpdate=true};
+    copyMaps(materials.asphalt,source.asphalt);copyMaps(materials.shoulder,source.shoulder);copyMaps(materials.sign,source.sign);return api;
+  }
   function dispose(){clear();Object.values(materials).forEach(material=>material.dispose());scene.remove(group)}
-  return{group,setRoute,update,dispose};
+  const api={group,materials,setRoute,update,applyMaterials,dispose};return api;
 }

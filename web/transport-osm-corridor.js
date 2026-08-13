@@ -104,14 +104,14 @@ export function createOsmCorridor({ THREE: T, scene, qualityLevel = 2, endpoint,
     const type = element.tags?.natural === "water" || element.tags?.water ? "water" : element.tags?.landuse;
     const selected = type === "forest" ? mats.forest : type === "farmland" ? mats.farmland : type === "water" ? mats.water : mats.grass;
     const geo = new T.ShapeGeometry(result.shape); geometry.add(geo);
-    const mesh = markStreamable(new T.Mesh(geo, selected), result.center); mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y + (type === "water" ? .04 : -.04); mesh.receiveShadow = true; root.add(mesh); entities.areas += 1;
+    const mesh = markStreamable(new T.Mesh(geo, selected), result.center); mesh.name = `osm-${type || "grass"}-terrain`; mesh.userData.regionalSurface = type === "forest" ? "vegetation forest" : type === "farmland" ? "terrain farmland" : type === "water" ? "water" : "terrain grass"; mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y + (type === "water" ? .04 : -.04); mesh.receiveShadow = true; root.add(mesh); entities.areas += 1;
   }
   function addBuilding(element, index) {
     const result = shapeFrom(element); if (!result) return;
     const levels = clamp(parseInt(element.tags?.["building:levels"], 10) || (2 + hash(String(element.id)) % 5), 1, 16);
     const height = clamp(parseFloat(element.tags?.height) || levels * 3.05, 2.6, 52);
     const geo = new T.ExtrudeGeometry(result.shape, { depth: height, bevelEnabled: qualityLevel > 1, bevelSize: .08, bevelThickness: .08, bevelSegments: 1 }); geometry.add(geo);
-    const mesh = markStreamable(new T.Mesh(geo, [mats.building, mats.roof]), result.center); mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y; mesh.castShadow = qualityLevel > 0 && index < 70; mesh.receiveShadow = true; root.add(mesh); entities.buildings += 1;
+    const mesh = markStreamable(new T.Mesh(geo, [mats.building, mats.roof]), result.center); mesh.name = "osm-building-facade-roof"; mesh.userData.regionalSurface = "building architecture roof"; mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y; mesh.castShadow = qualityLevel > 0 && index < 70; mesh.receiveShadow = true; root.add(mesh); entities.buildings += 1;
   }
   function addTrees(elements) {
     const points = elements.map(item => project(item.lat, item.lon)).filter(Boolean).slice(0, limits.trees); if (!points.length) return;
@@ -122,6 +122,7 @@ export function createOsmCorridor({ THREE: T, scene, qualityLevel = 2, endpoint,
     sectors.forEach(sectorPoints => {
       const center = sectorPoints.reduce((sum, point) => ({ x: sum.x + point.x / sectorPoints.length, z: sum.z + point.z / sectorPoints.length }), { x: 0, z: 0 });
       const trunks = markStreamable(new T.InstancedMesh(trunkGeo, mats.trunk, sectorPoints.length), center), crowns = markStreamable(new T.InstancedMesh(crownGeo, mats.leaves, sectorPoints.length), center), dummy = new T.Object3D();
+      trunks.name = "osm-tree-trunks"; trunks.userData.regionalSurface = "tree trunk"; crowns.name = "osm-tree-vegetation"; crowns.userData.regionalSurface = "vegetation leaves";
       sectorPoints.forEach((point, index) => { const size = .75 + (hash(String(index + offset)) % 45) / 100; dummy.position.set(point.x, point.y + 1.6 * size, point.z); dummy.scale.set(size, size, size); dummy.rotation.y = (index + offset) * 2.399; dummy.updateMatrix(); trunks.setMatrixAt(index, dummy.matrix); dummy.position.y = point.y + 4.25 * size; dummy.updateMatrix(); crowns.setMatrixAt(index, dummy.matrix); });
       trunks.castShadow = crowns.castShadow = qualityLevel > 1; trunks.receiveShadow = crowns.receiveShadow = true; root.add(trunks, crowns); offset += sectorPoints.length;
     });

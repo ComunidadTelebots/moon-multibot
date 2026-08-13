@@ -51,7 +51,7 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
   const regionId = resolveRegion(region || coordinates || {}), profile = REGIONAL_PROFILES[regionId];
   const quality = clamp(Math.floor(finite(qualityLevel, 2)), 0, 3), size = [128, 256, 512, 1024][quality];
   const textures = [], materials = {};
-  const texture = (name, palette, pattern = "noise") => {
+  const texture = (name, palette, pattern = "noise", { color = true, repeat = null } = {}) => {
     const canvas = document.createElement("canvas"); canvas.width = canvas.height = size;
     const context = canvas.getContext("2d", { alpha: false }), random = randomFactory(hash(`${seed}:${regionId}:${name}`));
     context.fillStyle = palette[0]; context.fillRect(0, 0, size, size);
@@ -66,16 +66,27 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     }
     context.globalAlpha = 1;
     const output = new T.CanvasTexture(canvas); output.name = `regional_${regionId}_${name}`;
-    output.wrapS = output.wrapT = T.RepeatWrapping; output.repeat.set(name === "terrain" ? 16 : 3, name === "terrain" ? 16 : 3);
-    if (T.SRGBColorSpace) output.colorSpace = T.SRGBColorSpace;
+    output.wrapS = output.wrapT = T.RepeatWrapping;
+    const repetitions = repeat || (name === "terrain" ? [16, 16] : [3, 3]); output.repeat.set(...repetitions);
+    if (color && T.SRGBColorSpace) output.colorSpace = T.SRGBColorSpace;
+    else if (!color && T.NoColorSpace) output.colorSpace = T.NoColorSpace;
     output.anisotropy = [1, 2, 8, 16][quality]; output.generateMipmaps = quality > 0; textures.push(output); return output;
   };
-  const make = (name, color, map, options = {}) => materials[name] = new T.MeshStandardMaterial({ color, map, roughness: options.roughness ?? .88, metalness: options.metalness ?? .02, ...options });
-  make("terrain", profile.terrain[0], texture("terrain", profile.terrain));
-  make("vegetation", profile.vegetation[0], texture("vegetation", profile.vegetation), { roughness: .96 });
-  make("architecture", profile.facade, texture("architecture", [profile.facade, "#766f65", "#e1d7c5"], "facade"));
-  make("roof", profile.roof, texture("roof", [profile.roof, "#3d4142", "#a27c5c"], "roof"), { roughness: .92 });
-  make("shoulder", profile.shoulder, texture("shoulder", [profile.shoulder, "#77736b", "#ddd7c9"], "marking"));
+  const detail = (name, repeat) => texture(`${name}_detail`, ["#777", "#999", "#555"], "noise", { color: false, repeat });
+  const make = (name, color, map, options = {}) => {
+    const { detailMap, bumpScale = .025, ...parameters } = options;
+    materials[name] = new T.MeshStandardMaterial({ color, map, roughness: parameters.roughness ?? .88, metalness: parameters.metalness ?? .02, ...parameters });
+    if (detailMap) { materials[name].roughnessMap = detailMap; materials[name].bumpMap = detailMap; materials[name].bumpScale = bumpScale; }
+    return materials[name];
+  };
+  make("asphalt", "#34373a", texture("asphalt", ["#34373a", "#202326", "#62605a"], "noise", { repeat: [3, 48] }), { roughness: .93, detailMap: detail("asphalt", [3, 48]), bumpScale: .035 });
+  make("terrain", profile.terrain[0], texture("terrain", profile.terrain), { roughness: .98, detailMap: detail("terrain", [16, 16]), bumpScale: .07 });
+  make("vegetation", profile.vegetation[0], texture("vegetation", profile.vegetation), { roughness: .96, detailMap: detail("vegetation", [4, 4]), bumpScale: .045 });
+  make("architecture", profile.facade, texture("architecture", [profile.facade, "#766f65", "#e1d7c5"], "facade"), { detailMap: detail("architecture", [3, 3]), bumpScale: .035 });
+  make("roof", profile.roof, texture("roof", [profile.roof, "#3d4142", "#a27c5c"], "roof"), { roughness: .92, detailMap: detail("roof", [4, 4]), bumpScale: .045 });
+  make("shoulder", profile.shoulder, texture("shoulder", [profile.shoulder, "#77736b", "#ddd7c9"], "marking", { repeat: [5, 32] }), { roughness: .96, detailMap: detail("shoulder", [5, 32]), bumpScale: .025 });
+  make("soil", profile.terrain[2], texture("soil", [profile.terrain[2], profile.terrain[1], "#43372b"], "noise", { repeat: [12, 12] }), { roughness: 1, detailMap: detail("soil", [12, 12]), bumpScale: .09 });
+  make("rock", profile.shoulder, texture("rock", [profile.shoulder, "#686761", "#a7a49a"], "noise", { repeat: [8, 8] }), { roughness: .97, detailMap: detail("rock", [8, 8]), bumpScale: .11 });
   make("sign", profile.sign, texture("sign", [profile.sign, "#f2f5ee", "#123b55"], "marking"), { roughness: .45, metalness: .12 });
   make("port", profile.port, texture("port", [profile.port, "#263a41", "#b6c0c0"], "facade"), { roughness: .64, metalness: .28 });
   make("airport", profile.airport, texture("airport", [profile.airport, "#2f3538", "#d8d8cf"], "marking"), { roughness: .7, metalness: .08 });
@@ -85,24 +96,30 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     if (/airport|runway|taxiway|hangar|apron/.test(label)) return materials.airport;
     if (/port|harbour|harbor|dock|quay|terminal|crane/.test(label)) return materials.port;
     if (/sign|gantry|bollard/.test(label)) return materials.sign;
-    if (/shoulder|kerb|curb|pavement/.test(label)) return materials.shoulder;
+    if (/road|asphalt|tarmac/.test(label)) return materials.asphalt;
+    if (/shoulder|kerb|curb|pavement|sidewalk|footway/.test(label)) return materials.shoulder;
+    if (/mountain|rock|cliff|stone/.test(label)) return materials.rock;
+    if (/soil|earth|dirt|sand/.test(label)) return materials.soil;
     if (/roof|parapet/.test(label)) return materials.roof;
     if (/building|facade|architecture|warehouse/.test(label)) return materials.architecture;
     if (/tree|leaf|leaves|forest|hedge|vegetation/.test(label)) return materials.vegetation;
-    if (/terrain|ground|grass|field|soil|farmland/.test(label)) return materials.terrain;
+    if (/terrain|ground|grass|field|farmland|park|garden/.test(label)) return materials.terrain;
     return null;
   }
   function applyTo(target, { clone = false } = {}) {
     let applied = 0;
     target?.traverse?.((object) => {
       if (!object.isMesh) return;
+      if (Array.isArray(object.material) && /building/.test(`${object.name} ${object.userData?.regionalSurface || ""}`.toLowerCase())) {
+        object.material = object.material.map((_, index) => index === 1 ? materials.roof : materials.architecture); applied += 1; return;
+      }
       const selected = materialFor(object); if (!selected) return;
       object.material = clone ? selected.clone() : selected; object.material.needsUpdate = true; applied += 1;
     });
     return applied;
   }
   function dispose() { textures.forEach(value => value.dispose()); Object.values(materials).forEach(value => value.dispose()); }
-  return { region: regionId, profile, qualityLevel: quality, materials, applyTo, dispose };
+  return { region: regionId, profile, qualityLevel: quality, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain }, applyTo, dispose };
 }
 
 export default { REGIONAL_PROFILES, resolveRegion, createMaterials };

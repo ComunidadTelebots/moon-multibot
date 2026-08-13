@@ -209,16 +209,15 @@ export function createTransportEnhancements(options) {
   const vehicleDetails = new T.Group();
   vehicleDetails.name = "enhanced-vehicle-details";
   if (vehicle) {
+    const ownsDetailedExterior=Boolean(vehicle.getObjectByName?.("aster_viento_detailed_exterior"));
     const glassParams = { color: 0x153447, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.68 };
     const glass = qualityLevel > 1 && T.MeshPhysicalMaterial
       ? new T.MeshPhysicalMaterial({ ...glassParams, clearcoat: 0.72, clearcoatRoughness: 0.16 })
       : material(glassParams);
     if (!disposable.includes(glass)) disposable.push(glass);
-    const windshield = mesh(new T.BoxGeometry(4.3, 1.65, 0.055), glass);
-    windshield.position.set(0, 3.52, -7.16);
-    vehicleDetails.add(windshield);
+    if(!ownsDetailedExterior){const windshield = mesh(new T.BoxGeometry(4.3, 1.65, 0.055), glass);windshield.position.set(0, 3.52, -7.16);vehicleDetails.add(windshield);}
     const trim = material({ color: 0x10151a, roughness: 0.48, metalness: 0.35 });
-    for (const side of [-1, 1]) {
+    if(!ownsDetailedExterior) for (const side of [-1, 1]) {
       const wiper = mesh(new T.BoxGeometry(0.055, 1.4, 0.06), trim);
       wiper.position.set(side * 1.08, 3.25, -7.22);
       wiper.rotation.z = side * 0.45;

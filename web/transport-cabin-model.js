@@ -3,28 +3,30 @@ import { createCabinGlazing } from "./transport-cabin-glazing.js";
 export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLevel = 2 }) {
   const root = new T.Group(); root.name = "aster_original_cabin";
   const cabinTextures = [];
-  const texture = (name, base, detail, pattern = "grain") => {
+  const texture = (name, base, detail, pattern = "grain", repeat = [3, 3]) => {
     const canvas=document.createElement("canvas"),size=qualityLevel>1?512:256;canvas.width=canvas.height=size;const x=canvas.getContext("2d");
     x.fillStyle=base;x.fillRect(0,0,size,size);let seed=name.length*7919;
     if(pattern==="weave") for(let p=-size;p<size*2;p+=7){x.strokeStyle=`rgba(${detail},${detail},${detail},.11)`;x.lineWidth=2;x.beginPath();x.moveTo(p,0);x.lineTo(p-size,size);x.stroke();x.beginPath();x.moveTo(p,0);x.lineTo(p+size,size);x.stroke();}
     else if(pattern==="brushed") for(let y=0;y<size;y+=2){seed=(seed*48271)%2147483647;x.fillStyle=`rgba(${detail},${detail},${detail},${.025+(seed%12)/220})`;x.fillRect(0,y,size,1);}
     else if(pattern==="rubber") { for(let y=4;y<size;y+=18){x.fillStyle="rgba(150,160,160,.13)";x.fillRect(0,y,size,4);} }
     else for(let i=0;i<size*6;i++){seed=(seed*48271)%2147483647;const px=seed%size;seed=(seed*48271)%2147483647;const py=seed%size;x.fillStyle=`rgba(${detail},${detail},${detail},${.022+(seed%9)/280})`;x.fillRect(px,py,1+(seed%2),1+(seed%2));}
-    const map=new T.CanvasTexture(canvas);map.name=name;map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(pattern==="weave"?5:3,pattern==="weave"?7:3);map.anisotropy=qualityLevel>2?16:qualityLevel>1?8:2; cabinTextures.push(map);return map;
+    const map=new T.CanvasTexture(canvas);map.name=name;map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(...repeat);map.anisotropy=qualityLevel>2?16:qualityLevel>1?8:2; cabinTextures.push(map);return map;
   };
-  const softMap=texture("dashboard_grain","#303438",105), leatherMap=texture("leather_grain","#24282b",80), fabricMap=texture("seat_weave","#394147",135,"weave"), headlinerMap=texture("headliner_weave","#b2b3ae",190,"weave"), sleeperMap=texture("sleeper_fabric","#42565c",125,"weave"), aluminiumMap=texture("brushed_aluminium","#9ba3a5",210,"brushed"), rubberMap=texture("ribbed_floor","#111416",90,"rubber");
+  // Texel density is tuned per surface. A single repeat value made the long
+  // dashboard and roof look stretched while making the seat weave oversized.
+  const softMap=texture("dashboard_grain","#303438",105,"grain",[8,3]), leatherMap=texture("leather_grain","#24282b",80,"grain",[5,5]), fabricMap=texture("seat_weave","#394147",135,"weave",[8,11]), headlinerMap=texture("headliner_weave","#b2b3ae",190,"weave",[10,12]), sleeperMap=texture("sleeper_fabric","#42565c",125,"weave",[9,6]), aluminiumMap=texture("brushed_aluminium","#9ba3a5",210,"brushed",[2,12]), rubberMap=texture("ribbed_floor","#111416",90,"rubber",[5,10]);
   const material = (name, color, roughness, metalness = 0, extra = {}) => {
     const value = new T.MeshPhysicalMaterial({ name, color, roughness, metalness, ...extra });
     return value;
   };
-  const soft = material("soft_touch_dashboard", 0xffffff, .88, .02, { map:softMap,bumpMap:softMap,bumpScale:.018,clearcoat: .08 });
-  const polymer = material("satin_polymer", 0x8b9295, .56, .05, { map:softMap,bumpMap:softMap,bumpScale:.012 });
+  const soft = material("soft_touch_dashboard", 0xffffff, .9, .01, { map:softMap,bumpMap:softMap,bumpScale:.014,clearcoat: .035, clearcoatRoughness:.72 });
+  const polymer = material("satin_polymer", 0x737b7f, .66, .035, { map:softMap,bumpMap:softMap,bumpScale:.009,clearcoat:.08,clearcoatRoughness:.58 });
   const leather = material("stitched_charcoal_leather", 0xffffff, .82, .01, { map:leatherMap,bumpMap:leatherMap,bumpScale:.028,sheen: .18, sheenColor: new T.Color(0x697379) });
   const aluminium = material("brushed_aluminium", 0xffffff, .28, .76, { map:aluminiumMap,bumpMap:aluminiumMap,bumpScale:.008,clearcoat: .22 });
   const piano = material("black_glass_controls", 0x050708, .12, .22, { clearcoat: 1, clearcoatRoughness: .08 });
-  const fabric = material("woven_seat_fabric", 0xffffff, .98, 0, { map:fabricMap,bumpMap:fabricMap,bumpScale:.035,sheen: .32, sheenColor: new T.Color(0x53626a) });
+  const fabric = material("woven_seat_fabric", 0xffffff, .94, 0, { map:fabricMap,bumpMap:fabricMap,bumpScale:.024,sheen: .38, sheenRoughness:.82, sheenColor: new T.Color(0x53626a) });
   const seatLeather = material("seat_side_leather", 0xffffff, .72, .01, { map:leatherMap,bumpMap:leatherMap,bumpScale:.02,clearcoat:.06 });
-  const headliner = material("woven_headliner", 0xffffff, .96, 0, { map:headlinerMap,bumpMap:headlinerMap,bumpScale:.022,sheen: .12, sheenColor: new T.Color(0xd8d4c8) });
+  const headliner = material("woven_headliner", 0xffffff, .98, 0, { map:headlinerMap,bumpMap:headlinerMap,bumpScale:.014,sheen: .1, sheenRoughness:.95, sheenColor: new T.Color(0xd8d4c8) });
   const sleeperFabric = material("sleeper_textile", 0xffffff, .94, 0, { map:sleeperMap,bumpMap:sleeperMap,bumpScale:.032,sheen: .28, sheenColor: new T.Color(0x63868c) });
   const rubber = material("ribbed_cabin_rubber", 0xffffff, 1, 0, { map:rubberMap,bumpMap:rubberMap,bumpScale:.045 });
   const screenMaterial = new T.MeshBasicMaterial({ name: "live_instrument_display", color: 0xffffff, toneMapped: false });

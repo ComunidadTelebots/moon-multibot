@@ -1,12 +1,13 @@
-export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qualityLevel = 2 }) {
+export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, textureMaps = {}, qualityLevel = 2 }) {
   const root = new T.Group(); root.name = "aster_viento_detailed_exterior";
-  const dark = new T.MeshStandardMaterial({ color: 0x11191e, roughness: .48, metalness: .42 });
-  const rubber = new T.MeshStandardMaterial({ color: 0x0b0d0f, roughness: .94 });
-  const lamp = new T.MeshPhysicalMaterial({ color: 0xe9f4f3, emissive: 0xb9e7dc, emissiveIntensity: 1.15, roughness: .1, transmission: .08, clearcoat: 1 });
+  const dark = new T.MeshStandardMaterial({ color: 0xffffff, ...textureMaps.trim, roughness: .7, metalness: .18, envMapIntensity: .65 });
+  const rubber = new T.MeshStandardMaterial({ color: 0xffffff, ...textureMaps.tyre, roughness: .9, metalness: 0, envMapIntensity: .18 });
+  const wheelMetal = new T.MeshStandardMaterial({ color: 0xffffff, ...textureMaps.rim, roughness: .24, metalness: .9, envMapIntensity: 1.35 });
+  const lamp = new T.MeshPhysicalMaterial({ color: 0xe9f4f3, emissive: 0xb9e7dc, emissiveIntensity: .18, roughness: .1, transmission: .08, clearcoat: 1 });
   const amber = new T.MeshStandardMaterial({ color: 0xffa62c, emissive: 0xff6d00, emissiveIntensity: 1.7, roughness: .24 });
   const red = new T.MeshStandardMaterial({ color: 0xd91d32, emissive: 0x76000c, emissiveIntensity: 1.2, roughness: .28 }); red.userData.vehicleLamp="brake";
-  const trailerWhite = new T.MeshPhysicalMaterial({ color: 0xf1f3f2, roughness:.38, metalness:.18, clearcoat:.42 });
-  const resources = [dark, rubber, lamp, amber, red, trailerWhite];
+  const trailerWhite = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textureMaps.trailer, roughness:.48, metalness:.08, clearcoat:.28, clearcoatRoughness:.3, envMapIntensity:.8 });
+  const resources = [dark, rubber, wheelMetal, lamp, amber, red, trailerWhite];
   const add = (geometry, material, name, position, rotation = [0,0,0], parent = root) => {
     resources.push(geometry); const mesh = new T.Mesh(geometry, material); mesh.name = name;
     mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.castShadow = mesh.receiveShadow = true; mesh.userData.exteriorCabSkin = parent === root && /cab|roof|windshield|pillar|door|visor/.test(name); parent.add(mesh); return mesh;
@@ -22,7 +23,13 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
       -2.22,1.8,-2.22, 2.22,1.8,-2.22, -2.28,1.8,2.3, 2.28,1.8,2.3,
     ]);
     const indices = [0,1,4,1,5,4, 1,3,5,3,7,5, 3,2,7,2,6,7, 2,0,6,0,4,6, 4,5,6,5,7,6, 0,2,1,1,2,3];
-    const geometry = new T.BufferGeometry(); geometry.setAttribute("position", new T.BufferAttribute(positions,3)); geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
+    // The original custom shell had no UV channel, so its paint maps were silently
+    // ignored and the largest part of the cab looked like a flat solid colour.
+    const uvs = new Float32Array([
+      0,0, 1,0, 0,0, 1,0,
+      .055,1, .945,1, .045,1, .955,1,
+    ]);
+    const geometry = new T.BufferGeometry(); geometry.setAttribute("position", new T.BufferAttribute(positions,3)); geometry.setAttribute("uv",new T.BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
   }
   add(taperedCabGeometry(), paint, "sculpted_cab_shell", [0,2.82,-4.2]);
   roundedBody(4.42,.38,4.55,.18,paint,"aerodynamic_roof_cap",[0,4.78,-4.08],[-.035,0,0]);
@@ -42,15 +49,25 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
     const mirrorArm = add(new T.CylinderGeometry(.055,.075,1.05,12), dark, "mirror_support", [side*2.82,3.76,-5.74], [0,0,side*.52]);
     const mirror = box([.18,.98,.62], dark, "aerodynamic_mirror_housing", [side*3.02,3.72,-5.96]); mirror.scale.set(1,.9,1);
     box([.025,.76,.45], chrome, "mirror_glass", [side*3.12,3.72,-5.96]);
-    box([.2,.2,.08], amber, "side_indicator", [side*2.57,2.0,-6.02]);
+    const sideIndicator=box([.2,.2,.08], amber, "side_indicator", [side*2.57,2.0,-6.02]);sideIndicator.userData.turnSide=side;
   }
   box([4.64,.94,.34], dark, "deep_front_grille", [0,1.72,-6.82]);
   for (let y=1.42;y<=2.02;y+=.2) box([3.85,.065,.09], chrome, "grille_horizontal_blade", [0,y,-7.02]);
   box([4.88,.48,.48], chrome, "reinforced_front_bumper", [0,.88,-6.83]);
   for (const side of [-1,1]) {
     const housing = box([1.02,.78,.18], dark, "headlamp_housing", [side*1.72,1.35,-7.06], [0,0,side*.04]);
-    box([.72,.48,.07], lamp, "led_headlamp", [side*1.72,1.37,-7.17]);
-    box([.58,.08,.075], amber, "front_indicator", [side*1.72,1.08,-7.18]);
+    const headlamp=box([.72,.48,.07], lamp, "led_headlamp", [side*1.72,1.37,-7.17]);headlamp.userData.vehicleLamp="headlight";
+    const indicator=box([.58,.08,.075], amber, "front_indicator", [side*1.72,1.08,-7.18]);indicator.userData.turnSide=side;
+    const beam=new T.SpotLight(0xe7fff8,0,135,Math.PI/7,.48,1.35);beam.name="functional_led_headlight";beam.position.set(side*1.72,1.38,-7.22);beam.target.position.set(side*1.35,.8,-55);root.add(beam,beam.target);
+  }
+  // Exterior wipers remain visible from the driving cameras and pivot from their
+  // real lower mounts instead of rotating around the centre of a duplicate blade.
+  const wipers=[];
+  for(const side of[-1,1]){
+    const pivot=new T.Group();pivot.name="functional_wiper_pivot";pivot.position.set(side*.92,2.73,-6.735);pivot.userData.baseRotation=side*.28;root.add(pivot);
+    const blade=box([.055,1.42,.055],dark,"windshield_wiper_blade",[side*.48,.58,0],[0,0,-side*.58],pivot);blade.castShadow=false;
+    box([.065,.72,.065],dark,"windshield_wiper_arm",[side*.2,.28,.018],[0,0,-side*.62],pivot).castShadow=false;
+    pivot.rotation.z=pivot.userData.baseRotation;wipers.push(pivot);
   }
   box([4.55,.12,.72], dark, "windshield_sun_visor", [0,4.48,-6.48], [-.14,0,0]);
   for (const x of [-1.55,-.78,0,.78,1.55]) add(new T.SphereGeometry(.075,10,7), amber, "roof_marker_lamp", [x,5.03,-5.95]);
@@ -66,13 +83,20 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   const fifth=add(new T.CylinderGeometry(1.02,1.02,.22,qualityLevel>1?30:18),dark,"fifth_wheel_coupling",[0,1.28,1.82]);fifth.rotation.x=Math.PI/2;
   function wheel(x,z,radius=1.02,width=.62){
     const group=new T.Group();group.name="detailed_road_wheel";group.position.set(x,radius,z);group.userData.isWheel=true;group.userData.frontWheel=z< -2;
-    add(new T.CylinderGeometry(radius*.98,radius,width,qualityLevel>1?48:24,2),rubber,"radial_tyre_carcass",[0,0,0],[0,0,Math.PI/2],group);
-    for(const side of[-1,1]){add(new T.TorusGeometry(radius*.74,radius*.22,qualityLevel>1?12:7,qualityLevel>1?48:24),rubber,"rounded_tyre_sidewall",[side*width*.48,0,0],[0,Math.PI/2,0],group);add(new T.TorusGeometry(radius*.47,.06,8,qualityLevel>1?40:20),chrome,"polished_rim_lip",[side*width*.54,0,0],[0,Math.PI/2,0],group);}
-    add(new T.CylinderGeometry(radius*.5,radius*.5,width+.055,qualityLevel>1?36:18),chrome,"deep_wheel_rim",[0,0,0],[0,0,Math.PI/2],group);
-    for(let i=0;i<(qualityLevel>1?12:7);i++){const angle=i*Math.PI*2/(qualityLevel>1?12:7);add(new T.BoxGeometry(width+.08,.075,.2),dark,"rim_vent",[0,Math.cos(angle)*radius*.36,Math.sin(angle)*radius*.36],[angle,0,Math.PI/2],group);}
-    add(new T.CylinderGeometry(radius*.17,radius*.17,width+.1,qualityLevel>1?24:14),dark,"wheel_hub",[0,0,0],[0,0,Math.PI/2],group);
-    for(let i=0;i<10;i++){const angle=i*Math.PI/5;add(new T.CylinderGeometry(.045,.045,.09,8),chrome,"wheel_nut",[0,Math.cos(angle)*radius*.25,Math.sin(angle)*radius*.25],[0,0,Math.PI/2],group);}
-    const treadCount=qualityLevel>1?32:16;for(let i=0;i<treadCount;i++){const angle=i*Math.PI*2/treadCount;for(const side of[-1,1]){const block=add(new T.BoxGeometry(width*.42,.055,radius*.16),rubber,"tyre_tread_block",[side*width*.23,Math.cos(angle)*radius*1.015,Math.sin(angle)*radius*1.015],[angle,0,side*.16],group);block.castShadow=qualityLevel>1;}}
+    const rolling=new T.Group();rolling.name="wheel_rolling_assembly";group.add(rolling);group.userData.rollingParts=rolling;
+    add(new T.CylinderGeometry(radius*.96,radius*.99,width,qualityLevel>1?48:24,3),rubber,"radial_tyre_carcass",[0,0,0],[0,0,Math.PI/2],rolling);
+    for(const side of[-1,1]){add(new T.TorusGeometry(radius*.74,radius*.22,qualityLevel>1?12:7,qualityLevel>1?48:24),rubber,"rounded_tyre_sidewall",[side*width*.48,0,0],[0,Math.PI/2,0],rolling);add(new T.TorusGeometry(radius*.47,.06,8,qualityLevel>1?40:20),wheelMetal,"polished_rim_lip",[side*width*.54,0,0],[0,Math.PI/2,0],rolling);}
+    add(new T.CylinderGeometry(radius*.5,radius*.5,width+.055,qualityLevel>1?36:18),wheelMetal,"deep_wheel_rim",[0,0,0],[0,0,Math.PI/2],rolling);
+    for(let i=0;i<(qualityLevel>1?12:7);i++){const angle=i*Math.PI*2/(qualityLevel>1?12:7);add(new T.BoxGeometry(width+.08,.075,.2),dark,"rim_vent",[0,Math.cos(angle)*radius*.36,Math.sin(angle)*radius*.36],[angle,0,Math.PI/2],rolling);}
+    add(new T.CylinderGeometry(radius*.17,radius*.17,width+.1,qualityLevel>1?24:14),dark,"wheel_hub",[0,0,0],[0,0,Math.PI/2],rolling);
+    for(let i=0;i<10;i++){const angle=i*Math.PI/5;add(new T.CylinderGeometry(.045,.045,.09,8),wheelMetal,"wheel_nut",[0,Math.cos(angle)*radius*.25,Math.sin(angle)*radius*.25],[0,0,Math.PI/2],rolling);}
+    const treadCount=qualityLevel>1?32:16;for(let i=0;i<treadCount;i++){const angle=i*Math.PI*2/treadCount;for(const side of[-1,1]){const block=add(new T.BoxGeometry(width*.4,.04,radius*.12),rubber,"tyre_tread_block",[side*width*.22,Math.cos(angle)*radius*.997,Math.sin(angle)*radius*.997],[angle,0,side*.13],rolling);block.castShadow=qualityLevel>1;}}
+    if(qualityLevel>0){
+      const brakeDisc=new T.MeshStandardMaterial({color:0x7b8589,roughness:.3,metalness:.82});resources.push(brakeDisc);
+      const brakeCaliper=new T.MeshPhysicalMaterial({color:0xd14932,roughness:.36,metalness:.48,clearcoat:.5});resources.push(brakeCaliper);
+      add(new T.CylinderGeometry(radius*.37,radius*.37,.055,qualityLevel>1?36:20),brakeDisc,"ventilated_brake_disc",[width*.37,0,0],[0,0,Math.PI/2],rolling);
+      roundedBody(.12,radius*.48,radius*.19,.04,brakeCaliper,"fixed_brake_caliper",[width*.43,radius*.18,-radius*.28],[0,Math.PI/2,0],group);
+    }
     root.add(group);return group;
   }
   for(const side of[-1,1])for(const z of[-4.55,1.48])wheel(side*2.42,z);
@@ -88,6 +112,11 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   for(const side of[-1,1]){add(new T.CylinderGeometry(.055,.055,3.42,10),chrome,"rear_door_lock",[side*1.88,3.05,13.3],[0,0,0],trailer);add(new T.BoxGeometry(.58,.28,.12),red,"trailer_tail_lamp",[side*1.82,.86,13.32],[0,0,0],trailer);}
   for(let z=.8;z<13;z+=1.25)for(const side of[-1,1])add(new T.BoxGeometry(.12,.1,.06),amber,"trailer_side_marker",[side*2.61,1.22,z],[0,0,0],trailer);
   for(const side of[-1,1]){const indicator=add(new T.BoxGeometry(.28,.22,.13),amber,"trailer_turn_indicator",[side*1.25,.86,13.34],[0,0,0],trailer);indicator.userData.turnSide=side;}
+  root.userData.updateExterior=({time=0,wipersOn=false,headlightsOn=false}={})=>{
+    const seconds=Number(time)*.001,sweep=wipersOn?(Math.sin(seconds*7.6)*.58+.58):0;
+    for(const pivot of wipers){const target=pivot.userData.baseRotation+(pivot.position.x<0?1:-1)*sweep;pivot.rotation.z+=(target-pivot.rotation.z)*.34;}
+    lamp.emissiveIntensity=headlightsOn?3.6:.18;
+  };
   root.userData.dispose = () => resources.forEach(resource => resource.dispose?.());
   return root;
 }
