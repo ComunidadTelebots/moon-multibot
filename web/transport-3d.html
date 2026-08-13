@@ -156,7 +156,7 @@
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState">AEBS listo</b></div></div>
       <div class="dash-buttons"><button data-cockpit="lights">💡 Luces</button><button data-cockpit="wipers">🌧 Limpia</button><button data-cockpit="hazard">⚠ Emergencia</button><button data-cockpit="retarder">R Retarder</button><button data-cockpit="cruise">◉ Crucero</button><button data-cockpit="parking">P Freno</button></div></div>
     </section>
-    <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/transport-achievements.js"></script><script type="module">
+    <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/transport-achievements.js"></script><script src="/transport-route-runtime.js"></script><script type="module">
       import * as T from "./vendor/three.module.min.js";
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
       import { createTransportCareer } from "./transport-career.js";
@@ -179,6 +179,8 @@
       import { createOsmScenery } from "./transport-osm-scenery.js";
       import { createEmergencyFleet } from "./transport-emergency-fleet.js";
       import { createOsmRoutePlanner, projectRouteToWorld } from "./transport-osm-routing.js";
+      import { createRouteNavigation } from "./transport-route-navigation.js";
+      import { createOsmRoadMesh } from "./transport-osm-road-mesh.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -201,7 +203,10 @@
       applyRealisticRendererSettings(T, R, qualityLevel);
       const career = createTransportCareer();
       const osmRoutePlanner = createOsmRoutePlanner();
-      let activeOsmRoute = null, activeWorldRoute = [];
+      let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
+      const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
+      const routeNavigation = createRouteNavigation();
+      const routeRuntime = window.MoonTransportRouteRuntime.create({ lanesPerDirection: 2, maxTraffic: [8,18,36,56][qualityLevel] });
       const textures = createProceduralTransportTextures(T, qualityLevel);
       const vehicleTextures = createVehicleTextureSystem({
         THREE: T, qualityLevel,
@@ -964,7 +969,7 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute);routeRuntime.setRoute(activeWorldRoute);routeNavigation.setRoute(route);physicalDistance=0;routeLaneOffset=0;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
@@ -1106,8 +1111,8 @@
             brake: !onFoot ? Math.max(Number(braking) || 0, cruiseEnabled && speed > desired + 2 ? 0.42 : 0) : 0,
             retarder: retarderOn ? 1 : 0,
             steering: wheel.connected ? wheel.steering : (left ? -1 : right ? 1 : 0), parkingBrake, wetness: worldState.localWeather === "rain" ? 1 : 0,
-            offroad: Math.abs(V.position.x) > 14.2, damage, distance: physicalDistance,
-            surface: Math.abs(V.position.x) > 14.2 ? "gravel" : "asphalt",
+            offroad: Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2, damage, distance: physicalDistance,
+            surface: Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "gravel" : "asphalt",
             waterDepth: worldState.localWeather === "rain" ? 0.004 + Math.max(0, Math.sin(V.position.z * .013)) * .006 : 0,
             cargoMass: specialFrame.active ? specialFrame.cargo.mass : career.activeContract ? 18000 : loadedPallets * 1200,
             cargoHeight: specialFrame.active ? specialFrame.cargo.height * .52 : 1.65,
@@ -1122,12 +1127,15 @@
         const steerInput = wheel.connected && !onFoot ? wheel.steering : (left ? -1 : right ? 1 : 0);
         if (!onFoot) steer += (steerInput - steer) * Math.min(1, dt * 4.5);
         else steer *= Math.pow(0.28, dt);
-        V.position.x = T.MathUtils.clamp(
-          V.position.x + (physicalFrame?.lateralMovement || steer * speed * dt * 0.025),
-          -17.5,
-          17.5,
-        );
-        if (!onFoot) V.position.z -= physicalFrame?.forwardMeters || speed * dt / 3.6;
+        if (activeOsmRoute && !onFoot) {
+          routeLaneOffset = T.MathUtils.clamp(routeLaneOffset + (physicalFrame?.lateralMovement || steer * speed * dt * .025), -10, 10);
+          const routePose = routeRuntime.sampleAt(Math.min(physicalDistance, routeRuntime.length), routeLaneOffset);
+          if (routePose) { V.position.x=routePose.x; V.position.z=routePose.z; V.rotation.y=routePose.heading; }
+          routeRuntime.update(dt,{playerDistance:physicalDistance,speed});
+        } else {
+          V.position.x = T.MathUtils.clamp(V.position.x + (physicalFrame?.lateralMovement || steer * speed * dt * .025),-17.5,17.5);
+          if (!onFoot) V.position.z -= physicalFrame?.forwardMeters || speed * dt / 3.6;
+        }
         if (!onFoot && speed > 0) {
           careerKmBuffer += speed * dt / 3600;
           if (careerKmBuffer >= 0.15) { career.addDistance(careerKmBuffer); careerKmBuffer = 0; updateCareerHud(); }
@@ -1146,7 +1154,7 @@
         if (bumpTime > 0) { bumpTime -= dt; V.position.y = Math.abs(Math.sin(bumpTime * 34)) * 0.12; }
         else V.position.y += ((physicalFrame?.suspension || 0) - V.position.y) * Math.min(1, dt * 12);
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
-        document.querySelector("#physicsState").textContent = physicalFrame?.aquaplaning > .12 ? `Aquaplaning · ${Math.round(physicalFrame.aquaplaning * 100)}%` : Math.abs(V.position.x) > 14.2 ? "Arcén · baja adherencia" : weatherMode === 1 ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
+        document.querySelector("#physicsState").textContent = physicalFrame?.aquaplaning > .12 ? `Aquaplaning · ${Math.round(physicalFrame.aquaplaning * 100)}%` : Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "Arcén · baja adherencia" : weatherMode === 1 ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
         document.querySelector("#transmissionState").textContent = `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}ª`} · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · pendiente ${((physicalFrame?.roadGrade || 0) * 100).toFixed(1)}% · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`;
         document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
         if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
@@ -1201,17 +1209,18 @@
         });
         if (!mapPanel.hidden) drawRouteMap();
         if (!europeMapPanel.hidden && now >= europeMapDrawAt) { europeMapDrawAt = now + 180; europeMap.setVehicleProgress(physicalDistance / 1000); }
-        if (V.position.z < -2800) { V.position.z = 2800; physicalDistance += 5600; cameraReady = false; }
+        if (!activeOsmRoute && V.position.z < -2800) { V.position.z = 2800; physicalDistance += 5600; cameraReady = false; }
         V.rotation.z = physicalFrame?.suspensionRoll ?? physicalFrame?.bodyRoll ?? steer * 0.07;
         V.rotation.x = physicalFrame?.suspensionPitch ?? 0;
         document.querySelector("#speed").textContent =
           Math.round(speed) + " km/h";
-        document.querySelector("#city").textContent = [
+        if (!activeOsmRoute) document.querySelector("#city").textContent = [
           "Nova Liria",
           "Puerto Alba",
           "Valleverde",
           "Bahía Solar",
         ][Math.max(0, Math.floor((420 - V.position.z) / 205) % 4)];
+        if (activeOsmRoute) { const progress=Math.min(1,physicalDistance/Math.max(1,routeRuntime.length)),coordinateIndex=Math.min(activeOsmRoute.coordinates.length-1,Math.floor(progress*(activeOsmRoute.coordinates.length-1))),nav=routeNavigation.update(activeOsmRoute.coordinates[coordinateIndex],{speedKmh:speed});document.querySelector("#assistState").textContent=nav.arrived?"Destino alcanzado":nav.offRoute?"Fuera de ruta":`${nav.nextInstruction} · ${Math.round(nav.distanceToManeuverMeters||nav.distanceRemainingMeters)} m`; }
         V.traverse((part) => {
           if (!part.userData.isWheel) return;
           part.rotation.x -= speed * dt * 0.045;
