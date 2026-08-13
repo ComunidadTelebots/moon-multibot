@@ -377,6 +377,8 @@
         cameraReady = false,
         cameraTransitionUntil = 0,
         cameraLook = new T.Vector3(),
+        headYaw = 0,
+        headPitch = 0,
         speed = 0,
         steer = 0,
         keys = {},
@@ -727,20 +729,31 @@
         } else if (view === 1) {
           const cockpit = V.userData.cockpitOffset;
           targetPosition.set(p.x + (cockpit?.[0] ?? -1.04), p.y + (cockpit?.[1] ?? 3.02) + bob, p.z + (cockpit?.[2] ?? -(kind === "bus" ? 5.18 : 4.92)));
-          targetLook.set(p.x - .82 + steer * .72, p.y + 2.68 + bob, p.z - 42); targetFov = 72;
+          const lookDistance = 38, forward = -Math.cos(headYaw), lateral = Math.sin(headYaw);
+          targetLook.set(targetPosition.x + lateral * lookDistance, targetPosition.y + Math.sin(headPitch) * lookDistance, targetPosition.z + forward * Math.cos(headPitch) * lookDistance); targetFov = 72;
         } else if (view === 2) {
           targetPosition.set(p.x + (kind === "bus" ? 1.1 : 0.72), p.y + 3.12 + bob, p.z + (kind === "bus" ? 3.6 : -2.05));
           targetLook.set(p.x, p.y + 2.55, p.z - 28); targetFov = kind === "bus" ? 78 : 74;
-        } else {
+        } else if (view === 3) {
           const orbit = now * 0.00022;
           targetPosition.set(p.x + Math.cos(orbit) * 19, p.y + 6.5, p.z + 5 + Math.sin(orbit) * 13);
           targetLook.set(p.x, p.y + 2.4, p.z - 5); targetFov = 58;
+        } else if (view === 4) {
+          targetPosition.set(p.x,p.y+10.8,p.z+1);targetLook.set(p.x,p.y+1.2,p.z-22);targetFov=74;
+        } else if (view === 5) {
+          targetPosition.set(p.x,p.y+1.05,p.z-8.2);targetLook.set(p.x,p.y+1.2,p.z-42);targetFov=82;
+        } else if (view === 6) {
+          targetPosition.set(p.x+3.5,p.y+1.05,p.z-4.7);targetLook.set(p.x+2.2,p.y+.9,p.z-24);targetFov=76;
+        } else if (view === 7) {
+          targetPosition.set(p.x+7.8,p.y+3.4,p.z+5.5);targetLook.set(p.x,p.y+2.15,p.z+1.5);targetFov=63;
+        } else {
+          targetPosition.set(p.x,p.y+4.7,p.z+16.5);targetLook.set(p.x,p.y+2.5,p.z-11);targetFov=55;
         }
         if (!cameraReady) { C.position.copy(targetPosition); cameraLook.copy(targetLook); C.fov = targetFov; cameraReady = true; }
         const smoothing = 1 - Math.pow(onFoot || view === 1 || view === 2 ? 0.00004 : 0.0015, dt);
         C.position.lerp(targetPosition, smoothing); cameraLook.lerp(targetLook, smoothing); C.fov += (targetFov - C.fov) * smoothing;
         C.updateProjectionMatrix(); C.lookAt(cameraLook);
-        const viewName = ["Exterior", "Cabina conductor", kind === "bus" ? "Salón pasajeros" : "Interior cabina", "Cinemática lateral"][view];
+        const viewName = ["Persecución", "Cabina · ratón", kind === "bus" ? "Salón pasajeros" : "Interior cabina", "Cinemática", "Techo", "Parachoques", "Rueda delantera", "Lateral remolque", "Trasera remolque"][view];
         document.querySelector("#view").textContent = now < cameraTransitionUntil ? `Cambiando a ${viewName}…` : viewName;
         document.querySelector("#cockpitPanel").hidden = onFoot || view !== 1;
       }
@@ -755,7 +768,12 @@
           b.addEventListener(v, () => (keys[k] = 0)),
         );
       });
-      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); if (!e.repeat && k === "v") cam.click(); if (!e.repeat && k === "m") cycleRouteMap(e.shiftKey ? -1 : 1); keys[k] = 1; };
+      const numberViews = [1,0,2,3,4,5,6,7,8];
+      function selectCamera(next){view=next;cameraReady=false;cameraTransitionUntil=performance.now()+420;cam.textContent=`Vista ${numberViews.indexOf(view)+1}/9`;}
+      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && /^[1-9]$/.test(k)) selectCamera(numberViews[Number(k)-1]); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); if (!e.repeat && k === "v") cam.click(); if (!e.repeat && k === "m") cycleRouteMap(e.shiftKey ? -1 : 1); keys[k] = 1; };
+      R.domElement.addEventListener("click",()=>{if(view===1&&!onFoot&&document.pointerLockElement!==R.domElement)R.domElement.requestPointerLock?.();});
+      addEventListener("mousemove",e=>{if(document.pointerLockElement!==R.domElement||view!==1)return;headYaw=T.MathUtils.clamp(headYaw-e.movementX*.0022,-1.22,1.22);headPitch=T.MathUtils.clamp(headPitch-e.movementY*.0019,-.7,.7);});
+      R.domElement.addEventListener("auxclick",e=>{if(e.button===1){e.preventDefault();headYaw=headPitch=0;}});
       addEventListener("keydown", (e) => {
         if (!e.repeat && e.key.toLowerCase() === "e" && onFoot) interactCargo();
       });
@@ -971,11 +989,8 @@
         document.querySelector("#assistState").textContent = "Vehículo recuperado";
       };
       cam.onclick = () => {
-        view = (view + 1) % 4;
-        cameraTransitionUntil = performance.now() + 650;
-        const label = ["Exterior", "Cabina conductor", kind === "bus" ? "Salón de pasajeros" : "Interior cabina", "Cinemática lateral"][view];
-        document.querySelector("#view").textContent = `Cambiando a ${label}…`;
-        cam.textContent = `Vista: ${label}`;
+        const position = numberViews.indexOf(view), next = numberViews[(position + 1) % numberViews.length];
+        selectCamera(next);
       };
       full.onclick = () =>
         document.fullscreenElement
