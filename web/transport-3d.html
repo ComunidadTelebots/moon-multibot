@@ -1142,6 +1142,11 @@
         }
         document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
         if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
+        const indicatorPulse = Math.sin(now * .009) > 0;
+        V.traverse(object => {
+          if (object.material?.userData?.vehicleLamp === "brake") object.material.emissiveIntensity = braking ? 4.8 : 1.15;
+          if (object.userData.turnSide) object.visible = (hazardsOn || Math.abs(steer) > .22 && Math.sign(steer) === object.userData.turnSide) ? indicatorPulse : true;
+        });
         if (!mapPanel.hidden) drawRouteMap();
         if (!europeMapPanel.hidden && now >= europeMapDrawAt) { europeMapDrawAt = now + 180; europeMap.setVehicleProgress(physicalDistance / 1000); }
         if (V.position.z < -2800) { V.position.z = 2800; physicalDistance += 5600; cameraReady = false; }
@@ -1193,6 +1198,9 @@
         g.userData.direction = direction;
         g.userData.laneX = laneX;
         g.userData.roadSpeedKmh = direction === -1 ? 66 + (i % 3) * 9 : 78 + (i % 2) * 12;
+        g.userData.cruiseSpeedKmh = g.userData.roadSpeedKmh;
+        g.userData.laneChangeCooldown = i * .7;
+        g.userData.indicatorUntil = 0;
         S.add(g);
         traffic3d.push(g);
       }
@@ -1296,17 +1304,54 @@
         if (V) {
           for (let i = 0; i < traffic3d.length; i++) {
             const o = traffic3d[i];
+            o.userData.laneChangeCooldown = Math.max(0, o.userData.laneChangeCooldown - trafficDt);
+            let nearestAhead = Infinity;
+            for (let j = 0; j < traffic3d.length; j++) {
+              if (i === j) continue;
+              const other = traffic3d[j];
+              if (other.userData.direction !== o.userData.direction || Math.abs(other.position.x - o.userData.laneX) > 1.8) continue;
+              const gap = o.userData.direction * (other.position.z - o.position.z);
+              if (gap > 0 && gap < nearestAhead) nearestAhead = gap;
+            }
+            const previousSpeed = o.userData.roadSpeedKmh;
+            const safeGap = 17 + previousSpeed * .42;
+            let targetSpeed = o.userData.cruiseSpeedKmh;
+            if (nearestAhead < safeGap) {
+              const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
+              const alternateLane = lanes.find((lane) => lane !== o.userData.laneX);
+              const laneClear = traffic3d.every((other) => other === o || other.userData.direction !== o.userData.direction ||
+                Math.abs(other.position.x - alternateLane) > 1.8 || Math.abs(other.position.z - o.position.z) > 32);
+              if (laneClear && o.userData.laneChangeCooldown <= 0) {
+                o.userData.laneX = alternateLane;
+                o.userData.indicatorUntil = now + 2500;
+                o.userData.laneChangeCooldown = 8 + Math.random() * 5;
+              } else targetSpeed = Math.max(24, previousSpeed - (safeGap - nearestAhead) * 1.6);
+            }
+            const speedStep = (targetSpeed < previousSpeed ? 18 : 7) * trafficDt;
+            o.userData.roadSpeedKmh += Math.max(-speedStep, Math.min(speedStep, targetSpeed - previousSpeed));
             const movement = o.userData.direction * o.userData.roadSpeedKmh / 3.6 * trafficDt;
             o.position.z += movement;
-            o.position.x += (o.userData.laneX - o.position.x) * Math.min(1, trafficDt * 8);
+            const lateralError = o.userData.laneX - o.position.x;
+            o.position.x += lateralError * Math.min(1, trafficDt * 1.7);
+            const brakingTraffic = previousSpeed - o.userData.roadSpeedKmh > .04;
+            const indicatingTraffic = now < o.userData.indicatorUntil && Math.floor(now / 360) % 2 === 0;
             o.traverse((part) => {
               if (part.userData.isWheel) part.rotation.x -= Math.abs(movement) * 1.25;
+              if (part.userData.brakeLamp && part.material?.emissive) {
+                part.material.emissive.setHex(brakingTraffic ? 0xff1808 : 0x270000);
+                part.material.emissiveIntensity = brakingTraffic ? 2.8 : .35;
+              }
+              if (part.userData.turnSide && part.material?.emissive) {
+                const isLaneSide = Math.sign(lateralError) === (part.userData.turnSide === "left" ? -1 : 1);
+                part.material.emissiveIntensity = indicatingTraffic && isLaneSide ? 3.2 : .15;
+              }
             });
             if (o.position.z > V.position.z + 110 || o.position.z < V.position.z - 650) {
               o.position.z = V.position.z - 260 - Math.random() * 360;
               const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
               o.userData.laneX = lanes[Math.floor(Math.random() * lanes.length)];
               o.position.x = o.userData.laneX;
+              o.userData.roadSpeedKmh = o.userData.cruiseSpeedKmh;
             }
           }
           const workDistance = roadworks.position.z + 70 - V.position.z,

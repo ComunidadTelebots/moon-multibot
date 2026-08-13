@@ -104,7 +104,7 @@ export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {}
     mesh(new T.BoxGeometry(2.35, .24, .18), mats.dark, "rear_bumper", [0, .54, length / 2 - .04], root);
     const frontLamp = new T.MeshStandardMaterial({ color: 0xfff4ce, emissive: 0xffe2a3, emissiveIntensity: 2.2 });
     const rearLamp = new T.MeshStandardMaterial({ color: 0xc91f2d, emissive: 0x8c0711, emissiveIntensity: 1.8 });
-    for (const x of [-.82, .82]) { mesh(new T.BoxGeometry(.48, .2, .08), frontLamp, "headlamp", [x, .84, -length / 2 - .05], root); mesh(new T.BoxGeometry(.42, .23, .08), rearLamp, "tail_lamp", [x, .84, length / 2 + .05], root); }
+    for (const x of [-.82, .82]) { mesh(new T.BoxGeometry(.48, .2, .08), frontLamp, "headlamp", [x, .84, -length / 2 - .05], root); const tail=mesh(new T.BoxGeometry(.42, .23, .08), rearLamp.clone(), "tail_lamp", [x, .84, length / 2 + .05], root); tail.userData.brakeLamp=true; }
     if (qualityLevel > 0) {
       mesh(new T.BoxGeometry(1.05, .3, .07), mats.dark, "front_grille", [0, .72, -length / 2 - .055], root);
       mesh(new T.BoxGeometry(.62, .2, .045), mats.concrete, "front_plate", [0, .48, -length / 2 - .09], root);

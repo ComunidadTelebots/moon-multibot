@@ -4,7 +4,7 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   const rubber = new T.MeshStandardMaterial({ color: 0x0b0d0f, roughness: .94 });
   const lamp = new T.MeshPhysicalMaterial({ color: 0xe9f4f3, emissive: 0xb9e7dc, emissiveIntensity: 1.15, roughness: .1, transmission: .08, clearcoat: 1 });
   const amber = new T.MeshStandardMaterial({ color: 0xffa62c, emissive: 0xff6d00, emissiveIntensity: 1.7, roughness: .24 });
-  const red = new T.MeshStandardMaterial({ color: 0xd91d32, emissive: 0x76000c, emissiveIntensity: 1.2, roughness: .28 });
+  const red = new T.MeshStandardMaterial({ color: 0xd91d32, emissive: 0x76000c, emissiveIntensity: 1.2, roughness: .28 }); red.userData.vehicleLamp="brake";
   const trailerWhite = new T.MeshPhysicalMaterial({ color: 0xf1f3f2, roughness:.38, metalness:.18, clearcoat:.42 });
   const resources = [dark, rubber, lamp, amber, red, trailerWhite];
   const add = (geometry, material, name, position, rotation = [0,0,0], parent = root) => {
@@ -71,6 +71,7 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   add(new T.BoxGeometry(.09,3.74,.16),dark,"rear_door_divider",[0,3.05,13.27],[0,0,0],trailer);
   for(const side of[-1,1]){add(new T.CylinderGeometry(.055,.055,3.42,10),chrome,"rear_door_lock",[side*1.88,3.05,13.3],[0,0,0],trailer);add(new T.BoxGeometry(.58,.28,.12),red,"trailer_tail_lamp",[side*1.82,.86,13.32],[0,0,0],trailer);}
   for(let z=.8;z<13;z+=1.25)for(const side of[-1,1])add(new T.BoxGeometry(.12,.1,.06),amber,"trailer_side_marker",[side*2.61,1.22,z],[0,0,0],trailer);
+  for(const side of[-1,1]){const indicator=add(new T.BoxGeometry(.28,.22,.13),amber,"trailer_turn_indicator",[side*1.25,.86,13.34],[0,0,0],trailer);indicator.userData.turnSide=side;}
   root.userData.dispose = () => resources.forEach(resource => resource.dispose?.());
   return root;
 }
