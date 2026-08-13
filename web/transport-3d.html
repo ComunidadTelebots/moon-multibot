@@ -69,6 +69,20 @@
         button {
           padding: 8px;
         }
+        .controls:not(.drive) {
+          bottom: 66px;
+        }
+        .controls.drive {
+          left: 10px;
+          right: 10px;
+          bottom: 10px;
+          justify-content: space-between;
+        }
+        .controls.drive button {
+          min-width: 58px;
+          min-height: 46px;
+          touch-action: none;
+        }
       }
     </style>
   </head>
@@ -299,19 +313,39 @@
             l.material = red;
           }
         } else {
-          part(g, 5, 3.8, 5.4, 0x19b7ad, 0, 2.7, -4.25);
-          const roof = part(g, 4.65, 0.55, 4.8, 0x127d79, 0, 4.85, -4.15);
-          roof.rotation.x = 0.035;
-          part(g, 5.1, 4.5, 11.8, 0xd4dbe0, 0, 3, 4.5);
+          const paint = new T.MeshPhysicalMaterial({ color: 0x18a99f, roughness: 0.24, metalness: 0.42, clearcoat: 0.9, clearcoatRoughness: 0.16 });
+          const cab = part(g, 5, 3.65, 5.25, 0x19b7ad, 0, 2.75, -4.25);
+          cab.material = paint;
+          const roof = new T.Mesh(new T.SphereGeometry(1, 28, 18), paint);
+          roof.scale.set(2.48, 0.58, 2.45); roof.position.set(0, 4.7, -4.15); g.add(roof);
+          const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
+          trailer.material = new T.MeshPhysicalMaterial({ color: 0xd9e0e5, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           part(g, 5.18, 0.28, 11.5, 0x159b95, 0, 1.45, 4.5);
           let wind = part(g, 4.15, 1.75, 0.12, 0x173d52, 0, 3.55, -6.97);
           wind.material = glass;
+          const divider = part(g, 0.09, 1.72, 0.15, 0x111820, 0, 3.55, -7.06);
+          divider.material = chrome;
           for (const p of [-2.5, 2.5]) {
             let side = part(g, 0.12, 1.35, 1.7, 0x173d52, p, 3.45, -4.85);
             side.material = glass;
           }
-          part(g, 4.45, 0.55, 0.4, 0x16242c, 0, 1.35, -7.08);
-          part(g, 3.1, 0.45, 0.2, 0x26333d, 0, 2.3, -7.12);
+          const bumper = part(g, 4.75, 0.48, 0.42, 0x9aa7ae, 0, 1.05, -7.12); bumper.material = chrome;
+          part(g, 3.65, 0.82, 0.2, 0x121a20, 0, 1.72, -7.16);
+          for (let gx = -1.55; gx <= 1.55; gx += 0.52) part(g, 0.09, 0.64, 0.1, 0x74838a, gx, 1.72, -7.28);
+          part(g, 1.3, 0.2, 0.1, 0xe6edf0, 0, 2.35, -7.2);
+          for (const p of [-2.18, 2.18]) {
+            const indicator = part(g, 0.5, 0.2, 0.13, 0xffa62b, p, 1.55, -7.31); indicator.material = mat(0xffa62b, 0.12, 0.2);
+            const step = part(g, 0.78, 0.18, 1.75, 0x56636a, p, 0.68, -3.1); step.material = chrome;
+          }
+          for (const p of [-2.25, 2.25]) {
+            const tank = new T.Mesh(new T.CylinderGeometry(0.62, 0.62, 3.2, 24), chrome);
+            tank.rotation.z = Math.PI / 2; tank.position.set(p, 0.95, -0.25); g.add(tank);
+            const exhaust = new T.Mesh(new T.CylinderGeometry(0.14, 0.18, 4.8, 16), chrome);
+            exhaust.position.set(p, 3.25, -1.25); g.add(exhaust);
+          }
+          const fifthWheel = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 0.22, 28), mat(0x171b1f, 0.75, 0.5));
+          fifthWheel.position.set(0, 1.45, 0.25); g.add(fifthWheel);
+          for (let z = 0; z < 9.5; z += 1.1) part(g, 5.16, 0.045, 0.055, 0xaab5bb, 0, 3.05, z);
           for (const z of [-4.6, 1.5, 7.5])
             for (const p of [-2.45, 2.45]) g.add(wheel(p, z));
           lights(g, 1.55, -7.2);
@@ -352,14 +386,16 @@
         const k = b.dataset.key;
         b.onpointerdown = (e) => {
           e.preventDefault();
+          b.setPointerCapture?.(e.pointerId);
           keys[k] = 1;
         };
-        ["pointerup", "pointercancel", "pointerleave"].forEach((v) =>
+        ["pointerup", "pointercancel", "lostpointercapture"].forEach((v) =>
           b.addEventListener(v, () => (keys[k] = 0)),
         );
       });
-      onkeydown = (e) => (keys[e.key.toLowerCase()] = 1);
+      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); keys[k] = 1; };
       onkeyup = (e) => (keys[e.key.toLowerCase()] = 0);
+      addEventListener("blur", () => (keys = {}));
       truck.onclick = () => build("truck");
       document.querySelector("#bus").onclick = () => build("bus");
       cam.onclick = () => {
@@ -378,9 +414,11 @@
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
         last = now;
-        speed += ((keys.w ? 34 : 0) - (keys.s ? 55 : 7)) * dt;
+        const accelerating = keys.w || keys.arrowup, braking = keys.s || keys.arrowdown,
+          left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
+        speed += ((accelerating ? 34 : 0) - (braking ? 55 : 7)) * dt;
         speed = T.MathUtils.clamp(speed, 0, kind === "bus" ? 92 : 112);
-        steer += (keys.a ? 1 : keys.d ? -1 : 0) * dt * 1.7;
+        steer += (left ? -1 : right ? 1 : 0) * dt * 1.7;
         steer *= Math.pow(0.28, dt);
         V.position.x = T.MathUtils.clamp(
           V.position.x + steer * speed * dt * 0.045,
