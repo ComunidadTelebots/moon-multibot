@@ -5,10 +5,11 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   const lamp = new T.MeshPhysicalMaterial({ color: 0xe9f4f3, emissive: 0xb9e7dc, emissiveIntensity: 1.15, roughness: .1, transmission: .08, clearcoat: 1 });
   const amber = new T.MeshStandardMaterial({ color: 0xffa62c, emissive: 0xff6d00, emissiveIntensity: 1.7, roughness: .24 });
   const red = new T.MeshStandardMaterial({ color: 0xd91d32, emissive: 0x76000c, emissiveIntensity: 1.2, roughness: .28 });
-  const resources = [dark, rubber, lamp, amber, red];
-  const add = (geometry, material, name, position, rotation = [0,0,0]) => {
+  const trailerWhite = new T.MeshPhysicalMaterial({ color: 0xf1f3f2, roughness:.38, metalness:.18, clearcoat:.42 });
+  const resources = [dark, rubber, lamp, amber, red, trailerWhite];
+  const add = (geometry, material, name, position, rotation = [0,0,0], parent = root) => {
     resources.push(geometry); const mesh = new T.Mesh(geometry, material); mesh.name = name;
-    mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.castShadow = mesh.receiveShadow = true; root.add(mesh); return mesh;
+    mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.castShadow = mesh.receiveShadow = true; parent.add(mesh); return mesh;
   };
   const box = (size, material, name, position, rotation) => add(new T.BoxGeometry(...size), material, name, position, rotation);
   function taperedCabGeometry() {
@@ -52,6 +53,24 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   box([1.12,1.18,3.25], chrome, "left_fuel_tank", [-2.18,.92,-.18], [0,0,Math.PI/2]);
   box([1.12,1.18,3.25], chrome, "right_fuel_tank", [2.18,.92,-.18], [0,0,Math.PI/2]);
   for (const side of [-1,1]) for (const z of [-1.48,1.12]) box([.09,1.22,.12], dark, "tank_retaining_band", [side*2.18,.92,z]);
+  box([1.02,.95,1.35], chrome,"battery_and_adblue_box",[-2.2,.9,1.72]);
+  box([1.02,.95,1.35],chrome,"exhaust_treatment_box",[2.2,.9,1.72]);
+  box([3.6,.38,7.1],dark,"tractor_ladder_chassis",[0,.82,-.25]);
+  for(const side of[-1,1])box([.24,.48,7.4],dark,"tractor_frame_rail",[side*.82,.76,-.2]);
+  const fifth=add(new T.CylinderGeometry(1.02,1.02,.22,qualityLevel>1?30:18),dark,"fifth_wheel_coupling",[0,1.28,1.82]);fifth.rotation.x=Math.PI/2;
+  function wheel(x,z,radius=1.02,width=.62){const group=new T.Group();group.name="detailed_road_wheel";group.position.set(x,radius,z);group.userData.isWheel=true;group.userData.frontWheel=z< -2;const tyre=add(new T.CylinderGeometry(radius,radius,width,qualityLevel>1?32:18),rubber,"deep_tread_tyre",[0,0,0],[0,0,Math.PI/2],group);const rim=add(new T.CylinderGeometry(radius*.52,radius*.52,width+.04,qualityLevel>1?24:14),chrome,"ventilated_wheel_rim",[0,0,0],[0,0,Math.PI/2],group);for(let i=0;i<(qualityLevel>1?10:6);i++)add(new T.CylinderGeometry(.045,.045,.08,8),dark,"wheel_nut",[0,Math.cos(i*Math.PI*2/(qualityLevel>1?10:6))*radius*.31,Math.sin(i*Math.PI*2/(qualityLevel>1?10:6))*radius*.31],[0,0,Math.PI/2],group);root.add(group);return group;}
+  for(const side of[-1,1])for(const z of[-4.55,1.48])wheel(side*2.42,z);
+  const trailer=new T.Group();trailer.name="pearl_white_box_trailer";root.add(trailer);
+  const trailerBody=add(new T.BoxGeometry(5.02,4.35,12.4),trailerWhite,"insulated_trailer_body",[0,3.12,6.95],[0,0,0],trailer);
+  add(new T.BoxGeometry(5.16,.2,12.55),chrome,"trailer_roof_edge",[0,5.34,6.95],[0,0,0],trailer);
+  add(new T.BoxGeometry(5.2,.42,12.5),dark,"trailer_underframe",[0,.94,6.95],[0,0,0],trailer);
+  for(let z=1.25;z<12.8;z+=1.2)for(const side of[-1,1])add(new T.BoxGeometry(.065,4.08,.075),chrome,"trailer_panel_seam",[side*2.54,3.12,z],[0,0,0],trailer);
+  for(const side of[-1,1]){add(new T.BoxGeometry(.16,.54,9.2),chrome,"trailer_side_guard",[side*2.58,.8,6.2],[0,0,0],trailer);for(const z of[3.2,5.45,7.7,9.95])add(new T.BoxGeometry(.09,.72,.12),dark,"side_guard_support",[side*2.54,.75,z],[0,0,0],trailer);}
+  for(const side of[-1,1])for(const z of[9.15,11.35,13.55])wheel(side*2.38,z,.88,.56);
+  add(new T.BoxGeometry(4.78,3.95,.12),trailerWhite,"double_rear_door",[0,3.05,13.18],[0,0,0],trailer);
+  add(new T.BoxGeometry(.09,3.74,.16),dark,"rear_door_divider",[0,3.05,13.27],[0,0,0],trailer);
+  for(const side of[-1,1]){add(new T.CylinderGeometry(.055,.055,3.42,10),chrome,"rear_door_lock",[side*1.88,3.05,13.3],[0,0,0],trailer);add(new T.BoxGeometry(.58,.28,.12),red,"trailer_tail_lamp",[side*1.82,.86,13.32],[0,0,0],trailer);}
+  for(let z=.8;z<13;z+=1.25)for(const side of[-1,1])add(new T.BoxGeometry(.12,.1,.06),amber,"trailer_side_marker",[side*2.61,1.22,z],[0,0,0],trailer);
   root.userData.dispose = () => resources.forEach(resource => resource.dispose?.());
   return root;
 }

@@ -573,6 +573,7 @@
         const g = new T.Group(),
           bus = type === "bus",
           emergency = emergencyFleet.definitions[type];
+        let detailedTruckExterior = null;
         g.name = emergency ? `player_${type}` : bus ? "player_bus" : "player_truck";
         if (emergency) {
           const responseVehicle = emergencyFleet.create(type); g.add(responseVehicle);
@@ -607,7 +608,8 @@
           const roof = new T.Mesh(new T.SphereGeometry(1, 28, 18), paint);
           roof.scale.set(2.48, 0.58, 2.45); roof.position.set(0, 4.7, -4.15); g.add(roof);
           cab.visible = roof.visible = false;
-          g.add(createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qualityLevel }));
+          detailedTruckExterior = createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qualityLevel });
+          g.add(detailedTruckExterior);
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
           trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           trailer.material.userData.vehicleSurface = "commercial";
@@ -680,6 +682,7 @@
             const l = part(g, 0.55, 0.7, 0.12, 0xe51c3a, p, 1.8, 10.42);
             l.material = red;
           }
+          for (const child of g.children) if (child !== detailedTruckExterior) child.visible = false;
         }
         const modeledCabin = emergency ? null : createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel });
         if (modeledCabin) {
