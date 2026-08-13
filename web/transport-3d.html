@@ -155,6 +155,7 @@
       import { createWorldEvents } from "./transport-world-events.js";
       import { mountEuropeRoadMap } from "./transport-europe-map.js";
       import { createWheelInput } from "./transport-wheel-input.js";
+      import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -613,7 +614,11 @@
             l.material = red;
           }
         }
-        interior(g, bus);
+        const modeledCabin = createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel });
+        g.add(modeledCabin);
+        g.userData.cockpitSteering = modeledCabin.userData.steering;
+        g.userData.instrument = modeledCabin.userData.instrument;
+        g.userData.navigation = modeledCabin.userData.navigation;
         g.traverse((o) => {
           if (o.isMesh) {
             o.castShadow = true;
@@ -964,6 +969,16 @@
           x.font = "500 18px system-ui"; x.fillStyle = worldState.speeding ? "#ff756b" : "#b4c8cd";
           x.fillText(`LÍMITE ${worldState.currentSpeedLimit || 0}  ·  COMBUSTIBLE ${Math.round(career.state.truck.fuel)}%  ·  FRENO ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`, 250, 169);
           texture.needsUpdate = true;
+          if (V.userData.navigation) {
+            const { canvas: navCanvas, context: nav, texture: navTexture } = V.userData.navigation;
+            nav.fillStyle = "#071218"; nav.fillRect(0, 0, navCanvas.width, navCanvas.height);
+            nav.strokeStyle = "#203942"; nav.lineWidth = 2;
+            for (let grid = 32; grid < navCanvas.width; grid += 48) { nav.beginPath(); nav.moveTo(grid, 0); nav.lineTo(grid, navCanvas.height); nav.stroke(); nav.beginPath(); nav.moveTo(0, grid); nav.lineTo(navCanvas.width, grid); nav.stroke(); }
+            nav.strokeStyle = "#42dbc5"; nav.lineWidth = 28; nav.lineCap = "round"; nav.beginPath(); nav.moveTo(192, 420); nav.bezierCurveTo(185, 300, 245, 236, 170, 120); nav.bezierCurveTo(138, 70, 185, 42, 230, -20); nav.stroke();
+            nav.fillStyle = "#f5fbfa"; nav.beginPath(); nav.moveTo(192, 230); nav.lineTo(172, 274); nav.lineTo(192, 264); nav.lineTo(212, 274); nav.closePath(); nav.fill();
+            nav.fillStyle = "#9db4bc"; nav.font = "600 23px system-ui"; nav.textAlign = "center"; nav.fillText(`${document.querySelector("#city").textContent} · ${Math.max(1, Math.round((V.position.z + 2800) / 100))} km`, 192, 354);
+            navTexture.needsUpdate = true;
+          }
         }
         document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
         if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
