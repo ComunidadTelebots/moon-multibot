@@ -21,6 +21,8 @@ export function createTransportEnhancements(options) {
   scene.add(root);
   const animated = [];
   const disposable = [];
+  const originalBackground = scene.background;
+  const originalEnvironmentIntensity = scene.environmentIntensity;
   const material = (params) => {
     const value = new T.MeshStandardMaterial(params);
     disposable.push(value);
@@ -61,7 +63,10 @@ export function createTransportEnhancements(options) {
         sky+=vec3(1.,.76,.42)*glow;
         vec3 night=vec3(.012,.025,.075)+vec3(.025,.035,.075)*h;
         gl_FragColor=vec4(mix(night,sky,daylight),1.);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
+    toneMapped: true,
   });
   disposable.push(skyMaterial);
   const sky = mesh(new T.SphereGeometry(700, qualityLevel > 1 ? 48 : 24, 18), skyMaterial);
@@ -86,6 +91,24 @@ export function createTransportEnhancements(options) {
   ridges.receiveShadow = true;
   root.add(ridges);
 
+  // A low-cost second atmospheric layer gives depth without a post-processing pass.
+  const hazeMaterial = new T.MeshBasicMaterial({
+    color: 0xb9d4df,
+    transparent: true,
+    opacity: qualityLevel > 1 ? 0.075 : 0.04,
+    depthWrite: false,
+    side: T.DoubleSide,
+  });
+  disposable.push(hazeMaterial);
+  const hazeGeometry = new T.PlaneGeometry(560, 42);
+  disposable.push(hazeGeometry);
+  for (const z of [-390, 390]) {
+    const haze = new T.Mesh(hazeGeometry, hazeMaterial);
+    haze.position.set(0, 18, z);
+    if (z > 0) haze.rotation.y = Math.PI;
+    root.add(haze);
+  }
+
   // Road texture cues: subtle wheel wear, reflectors, drain covers and delineator posts.
   const wear = material({ color: 0x191d21, roughness: 0.96, transparent: true, opacity: 0.28 });
   for (const laneX of [-8, -3.2, 3.2, 8]) {
@@ -94,6 +117,43 @@ export function createTransportEnhancements(options) {
       strip.rotation.x = -Math.PI / 2;
       strip.position.set(laneX + offset, 0.181, 0);
       root.add(strip);
+    }
+  }
+  const wetRoad = material({
+    color: 0x15202a,
+    roughness: 0.2,
+    metalness: 0,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const wetOverlay = mesh(new T.PlaneGeometry(roadWidth - 1.4, 880), wetRoad);
+  wetOverlay.rotation.x = -Math.PI / 2;
+  wetOverlay.position.y = 0.184;
+  wetOverlay.receiveShadow = qualityLevel > 0;
+  root.add(wetOverlay);
+
+  // Irregular puddles are reserved for high/ultra, keeping mobile draw calls bounded.
+  const puddles = [];
+  if (qualityLevel > 1) {
+    const puddleMaterial = material({
+      color: 0x476579,
+      roughness: 0.08,
+      metalness: 0.05,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const puddleGeometry = new T.CircleGeometry(1, 18);
+    disposable.push(puddleGeometry);
+    for (let i = 0; i < 18; i += 1) {
+      const puddle = new T.Mesh(puddleGeometry, puddleMaterial);
+      puddle.rotation.x = -Math.PI / 2;
+      puddle.rotation.z = i * 1.91;
+      puddle.scale.set(0.7 + (i % 4) * 0.42, 1.5 + (i % 3) * 0.55, 1);
+      puddle.position.set(((i * 7.7) % (roadWidth - 7)) - (roadWidth - 7) / 2, 0.188, -410 + i * 48);
+      root.add(puddle);
+      puddles.push(puddle);
     }
   }
   const reflectorMaterial = new T.MeshBasicMaterial({ color: 0xe8f7ff });
@@ -149,7 +209,11 @@ export function createTransportEnhancements(options) {
   const vehicleDetails = new T.Group();
   vehicleDetails.name = "enhanced-vehicle-details";
   if (vehicle) {
-    const glass = material({ color: 0x153447, roughness: 0.12, metalness: 0.15, transparent: true, opacity: 0.68 });
+    const glassParams = { color: 0x153447, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.68 };
+    const glass = qualityLevel > 1 && T.MeshPhysicalMaterial
+      ? new T.MeshPhysicalMaterial({ ...glassParams, clearcoat: 0.72, clearcoatRoughness: 0.16 })
+      : material(glassParams);
+    if (!disposable.includes(glass)) disposable.push(glass);
     const windshield = mesh(new T.BoxGeometry(4.3, 1.65, 0.055), glass);
     windshield.position.set(0, 3.52, -7.16);
     vehicleDetails.add(windshield);
@@ -185,6 +249,11 @@ export function createTransportEnhancements(options) {
     renderer.outputColorSpace = T.SRGBColorSpace;
   }
 
+  // Neutral fill light prevents crushed shadows while preserving the directional sun.
+  const fill = new T.HemisphereLight(0xb9d8f0, 0x34412f, qualityLevel > 1 ? 0.72 : 0.55);
+  fill.name = "transport-atmospheric-fill";
+  root.add(fill);
+
   function update(state = {}) {
     const time = Number(state.time || performance.now()) * 0.001;
     const speed = Math.max(0, Number(state.speed || 0));
@@ -203,6 +272,11 @@ export function createTransportEnhancements(options) {
     }
     skyUniforms.topColor.value.set(weather === "rain" ? 0x596b79 : 0x2878bd);
     skyUniforms.horizonColor.value.set(weather === "rain" ? 0xaab6bd : 0xd8eff8);
+    fill.intensity = (qualityLevel > 1 ? 0.72 : 0.55) * (0.3 + daylight * 0.7);
+    fill.color.set(weather === "rain" ? 0xaab9c4 : daylight < 0.2 ? 0x6074a5 : 0xb9d8f0);
+    wetRoad.opacity += ((weather === "rain" ? 0.36 : 0) - wetRoad.opacity) * 0.035;
+    hazeMaterial.opacity += ((weather === "fog" ? 0.2 : weather === "rain" ? 0.11 : qualityLevel > 1 ? 0.075 : 0.04) - hazeMaterial.opacity) * 0.025;
+    for (const puddle of puddles) puddle.material.opacity = wetRoad.opacity * 0.72;
     if (scene.fog) {
       scene.fog.color.set(weather === "rain" ? 0x8799a5 : daylight < 0.2 ? 0x10182d : 0xa6d0e5);
       scene.fog.near = weather === "fog" ? 34 : 90;
@@ -222,6 +296,8 @@ export function createTransportEnhancements(options) {
 
   function dispose() {
     scene.remove(root);
+    scene.background = originalBackground;
+    if (originalEnvironmentIntensity !== undefined) scene.environmentIntensity = originalEnvironmentIntensity;
     if (vehicle) vehicle.remove(vehicleDetails);
     for (const item of disposable) item?.dispose?.();
   }
@@ -234,6 +310,8 @@ export function applyRealisticRendererSettings(THREE, renderer, qualityLevel = 2
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = qualityLevel >= 2 ? 1.08 : 1;
   if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = qualityLevel > 0;
   renderer.shadowMap.autoUpdate = qualityLevel > 0;
+  if (THREE.PCFSoftShadowMap !== undefined) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.sortObjects = true;
 }
-

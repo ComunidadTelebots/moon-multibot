@@ -65,32 +65,86 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
   const glass = material({ color: 0x9edfff, roughness: 0.08, metalness: 0.12, transparent: true, opacity: 0.58 });
   const grass = material({ color: 0x526d3d, roughness: 1 });
 
-  function signFace(text, background = "#175d9b", foreground = "#fff") {
-    if (typeof document === "undefined") return blue;
+  function canvasMaterial(draw, width = 256, height = 256) {
+    if (typeof document === "undefined") return white;
     const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext("2d");
-    context.fillStyle = background;
-    context.fillRect(0, 0, 256, 256);
-    context.strokeStyle = foreground;
-    context.lineWidth = 14;
-    context.strokeRect(9, 9, 238, 238);
-    context.fillStyle = foreground;
-    context.font = "bold 92px system-ui, sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(String(text), 128, 134);
+    draw(context, width, height);
     const texture = track(new T.CanvasTexture(canvas));
     if (T.SRGBColorSpace) texture.colorSpace = T.SRGBColorSpace;
-    return track(new T.MeshStandardMaterial({ map: texture, roughness: 0.58 }));
+    texture.anisotropy = qualityLevel > 1 ? 4 : 1;
+    return track(new T.MeshStandardMaterial({ map: texture, roughness: 0.56 }));
+  }
+
+  function signFace(text, background = "#175d9b", foreground = "#fff") {
+    return canvasMaterial((context) => {
+      context.fillStyle = background;
+      context.fillRect(0, 0, 256, 256);
+      context.strokeStyle = foreground;
+      context.lineWidth = 14;
+      context.strokeRect(9, 9, 238, 238);
+      context.fillStyle = foreground;
+      context.font = "bold 78px system-ui, sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(String(text), 128, 132, 220);
+    });
+  }
+
+  function regulatoryFace(limit) {
+    return canvasMaterial((context) => {
+      context.fillStyle = "#fff";
+      context.beginPath();
+      context.arc(128, 128, 112, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = "#d21f2b";
+      context.lineWidth = 25;
+      context.stroke();
+      context.fillStyle = "#111";
+      context.font = "700 94px Arial, sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(String(limit), 128, 137);
+    });
+  }
+
+  function worksFace() {
+    return canvasMaterial((context) => {
+      context.fillStyle = "#fff";
+      context.beginPath();
+      context.moveTo(128, 12);
+      context.lineTo(244, 226);
+      context.lineTo(12, 226);
+      context.closePath();
+      context.fill();
+      context.strokeStyle = "#d21f2b";
+      context.lineWidth = 18;
+      context.stroke();
+      context.fillStyle = "#171717";
+      context.beginPath();
+      context.arc(128, 102, 15, 0, Math.PI * 2);
+      context.fill();
+      context.lineWidth = 13;
+      context.beginPath();
+      context.moveTo(128, 119);
+      context.lineTo(106, 166);
+      context.moveTo(118, 138);
+      context.lineTo(158, 151);
+      context.moveTo(108, 163);
+      context.lineTo(90, 205);
+      context.moveTo(111, 163);
+      context.lineTo(145, 203);
+      context.stroke();
+    });
   }
 
   function speedSign(x, z, limit) {
     const group = new T.Group();
     const pole = makeMesh(new T.CylinderGeometry(0.09, 0.12, 3.3, 9), steel);
     pole.position.y = 1.65;
-    const face = makeMesh(new T.CylinderGeometry(0.75, 0.75, 0.1, 32), signFace(limit, "#fff", "#d42028"));
+    const face = makeMesh(new T.CylinderGeometry(0.75, 0.75, 0.1, 32), regulatoryFace(limit));
     face.rotation.x = Math.PI / 2;
     face.position.set(0, 3.3, 0);
     group.add(pole, face);
@@ -102,16 +156,25 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     const group = new T.Group();
     const pole = makeMesh(new T.CylinderGeometry(0.1, 0.14, 5, 10), steel);
     pole.position.y = 2.5;
-    const caseMesh = addBox(group, [0.85, 2.5, 0.7], [0, 4.6, 0], dark);
+    const backboard = addBox(group, [1.15, 2.78, 0.18], [0, 4.6, 0.18], dark);
+    const caseMesh = addBox(group, [0.82, 2.45, 0.65], [0, 4.6, -0.08], dark);
     const lamps = [];
     for (const [index, color] of [0xff2020, 0xffbd20, 0x20e06b].entries()) {
       const lampSurface = basic({ color, transparent: true, opacity: 0.18 });
       const lamp = makeMesh(new T.SphereGeometry(0.27, 16, 10), lampSurface, false);
       lamp.position.set(0, 5.35 - index * 0.76, -0.36);
       group.add(lamp);
+      const hood = makeMesh(new T.CylinderGeometry(0.31, 0.31, 0.38, 18, 1, false, 0, Math.PI), dark);
+      hood.rotation.set(Math.PI / 2, 0, Math.PI);
+      hood.position.set(0, 5.45 - index * 0.76, -0.57);
+      group.add(hood);
       lamps.push(lamp);
     }
-    group.add(pole, caseMesh);
+    group.add(pole, backboard, caseMesh);
+    const stopLine = makeMesh(new T.PlaneGeometry(8.2, 0.42), white, false);
+    stopLine.rotation.x = -Math.PI / 2;
+    stopLine.position.set(x < 0 ? 4.1 : -4.1, 0.026, 3.2);
+    group.add(stopLine);
     group.position.set(x, 0, z);
     group.userData.lamps = lamps;
     group.userData.cycleOffset = cycleOffset;
@@ -125,13 +188,33 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     patch.rotation.x = -Math.PI / 2;
     patch.position.y = 0.025;
     group.add(patch);
-    for (let i = -4; i <= 4; i += 1) {
-      const side = i < 0 ? -1 : 1;
-      const cone = makeMesh(new T.ConeGeometry(0.23, 0.75, 10), orange);
-      cone.position.set(side * 3.3, 0.38, i * 2.7);
+    const coneStripe = material({ color: 0xf7f7f2, roughness: 0.6 });
+    for (let i = 0; i < 10; i += 1) {
+      const progress = i / 9;
+      const cone = new T.Group();
+      addBox(cone, [0.62, 0.08, 0.62], [0, 0.04, 0], dark);
+      const body = makeMesh(new T.ConeGeometry(0.23, 0.72, 12), orange);
+      body.position.y = 0.4;
+      cone.add(body);
+      const stripe = makeMesh(new T.CylinderGeometry(0.13, 0.17, 0.13, 12), coneStripe);
+      stripe.position.y = 0.37;
+      cone.add(stripe);
+      cone.position.set(3.7 - progress * 2.4, 0, -17 + i * 3.3);
       group.add(cone);
     }
-    addBox(group, [4.8, 0.22, 0.2], [0, 1.05, -10], yellow);
+    const barrierFace = canvasMaterial((context) => {
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, 256, 256);
+      context.strokeStyle = "#d62828";
+      context.lineWidth = 42;
+      for (let x = -180; x < 300; x += 110) {
+        context.beginPath();
+        context.moveTo(x, 256);
+        context.lineTo(x + 160, 0);
+        context.stroke();
+      }
+    });
+    addBox(group, [4.8, 0.72, 0.2], [0, 1.05, -10], barrierFace);
     addBox(group, [0.18, 1.4, 0.18], [-2, 0.7, -10], steel);
     addBox(group, [0.18, 1.4, 0.18], [2, 0.7, -10], steel);
     const excavator = new T.Group();
@@ -141,6 +224,10 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     arm.rotation.x = -0.45;
     excavator.position.set(1.2, 0, 1.5);
     group.add(excavator);
+    const warning = makeMesh(new T.CylinderGeometry(0.78, 0.78, 0.08, 3), worksFace());
+    warning.rotation.set(Math.PI / 2, 0, Math.PI);
+    warning.position.set(4.7, 2.45, -21);
+    group.add(warning);
     group.position.set(x, 0.18, z);
     return register("roadworks", group, 65, { speedLimit: 40, laneBlocked: x < 0 ? "left" : "right" });
   }
@@ -159,6 +246,12 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
       group.add(beacon);
     }
     group.userData.beacons = group.children.filter((item) => item.material === warningSurface);
+    for (let index = 0; index < 3; index += 1) {
+      const triangle = makeMesh(new T.CylinderGeometry(0.42, 0.42, 0.06, 3), worksFace());
+      triangle.rotation.set(Math.PI / 2, 0, Math.PI);
+      triangle.position.set(-1.3, 0.48, 5.5 + index * 4.5);
+      group.add(triangle);
+    }
     group.position.set(x, 0.18, z);
     return register("accident", group, 75, { speedLimit: 30, laneBlocked: x < 0 ? "left" : "right" });
   }
@@ -190,13 +283,20 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
       addBox(group, [1.1, 1.9, 0.8], [px, 0.95, 1.4], blue);
       addBox(group, [0.72, 0.44, 0.05], [px, 1.35, 0.97], dark);
     }
+    for (const px of [-7.5, 7.5]) {
+      const charger = addBox(group, [0.8, 1.5, 0.55], [px, 0.75, 6], material({ color: 0xeff4f2, roughness: 0.58 }));
+      addBox(charger, [0.5, 0.48, 0.03], [0, 0.28, -0.29], blue);
+      const cable = makeMesh(new T.TorusGeometry(0.28, 0.035, 8, 18, Math.PI * 1.5), dark);
+      cable.position.set(0.38, -0.12, -0.31);
+      charger.add(cable);
+    }
     addBox(group, [18, 4.2, 7], [0, 2.1, 10], white);
     addBox(group, [10, 2.4, 0.08], [0, 2.2, 6.46], glass);
-    const sign = makeMesh(new T.BoxGeometry(3, 5.8, 0.42), signFace("FUEL", "#176a48", "#fff"));
+    const sign = makeMesh(new T.BoxGeometry(3, 5.8, 0.42), signFace("24h", "#176a48", "#fff"));
     sign.position.set(-11, 2.9, -10);
     group.add(sign);
     group.position.set(x, 0.19, z);
-    return register("fuel-station", group, 75, { price: 1.72, services: ["fuel", "rest", "repair"] });
+    return register("fuel-station", group, 75, { price: 1.72, services: ["fuel", "rest", "repair", "ev-charge"] });
   }
 
   function weatherZone(x, z, weather, radius) {
@@ -277,6 +377,7 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
         eventState.activeEvents.push(data.type);
         if (data.limit) limit = Math.min(limit, data.limit);
         if (data.speedLimit) limit = Math.min(limit, data.speedLimit);
+        if (data.type === "traffic-light" && data.signal === "yellow" && distance < 24) limit = Math.min(limit, 30);
         if (data.type === "traffic-light" && data.signal === "red" && distance < 28) limit = 0;
         if (data.type === "fuel-station") eventState.fuelStationNearby = true;
         if (data.type === "police") eventState.policeAlert = true;

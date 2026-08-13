@@ -834,13 +834,17 @@
           document.querySelector("#assistState").textContent = "AEBS frenando";
         } else {
           const cruiseThrottle = cruiseEnabled && speed < desired ? 0.72 : 0;
+          const roadGrade = Math.sin(V.position.z * 0.0028) * 0.035
+            + Math.sin(V.position.z * 0.00073) * 0.018;
           physicalFrame = physics.update({
             throttle: !onFoot && accelerating ? 1 : cruiseThrottle,
-            brake: !onFoot && braking ? 1 : retarderOn ? 0.22 : cruiseEnabled && speed > desired + 2 ? 0.42 : 0,
+            brake: !onFoot && braking ? 1 : cruiseEnabled && speed > desired + 2 ? 0.42 : 0,
+            retarder: retarderOn ? 1 : 0,
             steering: (left ? -1 : right ? 1 : 0), parkingBrake, wetness: worldState.localWeather === "rain" ? 1 : 0,
             offroad: Math.abs(V.position.x) > 14.2, damage, distance: physicalDistance,
             cargoMass: career.activeContract ? 18000 : loadedPallets * 1200, cargoHeight: 1.65,
             windSpeed: worldState.localWeather === "rain" ? 18 : 5, windAngle: Math.sin(now * 0.00017),
+            roadGrade,
           }, dt);
           speed = physicalFrame.speedKmh; physicalDistance += physicalFrame.forwardMeters;
           document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC · ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
@@ -874,9 +878,10 @@
         else V.position.y += ((physicalFrame?.suspension || 0) - V.position.y) * Math.min(1, dt * 12);
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
         document.querySelector("#physicsState").textContent = Math.abs(V.position.x) > 14.2 ? "Arcén · baja adherencia" : weatherMode === 1 ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
-        document.querySelector("#transmissionState").textContent = `${physicalFrame?.gear || physics.gear}ª · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`;
+        document.querySelector("#transmissionState").textContent = `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}ª`} · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · pendiente ${((physicalFrame?.roadGrade || 0) * 100).toFixed(1)}% · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`;
         document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
         if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
+        else if (physicalFrame?.tractionLimited) document.querySelector("#assistState").textContent = "Control de tracción actuando";
         document.querySelector("#dashSpeed").textContent = Math.round(speed);
         document.querySelector("#dashGear").textContent = `D${physicalFrame?.gear || physics.gear}`;
         document.querySelector("#dashFuel").textContent = `${Math.round(career.state.truck.fuel)}% combustible`;
@@ -908,7 +913,7 @@
           palletJack.rotation.z = walking && workTool === "palletJack" ? Math.sin(now * 0.014) * 0.025 : 0;
         }
         camera(dt, now);
-        enhancements.update({ time: now, speed, steering: steer, weather: weatherMode === 1 ? "rain" : "clear", dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: weatherMode === 1 || manualWipers, cameraPosition: C.position });
+        enhancements.update({ time: now, speed, steering: steer, weather: worldState.localWeather, dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: worldState.localWeather === "rain" || manualWipers, cameraPosition: C.position });
         R.render(S, C);
         requestAnimationFrame(loop);
       }
