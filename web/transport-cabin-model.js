@@ -1,14 +1,16 @@
 export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLevel = 2 }) {
   const root = new T.Group(); root.name = "aster_original_cabin";
   const cabinTextures = [];
-  const texture = (name, base, detail, lines = false) => {
+  const texture = (name, base, detail, pattern = "grain") => {
     const canvas=document.createElement("canvas"),size=qualityLevel>1?512:256;canvas.width=canvas.height=size;const x=canvas.getContext("2d");
     x.fillStyle=base;x.fillRect(0,0,size,size);let seed=name.length*7919;
-    for(let i=0;i<size*5;i++){seed=(seed*48271)%2147483647;const px=seed%size;seed=(seed*48271)%2147483647;const py=seed%size;x.fillStyle=`rgba(${detail},${detail},${detail},${.025+(seed%9)/300})`;x.fillRect(px,py,1+(seed%2),1+(seed%2));}
-    if(lines){x.strokeStyle="rgba(220,230,228,.18)";x.lineWidth=2;for(let y=16;y<size;y+=32){x.beginPath();x.moveTo(0,y);x.lineTo(size,y);x.stroke();}}
-    const map=new T.CanvasTexture(canvas);map.name=name;map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(3,3);map.anisotropy=qualityLevel>2?16:qualityLevel>1?8:2; cabinTextures.push(map);return map;
+    if(pattern==="weave") for(let p=-size;p<size*2;p+=7){x.strokeStyle=`rgba(${detail},${detail},${detail},.11)`;x.lineWidth=2;x.beginPath();x.moveTo(p,0);x.lineTo(p-size,size);x.stroke();x.beginPath();x.moveTo(p,0);x.lineTo(p+size,size);x.stroke();}
+    else if(pattern==="brushed") for(let y=0;y<size;y+=2){seed=(seed*48271)%2147483647;x.fillStyle=`rgba(${detail},${detail},${detail},${.025+(seed%12)/220})`;x.fillRect(0,y,size,1);}
+    else if(pattern==="rubber") { for(let y=4;y<size;y+=18){x.fillStyle="rgba(150,160,160,.13)";x.fillRect(0,y,size,4);} }
+    else for(let i=0;i<size*6;i++){seed=(seed*48271)%2147483647;const px=seed%size;seed=(seed*48271)%2147483647;const py=seed%size;x.fillStyle=`rgba(${detail},${detail},${detail},${.022+(seed%9)/280})`;x.fillRect(px,py,1+(seed%2),1+(seed%2));}
+    const map=new T.CanvasTexture(canvas);map.name=name;map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(pattern==="weave"?5:3,pattern==="weave"?7:3);map.anisotropy=qualityLevel>2?16:qualityLevel>1?8:2; cabinTextures.push(map);return map;
   };
-  const softMap=texture("dashboard_grain","#303438",105), leatherMap=texture("leather_grain","#24282b",80,true), fabricMap=texture("seat_weave","#394147",135,true), headlinerMap=texture("headliner_weave","#b2b3ae",190,true), sleeperMap=texture("sleeper_fabric","#42565c",125,true), aluminiumMap=texture("brushed_aluminium","#9ba3a5",210,true);
+  const softMap=texture("dashboard_grain","#303438",105), leatherMap=texture("leather_grain","#24282b",80), fabricMap=texture("seat_weave","#394147",135,"weave"), headlinerMap=texture("headliner_weave","#b2b3ae",190,"weave"), sleeperMap=texture("sleeper_fabric","#42565c",125,"weave"), aluminiumMap=texture("brushed_aluminium","#9ba3a5",210,"brushed"), rubberMap=texture("ribbed_floor","#111416",90,"rubber");
   const material = (name, color, roughness, metalness = 0, extra = {}) => {
     const value = new T.MeshPhysicalMaterial({ name, color, roughness, metalness, ...extra });
     return value;
@@ -21,6 +23,7 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const fabric = material("woven_seat_fabric", 0xffffff, .98, 0, { map:fabricMap,bumpMap:fabricMap,bumpScale:.035,sheen: .32, sheenColor: new T.Color(0x53626a) });
   const headliner = material("woven_headliner", 0xffffff, .96, 0, { map:headlinerMap,bumpMap:headlinerMap,bumpScale:.022,sheen: .12, sheenColor: new T.Color(0xd8d4c8) });
   const sleeperFabric = material("sleeper_textile", 0xffffff, .94, 0, { map:sleeperMap,bumpMap:sleeperMap,bumpScale:.032,sheen: .28, sheenColor: new T.Color(0x63868c) });
+  const rubber = material("ribbed_cabin_rubber", 0xffffff, 1, 0, { map:rubberMap,bumpMap:rubberMap,bumpScale:.045 });
   const screenMaterial = new T.MeshBasicMaterial({ name: "live_instrument_display", color: 0xffffff, toneMapped: false });
   const accent = new T.MeshBasicMaterial({ color: 0x57e5d0, toneMapped: false });
   const add = (geometry, mat, name, position, rotation = [0, 0, 0], parent = root) => {
@@ -48,16 +51,30 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const displayCanvas = document.createElement("canvas"); displayCanvas.width = 768; displayCanvas.height = 288;
   const displayTexture = new T.CanvasTexture(displayCanvas); displayTexture.colorSpace = T.SRGBColorSpace; screenMaterial.map = displayTexture;
   add(new T.PlaneGeometry(1.64, .61), screenMaterial, "instrument_cluster_live", [-.67, 2.48, frontZ - .47]);
+  for (const gaugeX of [-1.17, -.19]) {
+    add(new T.CylinderGeometry(.31,.31,.055,qualityLevel>1?40:24), piano, "analogue_gauge_bezel", [gaugeX,2.49,frontZ-.5], [Math.PI/2,0,0]);
+    add(new T.TorusGeometry(.265,.025,10,qualityLevel>1?40:24), aluminium, "analogue_gauge_ring", [gaugeX,2.49,frontZ-.535]);
+    for(let tick=0;tick<11;tick++){
+      const angle=-2.35+tick*.47, mark=box("gauge_tick",[.018,.075,.012],[gaugeX+Math.cos(angle)*.215,2.49+Math.sin(angle)*.215,frontZ-.568],accent);
+      mark.rotation.z=angle-Math.PI/2;
+    }
+  }
   const navCanvas = document.createElement("canvas"); navCanvas.width = 384; navCanvas.height = 384;
   const navTexture = new T.CanvasTexture(navCanvas); navTexture.colorSpace = T.SRGBColorSpace;
   add(new T.PlaneGeometry(.82, .72), new T.MeshBasicMaterial({ map: navTexture, toneMapped: false }), "navigation_touchscreen", [.92, 2.29, frontZ - .61]);
-  for(let row=0;row<2;row++)for(let column=0;column<6;column++)add(new T.CylinderGeometry(.04,.04,.025,12),column===2&&row===0?material("hazard_switch",0xc62b2b,.35):polymer,"physical_dashboard_switch",[.48+column*.17,1.83-row*.17,frontZ-.62],[Math.PI/2,0,0]);
+  const switchIcons=["L","P","△","A","R","M","+","−","F","C","D","S"];
+  for(let row=0;row<2;row++)for(let column=0;column<6;column++){
+    const switchCanvas=document.createElement("canvas");switchCanvas.width=switchCanvas.height=64;const sx=switchCanvas.getContext("2d");sx.fillStyle=column===2&&row===0?"#8e1f22":"#222a2e";sx.fillRect(0,0,64,64);sx.fillStyle="#d9f5ef";sx.font="bold 27px sans-serif";sx.textAlign="center";sx.textBaseline="middle";sx.fillText(switchIcons[row*6+column],32,34);
+    const switchMap=new T.CanvasTexture(switchCanvas);switchMap.colorSpace=T.SRGBColorSpace;cabinTextures.push(switchMap);
+    add(new T.BoxGeometry(.115,.105,.035),new T.MeshPhysicalMaterial({map:switchMap,roughness:.3,clearcoat:.55}),"labelled_dashboard_switch",[.48+column*.17,1.83-row*.17,frontZ-.62]);
+  }
   const wheel = new T.Group(); wheel.name = "steering_wheel"; wheel.position.set(-1.04, 2.55, frontZ + .5); wheel.rotation.x = -.18;
   add(new T.TorusGeometry(.54, .075, qualityLevel > 1 ? 16 : 10, qualityLevel > 1 ? 48 : 24), leather, "steering_rim", [0, 0, 0], [0, 0, 0], wheel);
   for (const angle of [-2.48, -.66, Math.PI / 2]) {
     const spoke = box("steering_spoke", [.42, .09, .09], [Math.cos(angle) * .22, Math.sin(angle) * .22, 0], polymer, [0, 0, angle]); wheel.add(spoke);
   }
   add(new T.CylinderGeometry(.2, .2, .1, 32), piano, "steering_hub", [0, 0, 0], [Math.PI / 2, 0, 0], wheel);
+  add(new T.TorusGeometry(.455,.012,8,48), aluminium, "steering_stitching", [0,0,-.074], [0,0,0], wheel);
   for (const side of [-1, 1]) for (let row = 0; row < 2; row++) add(new T.CylinderGeometry(.035, .035, .022, 12), accent, "steering_button", [side * .24, .06 - row * .13, -.065], [Math.PI / 2, 0, 0], wheel);
   root.add(wheel);
   add(new T.CylinderGeometry(.07, .11, .72, 18), polymer, "steering_column", [-1.04, 2.2, frontZ + .84], [Math.PI / 2, 0, 0]);
@@ -93,7 +110,7 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     box("windshield_lower_frame", [2.08,.16,.22], [side*1.02,2.7,frontZ-.73], polymer);
     box("door_ambient_light", [.035,.045,1.45], [side*(sideX-.18),1.72,frontZ+.82], accent);
   }
-  box("rubber_floor", [4.1, .04, 3.4], [0, .47, frontZ + 1.12], material("rubber_floor", 0x080a0b, 1));
+  box("rubber_floor", [4.1, .04, 3.4], [0, .47, frontZ + 1.12], rubber);
   roundedPanel("central_engine_tunnel", 1.12, .38, 2.25, .18, [0,.68,frontZ+1.5], polymer);
   box("cab_rear_wall", [4.55,3.72,.14], [0,2.5,frontZ+4.2], soft);
   box("cab_ceiling_headliner", [4.38,.12,4.5], [0,4.73,frontZ+1.68], headliner);
