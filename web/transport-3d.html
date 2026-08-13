@@ -162,6 +162,8 @@
       import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
       import { createSpecialTransport, SPECIAL_CARGOES } from "./transport-special-cargo.js";
       import { createWorldDetail } from "./transport-world-detail.js";
+      import { loadPhotorealAtlas } from "./transport-photoreal-atlas.js";
+      import { createRouteScenery } from "./transport-route-scenery.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -185,6 +187,12 @@
       const career = createTransportCareer();
       const textures = createProceduralTransportTextures(T, qualityLevel);
       const worldDetail = createWorldDetail({ THREE: T, qualityLevel, textureMaps: textures.maps });
+      const photorealAtlas = loadPhotorealAtlas(T, "./generated-textures/europe-roadside-atlas-v1.png", qualityLevel);
+      const routeScenery = createRouteScenery({ THREE: T, scene: S, qualityLevel });
+      photorealAtlas.ready.then(maps => {
+        worldDetail.applyPhotorealTextures(maps);
+        routeScenery.applyTextures(maps);
+      }).catch(error => console.warn("No se pudo cargar el atlas visual original", error));
       const physics = createTruckPhysics({ mass: 18000, enginePower: 390000, maxSpeedKmh: 125 });
       document.body.prepend(R.domElement);
       S.add(new T.HemisphereLight(0xe8f7ff, 0x385329, 2.2));
@@ -208,6 +216,11 @@
       x = box(30, 0.25, worldLength, 0x292e35);
       x.material = new T.MeshStandardMaterial({ color: 0x404348, ...textures.maps.asphalt, roughness: 0.93, metalness: 0.02 });
       S.add(x);
+      const roadSurface = x;
+      photorealAtlas.ready.then(maps => {
+        const asphalt = maps.asphalt.clone(); asphalt.needsUpdate = true; asphalt.repeat.set(3, 260);
+        roadSurface.material.map = asphalt; roadSurface.material.bumpMap = asphalt; roadSurface.material.bumpScale = .035; roadSurface.material.needsUpdate = true;
+      });
       for (const side of [-1, 1]) {
         const shoulder = box(2.2, 0.18, worldLength, 0x686c6c);
         shoulder.position.set(side * 16.1, -0.01, 0); S.add(shoulder);

@@ -72,5 +72,14 @@ export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {}
     for (const z of [-length * .31, length * .31]) for (const x of [-1.08, 1.08]) carWheel(root, x, z);
     root.userData.vehicleLength = length; root.userData.vehicleType = type; return root;
   }
-  return { createBuilding, createTree, createTrafficVehicle };
+  function applyPhotorealTextures(maps) {
+    const apply = (material, source, repeatX = 1, repeatY = 1) => {
+      if (!source) return;
+      const texture = source.clone(); texture.needsUpdate = true; texture.repeat.set(repeatX, repeatY);
+      material.map = texture; material.bumpMap = texture; material.bumpScale = .045; material.needsUpdate = true;
+    };
+    apply(mats.concrete, maps.stone, 2, 2);
+    mats.leaves.forEach((material, index) => apply(material, maps.foliage, 1 + index * .15, 1 + index * .15));
+  }
+  return { createBuilding, createTree, createTrafficVehicle, applyPhotorealTextures };
 }
