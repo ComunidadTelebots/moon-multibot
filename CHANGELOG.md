@@ -1,5 +1,66 @@
 # Changelog - Moon Multibot
 
+## v18.24.0 - 2026-08-13 - Juegos Moon, simulación de transporte y escalado
+
+### Plataforma de juegos
+
+- Integra en el Hub un catálogo de juegos originales compatible con Telegram HTML5 Games, enlaces `t.me`, pantalla completa y controles adaptados a móvil y escritorio.
+- Incorpora Moon Snake, Circuito Neón, Block Royale, Rutas del Continente y nuevos juegos de operaciones, logística portuaria, rescate y vuelo.
+- Añade variantes 2D y 3D, historial visible de versiones, perfiles gráficos `LOW`, `MEDIUM`, `HIGH` y `ULTRA`, detección de aceleración WebGL y controles unificados.
+- Conecta los juegos mediante una red logística compartida: almacenes, puertos, aeropuertos, carga transferible, contratos, convoyes, IA sincronizada y logros.
+- Añade primera persona, pantalla completa, multijugador de supervivencia y modos de conducción compatibles con teclado, táctil y mandos físicos.
+
+### Rutas del Continente 3D
+
+- Convierte el simulador básico en un mundo 3D continuo con camión, autobús, ambulancia, bomberos, grúa, vehículos de tráfico y transportes especiales o extremos.
+- Añade una red estilizada de carreteras europeas con 29 ciudades, 40 conexiones, peajes, ferris, rutas, distancias y un mapa de Europa con posición real y varios niveles de zoom.
+- Incorpora física de masa y carga, caja automática de doce marchas, curva de par, aerodinámica, pendiente, adherencia por superficie, aquaplaning, suspensión, balanceo, cabeceo, viento lateral, frenos térmicos, retarder y riesgo de vuelco.
+- Añade sistemas de asistencia AEBS, control de tracción, crucero adaptativo, fatiga, combustible, daños, reparación, economía, experiencia, garajes, préstamos, conductores y contratos.
+- Implementa tráfico por carriles con distancia de seguridad, frenado, adelantamientos sencillos, intermitentes, luces de freno y reciclado continuo del mundo.
+- Añade obras, túneles, accidentes, policía, límites variables, semáforos, gasolineras, talleres, puntos de descanso, cargadores eléctricos y servicios de emergencia.
+- Integra carga manual en almacén, movimiento del operario, traspaleta, preparación de mercancía, transportes pesados, escoltas y restricciones de convoy.
+
+### Mundo y gráficos
+
+- Añade texturas procedurales PBR para asfalto, terreno, hierba, hormigón, metal, pintura, neumáticos, señales, servicios y flotas de mantenimiento o emergencia.
+- Incorpora atlas visuales originales para carreteras europeas, estaciones de servicio, talleres y vehículos, sin utilizar marcas ni recursos protegidos de otros juegos.
+- Mejora carreteras con arcenes, marcas reflectantes, captafaros, drenajes, juntas, parches y desgaste; corrige las discontinuidades entre acera, césped, talud y montaña.
+- Añade edificios, árboles, jardines, rotondas y elementos urbanos, complementados con datos públicos de OpenStreetMap y atribución visible.
+- Mejora iluminación, sombras, gestión de color sRGB, tone mapping ACES, ciclo de día y noche, lluvia, niebla, asfalto mojado, charcos y detalle escalado según la GPU.
+- Corrige carteles y señales: altura, soportes, nombres de destino, formas reglamentarias, balizamiento de obras y líneas de detención.
+
+### Vehículos y cabinas
+
+- Modela un conjunto articulado original sin marcas, con cabina, chasis, remolque, depósitos, quinta rueda, ruedas, luces, intermitentes, espejos y materiales diferenciados.
+- Añade nueve cámaras asignadas a las teclas `1` a `9`, seguimiento suave, movimiento de cabeza con ratón, primera persona, vistas exteriores y composición específica para cabina y salón.
+- Integra volantes físicos mediante Gamepad API, incluidos perfiles compatibles con Logitech G920 y dispositivos equivalentes, además de vibración y controles de conducción.
+- Modela una cabina europea con salpicadero envolvente, volante, relojes, navegación, climatización, mandos, pedales, puertas, almacenamiento, techo, litera y materiales independientes.
+- Añade asientos ergonómicos con tejido y cuero, apoyos lumbar y lateral, cojín extensible, reposacabezas, apoyabrazos, cinturón y suspensión neumática modelada.
+- Incorpora parabrisas laminado transparente, juntas, pilares A/B, ventanillas, puertas detalladas y espejos principal/convexo con reflejos renderizados y calidad adaptativa.
+- Anima agujas, interruptores, testigos, intermitentes, retarder e iluminación interior según el estado real del vehículo.
+- Separa la cabina del autobús con puesto de conductor, entrada de piso bajo, mampara, puerta de dos hojas, pasamanos, ticketera, validador y consola propia.
+- Corrige cámaras interiores que atravesaban volante, asiento o techo, cristales opacos y la repetición incorrecta de una imagen de referencia sobre todas las superficies.
+
+### Alta disponibilidad de Moonbot
+
+- Añade balanceo de réplicas web mediante Traefik con comprobaciones de salud y escalado local automático entre una y cuatro instancias.
+- Separa el rol web del `worker` de Telegram para conservar un único consumidor de polling y evitar mensajes, tareas o informes duplicados.
+- Incorpora un autoscaler conservador basado en CPU y memoria, con límites, enfriamiento, reducción de réplicas y servicio `systemd`.
+- Añade un adaptador protegido para Hostinger VPS API: autenticación Bearer, modo simulación predeterminado y autorización explícita antes de realizar una compra con coste.
+- Mantiene las credenciales y el JSON de compra fuera del repositorio mediante variables de entorno y permite sustituir Hostinger por un webhook de orquestación propio.
+
+## v18.23.38 - 2026-08-12 - NoticiasWeb3 dentro del Hub
+
+- Añade una vista rápida nativa de NoticiasWeb3 dentro de la Mini App, alimentada por el RSS interno y sin incrustar el diseño de escritorio.
+- Corrige la ruta del feed, su publicación detrás de Traefik y la carga de hasta 60 noticias desde `api.todosobreall.tech/noticias/rss`.
+- Incorpora búsqueda, categorías, resumen, fecha, visualizaciones y apertura de cada noticia dentro del Hub o en la web completa.
+- Añade expansión de artículos, noticias recomendadas y controles de tipografía, tamaño y preferencias de lectura adaptados al navegador.
+- Unifica las visualizaciones de artículos entre NoticiasWeb3 y el Hub para evitar contadores independientes.
+- Actualiza los enlaces publicados por TodoSobreAllTech para abrir directamente el artículo correspondiente mediante el parámetro `startapp` de Telegram.
+- Integra anuncios comunitarios con detección automática de la fotografía real del grupo o canal administrado por el bot.
+- Añade lectores nativos para Gameplays y otros canales de la red, con publicaciones multimedia adaptadas a móvil y navegación coherente con NoticiasWeb3.
+- Documenta y corrige la URL real de la Mini App, sus enlaces profundos de Telegram y el comportamiento de caché o rutas que anteriormente devolvían `Not Found`.
+
 ## v18.23.37 - 2026-08-11 - Alertas adaptativas y privacidad de seguridad
 
 - Completa las alertas adaptativas del historial de seguridad con prioridad mínima configurable y agrupación de picos o análisis de riesgo alto.
