@@ -134,6 +134,7 @@
       <button id="europeMapButton">Mapa de Europa</button>
       <button id="wheelButton">Volante: buscar</button>
       <button id="specialButton">Transporte especial</button>
+      <button id="specialOperate" hidden>Preparar carga</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -701,6 +702,16 @@
         document.querySelector("#specialButton").classList.toggle("on", Boolean(cargo));
         document.querySelector("#specialButton").textContent = cargo ? `Especial: ${cargo.name}` : "Transporte especial";
         document.querySelector("#specialState").textContent = cargo ? `${cargo.mass / 1000} t · ${cargo.width} m ancho` : "Sin carga";
+        document.querySelector("#specialOperate").hidden = !cargo;
+        document.querySelector("#specialOperate").disabled = false;
+        document.querySelector("#specialOperate").textContent = cargo ? "Preparar hidráulica" : "Preparar carga";
+      };
+      document.querySelector("#specialOperate").onclick = () => {
+        if (speed > 1) { document.querySelector("#specialState").textContent = "Detén el vehículo para operar"; return; }
+        const operation = specialTransport.advanceStage(); if (!operation) return;
+        document.querySelector("#specialOperate").textContent = operation.ready ? "Carga inspeccionada ✓" : operation.label;
+        document.querySelector("#specialOperate").disabled = operation.ready;
+        document.querySelector("#specialState").textContent = operation.ready ? "Lista · cadenas, presión y señalización verificadas" : operation.label;
       };
       truck.onclick = () => build("truck");
       document.querySelector("#bus").onclick = () => build("bus");
@@ -981,7 +992,8 @@
         if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
         else if (physicalFrame?.tractionLimited) document.querySelector("#assistState").textContent = "Control de tracción actuando";
         if (specialFrame.active) {
-          document.querySelector("#specialState").textContent = `${specialFrame.cargo.name} · ${specialFrame.cargo.mass / 1000} t · escolta ${specialFrame.escortCount}`;
+          document.querySelector("#specialState").textContent = specialFrame.ready ? `${specialFrame.cargo.name} · ${specialFrame.cargo.mass / 1000} t · escolta ${specialFrame.escortCount}` : specialFrame.stageLabel;
+          if (!specialFrame.ready) document.querySelector("#assistState").textContent = "Completa la preparación antes de circular";
           if (specialFrame.restricted) document.querySelector("#assistState").textContent = "Carga especial: centra el convoy y reduce velocidad";
         }
         document.querySelector("#dashSpeed").textContent = Math.round(speed);
