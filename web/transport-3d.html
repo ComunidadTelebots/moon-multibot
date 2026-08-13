@@ -71,6 +71,7 @@
         backdrop-filter: blur(12px);
       }
       .map-panel[hidden] { display: none; }
+      .achievement-list{display:grid;gap:7px;max-height:60vh;overflow:auto}.achievement-row{display:flex;gap:9px;align-items:center;padding:9px;border:1px solid #304656;border-radius:10px;background:#0a141d;color:#738493}.achievement-row.done{color:#eafefa;border-color:#3b9e8c;background:#0d2826}.achievement-row i{font-size:22px;font-style:normal}.achievement-toast{position:fixed;z-index:20;top:72px;left:50%;transform:translate(-50%,-20px);padding:12px 18px;border:1px solid #52dec6;border-radius:14px;background:#08211fee;opacity:0;pointer-events:none;transition:.3s}.achievement-toast.show{opacity:1;transform:translate(-50%,0)}
       .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
       .map-panel h3 { margin: 0; }
       #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
@@ -133,6 +134,7 @@
       ><button id="workMode">Ir al almacén</button><button id="toolButton">Traspaleta</button
       ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
       <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
+      <button id="achievementsButton">Logros</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -140,12 +142,13 @@
       ><button class="mobile" data-key="d">▶</button>
     </div>
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Ruta del Continente</h3><button id="mapClose">×</button></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
+    <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div></div>
       <div class="dash-buttons"><button data-cockpit="lights">💡 Luces</button><button data-cockpit="wipers">🌧 Limpia</button><button data-cockpit="hazard">⚠ Emergencia</button><button data-cockpit="retarder">R Retarder</button><button data-cockpit="cruise">◉ Crucero</button><button data-cockpit="parking">P Freno</button></div></div>
     </section>
-    <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script type="module">
+    <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/transport-achievements.js"></script><script type="module">
       import * as T from "./vendor/three.module.min.js";
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
       import { createTransportCareer } from "./transport-career.js";
@@ -162,7 +165,7 @@
       const S = new T.Scene();
       S.background = new T.Color(0x87c8ed);
       S.fog = new T.Fog(0xa6d0e5, 90, 430);
-      const C = new T.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 900),
+      const C = new T.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 4000),
         R = new T.WebGLRenderer({ antialias: qualityLevel > 0, powerPreference: graphicsMode === "gpu" ? "high-performance" : "default" });
       R.setPixelRatio(Math.min(devicePixelRatio, pixelRatio));
       R.setSize(innerWidth, innerHeight);
@@ -190,19 +193,20 @@
           x.castShadow = x.receiveShadow = true;
           return x;
         };
-      let x = box(500, 1, 900, 0x4d8943);
+      const worldLength = 6000;
+      let x = box(500, 1, worldLength, 0x4d8943);
       x.position.y = -0.6;
       S.add(x);
-      x = box(30, 0.25, 900, 0x292e35);
+      x = box(30, 0.25, worldLength, 0x292e35);
       x.material = new T.MeshStandardMaterial({ color: 0x404348, ...textures.maps.asphalt, roughness: 0.93, metalness: 0.02 });
       S.add(x);
       for (const side of [-1, 1]) {
-        const shoulder = box(2.2, 0.18, 900, 0x686c6c);
+        const shoulder = box(2.2, 0.18, worldLength, 0x686c6c);
         shoulder.position.set(side * 16.1, -0.01, 0); S.add(shoulder);
-        const edgeLine = box(0.22, 0.035, 900, 0xf2f0dd);
+        const edgeLine = box(0.22, 0.035, worldLength, 0xf2f0dd);
         edgeLine.position.set(side * 14.65, 0.16, 0); S.add(edgeLine);
         if (qualityLevel >= 1) {
-          const rail = box(0.16, 0.22, 900, 0xaeb8bd);
+          const rail = box(0.16, 0.22, worldLength, 0xaeb8bd);
           rail.position.set(side * 18.1, 0.92, 0); rail.material = new T.MeshStandardMaterial({ color: 0xaeb8bd, roughness: 0.3, metalness: 0.78 }); S.add(rail);
           for (let z = -430; z < 450; z += 7) {
             const post = box(0.14, 1.05, 0.14, 0x7d878c); post.position.set(side * 18.1, 0.48, z); S.add(post);
@@ -210,7 +214,7 @@
         }
       }
       function terrainStrip(side) {
-        const geometry = new T.PlaneGeometry(235, 900, qualityLevel >= 2 ? 34 : 18, qualityLevel >= 2 ? 90 : 45),
+        const geometry = new T.PlaneGeometry(235, worldLength, qualityLevel >= 2 ? 34 : 18, qualityLevel >= 2 ? 180 : 90),
           positions = geometry.attributes.position;
         for (let i = 0; i < positions.count; i++) {
           const px = positions.getX(i), py = positions.getY(i), edge = Math.min(1, Math.abs(px) / 65);
@@ -221,13 +225,22 @@
         terrain.rotation.x = -Math.PI / 2; terrain.position.set(side * 132, -0.35, 0); terrain.receiveShadow = true; S.add(terrain);
       }
       terrainStrip(-1); terrainStrip(1);
-      for (let z = -430; z < 450; z += 18) {
+      const roadsideCount = qualityLevel > 1 ? 180 : 90, roadsideDummy = new T.Object3D();
+      const roadsideTrunks = new T.InstancedMesh(new T.CylinderGeometry(.24,.38,4.5,7), mat(0x68452d,.95), roadsideCount);
+      const roadsideCrowns = new T.InstancedMesh(new T.ConeGeometry(2.5,6.5,8), mat(0x285f35,.92), roadsideCount);
+      for(let i=0;i<roadsideCount;i++){
+        const side=i%2?-1:1,z=-2850+(i/roadsideCount)*5700+(i%7)*4,x=side*(24+(i%5)*3);
+        roadsideDummy.position.set(x,2.1,z);roadsideDummy.scale.setScalar(.8+(i%4)*.09);roadsideDummy.updateMatrix();roadsideTrunks.setMatrixAt(i,roadsideDummy.matrix);
+        roadsideDummy.position.y=6;roadsideDummy.updateMatrix();roadsideCrowns.setMatrixAt(i,roadsideDummy.matrix);
+      }
+      roadsideTrunks.castShadow=roadsideCrowns.castShadow=shadows;roadsideTrunks.receiveShadow=roadsideCrowns.receiveShadow=true;S.add(roadsideTrunks,roadsideCrowns);
+      for (let z = -2900; z < 2900; z += qualityLevel > 1 ? 22 : 34) {
         x = box(0.35, 0.05, 8, 0xf5df95);
         x.position.set(0, 0.17, z);
         S.add(x);
       }
       for (const laneX of [-5.6, 5.6])
-        for (let z = -430; z < 450; z += 15) {
+        for (let z = -2900; z < 2900; z += qualityLevel > 1 ? 22 : 34) {
           const dash = box(0.16, 0.035, 7.5, 0xf4f4ed);
           dash.position.set(laneX, 0.16, z); S.add(dash);
         }
@@ -739,6 +752,11 @@
         if (speed > 1) { document.querySelector("#workState").textContent = "Detén el camión para entrar al taller"; return; }
         career.refuel(); career.repair(100); updateCareerHud(); document.querySelector("#workState").textContent = "Servicio completado";
       };
+      const achievementsPanel = document.querySelector("#achievementsPanel"), achievementList = document.querySelector("#achievementList");
+      function renderAchievements() { achievementList.innerHTML = window.TransportAchievements.list().map(item => `<div class="achievement-row ${item.unlocked ? "done" : ""}"><i>${item.icon}</i><span><b>${item.name}</b><small style="display:block">${item.unlocked ? "Desbloqueado" : "Pendiente"}</small></span></div>`).join(""); }
+      document.querySelector("#achievementsButton").onclick = () => { renderAchievements(); achievementsPanel.hidden = false; };
+      document.querySelector("#achievementsClose").onclick = () => achievementsPanel.hidden = true;
+      window.TransportAchievements.onUnlock(items => { const toast=document.querySelector("#achievementToast"); toast.textContent=`${items[0].icon} Logro: ${items[0].name}`; toast.classList.add("show"); setTimeout(()=>toast.classList.remove("show"),3200); renderAchievements(); });
       const convoyMarkers = new Map();
       document.querySelector("#convoyButton").onclick = () => window.MoonConvoy.join(prompt("Código del convoy (vacío para crear)") || "");
       window.MoonConvoy.onChange(state => {
@@ -780,6 +798,7 @@
           left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
         window.MoonConvoy.update({ game: "truck", x: V.position.x, y: V.position.z, speed, heading: steer, cargo: career.activeContract?.cargo?.name || "" });
+        window.TransportAchievements.update({ distance: career.state.progress.distanceKm, speed, loaded: loadedPallets, rain: weatherMode === 1, night: weatherMode === 2, convoyPlayers: window.MoonConvoy.state.players.length, damage: Math.round(damage) });
         if (worldState.totalFines > lastWorldFine) {
           const fineDelta = worldState.totalFines - lastWorldFine; career.applyFine({ amount: fineDelta, reason: "Exceso de velocidad" }); lastWorldFine = worldState.totalFines; updateCareerHud();
         }
@@ -859,7 +878,7 @@
         document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
         if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
         if (!mapPanel.hidden) drawRouteMap();
-        if (V.position.z < -400) V.position.z = 400;
+        if (V.position.z < -2800) { V.position.z = 2800; physicalDistance += 5600; cameraReady = false; }
         V.rotation.z = physicalFrame?.bodyRoll ?? steer * 0.07;
         document.querySelector("#speed").textContent =
           Math.round(speed) + " km/h";
