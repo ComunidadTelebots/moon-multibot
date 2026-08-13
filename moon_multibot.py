@@ -3273,6 +3273,15 @@ def fetch_proxies():
 import socket as _socket
 
 COMMUNITY_TOKEN = os.environ.get("MTPROTO_COMMUNITY_TOKEN", "set-me-in-env")
+TELEGRAM_GAME_BASE_URL = os.environ.get("TELEGRAM_GAME_BASE_URL", "https://cintiabot.todosobreall.tech/hub-games.html").strip()
+TELEGRAM_GAMES = {
+    os.environ.get("TELEGRAM_GAME_SNAKE", "moon_snake"): "snake",
+    os.environ.get("TELEGRAM_GAME_RACE", "circuito_neon"): "race",
+    os.environ.get("TELEGRAM_GAME_ORBIT", "orbita_cero"): "orbit",
+    os.environ.get("TELEGRAM_GAME_TOWER", "torre_pulso"): "tower",
+    os.environ.get("TELEGRAM_GAME_HAULER", "rutas_continente"): "hauler",
+}
+TELEGRAM_GAME_SHORT_NAMES = {slug: short_name for short_name, slug in TELEGRAM_GAMES.items()}
 COMMUNITY_POST_URL = os.environ.get(
     "MTPROTO_COMMUNITY_POST", "http://localhost:3001/mtproto-proxies/community"
 )
@@ -4137,6 +4146,18 @@ class MoonBot:
         cid = str(msg.get("chat", {}).get("id", "")) if msg else ""
         mid = str(msg.get("message_id", "")) if msg else ""
 
+        # Telegram HTML5 Games: BotFather entrega el short name sin callback_data.
+        game_short_name = str(cbq.get("game_short_name") or "").strip()
+        if game_short_name:
+            game_slug = TELEGRAM_GAMES.get(game_short_name)
+            if not game_slug:
+                self.answer_callback_query(cbq_id, "Juego no configurado", show_alert=True)
+                return True
+            separator = "&" if "?" in TELEGRAM_GAME_BASE_URL else "?"
+            game_url = f"{TELEGRAM_GAME_BASE_URL}{separator}game={game_slug}&telegram_game=1"
+            self.answer_callback_query(cbq_id, url=game_url, cache_time=60)
+            return True
+
         if data.startswith("gban_report:approved:") or data.startswith("gban_report:rejected:"):
             if uid != str(MASTER_ID):
                 self.answer_callback_query(cbq_id, "Solo el creador puede decidir", show_alert=True)
@@ -4360,6 +4381,11 @@ class MoonBot:
                 [{"text": "🪙 Moneda", "callback_data": "moon_game:coin"}, {"text": "🎲 Dado", "callback_data": "moon_game:dice"}],
                 [{"text": "🔢 Adivina 1-10", "callback_data": "moon_game:guess_start"}],
                 [{"text": "❌ Tres en raya", "callback_data": "moon_game:ttt_start"}],
+                [{"text": "🐍 Snake HTML5", "callback_data": "moon_game:html5:snake"},
+                 {"text": "🏎 Circuito Neón", "callback_data": "moon_game:html5:race"}],
+                [{"text": "🚀 Órbita Cero", "callback_data": "moon_game:html5:orbit"},
+                 {"text": "🏗 Torre Pulso", "callback_data": "moon_game:html5:tower"}],
+                [{"text": "🚛 Rutas del Continente", "callback_data": "moon_game:html5:hauler"}],
             ]
         }
         self.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown", "reply_markup": json.dumps(kb)})
@@ -5357,6 +5383,16 @@ class MoonBot:
                     "created_at": now, "updated_at": now})
                 db.set(key, links[:100])
                 self.send_msg(cid, f"⭐ **Suscripción oficial creada**\n\n**{name}** · `{price} ⭐ / 30 días`\n{item.get('invite_link')}")
+                return True
+
+            if action == "html5" and len(parts) > 2:
+                game_slug = parts[2]
+                short_name = TELEGRAM_GAME_SHORT_NAMES.get(game_slug)
+                if not short_name:
+                    self.answer_callback_query(cbq_id, "Juego no configurado", show_alert=True)
+                    return True
+                self.api_call("sendGame", {"chat_id": cid, "game_short_name": short_name})
+                self.answer_callback_query(cbq_id, "Juego enviado")
                 return True
 
             if raw_cmd in ["/ia_programar", "/ia_code", "/programar_ia"]:
