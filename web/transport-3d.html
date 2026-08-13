@@ -272,14 +272,47 @@
         const geometry = new T.PlaneGeometry(235, worldLength, qualityLevel >= 2 ? 34 : 18, qualityLevel >= 2 ? 180 : 90),
           positions = geometry.attributes.position;
         for (let i = 0; i < positions.count; i++) {
-          const px = positions.getX(i), py = positions.getY(i), edge = Math.min(1, Math.abs(px) / 65);
-          positions.setZ(i, edge * (3.4 + Math.sin(py * 0.032 + side) * 2.1 + Math.sin(px * 0.08) * 1.4));
+          const px = positions.getX(i), py = positions.getY(i), worldX = px + side * 132;
+          // Keep the first metres beside the carriageway level, then blend into
+          // rolling terrain. This prevents the old vertical crack at the kerb.
+          const distanceFromRoad = Math.max(0, Math.abs(worldX) - 19);
+          const blend = Math.min(1, distanceFromRoad / 72);
+          const smoothBlend = blend * blend * (3 - 2 * blend);
+          const broadSlope = 2.6 + Math.sin(py * 0.018 + side) * 1.25;
+          const terrainNoise = Math.sin(py * 0.032 + side) * 1.35 + Math.sin(worldX * 0.075) * 1.1;
+          positions.setZ(i, smoothBlend * (broadSlope + terrainNoise));
         }
         geometry.computeVertexNormals();
         const terrain = new T.Mesh(geometry, new T.MeshStandardMaterial({ color: side < 0 ? 0x477b3d : 0x557f3d, ...textures.maps.ground, roughness: 0.96 }));
-        terrain.rotation.x = -Math.PI / 2; terrain.position.set(side * 132, -0.35, 0); terrain.receiveShadow = true; S.add(terrain);
+        terrain.rotation.x = -Math.PI / 2; terrain.position.set(side * 132, -0.12, 0); terrain.receiveShadow = true; S.add(terrain);
       }
       terrainStrip(-1); terrainStrip(1);
+      const vergeMaterial = new T.MeshStandardMaterial({ color: 0x4f7f3d, ...textures.maps.ground, roughness: 1 });
+      for (const side of [-1, 1]) {
+        // Slight overlap under both shoulder and terrain guarantees there is no
+        // visible seam even on low precision mobile GPUs.
+        const vergeGeometry = new T.PlaneGeometry(8.4, worldLength, 2, qualityLevel > 1 ? 180 : 80);
+        const vergePositions = vergeGeometry.attributes.position;
+        for (let i = 0; i < vergePositions.count; i++) {
+          const localX = vergePositions.getX(i), along = vergePositions.getY(i);
+          const outward = side > 0 ? localX + 4.2 : 4.2 - localX;
+          const rise = Math.max(0, outward - 1.2) / 7.2;
+          vergePositions.setZ(i, rise * (.42 + Math.sin(along * .045 + side) * .12));
+        }
+        vergeGeometry.computeVertexNormals();
+        const verge = new T.Mesh(vergeGeometry, vergeMaterial);
+        verge.name = side < 0 ? "left-continuous-grass-verge" : "right-continuous-grass-verge";
+        verge.rotation.x = -Math.PI / 2; verge.position.set(side * 20.4, .015, 0); verge.receiveShadow = true; S.add(verge);
+      }
+      if (qualityLevel > 1) {
+        const grassCount = qualityLevel > 2 ? 900 : 480, grassDummy = new T.Object3D();
+        const grassTufts = new T.InstancedMesh(new T.ConeGeometry(.055, .34, 3), new T.MeshStandardMaterial({ color: 0x65934a, roughness: 1 }), grassCount);
+        for (let i = 0; i < grassCount; i++) {
+          const side = i % 2 ? -1 : 1, offset = 18.1 + ((i * 37) % 72) / 18, z = -worldLength / 2 + ((i * 97) % Math.floor(worldLength));
+          grassDummy.position.set(side * offset, .17, z); grassDummy.rotation.y = (i * 2.17) % Math.PI; grassDummy.scale.setScalar(.65 + (i % 7) * .075); grassDummy.updateMatrix(); grassTufts.setMatrixAt(i, grassDummy.matrix);
+        }
+        grassTufts.name = "roadside-grass-tufts"; grassTufts.receiveShadow = true; S.add(grassTufts);
+      }
       const roadsideCount = qualityLevel > 1 ? 180 : 90, roadsideDummy = new T.Object3D();
       const roadsideTrunks = new T.InstancedMesh(new T.CylinderGeometry(.24,.38,4.5,7), mat(0x68452d,.95), roadsideCount);
       const roadsideCrowns = new T.InstancedMesh(new T.ConeGeometry(2.5,6.5,8), mat(0x285f35,.92), roadsideCount);
