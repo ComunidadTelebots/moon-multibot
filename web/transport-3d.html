@@ -74,6 +74,8 @@
       .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
       .map-panel h3 { margin: 0; }
       #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
+      .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(820px,96vw); height:205px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272ddd,#080b0eee); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
+      .cockpit-panel[hidden]{display:none}.cockpit-grid{height:100%;display:grid;grid-template-columns:190px 1fr 190px;align-items:center;gap:16px}.steering-wheel{width:166px;height:166px;margin:auto;border:16px solid #171a1d;border-radius:50%;box-shadow:inset 0 0 0 4px #44515a,0 8px 18px #000;position:relative;transition:transform .08s linear}.steering-wheel:before,.steering-wheel:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:17px;border-radius:9px;background:#252c31;transform-origin:0 50%}.steering-wheel:before{transform:rotate(25deg)}.steering-wheel:after{transform:rotate(155deg)}.wheel-hub{position:absolute;inset:43px;border:4px solid #56636b;border-radius:50%;background:radial-gradient(circle,#34434a,#111619);display:grid;place-items:center;color:#50e5d0;font-weight:900;z-index:2}.dash-screen{border:2px solid #425765;border-radius:18px;padding:10px 14px;background:linear-gradient(145deg,#071a23,#020609);box-shadow:inset 0 0 26px #1ec6bc18}.dash-main{display:flex;align-items:end;justify-content:center;gap:8px;color:#dff}.dash-speed{font-size:56px;font-weight:800;line-height:.9}.dash-unit{color:#7f9ba8}.dash-row{display:flex;justify-content:space-between;margin-top:12px;color:#8edfd4}.rpm-track{height:7px;margin-top:10px;border-radius:5px;background:#15262b;overflow:hidden}.rpm-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de1bd,#e8d64b,#ef4b48);transition:width .1s}.dash-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.dash-buttons button{padding:8px 5px;font-size:11px;background:#11191e}.dash-buttons button.on{background:#143b37;border-color:#45d8c2}.warning{color:#ff725f!important}
       @media (max-width: 700px) {
         .mobile {
           display: flex;
@@ -99,6 +101,7 @@
           min-height: 46px;
           touch-action: none;
         }
+        .cockpit-panel{height:168px;padding:8px;width:100vw;border-radius:22px 22px 0 0}.cockpit-grid{grid-template-columns:105px 1fr 112px;gap:7px}.steering-wheel{width:100px;height:100px;border-width:10px}.wheel-hub{inset:27px;font-size:10px}.dash-screen{padding:8px}.dash-speed{font-size:36px}.dash-row{font-size:10px}.dash-buttons{gap:4px}.dash-buttons button{padding:6px 2px;font-size:9px}.cockpit-panel:not([hidden])~.controls.drive{z-index:5;bottom:172px}.hud{max-height:95px;overflow:auto}
       }
     </style>
   </head>
@@ -136,6 +139,11 @@
       ><button class="mobile" data-key="d">▶</button>
     </div>
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Ruta del Continente</h3><button id="mapClose">×</button></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
+    <section class="cockpit-panel" id="cockpitPanel" hidden>
+      <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
+      <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div></div>
+      <div class="dash-buttons"><button data-cockpit="lights">💡 Luces</button><button data-cockpit="wipers">🌧 Limpia</button><button data-cockpit="hazard">⚠ Emergencia</button><button data-cockpit="retarder">R Retarder</button><button data-cockpit="cruise">◉ Crucero</button><button data-cockpit="parking">P Freno</button></div></div>
+    </section>
     <script type="module">
       import * as T from "./vendor/three.module.min.js";
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
@@ -314,7 +322,11 @@
         onFoot = false,
         workTool = "palletJack",
         heldPallet = null,
-        loadedPallets = 0;
+        loadedPallets = 0,
+        headlightsOn = false,
+        manualWipers = false,
+        hazardsOn = false,
+        retarderOn = false;
       const tire = new T.MeshStandardMaterial({ color: 0x222222, ...textures.maps.tyre, roughness: 0.92 }),
         glass = new T.MeshPhysicalMaterial({
           color: 0x17445d,
@@ -375,7 +387,7 @@
           l.rotation.x = Math.PI / 2;
           l.position.set(px, 1.65, z);
           g.add(l);
-          const beam = new T.SpotLight(0xfff2c7, 55, 42, 0.42, 0.5, 1.4);
+          const beam = new T.SpotLight(0xfff2c7, 0, 42, 0.42, 0.5, 1.4);
           beam.position.set(px, 1.7, z - 0.25);
           beam.target.position.set(px, 0, z - 30);
           g.add(beam, beam.target);
@@ -549,6 +561,7 @@
         V = g;
         V.position.set(0, 0, 60);
         S.add(V);
+        V.traverse((object) => { if (object.isSpotLight) object.intensity = headlightsOn ? 55 : 0; });
         cameraReady = false;
         vn.textContent = bus ? "Nortia Urbano X8" : "Aster Viento 3D";
         truck.classList.toggle("on", !bus);
@@ -582,6 +595,7 @@
         C.updateProjectionMatrix(); C.lookAt(cameraLook);
         const viewName = ["Exterior", "Cabina conductor", kind === "bus" ? "Salón pasajeros" : "Interior cabina", "Cinemática lateral"][view];
         document.querySelector("#view").textContent = now < cameraTransitionUntil ? `Cambiando a ${viewName}…` : viewName;
+        document.querySelector("#cockpitPanel").hidden = onFoot || view !== 1;
       }
       document.querySelectorAll("[data-key]").forEach((b) => {
         const k = b.dataset.key;
@@ -613,6 +627,21 @@
         document.querySelector("#parking").classList.toggle("on", parkingBrake);
         document.querySelector("#parking").textContent = parkingBrake ? "Freno P activo" : "Freno P";
       };
+      document.querySelectorAll("[data-cockpit]").forEach((button) => button.onclick = () => {
+        const action = button.dataset.cockpit;
+        if (action === "lights") {
+          headlightsOn = !headlightsOn;
+          V.traverse((object) => { if (object.isSpotLight) object.intensity = headlightsOn ? 55 : 0; });
+          button.classList.toggle("on", headlightsOn);
+        } else if (action === "wipers") {
+          manualWipers = !manualWipers; button.classList.toggle("on", manualWipers);
+        } else if (action === "hazard") {
+          hazardsOn = !hazardsOn; button.classList.toggle("on", hazardsOn);
+        } else if (action === "retarder") {
+          retarderOn = !retarderOn; button.classList.toggle("on", retarderOn);
+        } else if (action === "cruise") document.querySelector("#cruise").click();
+        else if (action === "parking") document.querySelector("#parking").click();
+      });
       function syncWorkTool() {
         palletJack.visible = onFoot && workTool === "palletJack";
         forklift.visible = onFoot && workTool === "forklift";
@@ -763,7 +792,7 @@
           const cruiseThrottle = cruiseEnabled && speed < desired ? 0.72 : 0;
           physicalFrame = physics.update({
             throttle: !onFoot && accelerating ? 1 : cruiseThrottle,
-            brake: !onFoot && braking ? 1 : cruiseEnabled && speed > desired + 2 ? 0.42 : 0,
+            brake: !onFoot && braking ? 1 : retarderOn ? 0.22 : cruiseEnabled && speed > desired + 2 ? 0.42 : 0,
             steering: (left ? -1 : right ? 1 : 0), parkingBrake, wetness: worldState.localWeather === "rain" ? 1 : 0,
             offroad: Math.abs(V.position.x) > 14.2, damage, distance: physicalDistance,
             cargoMass: career.activeContract ? 18000 : loadedPallets * 1200, cargoHeight: 1.65,
@@ -804,6 +833,14 @@
         document.querySelector("#transmissionState").textContent = `${physicalFrame?.gear || physics.gear}ª · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`;
         document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
         if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
+        document.querySelector("#dashSpeed").textContent = Math.round(speed);
+        document.querySelector("#dashGear").textContent = `D${physicalFrame?.gear || physics.gear}`;
+        document.querySelector("#dashFuel").textContent = `${Math.round(career.state.truck.fuel)}% combustible`;
+        document.querySelector("#dashLimit").textContent = worldState.currentSpeedLimit ? `Límite ${worldState.currentSpeedLimit}` : "STOP";
+        document.querySelector("#dashRpmBar").style.width = `${Math.min(100, (physicalFrame?.rpm || physics.rpm) / 23)}%`;
+        document.querySelector("#visualWheel").style.transform = `rotate(${steer * 135}deg)`;
+        document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
+        if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
         if (!mapPanel.hidden) drawRouteMap();
         if (V.position.z < -400) V.position.z = 400;
         V.rotation.z = physicalFrame?.bodyRoll ?? steer * 0.07;
@@ -827,7 +864,7 @@
           palletJack.rotation.z = walking && workTool === "palletJack" ? Math.sin(now * 0.014) * 0.025 : 0;
         }
         camera(dt, now);
-        enhancements.update({ time: now, speed, steering: steer, weather: weatherMode === 1 ? "rain" : "clear", dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: weatherMode === 1, cameraPosition: C.position });
+        enhancements.update({ time: now, speed, steering: steer, weather: weatherMode === 1 ? "rain" : "clear", dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: weatherMode === 1 || manualWipers, cameraPosition: C.position });
         R.render(S, C);
         requestAnimationFrame(loop);
       }
