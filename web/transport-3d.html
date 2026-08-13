@@ -114,6 +114,9 @@
       <div class="pill">Daños <b id="damageState">0%</b></div>
       <div class="pill">Trabajo <b id="workState">Conductor</b></div>
       <div class="pill">Carga <b id="cargoState">0/3 palés</b></div>
+      <div class="pill">Empresa <b id="moneyState">35.000 €</b></div>
+      <div class="pill">Nivel <b id="levelState">1</b></div>
+      <div class="pill">Combustible <b id="fuelState">100%</b></div>
     </div>
     <div class="controls">
       <button id="truck" class="on">Camión</button
@@ -122,6 +125,7 @@
       ><button id="parking" class="on">Freno P</button><button id="mapButton">Mapa</button
       ><button id="workMode">Ir al almacén</button><button id="toolButton">Traspaleta</button
       ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
+      <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -131,6 +135,9 @@
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Ruta del Continente</h3><button id="mapClose">×</button></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <script type="module">
       import * as T from "./vendor/three.module.min.js";
+      import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
+      import { createTransportCareer } from "./transport-career.js";
+      import { createTransportEnhancements, applyRealisticRendererSettings } from "./transport-enhancements.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -149,6 +156,8 @@
       R.outputColorSpace = T.SRGBColorSpace;
       R.toneMapping = T.ACESFilmicToneMapping;
       R.toneMappingExposure = qualityLevel >= 2 ? 1.15 : 1;
+      applyRealisticRendererSettings(T, R, qualityLevel);
+      const career = createTransportCareer();
       document.body.prepend(R.domElement);
       S.add(new T.HemisphereLight(0xe8f7ff, 0x385329, 2.2));
       const sun = new T.DirectionalLight(0xffedc4, 3);
@@ -668,7 +677,26 @@
         cityData.forEach((city, index) => { const y = mapY(city.z); mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(routeX, y, 7, 0, 7); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = index % 2 ? "right" : "left"; mapCtx.fillText(city.name, routeX + (index % 2 ? -14 : 14), y); });
         mapCtx.fillStyle = "#ff9d32"; mapCtx.fillRect(routeX - 28, mapY(roadworks.position.z + 70) - 4, 18, 8); mapCtx.fillStyle = "#a9b7c3"; mapCtx.fillRect(routeX + 10, mapY(-250) - 5, 22, 10);
         const py = mapY(V?.position.z || 0); mapCtx.fillStyle = "#55f0c8"; mapCtx.beginPath(); mapCtx.moveTo(routeX, py - 10); mapCtx.lineTo(routeX - 7, py + 8); mapCtx.lineTo(routeX + 7, py + 8); mapCtx.closePath(); mapCtx.fill();
+        const ex = city => 18 + ((city.x + 100) / 200) * (w - 36), ez = city => 18 + ((city.z + 82) / 164) * (h - 36);
+        mapCtx.strokeStyle = "#3d6680"; mapCtx.lineWidth = 1.4;
+        EUROPE_ROADS.forEach(road => { const a = EUROPE_CITIES.find(city => city.id === road.from), b = EUROPE_CITIES.find(city => city.id === road.to); if (a && b) { mapCtx.beginPath(); mapCtx.moveTo(ex(a), ez(a)); mapCtx.lineTo(ex(b), ez(b)); mapCtx.stroke(); } });
+        EUROPE_CITIES.forEach(city => { mapCtx.fillStyle = "#d8f5ff"; mapCtx.beginPath(); mapCtx.arc(ex(city), ez(city), 2.2, 0, Math.PI * 2); mapCtx.fill(); });
       }
+      function updateCareerHud() {
+        document.querySelector("#moneyState").textContent = `${Math.round(career.state.economy.money).toLocaleString("es-ES")} €`;
+        document.querySelector("#levelState").textContent = `${career.state.progress.level} · ${career.state.progress.xp} XP`;
+        document.querySelector("#fuelState").textContent = `${Math.round(career.state.truck.fuel)}%`;
+      }
+      document.querySelector("#contractButton").onclick = () => {
+        try { const job = career.generateContracts(3)[0]; career.acceptContract(job.id); document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`; document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`; }
+        catch (error) { document.querySelector("#workState").textContent = error.message; }
+        updateCareerHud();
+      };
+      document.querySelector("#serviceButton").onclick = () => {
+        if (speed > 1) { document.querySelector("#workState").textContent = "Detén el camión para entrar al taller"; return; }
+        career.refuel(); career.repair(100); updateCareerHud(); document.querySelector("#workState").textContent = "Servicio completado";
+      };
+      updateCareerHud();
       document.querySelector("#rest").onclick = () => {
         if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
         fatigue = 0; parkingBrake = true; cruiseEnabled = false;
@@ -691,7 +719,7 @@
         document.fullscreenElement
           ? document.exitFullscreen()
           : document.documentElement.requestFullscreen();
-      let last = performance.now();
+      let last = performance.now(), careerKmBuffer = 0;
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
         last = now;
@@ -732,6 +760,11 @@
           10.5,
         );
         if (!onFoot) V.position.z -= speed * dt * 0.17;
+        if (!onFoot && speed > 0) {
+          careerKmBuffer += speed * dt / 3600;
+          if (careerKmBuffer >= 0.15) { career.addDistance(careerKmBuffer); careerKmBuffer = 0; updateCareerHud(); }
+          if (career.state.truck.fuel <= 0.1) { speed = 0; document.querySelector("#assistState").textContent = "Sin combustible"; }
+        }
         fatigue = Math.min(100, fatigue + speed * dt * 0.00065);
         if (fatigue > 82) {
           steer += Math.sin(now * 0.0017) * dt * 0.08;
@@ -767,10 +800,12 @@
           palletJack.rotation.z = walking && workTool === "palletJack" ? Math.sin(now * 0.014) * 0.025 : 0;
         }
         camera(dt, now);
+        enhancements.update({ time: now, speed, steering: steer, weather: weatherMode === 1 ? "rain" : "clear", dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: weatherMode === 1, cameraPosition: C.position });
         R.render(S, C);
         requestAnimationFrame(loop);
       }
       build("truck");
+      const enhancements = createTransportEnhancements({ THREE: T, scene: S, renderer: R, sun, vehicle: V, qualityLevel, roadWidth: 30 });
       onresize = () => {
         C.aspect = innerWidth / innerHeight;
         C.updateProjectionMatrix();
