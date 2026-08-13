@@ -5,6 +5,9 @@
 - Sustituye las cuatro superficies rectangulares que cerraban el interior por un techo abovedado, una pared trasera arqueada y dos revestimientos laterales contorneados.
 - Marca de forma semántica la piel exterior de la cabina y la oculta únicamente en las cámaras interiores 1 y 2, evitando que techo, parabrisas, pilares y puertas exteriores tapen el puesto de conducción.
 - Mantiene visibles el interior modelado, cristales interiores, espejos, vehículo, remolque y entorno; las cámaras exteriores conservan la carrocería completa.
+- Corrige la pieza interior que sobresalía como una maleta: el conjunto interior completo se muestra solo en las cámaras 1 y 2 y queda oculto en todas las vistas exteriores.
+- Acerca la silueta exterior a la referencia original con techo y deflector redondeados, esquinas carenadas, ceja frontal inclinada y puertas con bordes suavizados.
+- Mejora las ruedas con carcasa radial, flancos redondeados, garganta y labios de llanta, ventilación, buje, diez tornillos y tacos de banda de rodadura adaptados a la calidad gráfica.
 - Verificación local: sintaxis válida y respuestas HTTP 200 para el simulador, modelo interior, carrocería exterior y acristalamiento.
 
 ## v18.25.0 - 2026-08-13 - Red logística mundial y hubs de carga 3D

@@ -12,6 +12,10 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
     mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.castShadow = mesh.receiveShadow = true; mesh.userData.exteriorCabSkin = parent === root && /cab|roof|windshield|pillar|door|visor/.test(name); parent.add(mesh); return mesh;
   };
   const box = (size, material, name, position, rotation) => add(new T.BoxGeometry(...size), material, name, position, rotation);
+  const roundedBody = (width,height,depth,radius,material,name,position,rotation=[0,0,0],parent=root) => {
+    const shape=new T.Shape(),x=-width/2,y=-height/2;shape.moveTo(x+radius,y);shape.lineTo(-x-radius,y);shape.quadraticCurveTo(-x,y,-x,y+radius);shape.lineTo(-x,-y-radius);shape.quadraticCurveTo(-x,-y,-x-radius,-y);shape.lineTo(x+radius,-y);shape.quadraticCurveTo(x,-y,x,-y-radius);shape.lineTo(x,y+radius);shape.quadraticCurveTo(x,y,x+radius,y);
+    const geometry=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:.055,bevelThickness:.05,bevelSegments:qualityLevel>1?4:2,curveSegments:qualityLevel>1?14:7});geometry.center();return add(geometry,material,name,position,rotation,parent);
+  };
   function taperedCabGeometry() {
     const positions = new Float32Array([
       -2.5,-1.8,-2.6, 2.5,-1.8,-2.6, -2.5,-1.8,2.45, 2.5,-1.8,2.45,
@@ -21,13 +25,15 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
     const geometry = new T.BufferGeometry(); geometry.setAttribute("position", new T.BufferAttribute(positions,3)); geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
   }
   add(taperedCabGeometry(), paint, "sculpted_cab_shell", [0,2.82,-4.2]);
-  box([4.48,.28,4.75], paint, "aerodynamic_roof_cap", [0,4.72,-4.08], [-.035,0,0]);
-  box([4.3,.28,1.3], paint, "roof_air_deflector", [0,5.14,-2.65], [-.22,0,0]);
+  roundedBody(4.42,.38,4.55,.18,paint,"aerodynamic_roof_cap",[0,4.78,-4.08],[-.035,0,0]);
+  roundedBody(4.12,.42,1.36,.17,paint,"roof_air_deflector",[0,5.12,-2.68],[-.22,0,0]);
+  for(const side of[-1,1]) roundedBody(.48,3.55,2.1,.2,paint,"cab_corner_fairing",[side*2.24,2.92,-4.38],[0,side*.06,side*.025]);
+  roundedBody(4.3,.72,.48,.2,paint,"sloped_front_brow",[0,4.48,-6.42],[-.12,0,0]);
   box([4.24,1.62,.08], glass, "panoramic_split_windshield", [0,3.55,-6.66], [-.025,0,0]);
   box([.085,1.64,.12], dark, "windshield_centre_divider", [0,3.55,-6.72]);
   for (const side of [-1,1]) {
     box([.24,1.9,.26], paint, "sculpted_a_pillar", [side*2.23,3.48,-6.48], [0,0,side*.07]);
-    const door = box([.075,2.72,2.68], paint, "cab_door_skin", [side*2.49,2.78,-4.38], [0,0,0]);
+    const door = roundedBody(2.62,2.68,.075,.18,paint,"cab_door_skin",[side*2.45,2.78,-4.38],[0,side*Math.PI/2,0]);
     door.material = paint;
     box([.09,.09,1.08], chrome, "door_handle", [side*2.555,3.02,-3.9]);
     box([.12,.3,1.95], dark, "lower_side_step", [side*2.57,.82,-4.2]);
@@ -58,7 +64,17 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qu
   box([3.6,.38,7.1],dark,"tractor_ladder_chassis",[0,.82,-.25]);
   for(const side of[-1,1])box([.24,.48,7.4],dark,"tractor_frame_rail",[side*.82,.76,-.2]);
   const fifth=add(new T.CylinderGeometry(1.02,1.02,.22,qualityLevel>1?30:18),dark,"fifth_wheel_coupling",[0,1.28,1.82]);fifth.rotation.x=Math.PI/2;
-  function wheel(x,z,radius=1.02,width=.62){const group=new T.Group();group.name="detailed_road_wheel";group.position.set(x,radius,z);group.userData.isWheel=true;group.userData.frontWheel=z< -2;const tyre=add(new T.CylinderGeometry(radius,radius,width,qualityLevel>1?32:18),rubber,"deep_tread_tyre",[0,0,0],[0,0,Math.PI/2],group);const rim=add(new T.CylinderGeometry(radius*.52,radius*.52,width+.04,qualityLevel>1?24:14),chrome,"ventilated_wheel_rim",[0,0,0],[0,0,Math.PI/2],group);for(let i=0;i<(qualityLevel>1?10:6);i++)add(new T.CylinderGeometry(.045,.045,.08,8),dark,"wheel_nut",[0,Math.cos(i*Math.PI*2/(qualityLevel>1?10:6))*radius*.31,Math.sin(i*Math.PI*2/(qualityLevel>1?10:6))*radius*.31],[0,0,Math.PI/2],group);root.add(group);return group;}
+  function wheel(x,z,radius=1.02,width=.62){
+    const group=new T.Group();group.name="detailed_road_wheel";group.position.set(x,radius,z);group.userData.isWheel=true;group.userData.frontWheel=z< -2;
+    add(new T.CylinderGeometry(radius*.98,radius,width,qualityLevel>1?48:24,2),rubber,"radial_tyre_carcass",[0,0,0],[0,0,Math.PI/2],group);
+    for(const side of[-1,1]){add(new T.TorusGeometry(radius*.74,radius*.22,qualityLevel>1?12:7,qualityLevel>1?48:24),rubber,"rounded_tyre_sidewall",[side*width*.48,0,0],[0,Math.PI/2,0],group);add(new T.TorusGeometry(radius*.47,.06,8,qualityLevel>1?40:20),chrome,"polished_rim_lip",[side*width*.54,0,0],[0,Math.PI/2,0],group);}
+    add(new T.CylinderGeometry(radius*.5,radius*.5,width+.055,qualityLevel>1?36:18),chrome,"deep_wheel_rim",[0,0,0],[0,0,Math.PI/2],group);
+    for(let i=0;i<(qualityLevel>1?12:7);i++){const angle=i*Math.PI*2/(qualityLevel>1?12:7);add(new T.BoxGeometry(width+.08,.075,.2),dark,"rim_vent",[0,Math.cos(angle)*radius*.36,Math.sin(angle)*radius*.36],[angle,0,Math.PI/2],group);}
+    add(new T.CylinderGeometry(radius*.17,radius*.17,width+.1,qualityLevel>1?24:14),dark,"wheel_hub",[0,0,0],[0,0,Math.PI/2],group);
+    for(let i=0;i<10;i++){const angle=i*Math.PI/5;add(new T.CylinderGeometry(.045,.045,.09,8),chrome,"wheel_nut",[0,Math.cos(angle)*radius*.25,Math.sin(angle)*radius*.25],[0,0,Math.PI/2],group);}
+    const treadCount=qualityLevel>1?32:16;for(let i=0;i<treadCount;i++){const angle=i*Math.PI*2/treadCount;for(const side of[-1,1]){const block=add(new T.BoxGeometry(width*.42,.055,radius*.16),rubber,"tyre_tread_block",[side*width*.23,Math.cos(angle)*radius*1.015,Math.sin(angle)*radius*1.015],[angle,0,side*.16],group);block.castShadow=qualityLevel>1;}}
+    root.add(group);return group;
+  }
   for(const side of[-1,1])for(const z of[-4.55,1.48])wheel(side*2.42,z);
   const trailer=new T.Group();trailer.name="pearl_white_box_trailer";root.add(trailer);
   const trailerBody=add(new T.BoxGeometry(5.02,4.35,12.4),trailerWhite,"insulated_trailer_body",[0,3.12,6.95],[0,0,0],trailer);

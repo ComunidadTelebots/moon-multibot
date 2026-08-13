@@ -764,6 +764,7 @@
         }
         const modeledCabin = emergency ? null : createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel });
         if (modeledCabin) {
+          modeledCabin.userData.isModeledCabin = true;
           g.add(modeledCabin);
           if (bus) modeledCabin.add(createBusCabinVariant({ THREE: T, cabin: modeledCabin, qualityLevel }));
           g.userData.cockpitSteering = modeledCabin.userData.steering;
@@ -1276,7 +1277,7 @@
         }
         camera(dt, now);
         const interiorCamera=!onFoot&&(view===1||view===2);
-        V.traverse(object=>{if(object.userData?.exteriorCabSkin)object.visible=!interiorCamera;});
+        V.traverse(object=>{if(object.userData?.exteriorCabSkin)object.visible=!interiorCamera;if(object.userData?.isModeledCabin)object.visible=interiorCamera;});
         emergencyFleet.update(V, now, sirenOn);
         enhancements.update({ time: now, speed, steering: steer, weather: worldState.localWeather, dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: worldState.localWeather === "rain" || manualWipers, cameraPosition: C.position });
         V?.userData.updateMirrors?.(R, S, now, view === 1 || view === 2);
