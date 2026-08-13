@@ -73,6 +73,7 @@
       .map-panel[hidden] { display: none; }
       .achievement-list{display:grid;gap:7px;max-height:60vh;overflow:auto}.achievement-row{display:flex;gap:9px;align-items:center;padding:9px;border:1px solid #304656;border-radius:10px;background:#0a141d;color:#738493}.achievement-row.done{color:#eafefa;border-color:#3b9e8c;background:#0d2826}.achievement-row i{font-size:22px;font-style:normal}.achievement-toast{position:fixed;z-index:20;top:72px;left:50%;transform:translate(-50%,-20px);padding:12px 18px;border:1px solid #52dec6;border-radius:14px;background:#08211fee;opacity:0;pointer-events:none;transition:.3s}.achievement-toast.show{opacity:1;transform:translate(-50%,0)}
       .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .map-tools{display:flex;align-items:center;gap:5px}.map-tools button{padding:5px 9px}.map-tools output{min-width:58px;text-align:center;color:#63e8d3;font-size:11px}
       .map-panel h3 { margin: 0; }
       #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
       .europe-panel{width:min(780px,calc(100vw - 28px));inset:70px 14px 80px auto}.europe-panel canvas{width:100%;height:auto;border-radius:12px}.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;color:#9db0bd;font-size:11px}.map-legend i{width:18px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px}.route-output{padding:9px;border-radius:9px;background:#0b1720;color:#62e8d2;line-height:1.4}
@@ -139,7 +140,7 @@
       ><button data-key="s">Freno</button><button data-key="w">Acelerar</button
       ><button class="mobile" data-key="d">▶</button>
     </div>
-    <aside class="map-panel" id="mapPanel" hidden><header><h3>Ruta del Continente</h3><button id="mapClose">×</button></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
+    <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posición</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">−</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">×</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
     <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Red europea de carreteras</h3><button id="europeMapClose">×</button></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Ruta elegida</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
@@ -681,7 +682,7 @@
           b.addEventListener(v, () => (keys[k] = 0)),
         );
       });
-      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); if (!e.repeat && k === "v") cam.click(); keys[k] = 1; };
+      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); if (!e.repeat && k === "v") cam.click(); if (!e.repeat && k === "m") cycleRouteMap(e.shiftKey ? -1 : 1); keys[k] = 1; };
       addEventListener("keydown", (e) => {
         if (!e.repeat && e.key.toLowerCase() === "e" && onFoot) interactCargo();
       });
@@ -792,27 +793,38 @@
         syncWorkTool();
       }
       document.querySelector("#interactButton").onclick = interactCargo;
-      const mapPanel = document.querySelector("#mapPanel"), mapCanvas = document.querySelector("#routeMap"), mapCtx = mapCanvas.getContext("2d");
-      document.querySelector("#mapButton").onclick = () => { mapPanel.hidden = !mapPanel.hidden; drawRouteMap(); };
+      const mapPanel = document.querySelector("#mapPanel"), mapCanvas = document.querySelector("#routeMap"), mapCtx = mapCanvas.getContext("2d"), mapZoomRanges = [70, 140, 280, 560, 1120];
+      let mapZoomIndex = 2;
+      function setMapZoom(next) { mapZoomIndex = Math.max(0, Math.min(mapZoomRanges.length - 1, next)); document.querySelector("#mapZoomLabel").textContent = `${mapZoomRanges[mapZoomIndex]} m`; drawRouteMap(); }
+      function cycleRouteMap(direction = 1) { if (mapPanel.hidden) { mapPanel.hidden = false; drawRouteMap(); } else setMapZoom((mapZoomIndex + direction + mapZoomRanges.length) % mapZoomRanges.length); }
+      document.querySelector("#mapButton").onclick = () => { mapPanel.hidden ? cycleRouteMap(0) : mapPanel.hidden = true; };
+      document.querySelector("#mapZoomIn").onclick = () => setMapZoom(mapZoomIndex - 1);
+      document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
       const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"));
       document.querySelector("#europeMapButton").onclick=()=>{mapPanel.hidden=true;achievementsPanel.hidden=true;europeMapPanel.hidden=false;europeMap.draw()};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
       function drawRouteMap() {
-        const w = mapCanvas.width, h = mapCanvas.height, routeX = w / 2;
+        if (!V) return;
+        const w = mapCanvas.width, h = mapCanvas.height, cx = w / 2, cy = h / 2, range = mapZoomRanges[mapZoomIndex], scale = (Math.min(w, h) - 42) / (range * 2);
+        const mapX = x => cx + (x - V.position.x) * scale, mapY = z => cy + (z - V.position.z) * scale;
         mapCtx.clearRect(0, 0, w, h); mapCtx.fillStyle = "#0b1822"; mapCtx.fillRect(0, 0, w, h);
-        mapCtx.strokeStyle = "#263b4d"; mapCtx.lineWidth = 34; mapCtx.beginPath(); mapCtx.moveTo(routeX, 22); mapCtx.lineTo(routeX, h - 22); mapCtx.stroke();
-        mapCtx.strokeStyle = "#f1d37a"; mapCtx.lineWidth = 3; mapCtx.setLineDash([13, 10]); mapCtx.beginPath(); mapCtx.moveTo(routeX, 22); mapCtx.lineTo(routeX, h - 22); mapCtx.stroke(); mapCtx.setLineDash([]);
-        const mapY = z => 28 + ((400 - z) / 800) * (h - 56);
-        mapCtx.font = "600 12px system-ui"; mapCtx.textBaseline = "middle";
-        cityData.forEach((city, index) => { const y = mapY(city.z); mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(routeX, y, 7, 0, 7); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = index % 2 ? "right" : "left"; mapCtx.fillText(city.name, routeX + (index % 2 ? -14 : 14), y); });
-        mapCtx.fillStyle = "#ff9d32"; mapCtx.fillRect(routeX - 28, mapY(roadworks.position.z + 70) - 4, 18, 8); mapCtx.fillStyle = "#a9b7c3"; mapCtx.fillRect(routeX + 10, mapY(-250) - 5, 22, 10);
-        const py = mapY(V?.position.z || 0); mapCtx.fillStyle = "#55f0c8"; mapCtx.beginPath(); mapCtx.moveTo(routeX, py - 10); mapCtx.lineTo(routeX - 7, py + 8); mapCtx.lineTo(routeX + 7, py + 8); mapCtx.closePath(); mapCtx.fill();
-        const ex = city => 18 + ((city.x + 100) / 200) * (w - 36), ez = city => 18 + ((city.z + 82) / 164) * (h - 36);
-        mapCtx.strokeStyle = "#3d6680"; mapCtx.lineWidth = 1.4;
-        EUROPE_ROADS.forEach(road => { const a = EUROPE_CITIES.find(city => city.id === road.from), b = EUROPE_CITIES.find(city => city.id === road.to); if (a && b) { mapCtx.beginPath(); mapCtx.moveTo(ex(a), ez(a)); mapCtx.lineTo(ex(b), ez(b)); mapCtx.stroke(); } });
-        EUROPE_CITIES.forEach(city => { mapCtx.fillStyle = "#d8f5ff"; mapCtx.beginPath(); mapCtx.arc(ex(city), ez(city), 2.2, 0, Math.PI * 2); mapCtx.fill(); });
+        mapCtx.strokeStyle = "#172832"; mapCtx.lineWidth = 1;
+        const gridStep = range <= 140 ? 25 : range <= 560 ? 100 : 250;
+        for (let offset = -range; offset <= range; offset += gridStep) { mapCtx.beginPath(); mapCtx.moveTo(0, mapY(V.position.z + offset)); mapCtx.lineTo(w, mapY(V.position.z + offset)); mapCtx.stroke(); mapCtx.beginPath(); mapCtx.moveTo(mapX(V.position.x + offset), 0); mapCtx.lineTo(mapX(V.position.x + offset), h); mapCtx.stroke(); }
+        mapCtx.strokeStyle = "#354b59"; mapCtx.lineWidth = 30 * scale; mapCtx.beginPath(); mapCtx.moveTo(mapX(0), mapY(V.position.z - range * 1.1)); mapCtx.lineTo(mapX(0), mapY(V.position.z + range * 1.1)); mapCtx.stroke();
+        for (const laneX of [-7.5, 0, 7.5]) { mapCtx.strokeStyle = laneX ? "#e8e6d0" : "#f0cf5d"; mapCtx.lineWidth = Math.max(1, .16 * scale); mapCtx.setLineDash(laneX ? [] : [10 * scale, 8 * scale]); mapCtx.beginPath(); mapCtx.moveTo(mapX(laneX), 0); mapCtx.lineTo(mapX(laneX), h); mapCtx.stroke(); }
+        mapCtx.setLineDash([]); mapCtx.font = "600 11px system-ui"; mapCtx.textBaseline = "middle";
+        cityData.forEach((city) => { const x = mapX(0), y = mapY(city.z); if (y < -20 || y > h + 20) return; mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(x, y, 6, 0, Math.PI * 2); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = "left"; mapCtx.fillText(`${city.name} · ${Math.round(Math.abs(city.z - V.position.z))} m`, x + 11, y); });
+        const markers = [{ x: roadworks.position.x, z: roadworks.position.z + 70, color: "#ff9d32", label: "Obras" }, { x: 0, z: -250, color: "#a9b7c3", label: "Túnel" }];
+        traffic3d.forEach((vehicle) => markers.push({ x: vehicle.position.x, z: vehicle.position.z, color: "#e8eef2", label: "Tráfico" }));
+        markers.forEach((marker) => { const x = mapX(marker.x), y = mapY(marker.z); if (x < 0 || x > w || y < 0 || y > h) return; mapCtx.fillStyle = marker.color; mapCtx.fillRect(x - 4, y - 6, 8, 12); if (range <= 280) { mapCtx.fillStyle = "#b9cbd3"; mapCtx.textAlign = "left"; mapCtx.fillText(marker.label, x + 7, y); } });
+        mapCtx.save(); mapCtx.translate(cx, cy); mapCtx.rotate(-V.rotation.y); mapCtx.fillStyle = "#55f0c8"; mapCtx.shadowColor = "#55f0c8"; mapCtx.shadowBlur = 10; mapCtx.beginPath(); mapCtx.moveTo(0, -13); mapCtx.lineTo(-8, 10); mapCtx.lineTo(0, 6); mapCtx.lineTo(8, 10); mapCtx.closePath(); mapCtx.fill(); mapCtx.restore();
+        mapCtx.shadowBlur = 0; mapCtx.fillStyle = "#071017dd"; mapCtx.fillRect(8, 8, w - 16, 38); mapCtx.fillStyle = "#e7fbf7"; mapCtx.textAlign = "left"; mapCtx.font = "700 12px system-ui"; mapCtx.fillText(`PK ${(physicalDistance / 1000).toFixed(2)} · X ${V.position.x.toFixed(1)} · Z ${V.position.z.toFixed(1)} · ${Math.round(((V.rotation.y * 180 / Math.PI) + 360) % 360)}°`, 16, 22);
+        mapCtx.fillStyle = "#8faab4"; mapCtx.font = "11px system-ui"; mapCtx.fillText(`${document.querySelector("#city").textContent} · seguimiento GPS activo`, 16, 38);
+        const scaleMeters = range <= 140 ? 25 : range <= 560 ? 100 : 250, scalePixels = scaleMeters * scale;
+        mapCtx.strokeStyle = "#ffffff"; mapCtx.lineWidth = 2; mapCtx.beginPath(); mapCtx.moveTo(16, h - 18); mapCtx.lineTo(16 + scalePixels, h - 18); mapCtx.stroke(); mapCtx.fillStyle = "#ffffff"; mapCtx.fillText(`${scaleMeters} m`, 16, h - 29);
       }
       function updateCareerHud() {
         document.querySelector("#moneyState").textContent = `${Math.round(career.state.economy.money).toLocaleString("es-ES")} €`;
