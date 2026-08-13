@@ -1,5 +1,18 @@
 # Changelog - Moon Multibot
 
+## v18.24.2 - 2026-08-13 - Precisión GPS, POI reales y culling OSM
+
+### Auditoría previa
+
+- Confirma que ya existían map matching, progreso, maniobras, llegada, servicios procedurales, caché Overpass y niveles de calidad; no se han duplicado esos sistemas.
+
+### Cambios nuevos verificados
+
+- Corrige la posición del GPS sobre geometrías OSM con puntos desigualmente espaciados: ahora interpola por distancia geográfica acumulada y reutiliza el cálculo mediante caché, en lugar de convertir el progreso directamente en un índice del array.
+- Incorpora POI reales próximos al itinerario desde OpenStreetMap: gasolineras, cargadores, aparcamientos, áreas de descanso y talleres, con nombre del establecimiento, proyección sobre el mundo 3D, dos endpoints Overpass, caché de 7 días y servicios sintéticos como respaldo.
+- Corrige el culling del corredor OSM, que evaluaba entidades con geometría horneada como si todas estuvieran en `(0,0,0)`; edificios y terrenos usan ahora centros espaciales reales y los árboles se dividen en sectores instanciados.
+- Limita la evaluación de visibilidad a 5 Hz y añade una histéresis del 12 % para reducir carga de CPU y evitar parpadeo al entrar o salir del rango visible.
+
 ## v18.24.1 - 2026-08-13 - Conducción sobre rutas reales de OpenStreetMap
 
 ### Cambios nuevos verificados

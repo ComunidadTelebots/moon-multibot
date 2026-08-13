@@ -178,9 +178,10 @@
       import { createDetailedTruckExterior } from "./transport-truck-exterior.js";
       import { createOsmScenery } from "./transport-osm-scenery.js";
       import { createEmergencyFleet } from "./transport-emergency-fleet.js";
-      import { createOsmRoutePlanner, projectRouteToWorld } from "./transport-osm-routing.js";
+      import { createOsmRoutePlanner, projectRouteToWorld, coordinateAtRouteProgress } from "./transport-osm-routing.js";
       import { createRouteNavigation } from "./transport-route-navigation.js";
       import { createOsmCorridor } from "./transport-osm-corridor.js";
+      import { createOsmRoutePois } from "./transport-osm-pois.js";
       import { createOsmRoadMesh } from "./transport-osm-road-mesh.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
@@ -207,6 +208,7 @@
       let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
       const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
       const osmCorridor = createOsmCorridor({THREE:T,scene:S,qualityLevel});
+      const osmRoutePois = createOsmRoutePois({THREE:T,scene:S,qualityLevel});
       const routeNavigation = createRouteNavigation();
       let routeRuntime;
       const textures = createProceduralTransportTextures(T, qualityLevel);
@@ -988,7 +990,7 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`).catch(error=>console.warn("Corredor OSM no disponible",error));physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`).catch(error=>console.warn("Corredor OSM no disponible",error));osmRoutePois.load(route,activeWorldRoute).then(items=>{document.querySelector("#nearService").title=`${items.length} servicios reales de OpenStreetMap`;}).catch(error=>console.warn("POI OSM no disponibles; se mantienen servicios simulados",error));physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
@@ -1088,10 +1090,10 @@
           wheelButton.classList.remove("on");
         }
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
-        nearestRoadsideService = activeOsmRoute ? routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null : roadsideServices.update(V.position);
-        const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso" };
+        nearestRoadsideService = activeOsmRoute ? (osmRoutePois.nearest(V.position) || routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null) : roadsideServices.update(V.position);
+        const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso", charging: "Carga eléctrica" };
         document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
-          ? `${serviceNames[nearestRoadsideService.type]} · ${Math.round(nearestRoadsideService.distance)} m`
+          ? `${nearestRoadsideService.name || serviceNames[nearestRoadsideService.type] || "Servicio"} · ${Math.round(nearestRoadsideService.distance)} m`
           : "En ruta";
         const specialFrame = specialTransport.update({ dt, speed, laneOffset: V.position.x });
         window.MoonConvoy.update({ game: "truck", x: V.position.x, y: V.position.z, speed, heading: steer, cargo: career.activeContract?.cargo?.name || "" });
@@ -1244,7 +1246,7 @@
           "Valleverde",
           "Bahía Solar",
         ][Math.max(0, Math.floor((420 - V.position.z) / 205) % 4)];
-        if (activeOsmRoute) { const progress=Math.min(1,physicalDistance/Math.max(1,routeRuntime.length)),coordinateIndex=Math.min(activeOsmRoute.coordinates.length-1,Math.floor(progress*(activeOsmRoute.coordinates.length-1))),nav=routeNavigation.update(activeOsmRoute.coordinates[coordinateIndex],{speedKmh:speed});document.querySelector("#assistState").textContent=nav.arrived?"Destino alcanzado":nav.offRoute?"Fuera de ruta":`${nav.nextInstruction} · ${Math.round(nav.distanceToManeuverMeters||nav.distanceRemainingMeters)} m`; }
+        if (activeOsmRoute) { const progress=Math.min(1,physicalDistance/Math.max(1,routeRuntime.length)),gpsCoordinate=coordinateAtRouteProgress(activeOsmRoute,progress),nav=routeNavigation.update(gpsCoordinate,{speedKmh:speed});document.querySelector("#assistState").textContent=nav.arrived?"Destino alcanzado":nav.offRoute?"Fuera de ruta":`${nav.nextInstruction} · ${Math.round(nav.distanceToManeuverMeters||nav.distanceRemainingMeters)} m`; }
         V.traverse((part) => {
           if (!part.userData.isWheel) return;
           part.rotation.x -= speed * dt * 0.045;

@@ -25,7 +25,7 @@ export function createOsmCorridor({ THREE: T, scene, qualityLevel = 2, endpoint,
     leaves: new T.MeshStandardMaterial({ color: 0x2e6839, roughness: .96 }),
   };
   Object.values(mats).forEach(value => material.add(value));
-  let geoRoute = [], worldRoute = [], requestToken = 0, disposed = false, lastData = null;
+  let geoRoute = [], worldRoute = [], requestToken = 0, disposed = false, lastData = null, visibilityTick = 0;
   const entities = { buildings: 0, areas: 0, trees: 0 };
   const limits = qualityLevel <= 0
     ? { samples: 3, radius: 450, buildings: 45, areas: 24, trees: 70 }
@@ -89,28 +89,43 @@ export function createOsmCorridor({ THREE: T, scene, qualityLevel = 2, endpoint,
     if (points.length < 3) return null;
     const shape = new T.Shape(); shape.moveTo(points[0].x, -points[0].z);
     for (let index = 1; index < points.length; index += 1) shape.lineTo(points[index].x, -points[index].z);
-    shape.closePath(); return { shape, y: points.reduce((sum, point) => sum + point.y, 0) / points.length };
+    shape.closePath(); return {
+      shape,
+      y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+      center: points.reduce((sum, point) => ({ x: sum.x + point.x / points.length, z: sum.z + point.z / points.length }), { x: 0, z: 0 }),
+    };
+  }
+  function markStreamable(object, center) {
+    object.userData.streamCenter = new T.Vector3(center.x, 0, center.z);
+    return object;
   }
   function addArea(element) {
     const result = shapeFrom(element); if (!result) return;
     const type = element.tags?.natural === "water" || element.tags?.water ? "water" : element.tags?.landuse;
     const selected = type === "forest" ? mats.forest : type === "farmland" ? mats.farmland : type === "water" ? mats.water : mats.grass;
     const geo = new T.ShapeGeometry(result.shape); geometry.add(geo);
-    const mesh = new T.Mesh(geo, selected); mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y + (type === "water" ? .04 : -.04); mesh.receiveShadow = true; root.add(mesh); entities.areas += 1;
+    const mesh = markStreamable(new T.Mesh(geo, selected), result.center); mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y + (type === "water" ? .04 : -.04); mesh.receiveShadow = true; root.add(mesh); entities.areas += 1;
   }
   function addBuilding(element, index) {
     const result = shapeFrom(element); if (!result) return;
     const levels = clamp(parseInt(element.tags?.["building:levels"], 10) || (2 + hash(String(element.id)) % 5), 1, 16);
     const height = clamp(parseFloat(element.tags?.height) || levels * 3.05, 2.6, 52);
     const geo = new T.ExtrudeGeometry(result.shape, { depth: height, bevelEnabled: qualityLevel > 1, bevelSize: .08, bevelThickness: .08, bevelSegments: 1 }); geometry.add(geo);
-    const mesh = new T.Mesh(geo, [mats.building, mats.roof]); mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y; mesh.castShadow = qualityLevel > 0 && index < 70; mesh.receiveShadow = true; root.add(mesh); entities.buildings += 1;
+    const mesh = markStreamable(new T.Mesh(geo, [mats.building, mats.roof]), result.center); mesh.rotation.x = -Math.PI / 2; mesh.position.y = result.y; mesh.castShadow = qualityLevel > 0 && index < 70; mesh.receiveShadow = true; root.add(mesh); entities.buildings += 1;
   }
   function addTrees(elements) {
     const points = elements.map(item => project(item.lat, item.lon)).filter(Boolean).slice(0, limits.trees); if (!points.length) return;
     const trunkGeo = new T.CylinderGeometry(.18, .3, 3.2, qualityLevel > 1 ? 7 : 5), crownGeo = new T.IcosahedronGeometry(1.65, qualityLevel > 1 ? 1 : 0); geometry.add(trunkGeo); geometry.add(crownGeo);
-    const trunks = new T.InstancedMesh(trunkGeo, mats.trunk, points.length), crowns = new T.InstancedMesh(crownGeo, mats.leaves, points.length), dummy = new T.Object3D();
-    points.forEach((point, index) => { const size = .75 + (hash(String(index)) % 45) / 100; dummy.position.set(point.x, point.y + 1.6 * size, point.z); dummy.scale.set(size, size, size); dummy.rotation.y = index * 2.399; dummy.updateMatrix(); trunks.setMatrixAt(index, dummy.matrix); dummy.position.y = point.y + 4.25 * size; dummy.updateMatrix(); crowns.setMatrixAt(index, dummy.matrix); });
-    trunks.castShadow = crowns.castShadow = qualityLevel > 1; trunks.receiveShadow = crowns.receiveShadow = true; root.add(trunks, crowns); entities.trees = points.length;
+    const sectors = new Map(), sectorSize = Math.max(220, limits.radius * .65);
+    points.forEach(point => { const key = `${Math.floor(point.x / sectorSize)}:${Math.floor(point.z / sectorSize)}`; if (!sectors.has(key)) sectors.set(key, []); sectors.get(key).push(point); });
+    let offset = 0;
+    sectors.forEach(sectorPoints => {
+      const center = sectorPoints.reduce((sum, point) => ({ x: sum.x + point.x / sectorPoints.length, z: sum.z + point.z / sectorPoints.length }), { x: 0, z: 0 });
+      const trunks = markStreamable(new T.InstancedMesh(trunkGeo, mats.trunk, sectorPoints.length), center), crowns = markStreamable(new T.InstancedMesh(crownGeo, mats.leaves, sectorPoints.length), center), dummy = new T.Object3D();
+      sectorPoints.forEach((point, index) => { const size = .75 + (hash(String(index + offset)) % 45) / 100; dummy.position.set(point.x, point.y + 1.6 * size, point.z); dummy.scale.set(size, size, size); dummy.rotation.y = (index + offset) * 2.399; dummy.updateMatrix(); trunks.setMatrixAt(index, dummy.matrix); dummy.position.y = point.y + 4.25 * size; dummy.updateMatrix(); crowns.setMatrixAt(index, dummy.matrix); });
+      trunks.castShadow = crowns.castShadow = qualityLevel > 1; trunks.receiveShadow = crowns.receiveShadow = true; root.add(trunks, crowns); offset += sectorPoints.length;
+    });
+    entities.trees = points.length;
   }
   function build(data) {
     clear(); lastData = data;
@@ -149,7 +164,17 @@ export function createOsmCorridor({ THREE: T, scene, qualityLevel = 2, endpoint,
   function update(_deltaSeconds, context = {}) {
     if (Number.isFinite(context.visibilityDistance)) {
       const camera = context.camera?.position || context.playerPosition;
-      root.children.forEach(child => { if (camera) child.visible = child.position.distanceTo ? child.position.distanceTo(camera) <= context.visibilityDistance : true; });
+      visibilityTick -= Math.max(0, finite(_deltaSeconds));
+      if (camera && visibilityTick <= 0) {
+        visibilityTick = .2;
+        const enterDistance = context.visibilityDistance, exitDistance = enterDistance * 1.12;
+        root.children.forEach(child => {
+          const center = child.userData.streamCenter;
+          if (!center) return;
+          const distance = Math.hypot(center.x - camera.x, center.z - camera.z);
+          child.visible = distance <= (child.visible ? exitDistance : enterDistance);
+        });
+      }
     }
     return entities;
   }
