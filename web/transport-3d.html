@@ -230,7 +230,6 @@
         const bridge = part(group, 50, 1.1, 2, 0xd7e0e5, 0, 8.5, city.z + 8);
         bridge.material = chrome; S.add(group);
       }
-      cityData.forEach(cityLandmark);
       for (let z = -420; z < 440; z += 30)
         for (const q of [-20, 20]) {
           const tr = box(0.7, 5, 0.7, 0x70482a);
@@ -271,6 +270,7 @@
         chrome = mat(0xb8c3c9, 0.18, 0.88),
         lamp = mat(0xfff0b0, 0.12, 0.25),
         red = mat(0xe51c3a, 0.2, 0.2);
+      cityData.forEach(cityLandmark);
       const depotZ = 260, depot = new T.Group();
       part(depot, 30, 10, 32, 0x65737d, -39, 5, depotZ);
       part(depot, 13, 7.2, 0.35, 0x18242d, -23.85, 3.6, depotZ + 7);
