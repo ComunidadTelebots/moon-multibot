@@ -276,6 +276,143 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     return register("police", group, 95, { tolerance: 7 });
   }
 
+  function namedBox(parent, name, size, position, surface, rotationY = 0) {
+    const value = addBox(parent, size, position, surface, rotationY);
+    value.name = name;
+    return value;
+  }
+
+  function emergencyBeacon(parent, name, position, color) {
+    const surface = material({ color, emissive: color, emissiveIntensity: 0.12, roughness: 0.22 });
+    const lamp = makeMesh(new T.CylinderGeometry(0.16, 0.19, 0.18, 12), surface, false);
+    lamp.name = name;
+    lamp.position.set(...position);
+    parent.add(lamp);
+    (parent.userData.emergencyLights ||= []).push({ lamp, surface });
+    return lamp;
+  }
+
+  function wheel(parent, name, x, z) {
+    const value = makeMesh(new T.CylinderGeometry(0.42, 0.42, 0.3, 14), dark);
+    value.name = name;
+    value.rotation.z = Math.PI / 2;
+    value.position.set(x, 0.48, z);
+    parent.add(value);
+  }
+
+  function breakdownAssistance(x, z) {
+    const group = new T.Group();
+    group.name = "breakdown_assistance_scene";
+    const disabled = new T.Group();
+    disabled.name = "disabled_delivery_vehicle";
+    namedBox(disabled, "disabled_vehicle_body", [2.2, 1.05, 4.8], [0, 0.95, 0], white);
+    namedBox(disabled, "disabled_vehicle_cab", [2.05, 1.25, 1.7], [0, 1.58, -1.2], glass);
+    for (const side of [-1, 1]) for (const wz of [-1.45, 1.35]) wheel(disabled, `disabled_wheel_${side}_${wz}`, side * 1.08, wz);
+    disabled.position.set(-2.4, 0, -1.5);
+    disabled.rotation.y = -0.06;
+    group.add(disabled);
+
+    const tow = new T.Group();
+    tow.name = "roadside_recovery_truck";
+    namedBox(tow, "recovery_chassis", [2.5, 0.55, 6.4], [0, 0.64, 0], steel);
+    namedBox(tow, "recovery_cab", [2.35, 1.8, 2.1], [0, 1.45, -2], yellow);
+    namedBox(tow, "recovery_windscreen", [1.85, 0.72, 0.08], [0, 1.72, -3.08], glass);
+    const boom = namedBox(tow, "hydraulic_recovery_boom", [0.35, 0.35, 4.6], [0, 2.05, 0.35], yellow);
+    boom.rotation.x = -0.28;
+    namedBox(tow, "recovery_crossbar", [2.3, 0.18, 0.25], [0, 0.42, 3.12], steel);
+    for (const side of [-1, 1]) for (const wz of [-2, 1.9]) wheel(tow, `recovery_wheel_${side}_${wz}`, side * 1.2, wz);
+    emergencyBeacon(tow, "recovery_amber_left", [-0.65, 2.48, -2], 0xff8a16);
+    emergencyBeacon(tow, "recovery_amber_right", [0.65, 2.48, -2], 0xff8a16);
+    tow.position.set(2.6, 0, 4.2);
+    group.add(tow);
+    group.userData.emergencyLights = tow.userData.emergencyLights;
+    group.position.set(x, 0.18, z);
+    return register("breakdown-assistance", group, 95, { speedLimit: 40, laneBlocked: x < 0 ? "left" : "right", service: "recovery" });
+  }
+
+  function medicalResponse(x, z) {
+    const group = new T.Group();
+    group.name = "medical_response_scene";
+    const ambulance = new T.Group();
+    ambulance.name = "ambulance_vehicle";
+    namedBox(ambulance, "ambulance_body", [2.45, 2.15, 5.5], [0, 1.35, 0], white);
+    namedBox(ambulance, "ambulance_lower_stripe", [2.5, 0.34, 4.9], [0, 0.9, 0.2], yellow);
+    namedBox(ambulance, "ambulance_windscreen", [2, 0.8, 0.08], [0, 1.85, -2.79], glass);
+    namedBox(ambulance, "ambulance_rear_doors", [2.05, 1.72, 0.08], [0, 1.45, 2.79], white);
+    for (const side of [-1, 1]) for (const wz of [-1.75, 1.65]) wheel(ambulance, `ambulance_wheel_${side}_${wz}`, side * 1.22, wz);
+    emergencyBeacon(ambulance, "ambulance_blue_left", [-0.68, 2.52, -1.45], 0x287eff);
+    emergencyBeacon(ambulance, "ambulance_blue_right", [0.68, 2.52, -1.45], 0x287eff);
+    group.add(ambulance);
+    group.userData.emergencyLights = ambulance.userData.emergencyLights;
+    const stretcher = namedBox(group, "medical_stretcher", [0.72, 0.12, 2], [1.9, 0.75, 1.6], steel);
+    stretcher.rotation.y = 0.18;
+    for (const sx of [-0.29, 0.29]) for (const sz of [-0.72, 0.72]) {
+      const caster = makeMesh(new T.SphereGeometry(0.1, 8, 6), dark);
+      caster.name = "stretcher_caster";
+      caster.position.set(1.9 + sx, 0.42, 1.6 + sz);
+      group.add(caster);
+    }
+    group.position.set(x, 0.18, z);
+    return register("medical-response", group, 105, { speedLimit: 30, laneBlocked: x < 0 ? "left" : "right", priorityVehicle: true });
+  }
+
+  function fireResponse(x, z) {
+    const group = new T.Group();
+    group.name = "fire_response_scene";
+    const engine = new T.Group();
+    engine.name = "fire_engine_vehicle";
+    namedBox(engine, "fire_engine_body", [2.55, 2.35, 6.5], [0, 1.5, 0], red);
+    namedBox(engine, "fire_engine_windscreen", [2.12, 0.76, 0.08], [0, 2, -3.27], glass);
+    namedBox(engine, "fire_engine_equipment_shutter_left", [0.08, 1.25, 3.3], [-1.3, 1.42, 0.65], steel);
+    namedBox(engine, "fire_engine_equipment_shutter_right", [0.08, 1.25, 3.3], [1.3, 1.42, 0.65], steel);
+    const ladder = namedBox(engine, "fire_engine_roof_ladder", [0.42, 0.18, 5.2], [0, 2.78, 0.3], steel);
+    ladder.rotation.x = -0.05;
+    for (const side of [-1, 1]) for (const wz of [-2.15, 1.9]) wheel(engine, `fire_engine_wheel_${side}_${wz}`, side * 1.28, wz);
+    emergencyBeacon(engine, "fire_blue_left", [-0.7, 2.82, -2.25], 0x287eff);
+    emergencyBeacon(engine, "fire_blue_right", [0.7, 2.82, -2.25], 0x287eff);
+    group.add(engine);
+    group.userData.emergencyLights = engine.userData.emergencyLights;
+    const smokeGeometry = track(new T.BufferGeometry());
+    const count = qualityLevel > 1 ? 48 : 20;
+    const positions = new Float32Array(count * 3);
+    for (let index = 0; index < count; index += 1) {
+      positions[index * 3] = 3.8 + (Math.random() - 0.5) * 2;
+      positions[index * 3 + 1] = 1 + Math.random() * 5;
+      positions[index * 3 + 2] = 2 + (Math.random() - 0.5) * 2;
+    }
+    smokeGeometry.setAttribute("position", new T.BufferAttribute(positions, 3));
+    const smoke = new T.Points(smokeGeometry, basic({ color: 0x5b6064, size: 0.72, transparent: true, opacity: 0.42 }));
+    smoke.name = "incident_smoke_particles";
+    group.add(smoke);
+    group.userData.smoke = smoke;
+    group.position.set(x, 0.18, z);
+    return register("fire-response", group, 120, { speedLimit: 20, laneBlocked: x < 0 ? "left" : "right", priorityVehicle: true });
+  }
+
+  function mobileLaneControl(x, z) {
+    const group = new T.Group();
+    group.name = "mobile_lane_control_scene";
+    const van = new T.Group();
+    van.name = "mobile_control_vehicle";
+    namedBox(van, "control_van_body", [2.35, 1.8, 5], [0, 1.18, 0], yellow);
+    namedBox(van, "control_van_windscreen", [1.95, 0.66, 0.08], [0, 1.68, -2.53], glass);
+    for (const side of [-1, 1]) for (const wz of [-1.55, 1.45]) wheel(van, `control_van_wheel_${side}_${wz}`, side * 1.15, wz);
+    emergencyBeacon(van, "control_amber_left", [-0.65, 2.18, -1.3], 0xff8a16);
+    emergencyBeacon(van, "control_amber_right", [0.65, 2.18, -1.3], 0xff8a16);
+    const boardSurface = signFace("←", "#171717", "#ffd328");
+    namedBox(van, "variable_message_arrow_board", [2.05, 1.35, 0.18], [0, 2.5, 1.4], boardSurface);
+    group.add(van);
+    group.userData.emergencyLights = van.userData.emergencyLights;
+    for (let index = 0; index < 8; index += 1) {
+      const cone = makeMesh(new T.ConeGeometry(0.22, 0.72, 10), orange);
+      cone.name = `lane_closure_cone_${index + 1}`;
+      cone.position.set(-3.6 + index * 0.55, 0.36, 5 + index * 3.2);
+      group.add(cone);
+    }
+    group.position.set(x, 0.18, z);
+    return register("mobile-lane-control", group, 115, { speedLimit: 40, laneBlocked: x < 0 ? "left" : "right", mergeDirection: x < 0 ? "right" : "left" });
+  }
+
   function fuelStation(x, z) {
     const group = new T.Group();
     const ground = makeMesh(new T.PlaneGeometry(26, 30), material({ color: 0x777b7e, roughness: 0.92 }));
@@ -334,6 +471,10 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     accident(-5.6, -318);
     police(17.5, 235);
     fuelStation(-29, -65);
+    breakdownAssistance(6.2, 710);
+    medicalResponse(-6, -735);
+    fireResponse(6.4, 980);
+    mobileLaneControl(-5.8, -1040);
     weatherZone(0, -410, "rain", 105);
     weatherZone(0, 465, "fog", 90);
   }
@@ -399,6 +540,19 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
       eventState.totalFines = Math.floor(eventState.fine);
     }
     for (const object of entities) {
+      const emergencyLights = object.userData.emergencyLights || [];
+      for (let index = 0; index < emergencyLights.length; index += 1) {
+        const { lamp, surface } = emergencyLights[index];
+        const active = Math.sin(eventState.time * 12 + index * Math.PI) > 0.2;
+        lamp.scale.setScalar(active ? 1.12 : 0.94);
+        surface.emissiveIntensity = active ? 2.4 : 0.08;
+      }
+      if (object.userData.smoke) {
+        const smoke = object.userData.smoke;
+        smoke.rotation.y += dt * 0.14;
+        smoke.position.y = Math.sin(eventState.time * 0.7) * 0.18;
+        smoke.material.opacity = 0.34 + Math.sin(eventState.time * 1.1) * 0.08;
+      }
       if (object.userData.worldEvent.type === "accident") {
         const pulse = Math.sin(eventState.time * 9) > 0;
         for (const beacon of object.userData.beacons || []) beacon.visible = pulse;

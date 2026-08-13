@@ -2,6 +2,15 @@ const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const moveTowards = (value, target, maximumDelta) =>
   value + clamp(target - value, -maximumDelta, maximumDelta);
 
+// Relative, original handling profiles. `truck` is exactly the legacy baseline.
+const VEHICLE_PROFILES = Object.freeze({
+  truck: Object.freeze({ mass: 1, power: 1, torque: 1, brake: 1, cg: 1, wheelbase: 1, steering: 1, stability: 1, drag: 1 }),
+  bus: Object.freeze({ mass: 0.82, power: 0.78, torque: 0.82, brake: 1.03, cg: 1.16, wheelbase: 1.58, steering: 0.82, stability: 0.86, drag: 0.92 }),
+  ambulance: Object.freeze({ mass: 0.23, power: 0.48, torque: 0.36, brake: 1.2, cg: 0.82, wheelbase: 0.93, steering: 1.2, stability: 1.2, drag: 0.32 }),
+  fire: Object.freeze({ mass: 0.72, power: 0.76, torque: 0.82, brake: 1.12, cg: 1.2, wheelbase: 1.25, steering: 0.9, stability: 0.82, drag: 0.68 }),
+  recovery: Object.freeze({ mass: 0.64, power: 0.68, torque: 0.74, brake: 1.08, cg: 1.08, wheelbase: 1.18, steering: 0.92, stability: 0.92, drag: 0.58 }),
+});
+
 /**
  * Deterministic articulated-truck dynamics for the WebGL transport scene.
  * Inputs remain optional for backwards compatibility. SI units are used inside.
@@ -72,9 +81,13 @@ export function createTruckPhysics(options = {}) {
     const surface = offroad ? "offroad" : String(input.surface || "asphalt").toLowerCase();
     const roadGrade = clamp(input.roadGrade ?? input.slope ?? 0, -0.18, 0.18);
     const damage = clamp(input.damage || 0, 0, 100);
+    const requestedVehicleType = String(input.vehicleType || options.vehicleType || "truck").toLowerCase();
+    const vehicleType = VEHICLE_PROFILES[requestedVehicleType] ? requestedVehicleType : "truck";
+    const profile = VEHICLE_PROFILES[vehicleType];
     const cargoMass = clamp(input.cargoMass ?? options.cargoMass ?? 0, 0, 40000);
     const cargoHeight = clamp(input.cargoHeight ?? options.cargoHeight ?? 1.15, 0.4, 2.8);
-    const mass = tractorMass + cargoMass;
+    const vehicleMass = tractorMass * profile.mass;
+    const mass = vehicleMass + cargoMass;
     const loadRatio = cargoMass / Math.max(1, mass);
     // Original approximate surface coefficients; callers may add surfaces without breaking defaults.
     const surfaceGrip = {
@@ -111,7 +124,9 @@ export function createTruckPhysics(options = {}) {
     }
     const selectedRatio = gearRatios[gear - 1] * finalDrive;
     rpm = clamp(rpm, 580, 2250);
-    const engineTorque = torqueAt(rpm, throttle, engineHealth);
+    // Profiles scale both torque and usable power so unlike vehicles retain distinct response.
+    const profilePowerLimit = enginePower * profile.power / Math.max(rpm * Math.PI / 30, 1);
+    const engineTorque = Math.min(torqueAt(rpm, throttle, engineHealth) * profile.torque, profilePowerLimit);
     const clutch = clamp(velocity / 1.7 + 0.2, 0.2, 1);
     const shiftCut = shiftTimer > 0 ? 0.12 : 1;
     const drivenForce = engineTorque * selectedRatio * transmissionEfficiency * clutch * shiftCut / wheelRadius;
@@ -126,11 +141,11 @@ export function createTruckPhysics(options = {}) {
     }[surface] ?? 0.008;
     const rollingCoefficient = surfaceRolling + wetness * (surface === "mud" ? 0.018 : 0.001);
     const rollingForce = mass * 9.81 * rollingCoefficient;
-    const aeroForce = 0.5 * airDensity * dragArea * velocity * velocity;
+    const aeroForce = 0.5 * airDensity * dragArea * profile.drag * velocity * velocity;
     const gradeForce = mass * 9.81 * roadGrade;
     const ambientTemperature = input.ambientTemperature ?? 22;
     const brakeFade = clamp(1 - Math.max(0, brakeTemperature - 430) / 520, 0.38, 1);
-    const serviceBrakeLimit = mass * 9.81 * grip * 0.72;
+    const serviceBrakeLimit = mass * 9.81 * grip * clamp(0.72 * profile.brake, 0.58, 0.9);
     const brakeForce = brake * serviceBrakeLimit * brakeFade;
     // Auxiliary braking is strongest at road speed and does not heat wheel brakes.
     const retarderForce = retarder * clamp(velocity / 8, 0, 1) * Math.min(105000, 430000 / Math.max(velocity, 3));
@@ -156,11 +171,12 @@ export function createTruckPhysics(options = {}) {
     const windForce = 0.5 * airDensity * 1.15 * 34 * filteredCrosswind * Math.abs(filteredCrosswind);
 
     // Speed-sensitive steering and a saturated bicycle model avoid unlimited lateral grip.
-    const maxRoadWheelAngle = 0.52 / (1 + velocity * velocity / 520);
+    const effectiveWheelbase = wheelbase * profile.wheelbase;
+    const maxRoadWheelAngle = 0.52 * profile.steering / (1 + velocity * velocity / (520 * profile.stability));
     steerAngle = moveTowards(steerAngle, steering * maxRoadWheelAngle, dt * 0.72);
-    const geometricYaw = velocity / wheelbase * Math.tan(steerAngle);
+    const geometricYaw = velocity / effectiveWheelbase * Math.tan(steerAngle);
     const requestedLateralAcceleration = geometricYaw * velocity + windForce / mass;
-    const availableLateralAcceleration = grip * 9.81 * 0.82;
+    const availableLateralAcceleration = grip * 9.81 * 0.82 * profile.stability;
     const lateralAcceleration = clamp(requestedLateralAcceleration, -availableLateralAcceleration, availableLateralAcceleration);
     const targetYaw = velocity > 0.25 ? lateralAcceleration / velocity : 0;
     yawRate += (targetYaw - yawRate) * Math.min(1, dt * (4.4 - loadRatio * 1.15));
@@ -183,7 +199,7 @@ export function createTruckPhysics(options = {}) {
     suspensionVelocity *= Math.pow(0.08, dt);
     suspension += suspensionVelocity * dt;
     const lateralG = Math.abs(lateralAcceleration) / 9.81;
-    const centreOfGravity = 1.05 + loadRatio * cargoHeight;
+    const centreOfGravity = (1.05 + loadRatio * cargoHeight) * profile.cg;
     // Damped cab/chassis response: braking pitches forward, cornering rolls outward.
     const pitchTarget = clamp(-acceleration / 9.81 * (0.11 + loadRatio * 0.035) - roadGrade * 0.16, -0.13, 0.11);
     suspensionPitchVelocity += (pitchTarget - suspensionPitch) * (18 - loadRatio * 3.5) * dt;
@@ -229,6 +245,8 @@ export function createTruckPhysics(options = {}) {
       retarderForce,
       tractionLimited: drivenForce > tractionLimit,
       shifting: shiftTimer > 0,
+      vehicleType,
+      vehicleMass,
     };
   }
 

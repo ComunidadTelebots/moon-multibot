@@ -36,6 +36,9 @@ export function createVehicleTextureSystem({ THREE: T, qualityLevel = 2, fleetAt
     if (ancestor(object, node => node.name === "roadwork_excavator")) return object.material?.transparent ? null : object.material?.color?.getHex() === 0xf5c542 ? textures.machinery : textures.heavySteel;
     if (ancestor(object, node => node.name === "police_vehicle")) return object.material?.transparent ? null : textures.escort;
     if (ancestor(object, node => node.name === "accident_vehicle")) return object.material?.transparent ? null : textures.paint;
+    if (ancestor(object, node => node.name === "roadside_recovery_truck" || node.name === "mobile_control_vehicle")) return /wheel|tyre/.test(name) ? textures.tyre : textures.machinery;
+    if (ancestor(object, node => node.name === "ambulance_vehicle")) return /wheel|tyre/.test(name) ? textures.tyre : textures.commercial;
+    if (ancestor(object, node => node.name === "fire_engine_vehicle")) return /wheel|tyre/.test(name) ? textures.tyre : textures.utility;
     const traffic = ancestor(object, node => node.name === "detailed_traffic_vehicle");
     if (traffic && /body|hood|roof|bumper/.test(name)) return traffic.userData.vehicleType === "sedan" ? textures.paint : textures.commercial;
     return null;
