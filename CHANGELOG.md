@@ -1,5 +1,22 @@
 # Changelog - Moon Multibot
 
+## v18.24.1 - 2026-08-13 - Conducción sobre rutas reales de OpenStreetMap
+
+### Cambios nuevos verificados
+
+- Sustituye, al elegir origen y destino, la estimación de la red estilizada por una ruta de conducción calculada con OSRM sobre datos OpenStreetMap; conserva distancia, duración, geometría e instrucciones y guarda la respuesta durante 30 días.
+- Genera una calzada 3D continua siguiendo la polilínea calculada, con curvas, carriles, arcenes, marcas, elevación suavizada, peralte limitado, guardarraíles y reflectores; el circuito recto anterior permanece únicamente como respaldo sin ruta activa.
+- Hace que el vehículo avance y se oriente sobre el trazado seleccionado, conserva el desplazamiento lateral para los cambios de carril y elimina el reinicio artificial que devolvía el camión al comienzo cada 6 km.
+- Añade seguimiento de ruta con progreso, distancia restante, próxima maniobra en español, aviso de salida del recorrido y llegada; el navegador de la cabina dibuja el tramo real alrededor del vehículo.
+- Mueve el tráfico europeo sobre la misma polilínea y añade perfiles de coche, furgoneta, camión y autobús, distancia de seguridad, frenado progresivo, cambios de carril seguros y reacción a cierres por incidencias.
+- Conecta la amenaza del tráfico de la ruta con ACC y AEBS. Los vehículos y servicios del escenario recto se ocultan cuando está activa una ruta europea para evitar cruces visuales incoherentes.
+- Genera un corredor visual muestreado desde Overpass alrededor del itinerario con edificios, usos del suelo, agua y árboles, caché de 7 días, endpoints alternativos y límites de geometría según el perfil gráfico.
+
+### Alcance actual
+
+- OpenStreetMap y OSRM definen el recorrido y parte del entorno, pero no constituyen todavía una reproducción fotográfica continua de toda Europa; el corredor se obtiene mediante muestras limitadas para proteger memoria, red y rendimiento en Telegram.
+- Las gasolineras, talleres e incidencias de la ruta OSM usan por ahora representación procedural y detección funcional; los complejos 3D detallados del escenario local aún no se trasladan íntegramente a cada ruta europea.
+
 ## v18.24.0 - 2026-08-13 - Juegos Moon, simulación de transporte y escalado
 
 ### Plataforma de juegos
