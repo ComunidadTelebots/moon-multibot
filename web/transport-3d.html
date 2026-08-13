@@ -172,6 +172,7 @@
       import { createRoadSurfaceEnhancements } from "./transport-road-surface.js";
       import { createRoadsideServices } from "./transport-roadside-services.js";
       import { createVehicleTextureSystem } from "./transport-vehicle-textures.js";
+      import { createDetailedTruckExterior } from "./transport-truck-exterior.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -589,6 +590,8 @@
           cab.material = paint;
           const roof = new T.Mesh(new T.SphereGeometry(1, 28, 18), paint);
           roof.scale.set(2.48, 0.58, 2.45); roof.position.set(0, 4.7, -4.15); g.add(roof);
+          cab.visible = roof.visible = false;
+          g.add(createDetailedTruckExterior({ THREE: T, paint, glass, chrome, qualityLevel }));
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
           trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           trailer.material.userData.vehicleSurface = "commercial";

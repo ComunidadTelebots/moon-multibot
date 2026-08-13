@@ -10,6 +10,8 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const aluminium = material("brushed_aluminium", 0x8b969b, .28, .76, { clearcoat: .22 });
   const piano = material("black_glass_controls", 0x050708, .12, .22, { clearcoat: 1, clearcoatRoughness: .08 });
   const fabric = material("woven_seat_fabric", 0x242a2e, .98, 0, { sheen: .32, sheenColor: new T.Color(0x53626a) });
+  const headliner = material("woven_headliner", 0xaab0ad, .96, 0, { sheen: .12, sheenColor: new T.Color(0xd8d4c8) });
+  const sleeperFabric = material("sleeper_textile", 0x31434a, .94, 0, { sheen: .28, sheenColor: new T.Color(0x63868c) });
   const screenMaterial = new T.MeshBasicMaterial({ name: "live_instrument_display", color: 0xffffff, toneMapped: false });
   const accent = new T.MeshBasicMaterial({ color: 0x57e5d0, toneMapped: false });
   const add = (geometry, mat, name, position, rotation = [0, 0, 0], parent = root) => {
@@ -64,6 +66,9 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     add(new T.CapsuleGeometry(.3, .16, 8, 16), leather, "head_rest", [0, 2.51, frontZ + 2.64], [0, 0, 0], seat);
     for (const sx of [-.29, .29]) add(new T.BoxGeometry(.014, .82, .018), aluminium, "seat_stitching", [sx, 1.73, frontZ + 2.13], [0, 0, 0], seat);
     seat.position.x = x; root.add(seat);
+    box("seat_suspension_base", [.78,.48,.82], [x,.63,frontZ+2.35], polymer);
+    const belt = box("three_point_seatbelt", [.045,1.38,.035], [x + (x < 0 ? -.32 : .32),1.72,frontZ+2.15], material("seatbelt_webbing",0x090b0c,.9));
+    belt.rotation.z = x < 0 ? -.16 : .16;
   }
   for (const side of [-1, 1]) {
     roundedPanel("door_card", 2.45, 1.8, .1, .18, [side * sideX, 2.0, frontZ + 1.02], soft, [0, Math.PI / 2, 0]);
@@ -73,7 +78,26 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     add(new T.PlaneGeometry(.72, .9), material("mirror_glass", 0x91aab3, .06, .9, { clearcoat: 1 }), "interior_mirror_surface", [side * (sideX + .34), 3.42, frontZ - .48], [0, side * Math.PI / 2, 0]);
   }
   box("rubber_floor", [4.1, .04, 3.4], [0, .47, frontZ + 1.12], material("rubber_floor", 0x080a0b, 1));
+  roundedPanel("central_engine_tunnel", 1.12, .38, 2.25, .18, [0,.68,frontZ+1.5], polymer);
+  box("cab_rear_wall", [4.55,3.72,.14], [0,2.5,frontZ+4.2], soft);
+  box("cab_ceiling_headliner", [4.38,.12,4.5], [0,4.73,frontZ+1.68], headliner);
+  for (const side of [-1,1]) box("sleeper_side_liner", [.12,2.4,1.55], [side*2.2,2.55,frontZ+3.45], headliner);
+  if (!bus) {
+    roundedPanel("sleeper_mattress", 4.05, .38, 1.42, .17, [0,1.05,frontZ+3.55], sleeperFabric);
+    box("sleeper_bed_base", [4.2,.32,1.55], [0,.74,frontZ+3.55], polymer);
+    roundedPanel("sleeper_pillow", 1.05,.24,.55,.12, [-1.35,1.32,frontZ+3.78], headliner, [0,0,.08]);
+    for (const side of [-1,1]) {
+      roundedPanel("upper_storage_cabinet", 1.78,.72,.5,.14, [side*1.04,4.18,frontZ+3.73], polymer);
+      box("cabinet_handle", [.56,.045,.06], [side*1.04,4.02,frontZ+3.46], aluminium);
+      const curtain = box("sleeper_blackout_curtain", [.05,2.2,1.35], [side*2.13,2.78,frontZ+3.42], sleeperFabric);
+      curtain.rotation.z = side*.035;
+    }
+    roundedPanel("folding_table", 1.18,.08,.72,.1, [1.14,1.72,frontZ+2.93], aluminium, [-.08,0,0]);
+  }
+  for (const x of [-.18,.18]) add(new T.CylinderGeometry(.09,.075,.18,18), polymer, "dashboard_cupholder", [x,1.5,frontZ+.96]);
   box("overhead_console", [2.3, .3, .72], [0, 4.55, frontZ + .03], polymer);
+  for (const side of [-1,1]) box("sun_visor", [1.48,.46,.055], [side*.92,4.3,frontZ-.56], headliner, [.08,0,0]);
+  add(new T.PlaneGeometry(.62,.28), material("interior_centre_mirror",0x91aab3,.05,.88,{clearcoat:1}), "interior_centre_mirror", [0,4.08,frontZ-.64]);
   for (let i = 0; i < 5; i++) add(new T.CylinderGeometry(.045, .045, .025, 12), accent, "overhead_switch", [-.36 + i * .18, 4.39, frontZ - .2], [Math.PI / 2, 0, 0]);
   const glow = new T.PointLight(0x82d8d0, qualityLevel > 1 ? .55 : .2, 5, 2); glow.name = "ambient_cabin_light"; glow.position.set(0, 3.65, frontZ + .7); root.add(glow);
   root.userData.steering = wheel;
