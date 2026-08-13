@@ -160,6 +160,7 @@
       import { createWheelInput } from "./transport-wheel-input.js";
       import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
       import { createSpecialTransport, SPECIAL_CARGOES } from "./transport-special-cargo.js";
+      import { createWorldDetail } from "./transport-world-detail.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -182,6 +183,7 @@
       applyRealisticRendererSettings(T, R, qualityLevel);
       const career = createTransportCareer();
       const textures = createProceduralTransportTextures(T, qualityLevel);
+      const worldDetail = createWorldDetail({ THREE: T, qualityLevel, textureMaps: textures.maps });
       const physics = createTruckPhysics({ mass: 18000, enginePower: 390000, maxSpeedKmh: 125 });
       document.body.prepend(R.domElement);
       S.add(new T.HemisphereLight(0xe8f7ff, 0x385329, 2.2));
@@ -274,28 +276,14 @@
       for (let n = -cityRadius; n <= cityRadius; n++)
         for (const side of [-1, 1])
           for (let i = 0; i < cityRows; i++) {
-            const h = 12 + ((n * 19 + i * 23 + 80) % 43),
-              b = box(
-                9 + (i % 3) * 3,
-                h,
-                11 + (i % 2) * 4,
-                [0x50667b, 0xc28b58, 0x6f8799, 0x92676b][(i + n + 8) % 4],
-              );
+            const h = 12 + ((n * 19 + i * 23 + 80) % 43), width = 9 + (i % 3) * 3, depth = 11 + (i % 2) * 4,
+              b = worldDetail.createBuilding({ width, height: h, depth, color: [0x50667b, 0xc28b58, 0x6f8799, 0x92676b][(i + n + 8) % 4], roadSide: side, seed: i + n + 12 });
             b.position.set(
               side * (43 + (i % 2) * 15),
-              h / 2,
+              0,
               n * 76 + (i - 3) * 16,
             );
             S.add(b);
-            for (let y = 4; y < h - 2; y += 5) {
-              const w = box(0.12, 1.5, 1.6, 0xffdb7d);
-              w.position.set(
-                b.position.x - side * (b.geometry.parameters.width / 2 + 0.1),
-                y,
-                b.position.z,
-              );
-              S.add(w);
-            }
           }
       const cityData = [
         { name: "Nova Liria", z: 305, color: 0x31c7b7 },
@@ -306,8 +294,8 @@
       function cityLandmark(city, index) {
         const group = new T.Group();
         for (const side of [-1, 1]) {
-          const tower = part(group, 8 + index, 28 + index * 7, 8, city.color, side * 31, 14 + index * 3.5, city.z);
-          tower.material = new T.MeshPhysicalMaterial({ color: city.color, roughness: 0.35, metalness: 0.28, clearcoat: 0.45 });
+          const towerHeight = 28 + index * 7, tower = worldDetail.createBuilding({ width: 8 + index, height: towerHeight, depth: 8, color: city.color, roadSide: side, seed: index * 7 + side });
+          tower.position.set(side * 31, 0, city.z); group.add(tower);
           const crown = new T.Mesh(new T.ConeGeometry(5 + index * 0.4, 7, 8), mat(0xe6eef2, 0.32, 0.5));
           crown.position.set(side * 31, 31 + index * 7, city.z); group.add(crown);
         }
@@ -316,12 +304,8 @@
       }
       for (let z = -420; z < 440; z += 30)
         for (const q of [-20, 20]) {
-          const tr = box(0.7, 5, 0.7, 0x70482a);
-          tr.position.set(q, 2.5, z);
-          S.add(tr);
-          const cr = new T.Mesh(new T.ConeGeometry(3.8, 8, 9), mat(0x21663c));
-          cr.position.set(q, 8, z);
-          S.add(cr);
+          const tree = worldDetail.createTree({ seed: Math.abs(z + q) * .013, height: 8.5 + Math.abs((z * 7 + q) % 5) });
+          tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
         }
       let V, specialTransport,
         kind = "truck",
@@ -968,7 +952,7 @@
           document.querySelector("#fatigueState").textContent = `Crítica ${Math.round(fatigue)}%`;
         } else document.querySelector("#fatigueState").textContent = fatigue > 55 ? `Cansancio ${Math.round(fatigue)}%` : `Descanso ${Math.round(100 - fatigue)}%`;
         if (nearest && nearest.gap < 4.5 && nearest.lateral < 2.4) {
-          speed *= 0.18; damage = Math.min(100, damage + 8); nearest.o.position.x += nearest.o.position.x > V.position.x ? 2 : -2;
+          speed *= 0.18; damage = Math.min(100, damage + 8);
           document.querySelector("#assistState").textContent = "Colisión detectada"; wheelInput.pulse(0.8, 220);
         }
         if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); wheelInput.pulse(0.22, 45); }
@@ -1056,18 +1040,16 @@
       requestAnimationFrame(loop);
       const traffic3d = [];
       for (let i = 0; i < [3, 5, 9, 14][qualityLevel]; i++) {
-        const g = new T.Group(),
-          c = [0xe34d64, 0x4c7ee8, 0xf1b84b, 0x54bd82][i % 4];
-        part(g, 2.7, 0.8, 5, c, 0, 1, 0);
-        part(g, 2.25, 0.7, 2.3, 0x19384d, 0, 1.65, 0.1);
-        for (const z of [-1.6, 1.6])
-          for (const px of [-1.3, 1.3]) g.add(wheel(px, z));
+        const c = [0xe34d64, 0x4c7ee8, 0xf1b84b, 0x54bd82, 0xa9afb5, 0x704b91][i % 6],
+          g = worldDetail.createTrafficVehicle({ index: i, color: c });
         const direction = i % 3 === 0 ? 1 : -1,
           lanes = direction === -1 ? [-8, -3.2] : [3.2, 8];
-        g.position.set(lanes[i % lanes.length], 0, 30 - i * 90);
+        const laneX = lanes[i % lanes.length];
+        g.position.set(laneX, 0, 30 - i * 90);
         g.rotation.y = direction === 1 ? Math.PI : 0;
         g.userData.direction = direction;
-        g.userData.roadSpeed = direction === -1 ? 0.12 + (i % 3) * 0.018 : 0.24 + (i % 2) * 0.025;
+        g.userData.laneX = laneX;
+        g.userData.roadSpeedKmh = direction === -1 ? 66 + (i % 3) * 9 : 78 + (i % 2) * 12;
         S.add(g);
         traffic3d.push(g);
       }
@@ -1149,18 +1131,23 @@
         });
       };
       document.querySelector(".controls").appendChild(weatherButton);
-      function worldLoop() {
+      let lastTrafficFrame = performance.now();
+      function worldLoop(now = performance.now()) {
+        const trafficDt = Math.min(.05, Math.max(.001, (now - lastTrafficFrame) / 1000)); lastTrafficFrame = now;
         if (V) {
           for (let i = 0; i < traffic3d.length; i++) {
             const o = traffic3d[i];
-            o.position.z += o.userData.direction * o.userData.roadSpeed;
+            const movement = o.userData.direction * o.userData.roadSpeedKmh / 3.6 * trafficDt;
+            o.position.z += movement;
+            o.position.x += (o.userData.laneX - o.position.x) * Math.min(1, trafficDt * 8);
             o.traverse((part) => {
-              if (part.userData.isWheel) part.rotation.x -= o.userData.roadSpeed * 0.26;
+              if (part.userData.isWheel) part.rotation.x -= Math.abs(movement) * 1.25;
             });
             if (o.position.z > V.position.z + 110 || o.position.z < V.position.z - 650) {
               o.position.z = V.position.z - 260 - Math.random() * 360;
               const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
-              o.position.x = lanes[Math.floor(Math.random() * lanes.length)];
+              o.userData.laneX = lanes[Math.floor(Math.random() * lanes.length)];
+              o.position.x = o.userData.laneX;
             }
           }
           const workDistance = roadworks.position.z + 70 - V.position.z,
