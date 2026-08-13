@@ -27,6 +27,19 @@ def load():
 
 def request_node(action, pressure, replicas_count):
     """Call a provider-owned provisioner; credentials never enter Moonbot."""
+    if os.getenv("MOON_SCALE_PROVIDER", "").strip().lower() == "hostinger":
+      token=os.getenv("HOSTINGER_API_TOKEN","").strip();raw=os.getenv("HOSTINGER_VPS_PURCHASE_JSON","").strip()
+      enabled=os.getenv("HOSTINGER_AUTOSCALE_PURCHASE","false").lower()=="true"
+      if not token or not raw: raise RuntimeError("faltan HOSTINGER_API_TOKEN/HOSTINGER_VPS_PURCHASE_JSON")
+      purchase=json.loads(raw)
+      if not isinstance(purchase,dict) or not purchase: raise RuntimeError("HOSTINGER_VPS_PURCHASE_JSON no es un objeto válido")
+      if not enabled:
+        print(f"[autoscale] SIMULACION Hostinger: comprar VPS con campos {sorted(purchase)}",flush=True);return False
+      request=urllib.request.Request("https://developers.hostinger.com/api/vps/v1/virtual-machines",data=json.dumps(purchase).encode(),method="POST",headers={"Content-Type":"application/json","Accept":"application/json","Authorization":f"Bearer {token}","User-Agent":"Moonbot-Autoscaler/1.0"})
+      with urllib.request.urlopen(request,timeout=30) as response:
+        if response.status//100!=2: raise RuntimeError(f"Hostinger HTTP {response.status}")
+        result=json.loads(response.read().decode() or "{}")
+      print(f"[autoscale] Hostinger aceptó la compra: id={result.get('id','pendiente')}",flush=True);return True
     url=os.getenv("MOON_SCALE_PROVIDER_WEBHOOK","").strip();token=os.getenv("MOON_SCALE_PROVIDER_TOKEN","").strip()
     if not url: return False
     payload=json.dumps({"action":action,"cluster":"moonbot","pressure":round(pressure,2),"web_replicas":replicas_count,"at":int(time.time())}).encode()
