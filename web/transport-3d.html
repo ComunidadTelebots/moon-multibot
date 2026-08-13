@@ -174,7 +174,9 @@
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-navigation" aria-label="Navegación"><small>Ruta activa</small><b id="dashNavInstruction">Continúa por la vía</b><output id="dashNavDistance">-- m</output></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState" role="status" aria-live="polite">AEBS listo</b></div></div>
       <div class="dash-buttons" role="group" aria-label="Controles de cabina"><button data-cockpit="lights" aria-pressed="false">💡 Luces</button><button data-cockpit="wipers" aria-pressed="false">🌧 Limpia</button><button data-cockpit="hazard" aria-pressed="false">⚠ Emergencia</button><button data-cockpit="retarder" aria-pressed="false">R Retarder</button><button data-cockpit="cruise" aria-pressed="false">◉ Crucero</button><button data-cockpit="parking" aria-pressed="true">P Freno</button></div></div>
     </section>
-    <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/games-shared-world.js"></script><script src="/games-shared-operations.js"></script><script src="/transport-achievements.js"></script><script src="/transport-route-runtime.js"></script><script type="module">
+    <script>
+      (()=>{const show=(message,source,line)=>{let box=document.querySelector("#transportBootError");if(!box){box=document.createElement("div");box.id="transportBootError";box.style.cssText="position:fixed;z-index:99999;inset:90px 24px auto;padding:16px;border:1px solid #ff725f;border-radius:12px;background:#240c0ef2;color:#fff;font:13px/1.45 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";document.body.append(box)}box.textContent=`Error al iniciar el simulador\n${message}${source?`\n${source}${line?`:${line}`:""}`:""}`};addEventListener("error",event=>show(event.message||"Error de recurso",event.filename||event.target?.src,event.lineno));addEventListener("unhandledrejection",event=>show(event.reason?.stack||event.reason?.message||String(event.reason||"Promesa rechazada")));window.__transportBootOk=()=>document.querySelector("#transportBootError")?.remove()})();
+    </script><script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/games-shared-world.js"></script><script src="/games-shared-operations.js"></script><script src="/transport-achievements.js"></script><script src="/transport-route-runtime.js"></script><script type="module">
       import * as T from "./vendor/three.module.min.js";
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
       import { createTransportCareer } from "./transport-career.js";
@@ -329,6 +331,7 @@
       }).catch(error => console.warn("No se pudo cargar el atlas visual original", error));
       const physics = createTruckPhysics({ mass: 18000, enginePower: 390000, maxSpeedKmh: 125 });
       document.body.prepend(R.domElement);
+      window.__transportBootOk?.();
       S.add(new T.HemisphereLight(0xe8f7ff, 0x385329, 2.2));
       const sun = new T.DirectionalLight(0xffedc4, 3);
       sun.position.set(-70, 110, -40);
