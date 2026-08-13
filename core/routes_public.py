@@ -15,6 +15,7 @@ import html
 import json
 import datetime
 import os
+import math
 import time
 import threading
 import secrets
@@ -78,6 +79,8 @@ _tdlib_client = None
 _community_api_usage = {}
 _instant_news_cache = {"at": 0, "articles": []}
 _community_campaign_cache = {}
+_royale_lock = threading.Lock()
+_royale_rooms = {}
 _NOTICIAS_API_ENDPOINTS = tuple(dict.fromkeys((
     os.environ.get("NOTICIAS_API_INTERNAL_URL", "http://todosobrealltech-api:3001").rstrip("/"),
     "https://api.todosobreall.tech",
@@ -98,6 +101,70 @@ def _noticias_api_read(path, *, data=None, timeout=12, limit=2 * 1024 * 1024):
         except Exception as exc:
             last_error = exc
     raise last_error or RuntimeError("NoticiasWeb3 API unavailable")
+
+
+def _royale_advance(room, now):
+    dt = min(max(now - float(room.get("updated", now)), 0), 0.5)
+    room["updated"] = now
+    elapsed = now - room["started"]
+    room["zone"] = max(90.0, 370.0 - elapsed * 1.35)
+    live = [player for player in room["players"].values() if player["hp"] > 0]
+    next_bullets = []
+    for bullet in room["bullets"]:
+        bullet["x"] += bullet["vx"] * dt; bullet["y"] += bullet["vy"] * dt
+        bullet["ttl"] -= dt
+        if bullet["ttl"] <= 0 or not 0 <= bullet["x"] <= 800 or not 0 <= bullet["y"] <= 800:
+            continue
+        hit = None
+        for player in live:
+            if player["id"] != bullet["owner"] and math.hypot(player["x"] - bullet["x"], player["y"] - bullet["y"]) < 18:
+                hit = player; break
+        if hit:
+            hit["hp"] = max(0, hit["hp"] - 25)
+            if hit["hp"] == 0:
+                owner = room["players"].get(bullet["owner"])
+                if owner: owner["kills"] += 1
+        else:
+            next_bullets.append(bullet)
+    room["bullets"] = next_bullets[-80:]
+    for player in live:
+        if math.hypot(player["x"] - 400, player["y"] - 400) > room["zone"]:
+            player["hp"] = max(0, player["hp"] - 12 * dt)
+    alive = [player for player in room["players"].values() if player["hp"] > 0]
+    if len(room["players"]) > 1 and len(alive) <= 1:
+        room["winner"] = alive[0]["id"] if alive else ""
+
+
+@bp.route("/api/public/games/royale", methods=["POST", "OPTIONS"])
+def public_block_royale():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None: return jsonify({"ok": False, "error": "Abre el juego desde Telegram"}), 401
+    uid = str(user.get("id")); action = str(body.get("action") or "state")
+    now = time.time()
+    with _royale_lock:
+        for key in list(_royale_rooms):
+            if now - _royale_rooms[key].get("updated", now) > 1800: _royale_rooms.pop(key, None)
+        room = next((value for value in _royale_rooms.values() if uid in value["players"] and not value.get("winner")), None)
+        if action == "join" and room is None:
+            room = next((value for value in _royale_rooms.values() if not value.get("winner") and len(value["players"]) < 12 and now-value["started"] < 45), None)
+            if room is None:
+                rid = secrets.token_hex(4); room = {"id": rid, "started": now, "updated": now, "zone": 370.0, "players": {}, "bullets": [], "winner": ""}; _royale_rooms[rid] = room
+            seed = int(hashlib.sha256(f"{room['id']}:{uid}".encode()).hexdigest()[:8], 16)
+            room["players"][uid] = {"id": uid, "name": str(user.get("first_name") or "Jugador")[:24], "x": 100 + seed % 600, "y": 100 + (seed // 7) % 600, "hp": 100.0, "kills": 0, "shot_at": 0.0, "seen": now}
+        if room is None: return jsonify({"ok": False, "error": "Únete primero"}), 409
+        _royale_advance(room, now); player = room["players"].get(uid)
+        if not player: return jsonify({"ok": False, "error": "Partida finalizada"}), 409
+        player["seen"] = now
+        if action == "move" and player["hp"] > 0 and not room.get("winner"):
+            dx = max(-1.0, min(1.0, float(body.get("dx") or 0))); dy = max(-1.0, min(1.0, float(body.get("dy") or 0)))
+            length = math.hypot(dx, dy) or 1; speed = 22
+            player["x"] = max(16, min(784, player["x"] + dx / length * speed)); player["y"] = max(16, min(784, player["y"] + dy / length * speed))
+        elif action == "shoot" and player["hp"] > 0 and now - player["shot_at"] >= 0.45 and not room.get("winner"):
+            angle = float(body.get("angle") or 0); player["shot_at"] = now
+            room["bullets"].append({"x": player["x"], "y": player["y"], "vx": math.cos(angle)*330, "vy": math.sin(angle)*330, "owner": uid, "ttl": 1.8})
+        players = [{key: (round(value, 1) if key in ("x", "y", "hp") else value) for key, value in row.items() if key not in ("shot_at", "seen")} for row in room["players"].values() if now-row.get("seen", now) < 30]
+        return jsonify({"ok": True, "room": room["id"], "you": uid, "zone": round(room["zone"], 1), "players": players, "bullets": room["bullets"], "winner": room.get("winner", "")})
 
 
 def _community_campaigns_for_audience(owner_verified=False):
