@@ -42,12 +42,16 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   roundedPanel("dashboard_upper_pad", bus ? 4.82 : 4.52, .18, 1.25, .09, [0, 2.63, frontZ + .12], polymer, [-.04, 0, 0]);
   roundedPanel("driver_instrument_hood", 1.92, .48, .64, .2, [-.75, 2.66, frontZ - .08], soft, [-.08, 0, 0]);
   roundedPanel("centre_stack", 1.18, 1.18, .18, .16, [.92, 2.15, frontZ - .49], piano, [0, 0, -.035]);
+  roundedPanel("wraparound_driver_console", 2.05,.48,1.75,.18,[-1.18,1.83,frontZ+.62],soft,[-.08,.04,0]);
+  roundedPanel("wraparound_passenger_console", 2.18,.44,1.58,.18,[1.15,1.82,frontZ+.7],soft,[-.06,-.045,0]);
+  roundedPanel("floor_height_centre_console", 1.22,1.18,2.15,.22,[.72,1.08,frontZ+1.28],polymer,[-.05,0,0]);
   const displayCanvas = document.createElement("canvas"); displayCanvas.width = 768; displayCanvas.height = 288;
   const displayTexture = new T.CanvasTexture(displayCanvas); displayTexture.colorSpace = T.SRGBColorSpace; screenMaterial.map = displayTexture;
   add(new T.PlaneGeometry(1.64, .61), screenMaterial, "instrument_cluster_live", [-.67, 2.48, frontZ - .47]);
   const navCanvas = document.createElement("canvas"); navCanvas.width = 384; navCanvas.height = 384;
   const navTexture = new T.CanvasTexture(navCanvas); navTexture.colorSpace = T.SRGBColorSpace;
   add(new T.PlaneGeometry(.82, .72), new T.MeshBasicMaterial({ map: navTexture, toneMapped: false }), "navigation_touchscreen", [.92, 2.29, frontZ - .61]);
+  for(let row=0;row<2;row++)for(let column=0;column<6;column++)add(new T.CylinderGeometry(.04,.04,.025,12),column===2&&row===0?material("hazard_switch",0xc62b2b,.35):polymer,"physical_dashboard_switch",[.48+column*.17,1.83-row*.17,frontZ-.62],[Math.PI/2,0,0]);
   const wheel = new T.Group(); wheel.name = "steering_wheel"; wheel.position.set(-1.04, 2.55, frontZ + .5); wheel.rotation.x = -.18;
   add(new T.TorusGeometry(.54, .075, qualityLevel > 1 ? 16 : 10, qualityLevel > 1 ? 48 : 24), leather, "steering_rim", [0, 0, 0], [0, 0, 0], wheel);
   for (const angle of [-2.48, -.66, Math.PI / 2]) {
@@ -85,6 +89,9 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     add(new T.TorusGeometry(.15, .032, 8, 20, Math.PI), aluminium, "door_handle", [side * (sideX - .16), 2.4, frontZ + .43], [0, Math.PI / 2, side * Math.PI / 2]);
     roundedPanel("door_storage", .72, .33, .08, .12, [side * (sideX - .09), 1.27, frontZ + 1.15], polymer, [0, Math.PI / 2, 0]);
     add(new T.PlaneGeometry(.72, .9), material("mirror_glass", 0x91aab3, .06, .9, { clearcoat: 1 }), "interior_mirror_surface", [side * (sideX + .34), 3.42, frontZ - .48], [0, side * Math.PI / 2, 0]);
+    box("windshield_a_pillar", [.2,2.38,.24], [side*2.11,3.38,frontZ-.68], polymer, [0,0,side*.065]);
+    box("windshield_lower_frame", [2.08,.16,.22], [side*1.02,2.7,frontZ-.73], polymer);
+    box("door_ambient_light", [.035,.045,1.45], [side*(sideX-.18),1.72,frontZ+.82], accent);
   }
   box("rubber_floor", [4.1, .04, 3.4], [0, .47, frontZ + 1.12], material("rubber_floor", 0x080a0b, 1));
   roundedPanel("central_engine_tunnel", 1.12, .38, 2.25, .18, [0,.68,frontZ+1.5], polymer);
@@ -105,6 +112,15 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   }
   for (const x of [-.18,.18]) add(new T.CylinderGeometry(.09,.075,.18,18), polymer, "dashboard_cupholder", [x,1.5,frontZ+.96]);
   box("overhead_console", [2.3, .3, .72], [0, 4.55, frontZ + .03], polymer);
+  for(const side of[-1,1]){
+    roundedPanel("front_overhead_locker",1.82,.64,.72,.14,[side*1.03,4.42,frontZ+.52],soft);
+    roundedPanel("side_overhead_locker",.58,.72,2.3,.14,[side*1.88,4.2,frontZ+1.85],soft,[0,side*Math.PI/2,0]);
+    box("locker_release",[.45,.035,.055],[side*1.03,4.2,frontZ+.14],aluminium);
+  }
+  box("dashboard_ambient_strip",[3.9,.035,.035],[0,2.02,frontZ-.69],accent);
+  for(const cupX of[.42,.78]){
+    const holder=add(new T.TorusGeometry(.11,.025,8,22),polymer,"deep_cupholder",[cupX,1.61,frontZ+1.1],[Math.PI/2,0,0]);holder.scale.y=1.15;
+  }
   for (const side of [-1,1]) box("sun_visor", [1.48,.46,.055], [side*.92,4.3,frontZ-.56], headliner, [.08,0,0]);
   add(new T.PlaneGeometry(.62,.28), material("interior_centre_mirror",0x91aab3,.05,.88,{clearcoat:1}), "interior_centre_mirror", [0,4.08,frontZ-.64]);
   for (let i = 0; i < 5; i++) add(new T.CylinderGeometry(.045, .045, .025, 12), accent, "overhead_switch", [-.36 + i * .18, 4.39, frontZ - .2], [Math.PI / 2, 0, 0]);
