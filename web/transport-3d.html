@@ -240,6 +240,9 @@
       let V,
         kind = "truck",
         view = 0,
+        cameraReady = false,
+        cameraTransitionUntil = 0,
+        cameraLook = new T.Vector3(),
         speed = 0,
         steer = 0,
         keys = {},
@@ -434,22 +437,35 @@
         V = g;
         V.position.set(0, 0, 60);
         S.add(V);
+        cameraReady = false;
         vn.textContent = bus ? "Nortia Urbano X8" : "Aster Viento 3D";
         truck.classList.toggle("on", !bus);
         document.querySelector("#bus").classList.toggle("on", bus);
       }
-      function camera() {
-        const p = V.position;
+      function camera(dt, now) {
+        const p = V.position, bob = Math.sin(now * 0.012) * Math.min(0.045, speed * 0.00045),
+          targetPosition = new T.Vector3(), targetLook = new T.Vector3();
+        let targetFov = 65;
         if (view === 0) {
-          C.position.lerp(new T.Vector3(p.x + 10, 9, p.z + 18), 0.12);
-          C.lookAt(p.x, 2, p.z - 10);
+          targetPosition.set(p.x + 9 + steer * 1.7, p.y + 7.2 + speed * 0.018, p.z + 16 + speed * 0.025);
+          targetLook.set(p.x + steer * 2, p.y + 2.25, p.z - 13); targetFov = 62 + Math.min(10, speed * 0.07);
         } else if (view === 1) {
-          C.position.set(p.x - 1.15, 3.1, p.z - 3.5);
-          C.lookAt(p.x - 1.1, 2.8, p.z - 35);
+          targetPosition.set(p.x - 1.08, p.y + 3.16 + bob, p.z - (kind === "bus" ? 5.35 : 4.65));
+          targetLook.set(p.x - 1.05 + steer * 1.1, p.y + 2.82 + bob, p.z - 42); targetFov = 72;
+        } else if (view === 2) {
+          targetPosition.set(p.x + (kind === "bus" ? 1.1 : 0.72), p.y + 3.12 + bob, p.z + (kind === "bus" ? 3.6 : -2.05));
+          targetLook.set(p.x, p.y + 2.55, p.z - 28); targetFov = kind === "bus" ? 78 : 74;
         } else {
-          C.position.set(p.x, 3.2, p.z + (kind === "bus" ? 4 : 5));
-          C.lookAt(p.x, 2.4, p.z - 25);
+          const orbit = now * 0.00022;
+          targetPosition.set(p.x + Math.cos(orbit) * 19, p.y + 6.5, p.z + 5 + Math.sin(orbit) * 13);
+          targetLook.set(p.x, p.y + 2.4, p.z - 5); targetFov = 58;
         }
+        if (!cameraReady) { C.position.copy(targetPosition); cameraLook.copy(targetLook); C.fov = targetFov; cameraReady = true; }
+        const smoothing = 1 - Math.pow(view === 1 || view === 2 ? 0.00004 : 0.0015, dt);
+        C.position.lerp(targetPosition, smoothing); cameraLook.lerp(targetLook, smoothing); C.fov += (targetFov - C.fov) * smoothing;
+        C.updateProjectionMatrix(); C.lookAt(cameraLook);
+        const viewName = ["Exterior", "Cabina conductor", kind === "bus" ? "Salón pasajeros" : "Interior cabina", "Cinemática lateral"][view];
+        document.querySelector("#view").textContent = now < cameraTransitionUntil ? `Cambiando a ${viewName}…` : viewName;
       }
       document.querySelectorAll("[data-key]").forEach((b) => {
         const k = b.dataset.key;
@@ -462,7 +478,7 @@
           b.addEventListener(v, () => (keys[k] = 0)),
         );
       });
-      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); keys[k] = 1; };
+      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); if (!e.repeat && k === "v") cam.click(); keys[k] = 1; };
       onkeyup = (e) => (keys[e.key.toLowerCase()] = 0);
       addEventListener("blur", () => (keys = {}));
       truck.onclick = () => build("truck");
@@ -504,12 +520,11 @@
         document.querySelector("#assistState").textContent = "Vehículo recuperado";
       };
       cam.onclick = () => {
-        view = (view + 1) % 3;
-        document.querySelector("#view").textContent = [
-          "Exterior",
-          "Cabina",
-          "Interior trasero",
-        ][view];
+        view = (view + 1) % 4;
+        cameraTransitionUntil = performance.now() + 650;
+        const label = ["Exterior", "Cabina conductor", kind === "bus" ? "Salón de pasajeros" : "Interior cabina", "Cinemática lateral"][view];
+        document.querySelector("#view").textContent = `Cambiando a ${label}…`;
+        cam.textContent = `Vista: ${label}`;
       };
       full.onclick = () =>
         document.fullscreenElement
@@ -571,7 +586,7 @@
           "Valleverde",
           "Bahía Solar",
         ][Math.max(0, Math.floor((420 - V.position.z) / 205) % 4)];
-        camera();
+        camera(dt, now);
         R.render(S, C);
         requestAnimationFrame(loop);
       }
