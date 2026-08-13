@@ -206,7 +206,7 @@
       let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
       const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
       const routeNavigation = createRouteNavigation();
-      const routeRuntime = window.MoonTransportRouteRuntime.create({ lanesPerDirection: 2, maxTraffic: [8,18,36,56][qualityLevel] });
+      let routeRuntime;
       const textures = createProceduralTransportTextures(T, qualityLevel);
       const vehicleTextures = createVehicleTextureSystem({
         THREE: T, qualityLevel,
@@ -217,6 +217,23 @@
       const emergencyFleet = createEmergencyFleet({ THREE:T, qualityLevel, atlasUrl:"./generated-textures/emergency-fleet-atlas-v1.png" });
       emergencyFleet.ready.catch(error => console.warn("No se cargaron las texturas de emergencias", error));
       const worldDetail = createWorldDetail({ THREE: T, qualityLevel, textureMaps: textures.maps });
+      const routeActorRoot = new T.Group(); routeActorRoot.name = "osm_route_actors"; S.add(routeActorRoot);
+      const routeActorMaterials = {
+        service: new T.MeshStandardMaterial({color:0x43d9c2,emissive:0x0b514b,emissiveIntensity:.8,roughness:.45}),
+        event: new T.MeshStandardMaterial({color:0xff8a32,emissive:0x6b2600,emissiveIntensity:.7,roughness:.62}),
+      };
+      const routeActorAdapter = {
+        create(type,actor) {
+          let object;
+          if(type==="traffic") object=worldDetail.createTrafficVehicle({index:Number(actor.id.split("-").at(-1))||0,color:[0x3c78d8,0xe04f54,0xe3ae39,0x4ca57a][(Number(actor.id.split("-").at(-1))||0)%4]});
+          else { object=new T.Group(); const mast=new T.Mesh(new T.CylinderGeometry(.13,.18,type==="services"?3.8:2.2,8),routeActorMaterials[type==="services"?"service":"event"]),sign=new T.Mesh(new T.BoxGeometry(type==="services"?2.8:1.8,type==="services"?1.4:1.1,.18),routeActorMaterials[type==="services"?"service":"event"]);mast.position.y=(type==="services"?3.8:2.2)/2;sign.position.y=type==="services"?4.25:2.35;object.add(mast,sign);object.userData.routeLabel=actor.type; }
+          object.name=`osm_${type}_${actor.id}`;routeActorRoot.add(object);return object;
+        },
+        move(object,pose){if(!object||!pose)return;object.position.set(pose.x,pose.y||0,pose.z);object.rotation.y=pose.heading||0;},
+        update(object,actor){if(object&&actor.kind==="events")object.visible=actor.distanceToPlayer<900;},
+        remove(object){object?.removeFromParent();},
+      };
+      routeRuntime = window.MoonTransportRouteRuntime.create({lanesPerDirection:2,maxTraffic:[8,18,36,56][qualityLevel],adapter:routeActorAdapter});
       const photorealAtlas = loadPhotorealAtlas(T, "./generated-textures/europe-roadside-atlas-v1.png", qualityLevel);
       const routeScenery = createRouteScenery({ THREE: T, scene: S, qualityLevel });
       photorealAtlas.ready.then(maps => {
@@ -969,7 +986,7 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute);routeRuntime.setRoute(activeWorldRoute);routeNavigation.setRoute(route);physicalDistance=0;routeLaneOffset=0;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute);routeRuntime.setRoute(activeWorldRoute);routeNavigation.setRoute(route);physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
@@ -1069,7 +1086,7 @@
           wheelButton.classList.remove("on");
         }
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
-        nearestRoadsideService = roadsideServices.update(V.position);
+        nearestRoadsideService = activeOsmRoute ? routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null : roadsideServices.update(V.position);
         const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso" };
         document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
           ? `${serviceNames[nearestRoadsideService.type]} · ${Math.round(nearestRoadsideService.distance)} m`
@@ -1090,6 +1107,7 @@
         }
         if (!onFoot && (accelerating || braking)) { parkingBrake = false; document.querySelector("#parking").classList.remove("on"); document.querySelector("#parking").textContent = "Freno P"; }
         const threats = traffic3d
+          .filter(o => o.visible)
           .map((o) => ({ o, gap: V.position.z - o.position.z, lateral: Math.abs(V.position.x - o.position.x) }))
           .filter((item) => item.gap > 0 && item.lateral < 2.8)
           .sort((a, b) => a.gap - b.gap), nearest = threats[0];
@@ -1194,7 +1212,8 @@
             nav.fillStyle = "#071218"; nav.fillRect(0, 0, navCanvas.width, navCanvas.height);
             nav.strokeStyle = "#203942"; nav.lineWidth = 2;
             for (let grid = 32; grid < navCanvas.width; grid += 48) { nav.beginPath(); nav.moveTo(grid, 0); nav.lineTo(grid, navCanvas.height); nav.stroke(); nav.beginPath(); nav.moveTo(0, grid); nav.lineTo(navCanvas.width, grid); nav.stroke(); }
-            nav.strokeStyle = "#42dbc5"; nav.lineWidth = 28; nav.lineCap = "round"; nav.beginPath(); nav.moveTo(192, 420); nav.bezierCurveTo(185, 300, 245, 236, 170, 120); nav.bezierCurveTo(138, 70, 185, 42, 230, -20); nav.stroke();
+            nav.strokeStyle = "#42dbc5"; nav.lineWidth = 28; nav.lineCap = "round"; nav.beginPath();
+            if(activeOsmRoute&&activeWorldRoute.length){const centerIndex=Math.min(activeWorldRoute.length-1,Math.floor(Math.min(1,physicalDistance/Math.max(1,routeRuntime.length))*(activeWorldRoute.length-1))),start=Math.max(0,centerIndex-12),end=Math.min(activeWorldRoute.length-1,centerIndex+45),pose=routeRuntime.sampleAt(Math.min(physicalDistance,routeRuntime.length),0),heading=pose?.heading||0,cos=Math.cos(-heading),sin=Math.sin(-heading),scale=.42;for(let i=start;i<=end;i++){const dx=activeWorldRoute[i].x-(pose?.x||0),dz=activeWorldRoute[i].z-(pose?.z||0),x=192+(dx*cos-dz*sin)*scale,y=255+(dx*sin+dz*cos)*scale;(i===start?nav.moveTo(x,y):nav.lineTo(x,y));}nav.stroke()}else{nav.moveTo(192,420);nav.bezierCurveTo(185,300,245,236,170,120);nav.bezierCurveTo(138,70,185,42,230,-20);nav.stroke()}
             nav.fillStyle = "#f5fbfa"; nav.beginPath(); nav.moveTo(192, 230); nav.lineTo(172, 274); nav.lineTo(192, 264); nav.lineTo(212, 274); nav.closePath(); nav.fill();
             nav.fillStyle = "#9db4bc"; nav.font = "600 23px system-ui"; nav.textAlign = "center"; nav.fillText(`${document.querySelector("#city").textContent} · ${Math.max(1, Math.round((V.position.z + 2800) / 100))} km`, 192, 354);
             navTexture.needsUpdate = true;
