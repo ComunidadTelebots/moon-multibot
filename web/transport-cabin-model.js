@@ -137,6 +137,7 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   }
   const glazing = createCabinGlazing({ THREE: T, bus, qualityLevel });
   root.add(glazing);
+  root.userData.updateMirrors = glazing.userData.update;
   box("rubber_floor", [4.1, .04, 3.4], [0, .47, frontZ + 1.12], rubber);
   roundedPanel("central_engine_tunnel", 1.12, .38, 2.25, .18, [0,.68,frontZ+1.5], polymer);
   box("cab_rear_wall", [4.55,3.72,.14], [0,2.5,frontZ+4.2], soft);
@@ -181,9 +182,46 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   root.userData.steering = wheel;
   root.userData.instrument = { canvas: displayCanvas, context: displayCanvas.getContext("2d"), texture: displayTexture };
   root.userData.navigation = { canvas: navCanvas, context: navCanvas.getContext("2d"), texture: navTexture };
+  const controls = {
+    needles: [], rockers: [], auxiliaries: [], climate: [], parkingLamp: null,
+    indicatorStalk: null, retarderStalk: null, ambientLight: glow, dashLight: dashGlow,
+  };
+  root.traverse((object) => {
+    if (object.name === "gauge_needle") controls.needles.push(object);
+    if (object.name === "labelled_dashboard_rocker") controls.rockers.push(object);
+    if (object.name === "auxiliary_toggle") controls.auxiliaries.push(object);
+    if (object.name === "climate_rotary" || object.name === "temperature_rotary") controls.climate.push(object);
+    if (object.name === "parking_brake_telltale") controls.parkingLamp = object;
+    if (object.name === "indicator_stalk") controls.indicatorStalk = object;
+    if (object.name === "retarder_stalk") controls.retarderStalk = object;
+  });
+  for (const object of [...controls.rockers,...controls.auxiliaries,...controls.climate]) object.userData.restRotationX=object.rotation.x;
+  root.userData.updateCabinControls = ({ speed=0, rpm=600, steering=0, headlights=false, hazards=false, wipers=false, parking=false, retarder=false, time=0 }={}) => {
+    const pulse=Math.sin(time*.012)>0;
+    if(controls.needles[0]) controls.needles[0].rotation.z=-2.25+Math.min(1,Math.max(0,speed)/140)*4.5;
+    if(controls.needles[1]) controls.needles[1].rotation.z=-2.25+Math.min(1,Math.max(0,rpm)/2400)*4.5;
+    for(const rocker of controls.rockers){
+      const code=rocker.userData.control;
+      const active=code==="☼"?headlights:code==="P"?parking:code==="△"?hazards:false;
+      rocker.rotation.x=rocker.userData.restRotationX+(active ? .085 : 0);
+      rocker.position.z=frontZ-(active ? .638 : .63);
+      if(code==="△") rocker.visible=!hazards||pulse;
+    }
+    for(const toggle of controls.auxiliaries){
+      const state=toggle.userData.control==="hazard"?hazards:toggle.userData.control==="demist"?wipers:false;
+      toggle.rotation.x=toggle.userData.restRotationX+(state ? .1 : 0);
+      if(toggle.userData.control==="hazard") toggle.visible=!hazards||pulse;
+    }
+    if(controls.parkingLamp) controls.parkingLamp.visible=parking;
+    if(controls.indicatorStalk) controls.indicatorStalk.rotation.z=Math.PI/2+(Math.abs(steering)>.2?Math.sign(steering)*.11:0);
+    if(controls.retarderStalk) controls.retarderStalk.rotation.z=Math.PI/2+(retarder ? .16 : 0);
+    controls.climate.forEach((knob,index)=>knob.rotation.y=(wipers ? .18 : 0)+index*.08);
+    controls.ambientLight.intensity=headlights?(qualityLevel>1 ? .72 : .32):(qualityLevel>1 ? .18 : .08);
+    controls.dashLight.intensity=headlights?(qualityLevel>1 ? .62 : .26):(qualityLevel>1 ? .32 : .14);
+  };
   // Eye point of a seated driver. It must remain behind and above the wheel;
   // placing it near the steering column makes the rim fill the whole viewport.
   root.userData.cockpitOffset = [-1.04, 3.36, frontZ + 1.55];
-  root.userData.dispose = () => { cabinTextures.forEach(map=>map.dispose()); root.traverse((object) => { object.geometry?.dispose?.(); if (Array.isArray(object.material)) object.material.forEach((m) => m.dispose()); else object.material?.dispose?.(); }); };
+  root.userData.dispose = () => { glazing.userData.dispose?.(); cabinTextures.forEach(map=>map.dispose()); root.traverse((object) => { object.geometry?.dispose?.(); if (Array.isArray(object.material)) object.material.forEach((m) => m.dispose()); else object.material?.dispose?.(); }); };
   return root;
 }

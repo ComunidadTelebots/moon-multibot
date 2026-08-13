@@ -19,6 +19,7 @@ export function createCabinGlazing({ THREE: T, bus = false, qualityLevel = 2 }) 
   });
   const accent = new T.MeshBasicMaterial({ color: 0x55e2d0, toneMapped: false });
   const speaker = new T.MeshStandardMaterial({ color: 0x101518, roughness: .84, metalness: .18 });
+  const mirrorCaptures = [];
 
   const add = (geometry, material, name, position, rotation = [0, 0, 0], parent = root) => {
     const mesh = new T.Mesh(geometry, material); mesh.name = name;
@@ -70,12 +71,49 @@ export function createCabinGlazing({ THREE: T, bus = false, qualityLevel = 2 }) 
       arm.userData.adjustableMirrorSupport = true;
     }
     rounded("mirror_housing", .72, 1.18, .13, .16, [side * .08, 0, 0], polymer, [0, side * Math.PI / 2, 0], mirror);
-    rounded("main_mirror_glass", .56, .72, .018, .1, [side * .155, .17, -.01], mirrorGlass, [0, side * Math.PI / 2, 0], mirror).userData.mirrorSurface = side;
-    rounded("convex_mirror_glass", .55, .25, .02, .1, [side * .16, -.37, -.01], mirrorGlass, [0, side * Math.PI / 2, 0], mirror).userData.mirrorSurface = side;
+    const sideMirrorMaterial = mirrorGlass.clone();
+    sideMirrorMaterial.name = side < 0 ? "driver_live_mirror" : "passenger_live_mirror";
+    rounded("main_mirror_glass", .56, .72, .018, .1, [side * .155, .17, -.01], sideMirrorMaterial, [0, side * Math.PI / 2, 0], mirror).userData.mirrorSurface = side;
+    rounded("convex_mirror_glass", .55, .25, .02, .1, [side * .16, -.37, -.01], sideMirrorMaterial, [0, side * Math.PI / 2, 0], mirror).userData.mirrorSurface = side;
+
+    // Cube captures are intentionally scaled and throttled: one side is refreshed
+    // per tick, keeping the useful live reflection without twelve extra renders/frame.
+    if (qualityLevel > 0) {
+      const resolution = qualityLevel > 2 ? 256 : qualityLevel > 1 ? 128 : 64;
+      const target = new T.WebGLCubeRenderTarget(resolution, {
+        generateMipmaps: true,
+        minFilter: T.LinearMipmapLinearFilter,
+        magFilter: T.LinearFilter,
+        type: T.UnsignedByteType,
+        colorSpace: T.SRGBColorSpace,
+      });
+      target.texture.name = side < 0 ? "driver_mirror_live_capture" : "passenger_mirror_live_capture";
+      const capture = new T.CubeCamera(.25, qualityLevel > 1 ? 420 : 220, target);
+      capture.name = side < 0 ? "driver_mirror_camera" : "passenger_mirror_camera";
+      capture.position.set(side * .16, .12, -.02); mirror.add(capture);
+      sideMirrorMaterial.envMap = target.texture;
+      sideMirrorMaterial.envMapIntensity = qualityLevel > 1 ? 1.18 : .9;
+      sideMirrorMaterial.needsUpdate = true;
+      mirrorCaptures.push({ camera: capture, target, side, lastUpdate: -Infinity });
+    }
   }
 
   root.userData.glassMaterial = glass;
   root.userData.mirrorSurfaces = [];
   root.traverse((object) => { if (object.userData?.mirrorSurface) root.userData.mirrorSurfaces.push(object); });
+  let nextMirror = 0;
+  root.userData.update = (renderer, scene, now = performance.now(), active = true) => {
+    if (!active || !renderer || !scene || !mirrorCaptures.length) return;
+    const interval = qualityLevel > 2 ? 180 : qualityLevel > 1 ? 360 : 760;
+    const capture = mirrorCaptures[nextMirror % mirrorCaptures.length];
+    if (now - capture.lastUpdate < interval) return;
+    const visibility = root.userData.mirrorSurfaces.map((surface) => surface.visible);
+    root.userData.mirrorSurfaces.forEach((surface) => { surface.visible = false; });
+    try { capture.camera.update(renderer, scene); }
+    finally { root.userData.mirrorSurfaces.forEach((surface, index) => { surface.visible = visibility[index]; }); }
+    capture.lastUpdate = now;
+    nextMirror = (nextMirror + 1) % mirrorCaptures.length;
+  };
+  root.userData.dispose = () => { mirrorCaptures.forEach(({ target }) => target.dispose()); mirrorGlass.dispose(); };
   return root;
 }

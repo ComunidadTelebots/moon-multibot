@@ -167,6 +167,7 @@
       import { mountEuropeRoadMap } from "./transport-europe-map.js";
       import { createWheelInput } from "./transport-wheel-input.js";
       import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
+      import { createBusCabinVariant } from "./transport-bus-cabin.js";
       import { createSpecialTransport, SPECIAL_CARGOES } from "./transport-special-cargo.js";
       import { createWorldDetail } from "./transport-world-detail.js";
       import { loadPhotorealAtlas } from "./transport-photoreal-atlas.js";
@@ -608,7 +609,7 @@
       }
       function build(type) {
         specialTransport?.dispose(); specialTransport = null;
-        if (V) S.remove(V);
+        if (V) { V.userData.disposeCabin?.(); S.remove(V); }
         kind = type;
         const g = new T.Group(),
           bus = type === "bus",
@@ -727,10 +728,14 @@
         const modeledCabin = emergency ? null : createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel });
         if (modeledCabin) {
           g.add(modeledCabin);
+          if (bus) modeledCabin.add(createBusCabinVariant({ THREE: T, cabin: modeledCabin, qualityLevel }));
           g.userData.cockpitSteering = modeledCabin.userData.steering;
           g.userData.instrument = modeledCabin.userData.instrument;
           g.userData.navigation = modeledCabin.userData.navigation;
+          g.userData.updateCabinControls = modeledCabin.userData.updateCabinControls;
           g.userData.cockpitOffset = modeledCabin.userData.cockpitOffset;
+          g.userData.updateMirrors = modeledCabin.userData.updateMirrors;
+          g.userData.disposeCabin = () => modeledCabin.userData.dispose?.();
         }
         g.traverse((o) => {
           if (o.isMesh) {
@@ -1155,6 +1160,11 @@
         document.querySelector("#dashRpmBar").style.width = `${Math.min(100, (physicalFrame?.rpm || physics.rpm) / 23)}%`;
         document.querySelector("#visualWheel").style.transform = `rotate(${steer * 135}deg)`;
         if (V.userData.cockpitSteering) V.userData.cockpitSteering.rotation.z = -steer * 1.75;
+        V.userData.updateCabinControls?.({
+          speed, rpm: physicalFrame?.rpm || physics.rpm, steering: steer,
+          headlights: headlightsOn, hazards: hazardsOn, wipers: manualWipers || worldState.localWeather === "rain",
+          parking: parkingBrake, retarder: retarderOn, time: now,
+        });
         if (V.userData.instrument && now >= cockpitDrawAt) {
           cockpitDrawAt = now + 80;
           const { canvas, context: x, texture } = V.userData.instrument;
@@ -1213,6 +1223,7 @@
         camera(dt, now);
         emergencyFleet.update(V, now, sirenOn);
         enhancements.update({ time: now, speed, steering: steer, weather: worldState.localWeather, dayPhase: weatherMode === 2 ? 0.78 : 0.34, wipers: worldState.localWeather === "rain" || manualWipers, cameraPosition: C.position });
+        V?.userData.updateMirrors?.(R, S, now, view === 1 || view === 2);
         R.render(S, C);
         requestAnimationFrame(loop);
       }
