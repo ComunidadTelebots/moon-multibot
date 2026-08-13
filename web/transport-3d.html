@@ -76,8 +76,8 @@
       .map-panel h3 { margin: 0; }
       #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
       .europe-panel{width:min(780px,calc(100vw - 28px));inset:70px 14px 80px auto}.europe-panel canvas{width:100%;height:auto;border-radius:12px}.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;color:#9db0bd;font-size:11px}.map-legend i{width:18px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px}.route-output{padding:9px;border-radius:9px;background:#0b1720;color:#62e8d2;line-height:1.4}
-      .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(820px,96vw); height:205px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272ddd,#080b0eee); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
-      .cockpit-panel[hidden]{display:none}.cockpit-grid{height:100%;display:grid;grid-template-columns:190px 1fr 190px;align-items:center;gap:16px}.steering-wheel{width:166px;height:166px;margin:auto;border:16px solid #171a1d;border-radius:50%;box-shadow:inset 0 0 0 4px #44515a,0 8px 18px #000;position:relative;transition:transform .08s linear}.steering-wheel:before,.steering-wheel:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:17px;border-radius:9px;background:#252c31;transform-origin:0 50%}.steering-wheel:before{transform:rotate(25deg)}.steering-wheel:after{transform:rotate(155deg)}.wheel-hub{position:absolute;inset:43px;border:4px solid #56636b;border-radius:50%;background:radial-gradient(circle,#34434a,#111619);display:grid;place-items:center;color:#50e5d0;font-weight:900;z-index:2}.dash-screen{border:2px solid #425765;border-radius:18px;padding:10px 14px;background:linear-gradient(145deg,#071a23,#020609);box-shadow:inset 0 0 26px #1ec6bc18}.dash-main{display:flex;align-items:end;justify-content:center;gap:8px;color:#dff}.dash-speed{font-size:56px;font-weight:800;line-height:.9}.dash-unit{color:#7f9ba8}.dash-row{display:flex;justify-content:space-between;margin-top:12px;color:#8edfd4}.rpm-track{height:7px;margin-top:10px;border-radius:5px;background:#15262b;overflow:hidden}.rpm-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de1bd,#e8d64b,#ef4b48);transition:width .1s}.dash-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.dash-buttons button{padding:8px 5px;font-size:11px;background:#11191e}.dash-buttons button.on{background:#143b37;border-color:#45d8c2}.warning{color:#ff725f!important}
+      .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(940px,98vw); min-height:230px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272df2,#080b0ef5); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
+      .cockpit-panel[hidden]{display:none}.cockpit-grid{height:100%;display:grid;grid-template-columns:190px minmax(320px,1fr) 190px;align-items:center;gap:16px}.steering-wheel{width:166px;height:166px;margin:auto;border:16px solid #171a1d;border-radius:50%;box-shadow:inset 0 0 0 4px #44515a,0 8px 18px #000;position:relative;transition:transform .08s linear}.steering-wheel:before,.steering-wheel:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:17px;border-radius:9px;background:#252c31;transform-origin:0 50%}.steering-wheel:before{transform:rotate(25deg)}.steering-wheel:after{transform:rotate(155deg)}.wheel-hub{position:absolute;inset:43px;border:4px solid #56636b;border-radius:50%;background:radial-gradient(circle,#34434a,#111619);display:grid;place-items:center;color:#50e5d0;font-weight:900;z-index:2}.dash-screen{border:2px solid #425765;border-radius:18px;padding:10px 14px;background:linear-gradient(145deg,#071a23,#020609);box-shadow:inset 0 0 26px #1ec6bc18}.dash-main{display:flex;align-items:end;justify-content:center;gap:8px;color:#dff}.dash-speed{font-size:56px;font-weight:800;line-height:.9}.dash-unit{color:#7f9ba8}.dash-row{display:flex;justify-content:space-between;margin-top:8px;color:#8edfd4}.dash-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px solid #29404c;font-size:10px;color:#91a9b5}.dash-status span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dash-status b{color:#d9f8f3;font-weight:650}.dash-alert{grid-column:1/-1;text-align:center;color:#58e2ce!important}.rpm-track{height:7px;margin-top:8px;border-radius:5px;background:#15262b;overflow:hidden}.rpm-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de1bd,#e8d64b,#ef4b48);transition:width .1s}.dash-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.dash-buttons button{padding:8px 5px;font-size:11px;background:#11191e}.dash-buttons button.on{background:#143b37;border-color:#45d8c2}.warning{color:#ff725f!important}
       @media (max-width: 700px) {
         .mobile {
           display: flex;
@@ -103,7 +103,7 @@
           min-height: 46px;
           touch-action: none;
         }
-        .cockpit-panel{height:168px;padding:8px;width:100vw;border-radius:22px 22px 0 0}.cockpit-grid{grid-template-columns:105px 1fr 112px;gap:7px}.steering-wheel{width:100px;height:100px;border-width:10px}.wheel-hub{inset:27px;font-size:10px}.dash-screen{padding:8px}.dash-speed{font-size:36px}.dash-row{font-size:10px}.dash-buttons{gap:4px}.dash-buttons button{padding:6px 2px;font-size:9px}.cockpit-panel:not([hidden])~.controls.drive{z-index:5;bottom:172px}.hud{max-height:95px;overflow:auto}
+        .cockpit-panel{min-height:210px;padding:7px;width:100vw;border-radius:22px 22px 0 0}.cockpit-grid{grid-template-columns:82px minmax(0,1fr) 92px;gap:5px}.steering-wheel{width:78px;height:78px;border-width:8px}.wheel-hub{inset:20px;font-size:8px}.dash-screen{padding:7px}.dash-speed{font-size:34px}.dash-row{font-size:9px}.dash-status{font-size:8px;gap:3px 6px}.dash-buttons{gap:3px}.dash-buttons button{padding:6px 1px;font-size:8px}.cockpit-panel:not([hidden])~.controls.drive{z-index:5;bottom:214px}.hud{max-height:72px;overflow:auto}
       }
     </style>
   </head>
@@ -111,20 +111,12 @@
     <div class="hud">
       <div class="pill">Vehículo <b id="vn">Aster Viento 3D</b></div>
       <div class="pill">Vista <b id="view">Exterior</b></div>
-      <div class="pill">Velocidad <b id="speed">0 km/h</b></div>
       <div class="pill">Ciudad <b id="city">Nova Liria</b></div>
       <div class="pill">Carretera <b id="roadEvent">Sin incidencias</b></div>
-      <div class="pill">Asistencia <b id="assistState">AEBS listo</b></div>
-      <div class="pill">Conductor <b id="fatigueState">Descansado</b></div>
-      <div class="pill">Daños <b id="damageState">0%</b></div>
       <div class="pill">Trabajo <b id="workState">Conductor</b></div>
       <div class="pill">Carga <b id="cargoState">0/3 palés</b></div>
       <div class="pill">Empresa <b id="moneyState">35.000 €</b></div>
       <div class="pill">Nivel <b id="levelState">1</b></div>
-      <div class="pill">Combustible <b id="fuelState">100%</b></div>
-      <div class="pill">Física <b id="physicsState">Asfalto seco</b></div>
-      <div class="pill">Transmisión <b id="transmissionState">N · 600 rpm</b></div>
-      <div class="pill">Límite <b id="limitState">90 km/h</b></div>
       <div class="pill">Convoy <b id="convoyState">Desconectado</b></div>
     </div>
     <div class="controls">
@@ -148,7 +140,7 @@
     <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Red europea de carreteras</h3><button id="europeMapClose">×</button></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Ruta elegida</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
-      <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div></div>
+      <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState">AEBS listo</b></div></div>
       <div class="dash-buttons"><button data-cockpit="lights">💡 Luces</button><button data-cockpit="wipers">🌧 Limpia</button><button data-cockpit="hazard">⚠ Emergencia</button><button data-cockpit="retarder">R Retarder</button><button data-cockpit="cruise">◉ Crucero</button><button data-cockpit="parking">P Freno</button></div></div>
     </section>
     <script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/transport-achievements.js"></script><script type="module">
