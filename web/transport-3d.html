@@ -130,6 +130,7 @@
       <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
       <button id="achievementsButton">Logros</button>
       <button id="europeMapButton">Mapa de Europa</button>
+      <button id="wheelButton">Volante: buscar</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
@@ -153,6 +154,7 @@
       import { createProceduralTransportTextures } from "./transport-textures.js";
       import { createWorldEvents } from "./transport-world-events.js";
       import { mountEuropeRoadMap } from "./transport-europe-map.js";
+      import { createWheelInput } from "./transport-wheel-input.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -160,6 +162,7 @@
         pixelRatio = [0.75, 1.15, 1.75, 2.4][qualityLevel],
         shadows = graphicsMode !== "compat" && qualityLevel > 0;
       const S = new T.Scene();
+      const wheelInput = createWheelInput();
       S.background = new T.Color(0x87c8ed);
       S.fog = new T.Fog(0xa6d0e5, 90, 430);
       const C = new T.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 4000),
@@ -651,6 +654,11 @@
       });
       onkeyup = (e) => (keys[e.key.toLowerCase()] = 0);
       addEventListener("blur", () => (keys = {}));
+      const wheelButton = document.querySelector("#wheelButton");
+      wheelButton.onclick = () => {
+        wheelInput.calibrate();
+        wheelButton.textContent = "Calibrando: gira y pisa pedales";
+      };
       truck.onclick = () => build("truck");
       document.querySelector("#bus").onclick = () => build("bus");
       document.querySelector("#cruise").onclick = () => {
@@ -820,8 +828,22 @@
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
         last = now;
-        const accelerating = keys.w || keys.arrowup, braking = keys.s || keys.arrowdown,
+        const wheel = wheelInput.poll();
+        let accelerating = keys.w || keys.arrowup, braking = keys.s || keys.arrowdown,
           left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
+        if (wheel.connected && !onFoot) {
+          accelerating = Math.max(Number(accelerating), wheel.throttle);
+          braking = Math.max(Number(braking), wheel.brake);
+          if (wheel.actions.view) cam.click();
+          if (wheel.actions.cruise) document.querySelector("#cruise").click();
+          if (wheel.actions.parking) document.querySelector("#parking").click();
+          if (wheel.actions.retarder) document.querySelector('[data-cockpit="retarder"]').click();
+          wheelButton.textContent = wheel.calibrating ? "Calibrando: gira y pisa pedales" : `Volante: ${wheel.profile}`;
+          wheelButton.classList.add("on");
+        } else {
+          wheelButton.textContent = "Volante: buscar";
+          wheelButton.classList.remove("on");
+        }
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
         window.MoonConvoy.update({ game: "truck", x: V.position.x, y: V.position.z, speed, heading: steer, cargo: career.activeContract?.cargo?.name || "" });
         window.TransportAchievements.update({ distance: career.state.progress.distanceKm, speed, loaded: loadedPallets, rain: weatherMode === 1, night: weatherMode === 2, convoyPlayers: window.MoonConvoy.state.players.length, damage: Math.round(damage) });
@@ -855,10 +877,10 @@
           const roadGrade = Math.sin(V.position.z * 0.0028) * 0.035
             + Math.sin(V.position.z * 0.00073) * 0.018;
           physicalFrame = physics.update({
-            throttle: !onFoot && accelerating ? 1 : cruiseThrottle,
-            brake: !onFoot && braking ? 1 : cruiseEnabled && speed > desired + 2 ? 0.42 : 0,
+            throttle: !onFoot ? Math.max(Number(accelerating) || 0, cruiseThrottle) : 0,
+            brake: !onFoot ? Math.max(Number(braking) || 0, cruiseEnabled && speed > desired + 2 ? 0.42 : 0) : 0,
             retarder: retarderOn ? 1 : 0,
-            steering: (left ? -1 : right ? 1 : 0), parkingBrake, wetness: worldState.localWeather === "rain" ? 1 : 0,
+            steering: wheel.connected ? wheel.steering : (left ? -1 : right ? 1 : 0), parkingBrake, wetness: worldState.localWeather === "rain" ? 1 : 0,
             offroad: Math.abs(V.position.x) > 14.2, damage, distance: physicalDistance,
             cargoMass: career.activeContract ? 18000 : loadedPallets * 1200, cargoHeight: 1.65,
             windSpeed: worldState.localWeather === "rain" ? 18 : 5, windAngle: Math.sin(now * 0.00017),
@@ -868,7 +890,7 @@
           document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC · ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
         }
         speed = T.MathUtils.clamp(speed, 0, kind === "bus" ? 92 : 112);
-        const steerInput = (left ? -1 : right ? 1 : 0);
+        const steerInput = wheel.connected && !onFoot ? wheel.steering : (left ? -1 : right ? 1 : 0);
         if (!onFoot) steer += (steerInput - steer) * Math.min(1, dt * 4.5);
         else steer *= Math.pow(0.28, dt);
         V.position.x = T.MathUtils.clamp(
@@ -889,9 +911,9 @@
         } else document.querySelector("#fatigueState").textContent = fatigue > 55 ? `Cansancio ${Math.round(fatigue)}%` : `Descanso ${Math.round(100 - fatigue)}%`;
         if (nearest && nearest.gap < 4.5 && nearest.lateral < 2.4) {
           speed *= 0.18; damage = Math.min(100, damage + 8); nearest.o.position.x += nearest.o.position.x > V.position.x ? 2 : -2;
-          document.querySelector("#assistState").textContent = "Colisión detectada";
+          document.querySelector("#assistState").textContent = "Colisión detectada"; wheelInput.pulse(0.8, 220);
         }
-        if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); }
+        if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); wheelInput.pulse(0.22, 45); }
         if (bumpTime > 0) { bumpTime -= dt; V.position.y = Math.abs(Math.sin(bumpTime * 34)) * 0.12; }
         else V.position.y += ((physicalFrame?.suspension || 0) - V.position.y) * Math.min(1, dt * 12);
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
