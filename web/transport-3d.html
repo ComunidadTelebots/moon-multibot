@@ -427,16 +427,21 @@
       function interior(g, bus) {
         const cabin = new T.Group();
         cabin.name = "modeled-3d-cockpit";
-        const dark = mat(0x11171c, 0.7, 0.18), trim = mat(0x30383d, 0.48, 0.32), leather = mat(0x242a2e, 0.82, 0.08);
+        const dark = mat(0x0c1115, 0.78, 0.12), trim = mat(0x30383d, 0.48, 0.32), leather = mat(0x1b2024, 0.88, 0.06), soft = mat(0x252c30, 0.96, 0.02);
         const dashZ = bus ? -5.92 : -5.78;
-        part(cabin, bus ? 4.75 : 4.35, 0.72, 1.05, 0x171d25, 0, 2.2, dashZ);
-        const dashTop = part(cabin, bus ? 4.85 : 4.45, 0.16, 1.4, 0x30383d, 0, 2.62, dashZ + 0.12); dashTop.material = trim;
+        const dashLeft = part(cabin, 2.45, 0.62, 1.18, 0x171d25, -1.02, 2.18, dashZ); dashLeft.rotation.y = -0.045;
+        const dashRight = part(cabin, 2.2, 0.58, 1.05, 0x171d25, 1.25, 2.14, dashZ + 0.12); dashRight.rotation.y = 0.08;
+        const dashTop = part(cabin, bus ? 4.85 : 4.5, 0.13, 1.5, 0x30383d, 0, 2.61, dashZ + 0.13); dashTop.material = soft; dashTop.rotation.x = -0.045;
+        const lowerDash = part(cabin, 4.25, 0.22, 0.78, 0x11171b, 0, 1.78, dashZ + 0.4); lowerDash.rotation.x = 0.13;
+        const binnacle = new T.Mesh(new T.CylinderGeometry(0.86, 0.94, 0.5, 32, 1, false, 0, Math.PI), dark);
+        binnacle.rotation.set(Math.PI / 2, 0, Math.PI / 2); binnacle.scale.set(1, 1.45, 0.72); binnacle.position.set(-0.43, 2.68, dashZ - 0.18); cabin.add(binnacle);
         part(cabin, 0.22, 2.25, 0.35, 0x20272c, -(bus ? 2.3 : 2.12), 3.5, dashZ - 0.65);
         part(cabin, 0.22, 2.25, 0.35, 0x20272c, bus ? 2.3 : 2.12, 3.5, dashZ - 0.65);
         part(cabin, bus ? 4.8 : 4.4, 0.16, 1.25, 0x242b30, 0, 4.75, dashZ - 0.25);
         for (const px of [-1.65, 1.65]) {
-          const vent = new T.Mesh(new T.CylinderGeometry(0.24, 0.24, 0.08, 24), dark);
-          vent.rotation.x = Math.PI / 2; vent.position.set(px, 2.52, dashZ - 0.53); cabin.add(vent);
+          const vent = new T.Mesh(new T.TorusGeometry(0.21, 0.045, 10, 30), trim);
+          vent.position.set(px, 2.38, dashZ - 0.54); cabin.add(vent);
+          for (let v = -0.12; v <= 0.12; v += 0.08) part(cabin, 0.31, 0.018, 0.025, 0x718087, px, 2.38 + v, dashZ - 0.57);
         }
         const steeringRig = new T.Group(); steeringRig.position.set(-1.08, 2.55, dashZ + 0.48);
         const steering = new T.Mesh(new T.TorusGeometry(0.54, 0.085, 14, 36), leather); steeringRig.add(steering);
@@ -447,22 +452,39 @@
         const hub = new T.Mesh(new T.CylinderGeometry(0.19, 0.19, 0.11, 24), trim); hub.rotation.x = Math.PI / 2; steeringRig.add(hub);
         steeringRig.rotation.x = -0.18; steeringRig.userData.cockpitSteering = true; cabin.add(steeringRig); g.userData.cockpitSteering = steeringRig;
         const column = new T.Mesh(new T.CylinderGeometry(0.08, 0.11, 0.72, 14), trim); column.rotation.x = Math.PI / 2; column.position.set(-1.08, 2.22, dashZ + 0.82); cabin.add(column);
+        for (const side of [-1, 1]) {
+          const stalk = new T.Mesh(new T.CylinderGeometry(0.025, 0.035, 0.5, 10), trim); stalk.rotation.z = Math.PI / 2; stalk.position.set(-1.08 + side * 0.42, 2.52, dashZ + 0.48); cabin.add(stalk);
+          const cap = new T.Mesh(new T.CylinderGeometry(0.055, 0.055, 0.12, 12), dark); cap.rotation.z = Math.PI / 2; cap.position.set(-1.08 + side * 0.68, 2.52, dashZ + 0.48); cabin.add(cap);
+        }
         const instrumentCanvas = document.createElement("canvas"); instrumentCanvas.width = 512; instrumentCanvas.height = 192;
         const instrumentTexture = new T.CanvasTexture(instrumentCanvas); instrumentTexture.colorSpace = T.SRGBColorSpace;
         const instrument = new T.Mesh(new T.PlaneGeometry(1.62, 0.61), new T.MeshBasicMaterial({ map: instrumentTexture, toneMapped: false }));
         instrument.position.set(-0.43, 2.48, dashZ - 0.55); cabin.add(instrument);
         g.userData.instrument = { canvas: instrumentCanvas, context: instrumentCanvas.getContext("2d"), texture: instrumentTexture };
-        const consoleScreen = part(cabin, 0.92, 0.68, 0.06, 0x071b24, 1.05, 2.31, dashZ - 0.57); consoleScreen.material = new T.MeshBasicMaterial({ color: 0x0d5863, toneMapped: false });
+        const centreConsole = part(cabin, 1.35, 1.25, 0.26, 0x161d21, 1.02, 2.12, dashZ - 0.48); centreConsole.rotation.z = -0.035;
+        const consoleScreen = part(cabin, 0.96, 0.61, 0.035, 0x071b24, 1.02, 2.4, dashZ - 0.63); consoleScreen.material = new T.MeshBasicMaterial({ color: 0x0b4650, toneMapped: false });
+        for (let line = 0; line < 4; line++) part(cabin, 0.58 - line * 0.06, 0.018, 0.02, line === 0 ? 0x63e4cf : 0x86aab1, 1.02, 2.57 - line * 0.11, dashZ - 0.66);
         for (let i = 0; i < 8; i++) {
           const button = new T.Mesh(new T.CylinderGeometry(0.065, 0.065, 0.045, 12), mat(i === 2 ? 0xe84b3d : 0x6f8992, 0.45, 0.25));
           button.rotation.x = Math.PI / 2; button.position.set(0.62 + (i % 4) * 0.26, 1.86 + Math.floor(i / 4) * 0.22, dashZ - 0.59); cabin.add(button);
         }
         for (const px of [-1.08, 1.05]) {
-          const seat = part(cabin, 0.92, 1.35, 0.78, 0x242a2e, px, 1.55, dashZ + 2.25); seat.material = leather;
-          const head = part(cabin, 0.7, 0.48, 0.35, 0x30373c, px, 2.4, dashZ + 2.42); head.material = leather;
+          const cushion = new T.Mesh(new T.CapsuleGeometry(0.43, 0.45, 8, 18), leather); cushion.rotation.x = Math.PI / 2; cushion.scale.z = 0.72; cushion.position.set(px, 1.05, dashZ + 2.18); cabin.add(cushion);
+          const seat = new T.Mesh(new T.CapsuleGeometry(0.45, 0.72, 8, 18), leather); seat.scale.z = 0.48; seat.position.set(px, 1.68, dashZ + 2.5); seat.rotation.x = -0.13; cabin.add(seat);
+          const head = new T.Mesh(new T.CapsuleGeometry(0.3, 0.16, 8, 16), soft); head.position.set(px, 2.48, dashZ + 2.58); cabin.add(head);
+          for (const sx of [-0.29, 0.29]) part(cabin, 0.018, 0.82, 0.02, 0xa3a8a8, px + sx, 1.72, dashZ + 2.12);
         }
         const selector = new T.Mesh(new T.CylinderGeometry(0.055, 0.075, 0.62, 12), trim); selector.position.set(0.25, 1.72, dashZ + 1.0); selector.rotation.z = -0.2; cabin.add(selector);
         for (const px of [-1.35, -0.85]) { const pedal = part(cabin, 0.25, 0.06, 0.38, 0x15191c, px, 0.62, dashZ - 0.08); pedal.rotation.x = -0.35; }
+        for (const side of [-1, 1]) {
+          const doorX = side * (bus ? 2.48 : 2.27);
+          const door = part(cabin, 0.12, 1.85, 2.45, 0x1a2024, doorX, 2.0, dashZ + 1.0); door.material = soft;
+          const arm = part(cabin, 0.26, 0.24, 1.08, 0x30383d, doorX - side * 0.11, 2.05, dashZ + 0.8); arm.material = trim;
+          const handle = new T.Mesh(new T.TorusGeometry(0.16, 0.035, 8, 20, Math.PI), chrome); handle.rotation.set(0, Math.PI / 2, side * Math.PI / 2); handle.position.set(doorX - side * 0.16, 2.4, dashZ + 0.45); cabin.add(handle);
+          const mirror = part(cabin, 0.04, 0.72, 0.92, 0x8faeb8, side * (bus ? 2.78 : 2.62), 3.48, dashZ - 0.42); mirror.material = new T.MeshPhysicalMaterial({ color: 0xaac8d2, metalness: 0.86, roughness: 0.08, clearcoat: 1 });
+        }
+        const floorMat = part(cabin, 2.15, 0.035, 2.35, 0x080b0d, -0.5, 0.48, dashZ + 0.88); floorMat.material = new T.MeshStandardMaterial({ color: 0x080b0d, roughness: 1, bumpMap: textures.maps.tyre?.bumpMap });
+        const cabinGlow = new T.PointLight(0x69c8c2, qualityLevel > 1 ? 0.45 : 0.2, 5, 2); cabinGlow.position.set(0, 3.5, dashZ + 0.8); cabin.add(cabinGlow);
         g.add(cabin);
         for (let r = 0; r < (bus ? 6 : 1); r++)
           for (const px of bus ? [-1.45, 1.45] : [-1.25]) {
@@ -619,8 +641,8 @@
           targetPosition.set(p.x + 9 + steer * 1.7, p.y + 7.2 + speed * 0.018, p.z + 16 + speed * 0.025);
           targetLook.set(p.x + steer * 2, p.y + 2.25, p.z - 13); targetFov = 62 + Math.min(10, speed * 0.07);
         } else if (view === 1) {
-          targetPosition.set(p.x - 1.08, p.y + 3.16 + bob, p.z - (kind === "bus" ? 5.35 : 4.65));
-          targetLook.set(p.x - 1.05 + steer * 1.1, p.y + 2.82 + bob, p.z - 42); targetFov = 72;
+          targetPosition.set(p.x - 1.08, p.y + 3.22 + bob, p.z - (kind === "bus" ? 5.18 : 4.62));
+          targetLook.set(p.x - 1.05 + steer * 1.05, p.y + 2.88 + bob, p.z - 42); targetFov = 66;
         } else if (view === 2) {
           targetPosition.set(p.x + (kind === "bus" ? 1.1 : 0.72), p.y + 3.12 + bob, p.z + (kind === "bus" ? 3.6 : -2.05));
           targetLook.set(p.x, p.y + 2.55, p.z - 28); targetFov = kind === "bus" ? 78 : 74;
