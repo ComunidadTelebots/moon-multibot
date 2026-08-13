@@ -78,6 +78,7 @@ _group_administration = None
 _tdlib_client = None
 _community_api_usage = {}
 _instant_news_cache = {"at": 0, "articles": []}
+_instant_channel_cache = {}
 _community_campaign_cache = {}
 _royale_lock = threading.Lock()
 _royale_rooms = {}
@@ -298,6 +299,49 @@ def public_news_instant():
            and str(row.get("url") or "").startswith(("https://", "http://"))]
     return jsonify({"ok": True, "mode": "instant_view", "articles": articles[:60], "ads": ads,
                     "cached": stale and bool(articles), "source": "NoticiasWeb3 2026"})
+
+
+@bp.route("/api/public/network/instant/<service>")
+def public_network_instant(service):
+    """Vista móvil propia del Hub para los canales de la red."""
+    sources = {
+        "gameplays": ("TodoSobreGameplaysCanal", "Gameplays", "Comunidad y contenidos gaming", "#a63a2e"),
+        "resistencia": ("resistencia_censura", "Resistencia", "Privacidad y resistencia a la censura", "#9f2f35"),
+        "comunidad": ("comunidadtelebots", "Comunidad Telebots", "Canales, bots y comunidad", "#168f9c"),
+    }
+    config = sources.get(str(service or "").lower())
+    if not config:
+        return jsonify({"ok": False, "error": "Servicio no disponible"}), 404
+    channel, title, description, accent = config
+    now = time.time()
+    cached = _instant_channel_cache.get(service) or {}
+    payload = cached.get("payload")
+    stale = now - float(cached.get("at", 0) or 0) > 300
+    if stale:
+        try:
+            raw = json.loads(_noticias_api_read(f"/telegram-channel/{channel}", timeout=10))
+            posts = []
+            for row in (raw.get("messages") or [])[:40]:
+                if not isinstance(row, dict):
+                    continue
+                url = str(row.get("url") or "").strip()
+                if not url.startswith(f"https://t.me/{channel}/"):
+                    continue
+                posts.append({
+                    "id": str(row.get("id") or hashlib.sha256(url.encode()).hexdigest()[:16]),
+                    "text": str(row.get("text") or "")[:5000], "date": str(row.get("date") or "")[:100],
+                    "views": str(row.get("views") or "")[:30], "image": str(row.get("photoUrl") or "")[:1000],
+                    "url": url,
+                })
+            payload = {"ok": True, "mode": "network_instant", "service": service, "channel": channel,
+                       "title": title, "description": description, "accent": accent, "posts": posts,
+                       "stats": raw.get("stats") or {}, "fetchedAt": raw.get("fetchedAt")}
+            _instant_channel_cache[service] = {"at": now, "payload": payload}
+        except Exception as exc:
+            current_app.logger.warning("Network instant view unavailable for %s: %s", service, exc)
+    if not payload:
+        return jsonify({"ok": False, "error": "No se pudieron cargar las publicaciones"}), 502
+    return jsonify({**payload, "cached": stale})
 
 
 @bp.route("/api/public/news/view", methods=["POST", "OPTIONS"])
