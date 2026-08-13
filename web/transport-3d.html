@@ -118,6 +118,8 @@
       <div class="pill">Nivel <b id="levelState">1</b></div>
       <div class="pill">Combustible <b id="fuelState">100%</b></div>
       <div class="pill">Física <b id="physicsState">Asfalto seco</b></div>
+      <div class="pill">Transmisión <b id="transmissionState">N · 600 rpm</b></div>
+      <div class="pill">Límite <b id="limitState">90 km/h</b></div>
     </div>
     <div class="controls">
       <button id="truck" class="on">Camión</button
@@ -141,6 +143,7 @@
       import { createTransportEnhancements, applyRealisticRendererSettings } from "./transport-enhancements.js";
       import { createTruckPhysics } from "./transport-physics.js";
       import { createProceduralTransportTextures } from "./transport-textures.js";
+      import { createWorldEvents } from "./transport-world-events.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -182,7 +185,7 @@
       x.position.y = -0.6;
       S.add(x);
       x = box(30, 0.25, 900, 0x292e35);
-      x.material = new T.MeshStandardMaterial({ color: 0x404348, map: textures.asphalt, roughness: 0.93, metalness: 0.02 });
+      x.material = new T.MeshStandardMaterial({ color: 0x404348, ...textures.maps.asphalt, roughness: 0.93, metalness: 0.02 });
       S.add(x);
       for (const side of [-1, 1]) {
         const shoulder = box(2.2, 0.18, 900, 0x686c6c);
@@ -205,7 +208,7 @@
           positions.setZ(i, edge * (3.4 + Math.sin(py * 0.032 + side) * 2.1 + Math.sin(px * 0.08) * 1.4));
         }
         geometry.computeVertexNormals();
-        const terrain = new T.Mesh(geometry, new T.MeshStandardMaterial({ color: side < 0 ? 0x477b3d : 0x557f3d, map: textures.grass, roughness: 0.96 }));
+        const terrain = new T.Mesh(geometry, new T.MeshStandardMaterial({ color: side < 0 ? 0x477b3d : 0x557f3d, ...textures.maps.ground, roughness: 0.96 }));
         terrain.rotation.x = -Math.PI / 2; terrain.position.set(side * 132, -0.35, 0); terrain.receiveShadow = true; S.add(terrain);
       }
       terrainStrip(-1); terrainStrip(1);
@@ -312,7 +315,7 @@
         workTool = "palletJack",
         heldPallet = null,
         loadedPallets = 0;
-      const tire = mat(0x090b0e, 0.92),
+      const tire = new T.MeshStandardMaterial({ color: 0x222222, ...textures.maps.tyre, roughness: 0.92 }),
         glass = new T.MeshPhysicalMaterial({
           color: 0x17445d,
           roughness: 0.08,
@@ -459,13 +462,13 @@
             l.material = red;
           }
         } else {
-          const paint = new T.MeshPhysicalMaterial({ color: 0xffffff, map: textures.paint, roughness: 0.24, metalness: 0.42, clearcoat: 0.9, clearcoatRoughness: 0.16 });
+          const paint = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.paint, roughness: 0.24, metalness: 0.42, clearcoat: 0.9, clearcoatRoughness: 0.16 });
           const cab = part(g, 5, 3.65, 5.25, 0x19b7ad, 0, 2.75, -4.25);
           cab.material = paint;
           const roof = new T.Mesh(new T.SphereGeometry(1, 28, 18), paint);
           roof.scale.set(2.48, 0.58, 2.45); roof.position.set(0, 4.7, -4.15); g.add(roof);
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
-          trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, map: textures.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
+          trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           part(g, 5.18, 0.28, 11.5, 0x159b95, 0, 1.45, 4.5);
           part(g, 1.05, 0.28, 10.8, 0x20282e, -1.5, 0.62, 4.25);
           part(g, 1.05, 0.28, 10.8, 0x20282e, 1.5, 0.62, 4.25);
@@ -724,12 +727,16 @@
         document.fullscreenElement
           ? document.exitFullscreen()
           : document.documentElement.requestFullscreen();
-      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0;
+      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0;
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
         last = now;
         const accelerating = keys.w || keys.arrowup, braking = keys.s || keys.arrowdown,
           left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
+        const worldState = worldEvents.update({ position: V.position, speed, dt, weather: weatherMode === 1 ? "rain" : "clear" });
+        if (worldState.totalFines > lastWorldFine) {
+          const fineDelta = worldState.totalFines - lastWorldFine; career.applyFine({ amount: fineDelta, reason: "Exceso de velocidad" }); lastWorldFine = worldState.totalFines; updateCareerHud();
+        }
         if (onFoot) {
           const walkSpeed = workTool === "forklift" ? 3.5 : 5;
           const moveX = (right ? 1 : 0) - (left ? 1 : 0), moveZ = (braking ? 1 : 0) - (accelerating ? 1 : 0);
@@ -757,8 +764,10 @@
           physicalFrame = physics.update({
             throttle: !onFoot && accelerating ? 1 : cruiseThrottle,
             brake: !onFoot && braking ? 1 : cruiseEnabled && speed > desired + 2 ? 0.42 : 0,
-            steering: (left ? -1 : right ? 1 : 0), parkingBrake, wetness: weatherMode === 1 ? 1 : 0,
+            steering: (left ? -1 : right ? 1 : 0), parkingBrake, wetness: worldState.localWeather === "rain" ? 1 : 0,
             offroad: Math.abs(V.position.x) > 14.2, damage, distance: physicalDistance,
+            cargoMass: career.activeContract ? 18000 : loadedPallets * 1200, cargoHeight: 1.65,
+            windSpeed: worldState.localWeather === "rain" ? 18 : 5, windAngle: Math.sin(now * 0.00017),
           }, dt);
           speed = physicalFrame.speedKmh; physicalDistance += physicalFrame.forwardMeters;
           document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC · ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
@@ -792,6 +801,9 @@
         else V.position.y += ((physicalFrame?.suspension || 0) - V.position.y) * Math.min(1, dt * 12);
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
         document.querySelector("#physicsState").textContent = Math.abs(V.position.x) > 14.2 ? "Arcén · baja adherencia" : weatherMode === 1 ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
+        document.querySelector("#transmissionState").textContent = `${physicalFrame?.gear || physics.gear}ª · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`;
+        document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
+        if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
         if (!mapPanel.hidden) drawRouteMap();
         if (V.position.z < -400) V.position.z = 400;
         V.rotation.z = physicalFrame?.bodyRoll ?? steer * 0.07;
@@ -821,6 +833,7 @@
       }
       build("truck");
       const enhancements = createTransportEnhancements({ THREE: T, scene: S, renderer: R, sun, vehicle: V, qualityLevel, roadWidth: 30 });
+      const worldEvents = createWorldEvents({ THREE: T, scene: S, qualityLevel });
       onresize = () => {
         C.aspect = innerWidth / innerHeight;
         C.updateProjectionMatrix();
