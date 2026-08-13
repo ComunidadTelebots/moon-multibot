@@ -1,5 +1,177 @@
 # Changelog - Moon Multibot
 
+## v18.25.11 - 2026-08-14 - Seguridad, flota y operaciones animadas
+
+### Auditoría previa de Canva y código
+
+- Confirma que contratación, garajes y jornadas ya existían; se amplían sin duplicarlos.
+- Confirma que no existían seguridad empresarial persistente, talentos, bots de última milla ni una secuencia visual para cargar palés.
+
+### Cambios nuevos verificados
+
+- Añade alarmas y guardias por sede, riesgo, turnos, intentos de intrusión, robos, pérdidas, valor protegido e historial de incidentes.
+- Añade formación, progresión y talentos de eco-conducción, carga delicada y ruta exprés para los conductores.
+- Añade tres bots de reparto con compra, pausa, ingresos, entregas y desgaste persistentes.
+- Sustituye la desaparición instantánea del palé por una maniobra de alineación, elevación y asegurado con cámara cinemática y progreso accesible.
+- Conecta seguridad, flota y carga al libro contable y al registro maestro de eventos.
+
+### Verificación local
+
+- Sintaxis de módulos y HTML validada; migración de partidas verificada y 6/6 pruebas superadas.
+
+## v18.25.10 - 2026-08-14 - Operaciones y clima del simulador de camiones
+
+### Auditoría de Canva antes de implementar
+
+- Verifica que carrera, contratos, conductores, garajes, préstamos y contabilidad ya existían en el motor, pero no tenían una interfaz de gestión completa.
+- Verifica que el estado físico de la mercancía ya estaba programado como módulo aislado, pero nunca se conectó a la conducción, el HUD ni los eventos.
+- Detecta que nieve, niebla y tormenta procedentes del clima real se reducían a lluvia genérica.
+
+### Cambios nuevos verificados
+
+- Añade un Centro de empresa responsive con mercado de contratos, contrato activo, conductores, jornadas de flota, garajes, financiación, contabilidad y KPIs.
+- Integra el Control de carga con perfiles general, refrigerado, frágil y ADR; calcula integridad, temperatura y sujeción a partir de golpes, vibración, firme, clima, puertas y refrigeración.
+- Añade inspección de sujeción con el vehículo detenido, advertencia por puertas abiertas y registro automático de incidencias de mercancía.
+- Diferencia nieve, niebla y tormenta con partículas, visibilidad, iluminación, adherencia, agua, viento, limpiaparabrisas y sonido propios.
+- Refuerza el registro maestro ante datos persistidos corruptos, detalles excesivos, ciclos y valores BigInt.
+
+### Verificación local
+
+- Sintaxis del módulo principal y módulos nuevos validada; 116 identificadores HTML sin duplicados y 5/5 pruebas de telemetría superadas.
+
+## v18.25.9 - 2026-08-14 - Catálogo visual unificado de Juegos Moon
+
+### Auditoría de la página 1 de Canva
+
+- Verifica que Rutas del Continente, Circuito Neón y Vuelo Rescate ya disponían de versiones 2D/3D y selector común; no se duplican.
+- Detecta que Puerto Logístico, Enlace Ferroviario, Control Aéreo y Rescate Marítimo estaban registrados en el Hub, pero quedaban fuera del catálogo visual compartido.
+
+### Cambios nuevos verificados
+
+- Centraliza perfiles e historial de versiones en `MoonGamesCatalog` para que el Hub use una única fuente de nombre, categoría, versión y evolución.
+- Añade perfiles visuales e historiales para los cuatro juegos operativos que faltaban y completa la evolución de Gato Soda Rush y Leyenda Latina.
+- Evita insertar un segundo botón de historial cuando una versión anterior de la interfaz ya lo creó.
+
+## v18.25.8 - 2026-08-13 - Estado visual y latencia multijugador
+
+### Ya existente, no contabilizado como novedad
+
+- Las salas ya sincronizaban vehículo, posición, altitud, velocidad y carga, y los vehículos locales ya tenían luces, frenado, intermitentes, emergencia, sirena y motor; esos estados aún no se transmitían.
+
+### Cambios nuevos verificados
+
+- Amplía la instantánea compartida con motor, faros, frenado, intermitente, luces de emergencia, sirena y clima local, manteniendo valores predeterminados compatibles con clientes anteriores.
+- Mide el tiempo real de ida y vuelta de cada actualización, compensa el reloj compartido con media latencia y muestra el ping en las interfaces de camión y vuelo.
+- Añade marca temporal del servidor a cada participante para futuras predicción y reconciliación de movimiento.
+- Los modelos remotos encienden faros y pilotos según su estado sincronizado; el camión y el helicóptero publican ahora sus estados operativos.
+- Interpola posición y orientación entre instantáneas para reducir saltos producidos por el intervalo de red de 700 ms.
+
+### Verificación local
+
+- Sintaxis validada en protocolo, servidor, representación compartida y ambos simuladores 3D.
+
+## v18.25.7 - 2026-08-13 - Contacto, sonido de motor y semáforos sincronizados
+
+### Ya existente, no contabilizado como novedad
+
+- La cabina ya tenía un contacto modelado, el motor físico calculaba RPM y los semáforos aplicaban rojo, ámbar y verde con límites y detención; faltaban interacción, audio y un reloj común.
+
+### Cambios nuevos verificados
+
+- Añade un botón de contacto que arranca y apaga el motor, bloquea el par y el control de crucero cuando está apagado y actualiza el estado del cuadro.
+- Genera audio de motor original mediante Web Audio, sin archivos ni marcas externas: combina dos osciladores, filtro y ganancia dinámica ligados a RPM y carga, con transiciones suaves de arranque y parada.
+- Sincroniza el reloj del cliente con `serverTime` de la sala y expone `MoonConvoy.now()`; sin conexión mantiene UTC local como referencia compatible.
+- Los semáforos calculan ahora su fase desde ese reloj compartido y su desplazamiento individual, por lo que todos los jugadores observan el mismo rojo, ámbar o verde.
+
+### Verificación local
+
+- Sintaxis validada en audio, convoy, eventos y simulador principal; servidor Python compilado correctamente.
+
+## v18.25.6 - 2026-08-13 - Clima real e incendios activos
+
+### Ya existente, no contabilizado como novedad
+
+- El simulador ya incluía lluvia, niebla, cielo dinámico, asfalto mojado, viento procedural y humo de incidencias; se reutilizan esos sistemas en lugar de duplicarlos.
+
+### Cambios nuevos verificados
+
+- Añade un modo opcional de clima real por coordenadas mediante Open-Meteo, con condición WMO, temperatura, precipitación, viento, dirección y rachas; usa la posición de la ruta OSM y Madrid como respaldo sin ruta activa.
+- Consulta incendios abiertos cercanos mediante NASA EONET, limita su activación por distancia y conserva el modo simulado cuando la red o las fuentes no responden.
+- Añade la única textura meteorológica que faltaba: llama procedural transparente y animada, escalada por calidad gráfica y mostrada solo cuando existe un incendio activo dentro del radio configurado.
+- Integra en el camión lluvia, visibilidad e incendio según datos reales; Vuelo Rescate utiliza el viento real en su dinámica y ajusta la visibilidad en lluvia o niebla.
+- Guarda durante 15 minutos la lectura geográfica para evitar consultas repetidas y permite volver manualmente al clima simulado.
+
+### Verificación local
+
+- Sintaxis validada en cliente meteorológico, efecto de fuego, física aérea y ambos simuladores 3D.
+
+## v18.25.5 - 2026-08-13 - Operaciones cooperativas entre transportes
+
+### Ya existente, no contabilizado como novedad
+
+- Ya estaban implementados contratos, rescates, carga intermodal, salas compartidas, participantes IA, logros y representación cruzada de vehículos; no se vuelven a presentar como funciones nuevas.
+
+### Cambio nuevo verificado
+
+- Añade una capa de despacho cooperativo sobre la sala existente con cuatro operaciones originales: corredor médico, incendio forestal, emergencia portuaria y entrega intermodal.
+- Cada operación exige que combinaciones diferentes de camión, tren, avión, helicóptero o barco alcancen una zona común antes de que termine el tiempo.
+- La misión se selecciona de forma determinista mediante el código de sala y una ventana temporal, de modo que todos los clientes obtienen el mismo objetivo sin crear un segundo servicio de sincronización.
+- Rutas 3D y Vuelo Rescate muestran nombre, progreso, medios necesarios, tiempo restante y finalización de la operación compartida.
+
+### Verificación local
+
+- Sintaxis y carga de dependencias verificadas en el módulo cooperativo y en ambos simuladores 3D.
+
+## v18.25.4 - 2026-08-13 - Mundo compartido multimodal
+
+### Ya existente, no contabilizado como novedad
+
+- Ya existían salas de convoy, sincronización periódica, participantes IA de carretera, tren, aire y mar, y transferencia de carga entre juegos; los modos 2D solo enumeraban a los participantes y el camión ocultaba los vehículos que no fueran terrestres.
+
+### Cambios nuevos verificados
+
+- Amplía el protocolo existente —sin crear otro multijugador— con tipo concreto de vehículo, tercera coordenada y altitud, conservando compatibilidad con clientes que solo envían `x` e `y`.
+- Añade un renderizador común de presencia 3D con siluetas diferenciadas para camión, autobús, helicóptero, avión, barco y tren, y limpieza automática de participantes que abandonan la sala.
+- Rutas 3D deja de ocultar aeronaves, barcos y trenes: ahora representa todos los participantes humanos e IA de la misma sala en su mundo.
+- Vuelo Rescate 3D puede crear o unirse al mismo código de mundo, publica posición, altitud, velocidad y rescates, y muestra los demás medios de transporte.
+- Control Aéreo, Rescate Marítimo y Enlace Ferroviario publican ahora el tipo de vehículo y coordenadas ampliadas; su escena continúa siendo 2D y no se contabiliza como conversión 3D.
+
+### Verificación local
+
+- Sintaxis validada para servidor, protocolo, renderizador compartido y módulos embebidos de camión y vuelo.
+
+## v18.25.3 - 2026-08-13 - Academia de conducción y dinámica de vuelo
+
+### Ya existente, no contabilizado como novedad
+
+- El simulador terrestre ya disponía de físicas por vehículo y firme, clima, tráfico, carrera, desgaste, combustible, asistencias, cámaras, logros y mapa con posición.
+- Vuelo Rescate 3D ya tenía escenario WebGL, helicóptero, objetivos, controles básicos de posición y cámaras interior/exterior.
+
+### Cambios nuevos verificados
+
+- Añade al simulador terrestre tres pruebas originales de academia —eficiencia, precisión y control sobre mojado— con duración, límite propio, detección de colisiones, excesos, maniobras bruscas, puntuación, tres estrellas y mejor resultado persistente.
+- Sustituye en Vuelo Rescate 3D el desplazamiento fijo por una dinámica de helicóptero con colectivo gradual, inercia vertical y lateral, resistencia, viento cruzado variable, balanceo, cabeceo, consumo y pérdida progresiva de potencia sin combustible.
+- Incorpora instrumentación aérea en tiempo real para velocidad, velocidad vertical, combustible y viento, conservando controles móviles, cámaras y objetivos existentes.
+- Referencias funcionales revisadas: sistemas públicos de carrera, mundo, clima, cámaras y desgaste de Microsoft Flight Simulator 2024, y academia de conducción, objetivos con estrellas y física revisada de Euro Truck Simulator 2; la implementación y los nombres son originales.
+
+### Verificación local
+
+- Sintaxis válida en los dos módulos nuevos y en los módulos principales embebidos de ambos simuladores.
+
+## v18.25.2 - 2026-08-13 - Corrección de materiales del camión detallado
+
+### Ya existente, no contabilizado como novedad
+
+- El sistema procedural ya generaba pintura, metal y caucho con resolución y anisotropía adaptadas al perfil gráfico.
+- La geometría de neumáticos, tacos, llantas, bujes y tornillos ya fue incorporada en `v18.25.1`.
+
+### Cambio nuevo de esta versión
+
+- Corrige la llamada a `createDetailedTruckExterior`: ahora entrega al modelo los mapas procedurales disponibles mediante `textureMaps`, que antes no se pasaban y dejaban el caucho con un color plano.
+- Conecta el mapa existente de neumático y su relieve a la carcasa, los flancos y los tacos del camión y del remolque detallados.
+- Completa las superficies que todavía no tenían un mapa específico con tres materiales procedurales: plástico técnico para bajos y parrilla, aluminio cepillado para la rueda y panel sándwich para el remolque.
+- Mantiene estos materiales dentro del gestor de texturas existente y de su método `dispose()`, sin añadir descargas externas ni duplicar atlas.
+
 ## v18.25.1 - 2026-08-13 - Envolvente interior de cabina corregida
 
 - Sustituye las cuatro superficies rectangulares que cerraban el interior por un techo abovedado, una pared trasera arqueada y dos revestimientos laterales contorneados.

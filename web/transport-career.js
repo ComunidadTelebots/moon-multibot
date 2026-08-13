@@ -5,7 +5,19 @@
  */
 
 export const CAREER_STORAGE_KEY = "moon.transport.career.v1";
-export const CAREER_SCHEMA_VERSION = 1;
+export const CAREER_SCHEMA_VERSION = 2;
+
+const DRIVER_TALENTS = Object.freeze({
+  efficiency: { id: "efficiency", name: "Eco-conducción", description: "Reduce costes operativos", maxRank: 3 },
+  fragile: { id: "fragile", name: "Carga delicada", description: "Mejora ingresos especiales", maxRank: 3 },
+  punctuality: { id: "punctuality", name: "Ruta exprés", description: "Aumenta entregas por jornada", maxRank: 3 },
+});
+
+const DELIVERY_BOTS = Object.freeze({
+  rover: { id: "rover", name: "Rover urbano", price: 12500, capacity: 3, yield: 460 },
+  courier: { id: "courier", name: "Courier eléctrico", price: 28500, capacity: 6, yield: 920 },
+  cargo: { id: "cargo", name: "Cargo autónomo", price: 64000, capacity: 12, yield: 1880 },
+});
 
 const GARAGES = Object.freeze({
   nova_liria: { id: "nova_liria", name: "Nova Liria", price: 0, slots: 2 },
@@ -49,9 +61,11 @@ function initialState(name = "Transportista") {
     truck: { fuel: 100, fuelCapacity: 100, condition: 100, odometerKm: 0 },
     garages: [{ ...GARAGES.nova_liria, purchasedAt: now }],
     drivers: [],
+    deliveryBots: [],
     loans: [],
     contracts: [],
     activeContractId: null,
+    security: { guards: [], alarms: { nova_liria: 0 }, incidents: [], totalLosses: 0, preventedLosses: 0 },
     ledger: [],
     settings: { autosave: true },
   };
@@ -69,9 +83,16 @@ function normalize(raw) {
     truck: { ...base.truck, ...raw.truck },
     settings: { ...base.settings, ...raw.settings },
     garages: Array.isArray(raw.garages) ? raw.garages : base.garages,
-    drivers: Array.isArray(raw.drivers) ? raw.drivers : [],
+    drivers: Array.isArray(raw.drivers) ? raw.drivers.map(driver => ({ trainingXp: 0, talentPoints: 0, talents: {}, deliveries: 0, ...driver })) : [],
+    deliveryBots: Array.isArray(raw.deliveryBots) ? raw.deliveryBots : [],
     loans: Array.isArray(raw.loans) ? raw.loans : [],
     contracts: Array.isArray(raw.contracts) ? raw.contracts : [],
+    security: {
+      ...base.security, ...(raw.security && typeof raw.security === "object" ? raw.security : {}),
+      guards: Array.isArray(raw.security?.guards) ? raw.security.guards.slice(-30) : [],
+      alarms: raw.security?.alarms && typeof raw.security.alarms === "object" ? raw.security.alarms : base.security.alarms,
+      incidents: Array.isArray(raw.security?.incidents) ? raw.security.incidents.slice(-50) : [],
+    },
     ledger: Array.isArray(raw.ledger) ? raw.ledger.slice(-100) : [],
   };
   state.truck.fuel = clamp(state.truck.fuel, 0, state.truck.fuelCapacity);
@@ -91,7 +112,7 @@ export class TransportCareer {
   get snapshot() { return copy(this.state); }
   get level() { return this.state.progress.level; }
   get activeContract() { return this.state.contracts.find((job) => job.id === this.state.activeContractId) || null; }
-  get catalog() { return { cities: copy(CITIES), cargo: copy(CARGO), garages: copy(Object.values(GARAGES)) }; }
+  get catalog() { return { cities: copy(CITIES), cargo: copy(CARGO), garages: copy(Object.values(GARAGES)), talents: copy(Object.values(DRIVER_TALENTS)), deliveryBots: copy(Object.values(DELIVERY_BOTS)) }; }
 
   subscribe(listener) {
     if (typeof listener !== "function") throw new TypeError("listener debe ser una función");
@@ -291,7 +312,7 @@ export class TransportCareer {
   hireDriver({ name, skill, salary } = {}) {
     const capacity = this.state.garages.reduce((sum, garage) => sum + garage.slots, 0);
     if (this.state.drivers.length >= capacity) throw new Error("No quedan plazas en los garajes");
-    const driver = { id: uid("driver"), name: name || DRIVER_NAMES[this.state.drivers.length % DRIVER_NAMES.length], skill: clamp(skill ?? 1, 1, 10), salary: roundMoney(salary ?? 950), status: "idle", garageId: this.state.garages[0].id, hiredAt: Date.now(), earnings: 0 };
+    const driver = { id: uid("driver"), name: name || DRIVER_NAMES[this.state.drivers.length % DRIVER_NAMES.length], skill: clamp(skill ?? 1, 1, 10), salary: roundMoney(salary ?? 950), status: "idle", garageId: this.state.garages[0].id, hiredAt: Date.now(), earnings: 0, trainingXp: 0, talentPoints: 1, talents: {}, deliveries: 0 };
     this.state.drivers.push(driver);
     this.emit("driver:hired", { driver });
     return copy(driver);
@@ -308,17 +329,131 @@ export class TransportCareer {
     return copy(driver);
   }
 
+  trainDriver(driverId) {
+    const driver = this.state.drivers.find(item => item.id === driverId);
+    if (!driver) throw new Error("Conductor no disponible");
+    if (driver.skill >= 10) throw new Error("El conductor ya tiene nivel máximo");
+    const cost = Math.round(1100 + driver.skill * 650);
+    if (this.state.economy.money < cost) throw new Error("Fondos insuficientes para la formación");
+    this.record(-cost, `Formación: ${driver.name}`, { driverId });
+    driver.skill += 1; driver.trainingXp += 100; driver.talentPoints += 1;
+    this.emit("driver:trained", { driver, cost });
+    return copy(driver);
+  }
+
+  unlockDriverTalent(driverId, talentId) {
+    const driver = this.state.drivers.find(item => item.id === driverId);
+    const talent = DRIVER_TALENTS[talentId];
+    if (!driver || !talent) throw new Error("Talento no disponible");
+    const rank = Number(driver.talents?.[talentId]) || 0;
+    if (rank >= talent.maxRank) throw new Error("Talento al máximo");
+    if ((driver.talentPoints || 0) < 1) throw new Error("Faltan puntos de talento");
+    driver.talentPoints -= 1;
+    driver.talents = { ...driver.talents, [talentId]: rank + 1 };
+    this.emit("driver:talent", { driver, talentId, rank: rank + 1 });
+    return copy(driver);
+  }
+
+  buyDeliveryBot(modelId) {
+    const model = DELIVERY_BOTS[modelId];
+    if (!model) throw new Error("Modelo de bot desconocido");
+    if (this.state.economy.money < model.price) throw new Error("Fondos insuficientes");
+    const bot = { id: uid("bot"), modelId, name: `${model.name} ${this.state.deliveryBots.length + 1}`, status: "active", deliveries: 0, earnings: 0, condition: 100, purchasedAt: Date.now() };
+    this.state.deliveryBots.push(bot);
+    this.record(-model.price, `Bot de reparto: ${model.name}`, { botId: bot.id });
+    this.emit("delivery-bot:purchased", { bot });
+    return copy(bot);
+  }
+
+  toggleDeliveryBot(botId) {
+    const bot = this.state.deliveryBots.find(item => item.id === botId);
+    if (!bot) throw new Error("Bot no disponible");
+    bot.status = bot.status === "active" ? "paused" : "active";
+    this.emit("delivery-bot:status", { bot });
+    return copy(bot);
+  }
+
   runCompanyDay() {
     let net = 0;
     for (const driver of this.state.drivers) {
-      const gross = Math.round(450 + driver.skill * 135 + Math.random() * 400);
-      const profit = gross - driver.salary / 30;
+      const efficiency = Number(driver.talents?.efficiency) || 0;
+      const fragile = Number(driver.talents?.fragile) || 0;
+      const punctuality = Number(driver.talents?.punctuality) || 0;
+      const gross = Math.round((450 + driver.skill * 135 + Math.random() * 400) * (1 + fragile * .05 + punctuality * .04));
+      const profit = gross - driver.salary / 30 * (1 - efficiency * .06);
       driver.earnings += profit;
+      driver.deliveries = (driver.deliveries || 0) + 1 + (punctuality >= 3 ? 1 : 0);
+      net += profit;
+    }
+    for (const bot of this.state.deliveryBots.filter(item => item.status === "active" && item.condition > 0)) {
+      const model = DELIVERY_BOTS[bot.modelId];
+      const gross = Math.round(model.yield * (.82 + Math.random() * .36));
+      const profit = gross - Math.round(model.yield * .12);
+      bot.deliveries += model.capacity; bot.earnings += profit; bot.condition = clamp(bot.condition - .5, 0, 100);
       net += profit;
     }
     this.record(net, "Operaciones de conductores");
     this.emit("company:day", { net: roundMoney(net) });
     return roundMoney(net);
+  }
+
+  upgradeAlarm(garageId) {
+    const garage = this.state.garages.find((item) => item.id === garageId);
+    if (!garage) throw new Error("Sede no disponible");
+    const level = clamp(this.state.security.alarms[garageId], 0, 3);
+    if (level >= 3) throw new Error("La alarma ya está al nivel máximo");
+    const cost = [4500, 11000, 24000][level];
+    if (this.state.economy.money < cost) throw new Error("Fondos insuficientes");
+    this.state.security.alarms[garageId] = level + 1;
+    this.record(-cost, `Alarma nivel ${level + 1}: ${garage.name}`, { garageId, kind: "security" });
+    this.emit("security:alarm_upgraded", { garageId, garage: garage.name, level: level + 1, cost });
+    return level + 1;
+  }
+
+  hireGuard(garageId) {
+    const garage = this.state.garages.find((item) => item.id === garageId);
+    if (!garage) throw new Error("Sede no disponible");
+    if (this.state.security.guards.some((item) => item.garageId === garageId)) throw new Error("La sede ya tiene vigilancia");
+    const setupCost = 1800;
+    if (this.state.economy.money < setupCost) throw new Error("Fondos insuficientes");
+    const guard = { id: uid("guard"), garageId, name: `Equipo ${garage.name}`, dailyCost: 160, hiredAt: Date.now() };
+    this.state.security.guards.push(guard);
+    this.record(-setupCost, `Alta de vigilancia: ${garage.name}`, { garageId, kind: "security" });
+    this.emit("security:guard_hired", { guard, garage: garage.name, setupCost });
+    return copy(guard);
+  }
+
+  dismissGuard(garageId) {
+    const index = this.state.security.guards.findIndex((item) => item.garageId === garageId);
+    if (index < 0) throw new Error("La sede no tiene vigilancia");
+    const [guard] = this.state.security.guards.splice(index, 1);
+    this.emit("security:guard_dismissed", { guard });
+    return copy(guard);
+  }
+
+  runSecurityShift(garageId, threatRoll = Math.random()) {
+    const garage = this.state.garages.find((item) => item.id === garageId);
+    if (!garage) throw new Error("Sede no disponible");
+    const alarmLevel = clamp(this.state.security.alarms[garageId], 0, 3);
+    const guard = this.state.security.guards.find((item) => item.garageId === garageId);
+    if (guard) this.record(-guard.dailyCost, `Vigilancia diaria: ${garage.name}`, { garageId, kind: "security" });
+    const attempted = clamp(threatRoll, 0, 1) < 0.38;
+    if (!attempted) {
+      this.emit("security:shift_clear", { garageId, garage: garage.name, cost: guard?.dailyCost || 0 });
+      return { attempted: false, cost: guard?.dailyCost || 0 };
+    }
+    const prevention = clamp(alarmLevel * 0.2 + (guard ? 0.42 : 0), 0, 0.95);
+    const prevented = clamp(Number(threatRoll) * 2.17, 0, 1) < prevention;
+    const exposure = Math.round(3500 + garage.slots * 2100 + Math.random() * 6000);
+    const loss = prevented ? 0 : Math.min(exposure, Math.max(0, this.state.economy.money));
+    if (loss) this.record(-loss, `Robo en ${garage.name}`, { garageId, kind: "security" });
+    const incident = { id: uid("incident"), at: Date.now(), garageId, garage: garage.name, type: "intrusion", status: prevented ? "prevented" : "robbery", loss, exposure, alarmLevel, guard: Boolean(guard) };
+    this.state.security.incidents.push(incident);
+    this.state.security.incidents = this.state.security.incidents.slice(-50);
+    this.state.security.totalLosses = roundMoney(this.state.security.totalLosses + loss);
+    if (prevented) this.state.security.preventedLosses = roundMoney(this.state.security.preventedLosses + exposure);
+    this.emit(prevented ? "security:incident_prevented" : "security:robbery", { incident });
+    return copy(incident);
   }
 }
 
