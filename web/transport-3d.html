@@ -142,7 +142,7 @@
     </div>
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posición</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">−</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">×</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
-    <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Red europea de carreteras</h3><button id="europeMapClose">×</button></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Ruta elegida</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
+    <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa · posición del camión</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">×</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posición/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState">AEBS listo</b></div></div>
@@ -795,15 +795,17 @@
       document.querySelector("#interactButton").onclick = interactCargo;
       const mapPanel = document.querySelector("#mapPanel"), mapCanvas = document.querySelector("#routeMap"), mapCtx = mapCanvas.getContext("2d"), mapZoomRanges = [70, 140, 280, 560, 1120];
       let mapZoomIndex = 2;
-      function setMapZoom(next) { mapZoomIndex = Math.max(0, Math.min(mapZoomRanges.length - 1, next)); document.querySelector("#mapZoomLabel").textContent = `${mapZoomRanges[mapZoomIndex]} m`; drawRouteMap(); }
-      function cycleRouteMap(direction = 1) { if (mapPanel.hidden) { mapPanel.hidden = false; drawRouteMap(); } else setMapZoom((mapZoomIndex + direction + mapZoomRanges.length) % mapZoomRanges.length); }
+      function openEuropeTracking() { mapPanel.hidden = true; europeMapPanel.hidden = false; europeMap.setVehicleProgress(physicalDistance / 1000); }
+      function setMapZoom(next) { if (next >= mapZoomRanges.length) { openEuropeTracking(); return; } mapZoomIndex = Math.max(0, next); document.querySelector("#mapZoomLabel").textContent = `${mapZoomRanges[mapZoomIndex]} m`; drawRouteMap(); }
+      function cycleRouteMap(direction = 1) { if (!europeMapPanel.hidden) { if (direction < 0) { europeMapPanel.hidden = true; mapPanel.hidden = false; setMapZoom(mapZoomRanges.length - 1); } else europeMap.setVehicleProgress(physicalDistance / 1000); return; } if (mapPanel.hidden) { mapPanel.hidden = false; drawRouteMap(); } else setMapZoom(mapZoomIndex + direction); }
       document.querySelector("#mapButton").onclick = () => { mapPanel.hidden ? cycleRouteMap(0) : mapPanel.hidden = true; };
       document.querySelector("#mapZoomIn").onclick = () => setMapZoom(mapZoomIndex - 1);
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
       const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"));
-      document.querySelector("#europeMapButton").onclick=()=>{mapPanel.hidden=true;achievementsPanel.hidden=true;europeMapPanel.hidden=false;europeMap.draw()};
+      document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
+      document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
       function drawRouteMap() {
         if (!V) return;
@@ -878,7 +880,7 @@
         document.fullscreenElement
           ? document.exitFullscreen()
           : document.documentElement.requestFullscreen();
-      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0, cockpitDrawAt = 0;
+      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0, cockpitDrawAt = 0, europeMapDrawAt = 0;
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
         last = now;
@@ -1016,6 +1018,7 @@
         document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
         if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
         if (!mapPanel.hidden) drawRouteMap();
+        if (!europeMapPanel.hidden && now >= europeMapDrawAt) { europeMapDrawAt = now + 180; europeMap.setVehicleProgress(physicalDistance / 1000); }
         if (V.position.z < -2800) { V.position.z = 2800; physicalDistance += 5600; cameraReady = false; }
         V.rotation.z = physicalFrame?.bodyRoll ?? steer * 0.07;
         document.querySelector("#speed").textContent =
