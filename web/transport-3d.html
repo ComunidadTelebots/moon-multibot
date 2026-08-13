@@ -78,6 +78,7 @@
       .europe-panel{width:min(780px,calc(100vw - 28px));inset:70px 14px 80px auto}.europe-panel canvas{width:100%;height:auto;border-radius:12px}.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;color:#9db0bd;font-size:11px}.map-legend i{width:18px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px}.route-output{padding:9px;border-radius:9px;background:#0b1720;color:#62e8d2;line-height:1.4}
       .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(940px,98vw); min-height:230px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272df2,#080b0ef5); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
       .cockpit-panel[hidden]{display:none}.cockpit-grid{height:100%;display:grid;grid-template-columns:190px minmax(320px,1fr) 190px;align-items:center;gap:16px}.steering-wheel{width:166px;height:166px;margin:auto;border:16px solid #171a1d;border-radius:50%;box-shadow:inset 0 0 0 4px #44515a,0 8px 18px #000;position:relative;transition:transform .08s linear}.steering-wheel:before,.steering-wheel:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:17px;border-radius:9px;background:#252c31;transform-origin:0 50%}.steering-wheel:before{transform:rotate(25deg)}.steering-wheel:after{transform:rotate(155deg)}.wheel-hub{position:absolute;inset:43px;border:4px solid #56636b;border-radius:50%;background:radial-gradient(circle,#34434a,#111619);display:grid;place-items:center;color:#50e5d0;font-weight:900;z-index:2}.dash-screen{border:2px solid #425765;border-radius:18px;padding:10px 14px;background:linear-gradient(145deg,#071a23,#020609);box-shadow:inset 0 0 26px #1ec6bc18}.dash-main{display:flex;align-items:end;justify-content:center;gap:8px;color:#dff}.dash-speed{font-size:56px;font-weight:800;line-height:.9}.dash-unit{color:#7f9ba8}.dash-row{display:flex;justify-content:space-between;margin-top:8px;color:#8edfd4}.dash-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px solid #29404c;font-size:10px;color:#91a9b5}.dash-status span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dash-status b{color:#d9f8f3;font-weight:650}.dash-alert{grid-column:1/-1;text-align:center;color:#58e2ce!important}.rpm-track{height:7px;margin-top:8px;border-radius:5px;background:#15262b;overflow:hidden}.rpm-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de1bd,#e8d64b,#ef4b48);transition:width .1s}.dash-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.dash-buttons button{padding:8px 5px;font-size:11px;background:#11191e}.dash-buttons button.on{background:#143b37;border-color:#45d8c2}.warning{color:#ff725f!important}
+      @media (min-width:701px){.cockpit-panel{display:none!important}}
       @media (max-width: 700px) {
         .mobile {
           display: flex;
@@ -421,20 +422,45 @@
         }
       }
       function interior(g, bus) {
-        part(g, bus ? 4.7 : 3.7, 0.72, 1.4, 0x171d25, 0, 2.25, -3.1);
-        const st = new T.Mesh(new T.TorusGeometry(0.56, 0.1, 12, 30), tire);
-        st.position.set(-1.25, 2.75, -3.75);
-        st.rotation.x = Math.PI / 2;
-        g.add(st);
-        for (let i = 0; i < 5; i++) {
-          const gauge = new T.Mesh(
-            new T.CircleGeometry(0.14, 18),
-            mat(i % 2 ? 0x65d9ff : 0xffffff, 0.2),
-          );
-          gauge.position.set(-0.65 + i * 0.32, 2.55, -3.82);
-          gauge.rotation.x = -Math.PI / 2;
-          g.add(gauge);
+        const cabin = new T.Group();
+        cabin.name = "modeled-3d-cockpit";
+        const dark = mat(0x11171c, 0.7, 0.18), trim = mat(0x30383d, 0.48, 0.32), leather = mat(0x242a2e, 0.82, 0.08);
+        const dashZ = bus ? -5.92 : -5.78;
+        part(cabin, bus ? 4.75 : 4.35, 0.72, 1.05, 0x171d25, 0, 2.2, dashZ);
+        const dashTop = part(cabin, bus ? 4.85 : 4.45, 0.16, 1.4, 0x30383d, 0, 2.62, dashZ + 0.12); dashTop.material = trim;
+        part(cabin, 0.22, 2.25, 0.35, 0x20272c, -(bus ? 2.3 : 2.12), 3.5, dashZ - 0.65);
+        part(cabin, 0.22, 2.25, 0.35, 0x20272c, bus ? 2.3 : 2.12, 3.5, dashZ - 0.65);
+        part(cabin, bus ? 4.8 : 4.4, 0.16, 1.25, 0x242b30, 0, 4.75, dashZ - 0.25);
+        for (const px of [-1.65, 1.65]) {
+          const vent = new T.Mesh(new T.CylinderGeometry(0.24, 0.24, 0.08, 24), dark);
+          vent.rotation.x = Math.PI / 2; vent.position.set(px, 2.52, dashZ - 0.53); cabin.add(vent);
         }
+        const steeringRig = new T.Group(); steeringRig.position.set(-1.08, 2.55, dashZ + 0.48);
+        const steering = new T.Mesh(new T.TorusGeometry(0.54, 0.085, 14, 36), leather); steeringRig.add(steering);
+        for (const angle of [0, 2.1, 4.2]) {
+          const spoke = part(steeringRig, 0.42, 0.075, 0.08, 0x343d42, Math.cos(angle) * 0.2, Math.sin(angle) * 0.2, 0);
+          spoke.rotation.z = angle;
+        }
+        const hub = new T.Mesh(new T.CylinderGeometry(0.19, 0.19, 0.11, 24), trim); hub.rotation.x = Math.PI / 2; steeringRig.add(hub);
+        steeringRig.rotation.x = -0.18; steeringRig.userData.cockpitSteering = true; cabin.add(steeringRig); g.userData.cockpitSteering = steeringRig;
+        const column = new T.Mesh(new T.CylinderGeometry(0.08, 0.11, 0.72, 14), trim); column.rotation.x = Math.PI / 2; column.position.set(-1.08, 2.22, dashZ + 0.82); cabin.add(column);
+        const instrumentCanvas = document.createElement("canvas"); instrumentCanvas.width = 512; instrumentCanvas.height = 192;
+        const instrumentTexture = new T.CanvasTexture(instrumentCanvas); instrumentTexture.colorSpace = T.SRGBColorSpace;
+        const instrument = new T.Mesh(new T.PlaneGeometry(1.62, 0.61), new T.MeshBasicMaterial({ map: instrumentTexture, toneMapped: false }));
+        instrument.position.set(-0.43, 2.48, dashZ - 0.55); cabin.add(instrument);
+        g.userData.instrument = { canvas: instrumentCanvas, context: instrumentCanvas.getContext("2d"), texture: instrumentTexture };
+        const consoleScreen = part(cabin, 0.92, 0.68, 0.06, 0x071b24, 1.05, 2.31, dashZ - 0.57); consoleScreen.material = new T.MeshBasicMaterial({ color: 0x0d5863, toneMapped: false });
+        for (let i = 0; i < 8; i++) {
+          const button = new T.Mesh(new T.CylinderGeometry(0.065, 0.065, 0.045, 12), mat(i === 2 ? 0xe84b3d : 0x6f8992, 0.45, 0.25));
+          button.rotation.x = Math.PI / 2; button.position.set(0.62 + (i % 4) * 0.26, 1.86 + Math.floor(i / 4) * 0.22, dashZ - 0.59); cabin.add(button);
+        }
+        for (const px of [-1.08, 1.05]) {
+          const seat = part(cabin, 0.92, 1.35, 0.78, 0x242a2e, px, 1.55, dashZ + 2.25); seat.material = leather;
+          const head = part(cabin, 0.7, 0.48, 0.35, 0x30373c, px, 2.4, dashZ + 2.42); head.material = leather;
+        }
+        const selector = new T.Mesh(new T.CylinderGeometry(0.055, 0.075, 0.62, 12), trim); selector.position.set(0.25, 1.72, dashZ + 1.0); selector.rotation.z = -0.2; cabin.add(selector);
+        for (const px of [-1.35, -0.85]) { const pedal = part(cabin, 0.25, 0.06, 0.38, 0x15191c, px, 0.62, dashZ - 0.08); pedal.rotation.x = -0.35; }
+        g.add(cabin);
         for (let r = 0; r < (bus ? 6 : 1); r++)
           for (const px of bus ? [-1.45, 1.45] : [-1.25]) {
             part(
@@ -790,7 +816,7 @@
         document.fullscreenElement
           ? document.exitFullscreen()
           : document.documentElement.requestFullscreen();
-      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0;
+      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0, cockpitDrawAt = 0;
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
         last = now;
@@ -880,6 +906,21 @@
         document.querySelector("#dashLimit").textContent = worldState.currentSpeedLimit ? `Límite ${worldState.currentSpeedLimit}` : "STOP";
         document.querySelector("#dashRpmBar").style.width = `${Math.min(100, (physicalFrame?.rpm || physics.rpm) / 23)}%`;
         document.querySelector("#visualWheel").style.transform = `rotate(${steer * 135}deg)`;
+        if (V.userData.cockpitSteering) V.userData.cockpitSteering.rotation.z = -steer * 1.75;
+        if (V.userData.instrument && now >= cockpitDrawAt) {
+          cockpitDrawAt = now + 80;
+          const { canvas, context: x, texture } = V.userData.instrument;
+          const gearLabel = physicalFrame?.shifting ? "↕" : `D${physicalFrame?.gear || physics.gear}`;
+          x.clearRect(0, 0, canvas.width, canvas.height);
+          const gradient = x.createLinearGradient(0, 0, 0, canvas.height); gradient.addColorStop(0, "#12313a"); gradient.addColorStop(1, "#020709");
+          x.fillStyle = gradient; x.fillRect(0, 0, canvas.width, canvas.height);
+          x.strokeStyle = worldState.speeding ? "#ff5b50" : "#45ead2"; x.lineWidth = 5; x.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+          x.textAlign = "center"; x.fillStyle = "#eafffb"; x.font = "700 82px system-ui"; x.fillText(Math.round(speed), 250, 98);
+          x.font = "600 22px system-ui"; x.fillStyle = "#8edfd4"; x.fillText(`km/h     ${gearLabel}     ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm`, 250, 137);
+          x.font = "500 18px system-ui"; x.fillStyle = worldState.speeding ? "#ff756b" : "#b4c8cd";
+          x.fillText(`LÍMITE ${worldState.currentSpeedLimit || 0}  ·  COMBUSTIBLE ${Math.round(career.state.truck.fuel)}%  ·  FRENO ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`, 250, 169);
+          texture.needsUpdate = true;
+        }
         document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
         if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
         if (!mapPanel.hidden) drawRouteMap();
