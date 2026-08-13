@@ -79,6 +79,7 @@
       .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
       .map-tools{display:flex;align-items:center;gap:5px}.map-tools button{padding:5px 9px}.map-tools output{min-width:58px;text-align:center;color:#63e8d3;font-size:11px}
       .map-panel h3 { margin: 0; }
+      .world-planner{display:grid;grid-template-columns:1fr 1fr;gap:8px}.world-planner select{min-width:0;padding:9px;border:1px solid #36536c;border-radius:10px;background:#07101d;color:#fff}.world-plan{margin-top:10px;padding:10px;border-radius:10px;background:#0b1720;color:#b9d8dc;line-height:1.5}.world-plan b{color:#58e4cf}
       #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
       .europe-panel{width:min(780px,calc(100vw - 28px));inset:70px 14px 80px auto}.europe-panel canvas{width:100%;height:auto;border-radius:12px}.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;color:#9db0bd;font-size:11px}.map-legend i{width:18px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px}.route-output{padding:9px;border-radius:9px;background:#0b1720;color:#62e8d2;line-height:1.4}
       .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(940px,98vw); min-height:230px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272df2,#080b0ef5); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
@@ -138,6 +139,7 @@
       <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
       <button id="achievementsButton">Logros</button>
       <button id="europeMapButton">Mapa de Europa</button>
+      <button id="worldMapButton">Red mundial</button>
       <button id="wheelButton">Volante: buscar</button>
       <button id="specialButton">Transporte especial</button>
       <button id="specialOperate" hidden>Preparar carga</button>
@@ -151,6 +153,7 @@
     <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posición</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">−</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">×</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
     <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa · posición del camión</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">×</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posición/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
+    <aside class="map-panel europe-panel" id="worldPanel" hidden><header><h3>Red mundial de carga</h3><button id="worldClose">×</button></header><div class="world-planner"><select id="worldFrom"></select><select id="worldTo"></select></div><div class="map-tools" style="margin-top:8px"><button id="worldPlanButton">Calcular transporte</button><button id="worldDriveButton" disabled>Conducir tramo terrestre</button></div><div class="world-plan" id="worldPlanOutput">Selecciona dos centros logísticos.</div></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState">AEBS listo</b></div></div>
@@ -182,6 +185,9 @@
       import { createRouteNavigation } from "./transport-route-navigation.js";
       import { createOsmCorridor } from "./transport-osm-corridor.js";
       import { createOsmRoutePois } from "./transport-osm-pois.js";
+      import { createCargoHubs } from "./transport-cargo-hubs.js";
+      import { WORLD_HUBS, findMultimodalRoute, resolveMultimodalRoads } from "./transport-world-network.js";
+      import { createMaterials as createRegionalMaterials } from "./transport-regional-materials.js";
       import { createOsmRoadMesh } from "./transport-osm-road-mesh.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
@@ -209,6 +215,8 @@
       const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
       const osmCorridor = createOsmCorridor({THREE:T,scene:S,qualityLevel});
       const osmRoutePois = createOsmRoutePois({THREE:T,scene:S,qualityLevel});
+      const cargoHubs = createCargoHubs({THREE:T,scene:S,qualityLevel});
+      let regionalMaterials = null, plannedWorldRoute = null;
       const routeNavigation = createRouteNavigation();
       let routeRuntime;
       const textures = createProceduralTransportTextures(T, qualityLevel);
@@ -990,10 +998,16 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`).catch(error=>console.warn("Corredor OSM no disponible",error));osmRoutePois.load(route,activeWorldRoute).then(items=>{document.querySelector("#nearService").title=`${items.length} servicios reales de OpenStreetMap`;}).catch(error=>console.warn("POI OSM no disponibles; se mantienen servicios simulados",error));physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${from.toUpperCase()} → ${to.toUpperCase()}`;document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
+      async function activateRoadRoute(route,fromLabel,toLabel){activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`).catch(error=>console.warn("Corredor OSM no disponible",error));osmRoutePois.load(route,activeWorldRoute).then(items=>document.querySelector("#nearService").title=`${items.length} servicios reales de OpenStreetMap`).catch(error=>console.warn("POI OSM no disponibles; se mantienen servicios simulados",error));cargoHubs.setRoute(route,activeWorldRoute);cargoHubs.load().then(items=>document.querySelector("#cargoState").title=`${items.length} hubs de carga 3D`).catch(error=>console.warn("Hubs OSM no disponibles; se usa terminal procedural",error));regionalMaterials?.dispose();regionalMaterials=createRegionalMaterials({THREE:T,coordinates:{lon:route.coordinates[0][0],lat:route.coordinates[0][1]},qualityLevel});regionalMaterials.applyTo(osmCorridor.root);regionalMaterials.applyTo(cargoHubs.root);physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${fromLabel} → ${toLabel}`;return route;}
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);await activateRoadRoute(route,from.toUpperCase(),to.toUpperCase());document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
+      const worldPanel=document.querySelector("#worldPanel"),worldFrom=document.querySelector("#worldFrom"),worldTo=document.querySelector("#worldTo"),worldOutput=document.querySelector("#worldPlanOutput"),worldDrive=document.querySelector("#worldDriveButton");
+      const worldOptions=WORLD_HUBS.map(hub=>`<option value="${hub.id}">${hub.name} · ${hub.countryCode}</option>`).join("");worldFrom.innerHTML=worldOptions;worldTo.innerHTML=worldOptions;worldFrom.value="madrid";worldTo.value="new_york";
+      document.querySelector("#worldMapButton").onclick=()=>{europeMapPanel.hidden=true;worldPanel.hidden=false};document.querySelector("#worldClose").onclick=()=>worldPanel.hidden=true;
+      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}worldOutput.innerHTML=plannedWorldRoute.legs.map(leg=>`<b>${leg.mode==="road"?"Carretera":leg.mode==="sea"?"Barco":"Avión"}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates)};
+      worldDrive.onclick=async()=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode==="road"&&item.coordinates);if(!leg)return;await activateRoadRoute({coordinates:leg.coordinates,steps:[],distanceKm:leg.distanceKm,durationHours:leg.durationHours},leg.from.name,leg.to.name);document.querySelector("#city").textContent=leg.from.name;worldPanel.hidden=true};
       function drawRouteMap() {
         if (!V) return;
         const w = mapCanvas.width, h = mapCanvas.height, cx = w / 2, cy = h / 2, range = mapZoomRanges[mapZoomIndex], scale = (Math.min(w, h) - 42) / (range * 2);
@@ -1157,6 +1171,8 @@
           if (routePose) { V.position.x=routePose.x; V.position.z=routePose.z; V.rotation.y=routePose.heading; }
           routeRuntime.update(dt,{playerDistance:physicalDistance,playerSpeed:speed/3.6,playerDirection:1});
           osmCorridor.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[450,700,1100,1600][qualityLevel]});
+          const cargoHub=cargoHubs.update(dt,{playerPosition:V.position,camera:C});
+          if(cargoHub?.distance<180){document.querySelector("#cargoState").textContent=`${cargoHub.name} · ${cargoHub.type}`;if(cargoHub.active)document.querySelector("#workState").textContent="Zona de transferencia de carga";}
         } else {
           V.position.x = T.MathUtils.clamp(V.position.x + (physicalFrame?.lateralMovement || steer * speed * dt * .025),-17.5,17.5);
           if (!onFoot) V.position.z -= physicalFrame?.forwardMeters || speed * dt / 3.6;

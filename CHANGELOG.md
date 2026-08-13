@@ -1,5 +1,27 @@
 # Changelog - Moon Multibot
 
+## v18.25.0 - 2026-08-13 - Red logística mundial y hubs de carga 3D
+
+### Auditoría previa
+
+- Confirma que ya existían una cadena logística abstracta almacén–tren–aeropuerto–puerto, un minijuego portuario 2D, modos de transporte y escenarios europeos; no se han contado de nuevo como novedades.
+
+### Cambios nuevos verificados
+
+- Añade una red mundial de 28 centros logísticos en 7 regiones, con conexiones explícitas por carretera, barco y avión y planificación multimodal entre Europa, América, África, Oriente Medio, Asia y Oceanía.
+- Resuelve mediante OSRM únicamente los tramos terrestres y mantiene los enlaces marítimos y aéreos como transferencias logísticas, evitando representar océanos como carreteras conducibles.
+- Incorpora un planificador mundial dentro del simulador, con origen, destino, desglose por modo, distancia, duración y acceso al primer tramo terrestre disponible.
+- Genera puertos, aeropuertos de carga y terminales intermodales 3D próximos a las rutas a partir de OpenStreetMap, con muelles, dársenas, contenedores, grúas, pistas, terminal, torre, almacenes, vías, vagones y zonas de interacción.
+- Añade caché Overpass de 7 días, dos endpoints alternativos y terminales procedurales de respaldo cuando no existen datos OSM o la consulta falla.
+- Incorpora 13 perfiles regionales con texturas procedurales PBR para terreno, vegetación, arquitectura, cubiertas, arcenes, señales, puertos y aeropuertos, seleccionados por coordenadas y calidad gráfica.
+
+### Verificación local
+
+- Sintaxis validada en los tres módulos nuevos y en el módulo principal del simulador.
+- Rutas Madrid–Nueva York, Nueva York–Tokio y Madrid–Sídney verificadas con modos intercontinentales coherentes.
+- Servidor estático local: `transport-3d.html` respondió HTTP 200 y sus 33 dependencias cargaron sin errores HTTP.
+- No se realizó prueba visual WebGL automatizada porque no había un navegador compatible disponible en el entorno de verificación.
+
 ## v18.24.2 - 2026-08-13 - Precisión GPS, POI reales y culling OSM
 
 ### Auditoría previa
