@@ -58,6 +58,22 @@
       .mobile {
         display: none;
       }
+      .map-panel {
+        position: fixed;
+        z-index: 8;
+        inset: 70px 14px 80px auto;
+        width: min(360px, calc(100vw - 28px));
+        padding: 12px;
+        border: 1px solid #4d6c82;
+        border-radius: 16px;
+        background: #07101bee;
+        box-shadow: 0 20px 60px #0009;
+        backdrop-filter: blur(12px);
+      }
+      .map-panel[hidden] { display: none; }
+      .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .map-panel h3 { margin: 0; }
+      #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
       @media (max-width: 700px) {
         .mobile {
           display: flex;
@@ -101,13 +117,15 @@
       <button id="truck" class="on">Camión</button
       ><button id="bus">Autobús</button><button id="cam">Vista</button
       ><button id="cruise">Crucero</button><button id="rest">Descansar</button
-      ><button id="parking" class="on">Freno P</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
+      ><button id="parking" class="on">Freno P</button><button id="mapButton">Mapa</button
+      ><button id="rescue">Asistencia</button><button id="full">⛶</button>
     </div>
     <div class="controls drive">
       <button class="mobile" data-key="a">◀</button
       ><button data-key="s">Freno</button><button data-key="w">Acelerar</button
       ><button class="mobile" data-key="d">▶</button>
     </div>
+    <aside class="map-panel" id="mapPanel" hidden><header><h3>Ruta del Continente</h3><button id="mapClose">×</button></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
     <script type="module">
       import * as T from "./vendor/three.module.min.js";
       const graphicsParams = new URLSearchParams(location.search),
@@ -148,6 +166,18 @@
       S.add(x);
       x = box(30, 0.25, 900, 0x292e35);
       S.add(x);
+      function terrainStrip(side) {
+        const geometry = new T.PlaneGeometry(235, 900, qualityLevel >= 2 ? 34 : 18, qualityLevel >= 2 ? 90 : 45),
+          positions = geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          const px = positions.getX(i), py = positions.getY(i), edge = Math.min(1, Math.abs(px) / 65);
+          positions.setZ(i, edge * (3.4 + Math.sin(py * 0.032 + side) * 2.1 + Math.sin(px * 0.08) * 1.4));
+        }
+        geometry.computeVertexNormals();
+        const terrain = new T.Mesh(geometry, new T.MeshStandardMaterial({ color: side < 0 ? 0x477b3d : 0x557f3d, roughness: 0.96 }));
+        terrain.rotation.x = -Math.PI / 2; terrain.position.set(side * 132, -0.35, 0); terrain.receiveShadow = true; S.add(terrain);
+      }
+      terrainStrip(-1); terrainStrip(1);
       for (let z = -430; z < 450; z += 18) {
         x = box(0.35, 0.05, 8, 0xf5df95);
         x.position.set(0, 0.17, z);
@@ -180,6 +210,24 @@
               S.add(w);
             }
           }
+      const cityData = [
+        { name: "Nova Liria", z: 305, color: 0x31c7b7 },
+        { name: "Puerto Alba", z: 105, color: 0x42a5e8 },
+        { name: "Valleverde", z: -105, color: 0x75bc4c },
+        { name: "Bahía Solar", z: -305, color: 0xf0b84a },
+      ];
+      function cityLandmark(city, index) {
+        const group = new T.Group();
+        for (const side of [-1, 1]) {
+          const tower = part(group, 8 + index, 28 + index * 7, 8, city.color, side * 31, 14 + index * 3.5, city.z);
+          tower.material = new T.MeshPhysicalMaterial({ color: city.color, roughness: 0.35, metalness: 0.28, clearcoat: 0.45 });
+          const crown = new T.Mesh(new T.ConeGeometry(5 + index * 0.4, 7, 8), mat(0xe6eef2, 0.32, 0.5));
+          crown.position.set(side * 31, 31 + index * 7, city.z); group.add(crown);
+        }
+        const bridge = part(group, 50, 1.1, 2, 0xd7e0e5, 0, 8.5, city.z + 8);
+        bridge.material = chrome; S.add(group);
+      }
+      cityData.forEach(cityLandmark);
       for (let z = -420; z < 440; z += 30)
         for (const q of [-20, 20]) {
           const tr = box(0.7, 5, 0.7, 0x70482a);
@@ -348,6 +396,16 @@
             const indicator = part(g, 0.5, 0.2, 0.13, 0xffa62b, p, 1.55, -7.31); indicator.material = mat(0xffa62b, 0.12, 0.2);
             const step = part(g, 0.78, 0.18, 1.75, 0x56636a, p, 0.68, -3.1); step.material = chrome;
           }
+          const visor = part(g, 4.5, 0.16, 0.72, 0x26363d, 0, 4.55, -6.85); visor.rotation.x = -0.12;
+          for (const p of [-1.25, 1.25]) {
+            const horn = new T.Mesh(new T.CylinderGeometry(0.1, 0.18, 1.15, 16), chrome);
+            horn.rotation.x = Math.PI / 2; horn.position.set(p, 5.25, -4.35); g.add(horn);
+            const wiper = part(g, 0.06, 1.55, 0.08, 0x101418, p, 3.45, -7.11); wiper.rotation.z = p < 0 ? -0.42 : 0.42;
+          }
+          for (const p of [-2.5, 2.5]) for (const z of [-4.6, 1.5, 7.5]) {
+            const guard = new T.Mesh(new T.TorusGeometry(1.13, 0.12, 10, 28, Math.PI), mat(0x273037, 0.55, 0.5));
+            guard.rotation.set(0, Math.PI / 2, 0); guard.position.set(p, 1.6, z); g.add(guard);
+          }
           for (const p of [-2.25, 2.25]) {
             const tank = new T.Mesh(new T.CylinderGeometry(0.62, 0.62, 3.2, 24), chrome);
             tank.rotation.z = Math.PI / 2; tank.position.set(p, 0.95, -0.25); g.add(tank);
@@ -420,6 +478,20 @@
         document.querySelector("#parking").classList.toggle("on", parkingBrake);
         document.querySelector("#parking").textContent = parkingBrake ? "Freno P activo" : "Freno P";
       };
+      const mapPanel = document.querySelector("#mapPanel"), mapCanvas = document.querySelector("#routeMap"), mapCtx = mapCanvas.getContext("2d");
+      document.querySelector("#mapButton").onclick = () => { mapPanel.hidden = !mapPanel.hidden; drawRouteMap(); };
+      document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
+      function drawRouteMap() {
+        const w = mapCanvas.width, h = mapCanvas.height, routeX = w / 2;
+        mapCtx.clearRect(0, 0, w, h); mapCtx.fillStyle = "#0b1822"; mapCtx.fillRect(0, 0, w, h);
+        mapCtx.strokeStyle = "#263b4d"; mapCtx.lineWidth = 34; mapCtx.beginPath(); mapCtx.moveTo(routeX, 22); mapCtx.lineTo(routeX, h - 22); mapCtx.stroke();
+        mapCtx.strokeStyle = "#f1d37a"; mapCtx.lineWidth = 3; mapCtx.setLineDash([13, 10]); mapCtx.beginPath(); mapCtx.moveTo(routeX, 22); mapCtx.lineTo(routeX, h - 22); mapCtx.stroke(); mapCtx.setLineDash([]);
+        const mapY = z => 28 + ((400 - z) / 800) * (h - 56);
+        mapCtx.font = "600 12px system-ui"; mapCtx.textBaseline = "middle";
+        cityData.forEach((city, index) => { const y = mapY(city.z); mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(routeX, y, 7, 0, 7); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = index % 2 ? "right" : "left"; mapCtx.fillText(city.name, routeX + (index % 2 ? -14 : 14), y); });
+        mapCtx.fillStyle = "#ff9d32"; mapCtx.fillRect(routeX - 28, mapY(roadworks.position.z + 70) - 4, 18, 8); mapCtx.fillStyle = "#a9b7c3"; mapCtx.fillRect(routeX + 10, mapY(-250) - 5, 22, 10);
+        const py = mapY(V?.position.z || 0); mapCtx.fillStyle = "#55f0c8"; mapCtx.beginPath(); mapCtx.moveTo(routeX, py - 10); mapCtx.lineTo(routeX - 7, py + 8); mapCtx.lineTo(routeX + 7, py + 8); mapCtx.closePath(); mapCtx.fill();
+      }
       document.querySelector("#rest").onclick = () => {
         if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
         fatigue = 0; parkingBrake = true; cruiseEnabled = false;
@@ -488,6 +560,7 @@
         if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); }
         if (bumpTime > 0) { bumpTime -= dt; V.position.y = Math.abs(Math.sin(bumpTime * 34)) * 0.12; } else V.position.y *= 0.72;
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
+        if (!mapPanel.hidden) drawRouteMap();
         if (V.position.z < -400) V.position.z = 400;
         V.rotation.z = steer * 0.07;
         document.querySelector("#speed").textContent =
