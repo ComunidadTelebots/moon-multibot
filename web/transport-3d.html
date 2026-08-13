@@ -168,7 +168,21 @@
       x.position.y = -0.6;
       S.add(x);
       x = box(30, 0.25, 900, 0x292e35);
+      x.material = new T.MeshStandardMaterial({ color: 0x252a30, roughness: 0.93, metalness: 0.02 });
       S.add(x);
+      for (const side of [-1, 1]) {
+        const shoulder = box(2.2, 0.18, 900, 0x686c6c);
+        shoulder.position.set(side * 16.1, -0.01, 0); S.add(shoulder);
+        const edgeLine = box(0.22, 0.035, 900, 0xf2f0dd);
+        edgeLine.position.set(side * 14.65, 0.16, 0); S.add(edgeLine);
+        if (qualityLevel >= 1) {
+          const rail = box(0.16, 0.22, 900, 0xaeb8bd);
+          rail.position.set(side * 18.1, 0.92, 0); rail.material = new T.MeshStandardMaterial({ color: 0xaeb8bd, roughness: 0.3, metalness: 0.78 }); S.add(rail);
+          for (let z = -430; z < 450; z += 7) {
+            const post = box(0.14, 1.05, 0.14, 0x7d878c); post.position.set(side * 18.1, 0.48, z); S.add(post);
+          }
+        }
+      }
       function terrainStrip(side) {
         const geometry = new T.PlaneGeometry(235, 900, qualityLevel >= 2 ? 34 : 18, qualityLevel >= 2 ? 90 : 45),
           positions = geometry.attributes.position;
@@ -185,6 +199,32 @@
         x = box(0.35, 0.05, 8, 0xf5df95);
         x.position.set(0, 0.17, z);
         S.add(x);
+      }
+      for (const laneX of [-5.6, 5.6])
+        for (let z = -430; z < 450; z += 15) {
+          const dash = box(0.16, 0.035, 7.5, 0xf4f4ed);
+          dash.position.set(laneX, 0.16, z); S.add(dash);
+        }
+      if (qualityLevel >= 2) {
+        for (let z = -390; z < 430; z += 90) for (const side of [-1, 1]) {
+          const pole = new T.Mesh(new T.CylinderGeometry(0.1, 0.16, 8, 10), mat(0x69767d, 0.35, 0.72));
+          pole.position.set(side * 21, 4, z); pole.castShadow = true; S.add(pole);
+          const arm = box(3.2, 0.12, 0.12, 0x69767d); arm.position.set(side * 19.5, 7.85, z); S.add(arm);
+          const streetLamp = new T.PointLight(0xffdf9b, 0, 28, 2);
+          streetLamp.position.set(side * 18, 7.55, z); streetLamp.userData.streetLamp = true; S.add(streetLamp);
+        }
+      }
+      for (let z = -360; z < 430; z += 120) {
+        const patch = box(5.2, 0.025, 14, 0x20252a);
+        patch.position.set(z % 240 ? -5.5 : 5.5, 0.145, z); S.add(patch);
+      }
+      for (const data of [{ z: 215, side: 1 }, { z: -35, side: -1 }, { z: -285, side: 1 }]) {
+        const sign = new T.Group();
+        const pole = new T.Mesh(new T.CylinderGeometry(0.08, 0.11, 3.4, 10), mat(0x8c989e, 0.3, 0.75));
+        pole.position.y = 1.7; sign.add(pole);
+        const board = box(2.8, 1.4, 0.12, 0x176b48); board.position.y = 3.25; sign.add(board);
+        const inset = box(2.45, 0.12, 0.14, 0xf4f6e9); inset.position.set(0, 3.25, -0.1); sign.add(inset);
+        sign.position.set(data.side * 20.5, 0, data.z); sign.rotation.y = data.side < 0 ? Math.PI : 0; S.add(sign);
       }
       const cityRadius = [3, 5, 7, 9][qualityLevel], cityRows = [3, 4, 6, 8][qualityLevel];
       for (let n = -cityRadius; n <= cityRadius; n++)
@@ -299,6 +339,8 @@
         t.rotation.z = hub.rotation.z = Math.PI / 2;
         w.add(t, hub);
         w.position.set(px, 1, pz);
+        w.userData.isWheel = true;
+        w.userData.frontWheel = pz < -3;
         return w;
       }
       function part(g, w, h, d, c, px, py, pz) {
@@ -411,6 +453,21 @@
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
           trailer.material = new T.MeshPhysicalMaterial({ color: 0xd9e0e5, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           part(g, 5.18, 0.28, 11.5, 0x159b95, 0, 1.45, 4.5);
+          part(g, 1.05, 0.28, 10.8, 0x20282e, -1.5, 0.62, 4.25);
+          part(g, 1.05, 0.28, 10.8, 0x20282e, 1.5, 0.62, 4.25);
+          for (let z = -0.25; z <= 9.3; z += 1.35) {
+            for (const side of [-1, 1]) {
+              const rib = part(g, 0.1, 4.05, 0.1, 0xaeb9c0, side * 2.58, 3.1, z);
+              rib.material = chrome;
+            }
+          }
+          const rearDoor = part(g, 4.86, 3.95, 0.16, 0xc9d2d7, 0, 3.08, 10.45);
+          rearDoor.material = new T.MeshStandardMaterial({ color: 0xd7dee2, roughness: 0.48, metalness: 0.34 });
+          part(g, 0.1, 3.72, 0.2, 0x59656b, 0, 3.08, 10.56);
+          for (const px of [-1.98, 1.98]) {
+            const lock = new T.Mesh(new T.CylinderGeometry(0.07, 0.07, 3.45, 10), chrome);
+            lock.position.set(px, 3.05, 10.61); g.add(lock);
+          }
           let wind = part(g, 4.15, 1.75, 0.12, 0x173d52, 0, 3.55, -6.97);
           wind.material = glass;
           const divider = part(g, 0.09, 1.72, 0.15, 0x111820, 0, 3.55, -7.06);
@@ -423,6 +480,12 @@
           part(g, 3.65, 0.82, 0.2, 0x121a20, 0, 1.72, -7.16);
           for (let gx = -1.55; gx <= 1.55; gx += 0.52) part(g, 0.09, 0.64, 0.1, 0x74838a, gx, 1.72, -7.28);
           part(g, 1.3, 0.2, 0.1, 0xe6edf0, 0, 2.35, -7.2);
+          const lowerLip = part(g, 4.25, 0.28, 0.55, 0x172329, 0, 0.68, -6.95);
+          lowerLip.rotation.x = -0.12;
+          for (const px of [-1.72, 1.72]) {
+            const fogLamp = new T.Mesh(new T.CylinderGeometry(0.2, 0.2, 0.1, 18), lamp);
+            fogLamp.rotation.x = Math.PI / 2; fogLamp.position.set(px, 0.84, -7.24); g.add(fogLamp);
+          }
           for (const p of [-2.18, 2.18]) {
             const indicator = part(g, 0.5, 0.2, 0.13, 0xffa62b, p, 1.55, -7.31); indicator.material = mat(0xffa62b, 0.12, 0.2);
             const step = part(g, 0.78, 0.18, 1.75, 0x56636a, p, 0.68, -3.1); step.material = chrome;
@@ -445,6 +508,10 @@
           }
           const fifthWheel = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 0.22, 28), mat(0x171b1f, 0.75, 0.5));
           fifthWheel.position.set(0, 1.45, 0.25); g.add(fifthWheel);
+          for (const side of [-1, 1]) {
+            const skirt = part(g, 0.18, 1.05, 5.1, 0x159b95, side * 2.52, 1.03, 4.2);
+            skirt.material = paint;
+          }
           for (let z = 0; z < 9.5; z += 1.1) part(g, 5.16, 0.045, 0.055, 0xaab5bb, 0, 3.05, z);
           for (const z of [-4.6, 1.5, 7.5])
             for (const p of [-2.45, 2.45]) g.add(wheel(p, z));
@@ -688,6 +755,17 @@
           "Valleverde",
           "Bahía Solar",
         ][Math.max(0, Math.floor((420 - V.position.z) / 205) % 4)];
+        V.traverse((part) => {
+          if (!part.userData.isWheel) return;
+          part.rotation.x -= speed * dt * 0.045;
+          if (part.userData.frontWheel) part.rotation.y += (steer * 0.32 - part.rotation.y) * Math.min(1, dt * 9);
+        });
+        if (onFoot) {
+          const walking = accelerating || braking || left || right;
+          worker.position.y = walking ? Math.abs(Math.sin(now * 0.012)) * 0.08 : 0;
+          worker.rotation.z = walking ? Math.sin(now * 0.012) * 0.035 : 0;
+          palletJack.rotation.z = walking && workTool === "palletJack" ? Math.sin(now * 0.014) * 0.025 : 0;
+        }
         camera(dt, now);
         R.render(S, C);
         requestAnimationFrame(loop);
@@ -789,6 +867,9 @@
               : 0xa6d0e5,
         );
         sun.intensity = weatherMode === 2 ? 0.45 : weatherMode === 1 ? 1.3 : 3;
+        S.traverse((object) => {
+          if (object.userData.streetLamp) object.intensity = weatherMode === 2 ? 18 : weatherMode === 1 ? 4 : 0;
+        });
       };
       document.querySelector(".controls").appendChild(weatherButton);
       function worldLoop() {
@@ -796,6 +877,9 @@
           for (let i = 0; i < traffic3d.length; i++) {
             const o = traffic3d[i];
             o.position.z += o.userData.direction * o.userData.roadSpeed;
+            o.traverse((part) => {
+              if (part.userData.isWheel) part.rotation.x -= o.userData.roadSpeed * 0.26;
+            });
             if (o.position.z > V.position.z + 110 || o.position.z < V.position.z - 650) {
               o.position.z = V.position.z - 260 - Math.random() * 360;
               const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
