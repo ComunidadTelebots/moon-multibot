@@ -55,11 +55,29 @@ export function resolveRegion(position = {}) {
   return lat >= 0 ? "north_america" : "oceania";
 }
 
+export const ENVIRONMENT_ATLAS_URL = "./generated-textures/world-environment-material-atlas-v1.png";
+export const ENVIRONMENT_TEXTURE_URLS = Object.freeze(Object.fromEntries([
+  "terrain", "soil", "rock", "snow", "sand", "shoulder", "concrete", "brick",
+  "architecture", "masonry", "roof", "timber", "vegetation", "industrial-floor", "port", "airport",
+].map(name => [name === "industrial-floor" ? "industrialFloor" : name, `./generated-textures/environment-${name}-v1.png`])));
+export const ENVIRONMENT_ATLAS_TILES = Object.freeze({
+  terrain: [0, 0], soil: [1, 0], rock: [2, 0], snow: [3, 0],
+  sand: [0, 1], shoulder: [1, 1], concrete: [2, 1], brick: [3, 1],
+  architecture: [0, 2], masonry: [1, 2], roof: [2, 2], timber: [3, 2],
+  vegetation: [0, 3], industrialFloor: [1, 3], port: [2, 3], airport: [3, 3],
+});
+
+export function environmentAtlasTransform(name) {
+  const tile = ENVIRONMENT_ATLAS_TILES[name];
+  if (!tile) return null;
+  return { repeat: [.25, .25], offset: [tile[0] * .25, .75 - tile[1] * .25] };
+}
+
 export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 2, seed = "moon-world" } = {}) {
   if (!T) throw new Error("THREE is required");
   const regionId = resolveRegion(region || coordinates || {}), profile = REGIONAL_PROFILES[regionId];
   const quality = clamp(Math.floor(finite(qualityLevel, 2)), 0, 3), size = [128, 256, 512, 1024][quality];
-  const textures = [], materials = {};
+  const textures = [], materials = {}, authored = quality >= 2;
   const texture = (name, palette, pattern = "noise", { color = true, repeat = null } = {}) => {
     const canvas = document.createElement("canvas"); canvas.width = canvas.height = size;
     const context = canvas.getContext("2d", { alpha: false }), random = randomFactory(hash(`${seed}:${regionId}:${name}`));
@@ -88,39 +106,61 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     if (detailMap) { materials[name].roughnessMap = detailMap; materials[name].bumpMap = detailMap; materials[name].bumpScale = bumpScale; }
     return materials[name];
   };
-  make("asphalt", "#34373a", texture("asphalt", ["#34373a", "#202326", "#62605a"], "noise", { repeat: [3, 48] }), { roughness: .93, detailMap: detail("asphalt", [3, 48]), bumpScale: .035 });
-  make("terrain", profile.terrain[0], texture("terrain", profile.terrain), { roughness: .98, detailMap: detail("terrain", [16, 16]), bumpScale: .07 });
-  make("vegetation", profile.vegetation[0], texture("vegetation", profile.vegetation), { roughness: .96, detailMap: detail("vegetation", [4, 4]), bumpScale: .045 });
-  make("architecture", profile.facade, texture("architecture", [profile.facade, "#766f65", "#e1d7c5"], "facade"), { detailMap: detail("architecture", [3, 3]), bumpScale: .035 });
-  make("roof", profile.roof, texture("roof", [profile.roof, "#3d4142", "#a27c5c"], "roof"), { roughness: .92, detailMap: detail("roof", [4, 4]), bumpScale: .045 });
-  make("shoulder", profile.shoulder, texture("shoulder", [profile.shoulder, "#77736b", "#ddd7c9"], "marking", { repeat: [5, 32] }), { roughness: .96, detailMap: detail("shoulder", [5, 32]), bumpScale: .025 });
-  make("soil", profile.terrain[2], texture("soil", [profile.terrain[2], profile.terrain[1], "#43372b"], "noise", { repeat: [12, 12] }), { roughness: 1, detailMap: detail("soil", [12, 12]), bumpScale: .09 });
-  make("rock", profile.shoulder, texture("rock", [profile.shoulder, "#686761", "#a7a49a"], "noise", { repeat: [8, 8] }), { roughness: .97, detailMap: detail("rock", [8, 8]), bumpScale: .11 });
-  make("sign", profile.sign, texture("sign", [profile.sign, "#f2f5ee", "#123b55"], "marking"), { roughness: .45, metalness: .12 });
-  make("port", profile.port, texture("port", [profile.port, "#263a41", "#b6c0c0"], "facade"), { roughness: .64, metalness: .28 });
-  make("airport", profile.airport, texture("airport", [profile.airport, "#2f3538", "#d8d8cf"], "marking"), { roughness: .7, metalness: .08 });
+  const generated = (name, palette, pattern, options) => authored ? null : texture(name, palette, pattern, options);
+  const generatedDetail = (name, repeat) => authored ? null : detail(name, repeat);
+  make("asphalt", "#34373a", generated("asphalt", ["#34373a", "#202326", "#62605a"], "noise", { repeat: [3, 48] }), { roughness: .93, detailMap: generatedDetail("asphalt", [3, 48]), bumpScale: .035 });
+  make("terrain", profile.terrain[0], generated("terrain", profile.terrain), { roughness: .98, detailMap: generatedDetail("terrain", [16, 16]), bumpScale: .07 });
+  make("vegetation", profile.vegetation[0], generated("vegetation", profile.vegetation), { roughness: .96, detailMap: generatedDetail("vegetation", [4, 4]), bumpScale: .045 });
+  make("architecture", profile.facade, generated("architecture", [profile.facade, "#766f65", "#e1d7c5"], "facade"), { detailMap: generatedDetail("architecture", [3, 3]), bumpScale: .035 });
+  make("roof", profile.roof, generated("roof", [profile.roof, "#3d4142", "#a27c5c"], "roof"), { roughness: .92, detailMap: generatedDetail("roof", [4, 4]), bumpScale: .045 });
+  make("shoulder", profile.shoulder, generated("shoulder", [profile.shoulder, "#77736b", "#ddd7c9"], "marking", { repeat: [5, 32] }), { roughness: .96, detailMap: generatedDetail("shoulder", [5, 32]), bumpScale: .025 });
+  make("soil", profile.terrain[2], generated("soil", [profile.terrain[2], profile.terrain[1], "#43372b"], "noise", { repeat: [12, 12] }), { roughness: 1, detailMap: generatedDetail("soil", [12, 12]), bumpScale: .09 });
+  make("sand", "#b99b68", generated("sand", ["#b99b68", "#d2b77f", "#806a49"], "noise", { repeat: [12, 12] }), { roughness: 1, detailMap: generatedDetail("sand", [12, 12]), bumpScale: .06 });
+  make("rock", profile.shoulder, generated("rock", [profile.shoulder, "#686761", "#a7a49a"], "noise", { repeat: [8, 8] }), { roughness: .97, detailMap: generatedDetail("rock", [8, 8]), bumpScale: .11 });
+  make("concrete", "#8c8b84", generated("concrete", ["#8c8b84", "#5e605e", "#b5b2aa"], "noise", { repeat: [6, 6] }), { roughness: .94, detailMap: generatedDetail("concrete", [6, 6]), bumpScale: .035 });
+  make("brick", "#8f4f3c", generated("brick", ["#8f4f3c", "#5e332b", "#c28b71"], "roof", { repeat: [6, 6] }), { roughness: .93, detailMap: generatedDetail("brick", [6, 6]), bumpScale: .055 });
+  make("sign", profile.sign, generated("sign", [profile.sign, "#f2f5ee", "#123b55"], "marking"), { roughness: .45, metalness: .12 });
+  make("port", profile.port, generated("port", [profile.port, "#263a41", "#b6c0c0"], "facade"), { roughness: .64, metalness: .28 });
+  make("airport", profile.airport, generated("airport", [profile.airport, "#2f3538", "#d8d8cf"], "marking"), { roughness: .7, metalness: .08 });
   // Verified gaps: operational interiors, exposed timber/masonry and regional fleet
   // finishes were previously forced through the generic facade/port materials.
-  make("industrialFloor", "#747a7b", texture("industrial_floor", ["#747a7b", "#3e4548", "#a5a6a0"], "marking", { repeat: [8, 20] }), { roughness: .82, metalness: .05, detailMap: detail("industrial_floor", [8, 20]), bumpScale: .028 });
-  make("masonry", profile.facade, texture("masonry", [profile.facade, profile.roof, "#d8cdbb"], "roof", { repeat: [5, 5] }), { roughness: .94, detailMap: detail("masonry", [5, 5]), bumpScale: .075 });
-  make("timber", "#76583e", texture("timber", ["#76583e", "#3f3025", "#aa8058"], "roof", { repeat: [2, 7] }), { roughness: .84, detailMap: detail("timber", [2, 7]), bumpScale: .045 });
-  make("vehicleBody", profile.sign, texture("vehicle_body", [profile.sign, "#e6eceb", "#28343a"], "noise", { repeat: [1, 1] }), { roughness: .34, metalness: .22, detailMap: detail("vehicle_body", [1, 1]), bumpScale: .008 });
-  make("snow", "#dce5e6", texture("snow", ["#dce5e6", "#f4f6f3", "#aebfc2"], "noise", { repeat: [10, 10] }), { roughness: .98, detailMap: detail("snow", [10, 10]), bumpScale: .12 });
+  make("industrialFloor", "#747a7b", generated("industrial_floor", ["#747a7b", "#3e4548", "#a5a6a0"], "marking", { repeat: [8, 20] }), { roughness: .82, metalness: .05, detailMap: generatedDetail("industrial_floor", [8, 20]), bumpScale: .028 });
+  make("masonry", profile.facade, generated("masonry", [profile.facade, profile.roof, "#d8cdbb"], "roof", { repeat: [5, 5] }), { roughness: .94, detailMap: generatedDetail("masonry", [5, 5]), bumpScale: .075 });
+  make("timber", "#76583e", generated("timber", ["#76583e", "#3f3025", "#aa8058"], "roof", { repeat: [2, 7] }), { roughness: .84, detailMap: generatedDetail("timber", [2, 7]), bumpScale: .045 });
+  make("vehicleBody", profile.sign, generated("vehicle_body", [profile.sign, "#e6eceb", "#28343a"], "noise", { repeat: [1, 1] }), { roughness: .34, metalness: .22, detailMap: generatedDetail("vehicle_body", [1, 1]), bumpScale: .008 });
+  make("snow", "#dce5e6", generated("snow", ["#dce5e6", "#f4f6f3", "#aebfc2"], "noise", { repeat: [10, 10] }), { roughness: .98, detailMap: generatedDetail("snow", [10, 10]), bumpScale: .12 });
+
+  let disposed = false;
+  const authoredRepeats = { terrain: [16, 16], vegetation: [5, 5], architecture: [3, 3], roof: [5, 5], shoulder: [5, 32], soil: [12, 12], sand: [12, 12], rock: [8, 8], concrete: [6, 6], brick: [6, 6], port: [4, 4], airport: [6, 18], industrialFloor: [8, 20], masonry: [5, 5], timber: [3, 8], snow: [10, 10] };
+  const ready = authored ? Promise.all(Object.entries(authoredRepeats).map(([name, repetitions]) => new Promise((resolve) => {
+    const url = ENVIRONMENT_TEXTURE_URLS[name];
+    if (!url || !materials[name]) { resolve(false); return; }
+    new T.TextureLoader().load(url, (map) => {
+      if (disposed) { map.dispose(); resolve(false); return; }
+      map.name = `authored_environment_${name}`; map.wrapS = map.wrapT = T.RepeatWrapping;
+      map.repeat.set(...repetitions); map.anisotropy = [1, 2, 8, 16][quality];
+      if (T.SRGBColorSpace) map.colorSpace = T.SRGBColorSpace;
+      map.needsUpdate = true; textures.push(map); materials[name].map = map; materials[name].needsUpdate = true; resolve(true);
+    }, undefined, () => resolve(false));
+  }))).then(results => results.every(Boolean)) : Promise.resolve(true);
 
   function materialFor(object) {
     const label = `${object.name || ""} ${object.userData?.surface || ""} ${object.userData?.regionalSurface || ""}`.toLowerCase();
     if (/vehicle_body|fleet_body|regional_vehicle|service_vehicle_body/.test(label)) return materials.vehicleBody;
     if (/snow|ice_bank|snowbank/.test(label)) return materials.snow;
     if (/hangar_floor|warehouse_floor|station_floor|garage_floor|industrial_floor/.test(label)) return materials.industrialFloor;
-    if (/brick|masonry|stone_wall/.test(label)) return materials.masonry;
+    if (/brick/.test(label)) return materials.brick;
+    if (/masonry|stone_wall/.test(label)) return materials.masonry;
     if (/timber|wood|wooden/.test(label)) return materials.timber;
     if (/airport|runway|taxiway|hangar|apron/.test(label)) return materials.airport;
     if (/port|harbour|harbor|dock|quay|terminal|crane/.test(label)) return materials.port;
     if (/sign|gantry|bollard/.test(label)) return materials.sign;
     if (/road|asphalt|tarmac/.test(label)) return materials.asphalt;
+    if (/concrete|cement|retaining_wall/.test(label)) return materials.concrete;
     if (/shoulder|kerb|curb|pavement|sidewalk|footway/.test(label)) return materials.shoulder;
     if (/mountain|rock|cliff|stone/.test(label)) return materials.rock;
-    if (/soil|earth|dirt|sand/.test(label)) return materials.soil;
+    if (/sand|dune|beach|desert/.test(label)) return materials.sand;
+    if (/soil|earth|dirt/.test(label)) return materials.soil;
     if (/roof|parapet/.test(label)) return materials.roof;
     if (/building|facade|architecture|warehouse/.test(label)) return materials.architecture;
     if (/tree|leaf|leaves|forest|hedge|vegetation/.test(label)) return materials.vegetation;
@@ -156,8 +196,8 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     });
     return applied;
   }
-  function dispose() { textures.forEach(value => value.dispose()); Object.values(materials).forEach(value => value.dispose()); }
-  return { region: regionId, profile, qualityLevel: quality, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain, industrialFloor: materials.industrialFloor, masonry: materials.masonry, timber: materials.timber, vehicleBody: materials.vehicleBody, snow: materials.snow }, applyTo, applyWeather, dispose };
+  function dispose() { disposed = true; textures.forEach(value => value.dispose()); Object.values(materials).forEach(value => value.dispose()); }
+  return { region: regionId, profile, qualityLevel: quality, authored, ready, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain, sand: materials.sand, concrete: materials.concrete, brick: materials.brick, industrialFloor: materials.industrialFloor, masonry: materials.masonry, timber: materials.timber, vehicleBody: materials.vehicleBody, snow: materials.snow }, applyTo, applyWeather, dispose };
 }
 
-export default { REGIONAL_PROFILES, WEATHER_MATERIAL_STATES, resolveRegion, createMaterials };
+export default { REGIONAL_PROFILES, WEATHER_MATERIAL_STATES, ENVIRONMENT_ATLAS_URL, ENVIRONMENT_TEXTURE_URLS, ENVIRONMENT_ATLAS_TILES, environmentAtlasTransform, resolveRegion, createMaterials };
