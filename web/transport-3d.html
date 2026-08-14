@@ -237,6 +237,7 @@
       import { createAmbientLife } from "./transport-ambient-life.js";
       import { createCityLife } from "./transport-city-life.js";
       import { createBakedMaterialLibrary } from "./transport-baked-materials.js";
+      import { createAsterStaticModelLoader } from "./transport-aster-static-model.js";
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
       import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
       import { createWeighStation } from "./transport-weigh-station.js";
@@ -586,7 +587,7 @@
           const tree = worldDetail.createTree({ seed: Math.abs(z + q) * .013, height: 8.5 + Math.abs((z * 7 + q) % 5) });
           tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
         }
-      let V, specialTransport, detailedTruckExterior = null, vehicleAnimationRig = null,
+      let V, specialTransport, detailedTruckExterior = null, asterStaticModel = null, vehicleAnimationRig = null,
         kind = "truck",
         view = 0,
         cameraReady = false,
@@ -790,6 +791,7 @@
           }
       }
       function build(type) {
+        asterStaticModel?.dispose();asterStaticModel=null;
         specialTransport?.dispose(); specialTransport = null;
         if (V) { V.userData.disposeCabin?.(); S.remove(V); }
         detailedTruckExterior = null;
@@ -838,6 +840,8 @@
           cab.visible = roof.visible = false;
           detailedTruckExterior = createDetailedTruckExterior({ THREE: T, paint, glass, chrome, textureMaps: textures.maps, qualityLevel });
           g.add(detailedTruckExterior);
+          asterStaticModel=createAsterStaticModelLoader({THREE:T,qualityLevel});
+          asterStaticModel.apply(detailedTruckExterior).then(()=>bakedMaterials.ready.then(()=>bakedMaterials.apply(g))).catch(error=>console.warn("No se cargo la carroceria estatica Aster",error));
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
           trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           trailer.material.userData.vehicleSurface = "commercial";
