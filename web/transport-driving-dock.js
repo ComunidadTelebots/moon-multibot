@@ -11,8 +11,13 @@ export function createTransportDrivingDock({ controls = document.querySelector("
   controls.classList.add("driving-dock");
 
   const hud = document.querySelector(".hud");
+  const driveHeader = document.createElement("header");
+  driveHeader.className = "moon-drive-header";
+  driveHeader.innerHTML = \`<div class="moon-drive-brand"><small>TODO SOBRE ALLTECH STUDIOS</small><b>Rutas del Continente</b></div><div class="moon-drive-route"><small>RUTA ACTIVA</small><b data-live-city>En carretera</b><span data-live-road>Sin incidencias</span></div><div><small>VEHÍCULO · CÁMARA</small><b data-live-vehicle>Aster Viento 3D</b><span data-live-view>Exterior</span></div>\`;
+  document.body.append(driveHeader);
   if (hud) {
     hud.classList.add("moon-route-hud");
+    hud.hidden = true;
     Array.from(hud.querySelectorAll(".pill")).forEach(pill => {
       const id = pill.querySelector("b")?.id;
       pill.classList.add(id === "vn" ? "moon-hud-vehicle" : id === "city" ? "moon-hud-city" : id === "roadEvent" ? "moon-hud-road" : id === "view" ? "moon-hud-view" : "moon-hud-secondary");
@@ -33,13 +38,16 @@ export function createTransportDrivingDock({ controls = document.querySelector("
     .driving-dock .dock-close{display:block!important;width:38px!important;min-height:38px!important;padding:4px!important;text-align:center!important}
     body:not(.controls-expanded) .driving-dock .dock-grid button{display:block!important}
     .driving-dock>#moreControls{margin-left:3px;flex:0 0 52px;font-size:0!important;border-color:#54ead455!important;background:#12302f!important}.driving-dock>#moreControls::before{content:"☰";display:block;color:#67efdc;font-size:18px}.driving-dock>#moreControls::after{content:"Menú";display:block;color:#9dc0c3;font-size:8px}
-    .hud.moon-route-hud{display:grid!important;grid-template-columns:minmax(150px,1fr) minmax(180px,1.35fr) minmax(150px,1fr);max-width:min(700px,calc(100vw - 390px))!important}.hud.moon-route-hud .pill{min-width:0}.hud.moon-route-hud .pill b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hud.moon-route-hud .moon-hud-secondary{display:none}.hud.moon-route-hud .moon-hud-road{border-color:#f49a3255!important;background:linear-gradient(145deg,#392516d9,#171d24d9)!important}.hud.moon-route-hud .moon-hud-road b{color:#ffc070!important}.moon-driving .hud.moon-route-hud{opacity:.72}.moon-driving .hud.moon-route-hud:hover{opacity:1}
+    .moon-drive-header{position:fixed;z-index:11;left:12px;top:12px;display:grid;grid-template-columns:minmax(180px,1fr) minmax(200px,1.25fr) minmax(170px,1fr);width:min(650px,calc(100vw - 390px));min-height:64px;padding:6px;border:1px solid #345462;border-radius:17px;background:linear-gradient(120deg,#07151ff2,#0d2b36e8);box-shadow:0 14px 44px #0009;backdrop-filter:blur(18px)}.moon-drive-header>div{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:6px 10px;border-right:1px solid #ffffff12}.moon-drive-header>div:last-child{border:0}.moon-drive-header small{color:#6ccfc4;font-size:8px;font-weight:800;letter-spacing:.1em}.moon-drive-header b{margin-top:2px;overflow:hidden;color:#f2ffff;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.moon-drive-header span{margin-top:2px;overflow:hidden;color:#8da9b5;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.moon-drive-route span{color:#ffb363}.hud.moon-route-hud{display:none!important}
     @media(max-width:900px){.driving-dock{max-width:calc(100vw - 205px)!important}.driving-dock .dock-tab{grid-template-columns:22px 1fr;padding-inline:7px!important}.driving-dock .dock-tab small{display:none}.driving-dock .dock-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
-    @media(max-width:700px){.driving-dock{left:6px!important;right:6px!important;bottom:66px!important;max-width:none!important;transform:none!important;overflow:visible!important}.driving-dock .dock-primary{flex:1;grid-template-columns:repeat(4,1fr)}.driving-dock .dock-tab{display:flex!important;flex-direction:column;justify-content:center;gap:3px;min-height:52px!important;padding:5px 2px!important;text-align:center}.driving-dock .dock-tab-icon{width:22px;height:22px}.driving-dock .dock-tab-label{font-size:9px}.driving-dock .dock-tab small{display:none}.driving-dock .dock-overflow{bottom:124px;max-height:46vh;padding:10px}.driving-dock .dock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{min-height:48px!important}.driving-dock>#moreControls{min-width:48px;flex-basis:48px}.hud.moon-route-hud{grid-template-columns:1fr 1fr;max-width:calc(100vw - 12px)!important}.hud.moon-route-hud .moon-hud-vehicle{display:none}.hud.moon-route-hud .pill{padding:6px 8px!important}}
+    @media(max-width:700px){.moon-drive-header{left:6px;right:6px;top:6px;width:auto;grid-template-columns:1fr 1fr;min-height:56px}.moon-drive-brand{display:none!important}.moon-drive-header>div{padding:4px 7px}.driving-dock{left:6px!important;right:6px!important;bottom:66px!important;max-width:none!important;transform:none!important;overflow:visible!important}.driving-dock .dock-primary{flex:1;grid-template-columns:repeat(4,1fr)}.driving-dock .dock-tab{display:flex!important;flex-direction:column;justify-content:center;gap:3px;min-height:52px!important;padding:5px 2px!important;text-align:center}.driving-dock .dock-tab-icon{width:22px;height:22px}.driving-dock .dock-tab-label{font-size:9px}.driving-dock .dock-tab small{display:none}.driving-dock .dock-overflow{bottom:124px;max-height:46vh;padding:10px}.driving-dock .dock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{min-height:48px!important}.driving-dock>#moreControls{min-width:48px;flex-basis:48px}}
     @media(max-width:390px){.driving-dock .dock-grid{grid-template-columns:1fr}}
     @media(prefers-reduced-motion:reduce){.driving-dock *{scroll-behavior:auto!important;transition:none!important}}
   `;
   document.head.append(style);
+  const liveSources={city:document.getElementById("city"),road:document.getElementById("roadEvent"),vehicle:document.getElementById("vn"),view:document.getElementById("view")};
+  const syncHeader=()=>{driveHeader.querySelector("[data-live-city]").textContent=liveSources.city?.textContent||"En carretera";driveHeader.querySelector("[data-live-road]").textContent=liveSources.road?.textContent||"Sin incidencias";driveHeader.querySelector("[data-live-vehicle]").textContent=liveSources.vehicle?.textContent||"Aster Viento 3D";driveHeader.querySelector("[data-live-view]").textContent=liveSources.view?.textContent||"Exterior"};
+  syncHeader();const liveObserver=new MutationObserver(syncHeader);Object.values(liveSources).forEach(node=>node&&liveObserver.observe(node,{childList:true,characterData:true,subtree:true}));
 
   const primary = document.createElement("div");
   primary.className = "dock-primary";
@@ -109,7 +117,7 @@ export function createTransportDrivingDock({ controls = document.querySelector("
   const onKey = event => { if (event.key === "Escape" && !overflow.hidden) { show(""); event.stopPropagation(); } };
   document.addEventListener("keydown", onKey, true);
 
-  return { close: () => show(""), dispose() { observer.disconnect(); controls.removeEventListener("click", interceptMore, true); document.removeEventListener("keydown", onKey, true); style.remove(); } };
+  return { close: () => show(""), dispose() { observer.disconnect();liveObserver.disconnect();driveHeader.remove();if(hud)hud.hidden=false;controls.removeEventListener("click", interceptMore, true); document.removeEventListener("keydown", onKey, true); style.remove(); } };
 }
 
 export default createTransportDrivingDock;
