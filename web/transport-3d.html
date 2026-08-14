@@ -241,7 +241,7 @@
       import { createAmbientLife } from "./transport-ambient-life.js";
       import { createCityLife } from "./transport-city-life.js";
       import { createBakedMaterialLibrary } from "./transport-baked-materials.js";
-      import { createAsterStaticModelLoader } from "./transport-aster-static-model.js";
+      import { createAsterStaticModelLoader } from "./transport-aster-static-model.js?v=20260815-profile2";
       import { createAsterStaticCabinLoader } from "./transport-aster-static-cabin.js";
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
       import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
@@ -855,7 +855,7 @@
           detailedTruckExterior = createDetailedTruckExterior({ THREE: T, paint, glass, chrome, textureMaps: textures.maps, qualityLevel });
           g.add(detailedTruckExterior);
           asterStaticModel=createAsterStaticModelLoader({THREE:T,qualityLevel});
-          asterStaticModel.apply(detailedTruckExterior).then(()=>bakedMaterials.ready.then(()=>bakedMaterials.apply(g))).catch(error=>console.warn("No se cargo la carroceria estatica Aster",error));
+          asterStaticModel.apply(detailedTruckExterior).then(ok=>{if(ok)document.querySelector("#vn").title=`Carrocería estática ${asterStaticModel.profile}`;return bakedMaterials.ready.then(()=>bakedMaterials.apply(g))}).catch(error=>console.warn("No se cargo la carroceria estatica Aster",error));
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
           trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           trailer.material.userData.vehicleSurface = "commercial";
