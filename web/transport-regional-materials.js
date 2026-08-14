@@ -59,6 +59,12 @@ export const ENVIRONMENT_ATLAS_URL = "./generated-textures/world-environment-mat
 export const ENVIRONMENT_TEXTURE_URLS = Object.freeze(Object.fromEntries([
   "terrain", "soil", "rock", "snow", "sand", "shoulder", "concrete", "brick",
   "architecture", "masonry", "roof", "timber", "vegetation", "industrial-floor", "port", "airport",
+  "cobblestone", "cracked-asphalt", "tropical-mud", "forest-floor", "autumn-leaves", "crop-field",
+  "dry-grass", "volcanic-rock", "rail-ballast", "platform-paving", "corrugated-metal", "painted-plaster",
+  "glass-facade", "ceramic-roof", "water", "ice",
+  "adobe", "sandstone", "limestone", "granite-masonry", "timber-siding", "bamboo", "breeze-block",
+  "painted-metal", "asphalt-shingles", "thatch-roof", "zinc-roof", "copper-roof", "tunnel-concrete",
+  "drainage-grate", "winter-slush", "red-clay",
 ].map(name => [name === "industrial-floor" ? "industrialFloor" : name, `./generated-textures/environment-${name}-v1.png`])));
 export const ENVIRONMENT_ATLAS_TILES = Object.freeze({
   terrain: [0, 0], soil: [1, 0], rock: [2, 0], snow: [3, 0],
@@ -129,9 +135,42 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
   make("timber", "#76583e", generated("timber", ["#76583e", "#3f3025", "#aa8058"], "roof", { repeat: [2, 7] }), { roughness: .84, detailMap: generatedDetail("timber", [2, 7]), bumpScale: .045 });
   make("vehicleBody", profile.sign, generated("vehicle_body", [profile.sign, "#e6eceb", "#28343a"], "noise", { repeat: [1, 1] }), { roughness: .34, metalness: .22, detailMap: generatedDetail("vehicle_body", [1, 1]), bumpScale: .008 });
   make("snow", "#dce5e6", generated("snow", ["#dce5e6", "#f4f6f3", "#aebfc2"], "noise", { repeat: [10, 10] }), { roughness: .98, detailMap: generatedDetail("snow", [10, 10]), bumpScale: .12 });
+  const authoredOnly = (name, color, roughness, metalness = .01, options = {}) => make(name, color, null, { roughness, metalness, ...options });
+  authoredOnly("cobblestone", "#777873", .94);
+  authoredOnly("cracked-asphalt", "#303235", .95);
+  authoredOnly("tropical-mud", "#59483c", .72);
+  authoredOnly("forest-floor", "#514536", .98);
+  authoredOnly("autumn-leaves", "#76543a", .96);
+  authoredOnly("crop-field", "#587342", .97);
+  authoredOnly("dry-grass", "#938363", .98);
+  authoredOnly("volcanic-rock", "#303337", .91);
+  authoredOnly("rail-ballast", "#777977", .97);
+  authoredOnly("platform-paving", "#92928d", .91);
+  authoredOnly("corrugated-metal", "#7f898c", .58, .38);
+  authoredOnly("painted-plaster", "#d1c8b6", .89);
+  authoredOnly("glass-facade", "#7899a8", .16, .2, { envMapIntensity: 1.35 });
+  authoredOnly("ceramic-roof", "#a95336", .84);
+  authoredOnly("water", "#285d6a", .12, .04, { transparent: true, opacity: .9, envMapIntensity: 1.5 });
+  authoredOnly("ice", "#b7ced7", .24, .02, { transparent: true, opacity: .92, envMapIntensity: 1.3 });
+  authoredOnly("adobe", "#b99161", .97);
+  authoredOnly("sandstone", "#b88e5a", .92);
+  authoredOnly("limestone", "#c9c2ad", .91);
+  authoredOnly("granite-masonry", "#777a78", .94);
+  authoredOnly("timber-siding", "#75604d", .87);
+  authoredOnly("bamboo", "#a88955", .83);
+  authoredOnly("breeze-block", "#878781", .96);
+  authoredOnly("painted-metal", "#82958d", .52, .28);
+  authoredOnly("asphalt-shingles", "#3d4145", .91);
+  authoredOnly("thatch-roof", "#9b835b", .98);
+  authoredOnly("zinc-roof", "#858c8e", .56, .42);
+  authoredOnly("copper-roof", "#628b82", .48, .45);
+  authoredOnly("tunnel-concrete", "#676762", .96);
+  authoredOnly("drainage-grate", "#555957", .6, .65);
+  authoredOnly("winter-slush", "#a6aaa6", .76);
+  authoredOnly("red-clay", "#9d5837", .98);
 
   let disposed = false;
-  const authoredRepeats = { terrain: [16, 16], vegetation: [5, 5], architecture: [3, 3], roof: [5, 5], shoulder: [5, 32], soil: [12, 12], sand: [12, 12], rock: [8, 8], concrete: [6, 6], brick: [6, 6], port: [4, 4], airport: [6, 18], industrialFloor: [8, 20], masonry: [5, 5], timber: [3, 8], snow: [10, 10] };
+  const authoredRepeats = { terrain: [16, 16], vegetation: [5, 5], architecture: [3, 3], roof: [5, 5], shoulder: [5, 32], soil: [12, 12], sand: [12, 12], rock: [8, 8], concrete: [6, 6], brick: [6, 6], port: [4, 4], airport: [6, 18], industrialFloor: [8, 20], masonry: [5, 5], timber: [3, 8], snow: [10, 10], cobblestone: [10, 10], "cracked-asphalt": [4, 32], "tropical-mud": [12, 12], "forest-floor": [12, 12], "autumn-leaves": [10, 10], "crop-field": [10, 10], "dry-grass": [14, 14], "volcanic-rock": [9, 9], "rail-ballast": [8, 24], "platform-paving": [8, 18], "corrugated-metal": [5, 8], "painted-plaster": [4, 4], "glass-facade": [3, 5], "ceramic-roof": [5, 8], water: [8, 18], ice: [10, 10], adobe: [5, 5], sandstone: [5, 5], limestone: [5, 5], "granite-masonry": [5, 5], "timber-siding": [4, 6], bamboo: [4, 6], "breeze-block": [5, 5], "painted-metal": [5, 7], "asphalt-shingles": [5, 8], "thatch-roof": [5, 7], "zinc-roof": [5, 8], "copper-roof": [5, 8], "tunnel-concrete": [6, 12], "drainage-grate": [4, 10], "winter-slush": [5, 24], "red-clay": [12, 12] };
   const ready = authored ? Promise.all(Object.entries(authoredRepeats).map(([name, repetitions]) => new Promise((resolve) => {
     const url = ENVIRONMENT_TEXTURE_URLS[name];
     if (!url || !materials[name]) { resolve(false); return; }
@@ -147,7 +186,39 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
   function materialFor(object) {
     const label = `${object.name || ""} ${object.userData?.surface || ""} ${object.userData?.regionalSurface || ""}`.toLowerCase();
     if (/vehicle_body|fleet_body|regional_vehicle|service_vehicle_body/.test(label)) return materials.vehicleBody;
+    if (/slush|salted_snow|winter_road/.test(label)) return materials["winter-slush"];
     if (/snow|ice_bank|snowbank/.test(label)) return materials.snow;
+    if (/frozen_lake|ice_sheet|glacier|black_ice/.test(label)) return materials.ice;
+    if (/water|river|lake|canal|ocean|sea_surface/.test(label)) return materials.water;
+    if (/glass_facade|curtain_wall|office_glass/.test(label)) return materials["glass-facade"];
+    if (/ceramic_roof|terracotta|roof_tile/.test(label)) return materials["ceramic-roof"];
+    if (/corrugated|sheet_metal|metal_cladding/.test(label)) return materials["corrugated-metal"];
+    if (/painted_plaster|rendered_wall|stucco/.test(label)) return materials["painted-plaster"];
+    if (/rail_ballast|railway_bed|track_bed/.test(label)) return materials["rail-ballast"];
+    if (/platform_paving|station_platform/.test(label)) return materials["platform-paving"];
+    if (/cobble|sett_paving|historic_paving/.test(label)) return materials.cobblestone;
+    if (/cracked_asphalt|patched_asphalt|worn_tarmac/.test(label)) return materials["cracked-asphalt"];
+    if (/tropical_mud|mud_track|muddy_ground/.test(label)) return materials["tropical-mud"];
+    if (/forest_floor|woodland_ground|pine_needles/.test(label)) return materials["forest-floor"];
+    if (/autumn_leaves|leaf_litter/.test(label)) return materials["autumn-leaves"];
+    if (/crop_field|cropland|plantation|cultivated/.test(label)) return materials["crop-field"];
+    if (/dry_grass|savanna|steppe/.test(label)) return materials["dry-grass"];
+    if (/volcanic|basalt|lava_field/.test(label)) return materials["volcanic-rock"];
+    if (/adobe|mud_brick|earthen_wall/.test(label)) return materials.adobe;
+    if (/sandstone/.test(label)) return materials.sandstone;
+    if (/limestone/.test(label)) return materials.limestone;
+    if (/granite_masonry|granite_wall/.test(label)) return materials["granite-masonry"];
+    if (/timber_siding|wood_cladding|weatherboard/.test(label)) return materials["timber-siding"];
+    if (/bamboo|cane_wall/.test(label)) return materials.bamboo;
+    if (/breeze_block|vent_block/.test(label)) return materials["breeze-block"];
+    if (/painted_metal|metal_panel|industrial_cladding/.test(label)) return materials["painted-metal"];
+    if (/asphalt_shingle/.test(label)) return materials["asphalt-shingles"];
+    if (/thatch|thatched/.test(label)) return materials["thatch-roof"];
+    if (/zinc_roof|galvanized_roof/.test(label)) return materials["zinc-roof"];
+    if (/copper_roof|verdigris/.test(label)) return materials["copper-roof"];
+    if (/tunnel_concrete|tunnel_lining|underpass_wall/.test(label)) return materials["tunnel-concrete"];
+    if (/drain|grate|gully/.test(label)) return materials["drainage-grate"];
+    if (/red_clay|laterite|clay_road/.test(label)) return materials["red-clay"];
     if (/hangar_floor|warehouse_floor|station_floor|garage_floor|industrial_floor/.test(label)) return materials.industrialFloor;
     if (/brick/.test(label)) return materials.brick;
     if (/masonry|stone_wall/.test(label)) return materials.masonry;
@@ -197,7 +268,7 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     return applied;
   }
   function dispose() { disposed = true; textures.forEach(value => value.dispose()); Object.values(materials).forEach(value => value.dispose()); }
-  return { region: regionId, profile, qualityLevel: quality, authored, ready, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain, sand: materials.sand, concrete: materials.concrete, brick: materials.brick, industrialFloor: materials.industrialFloor, masonry: materials.masonry, timber: materials.timber, vehicleBody: materials.vehicleBody, snow: materials.snow }, applyTo, applyWeather, dispose };
+  return { region: regionId, profile, qualityLevel: quality, authored, ready, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain, sand: materials.sand, concrete: materials.concrete, brick: materials.brick, industrialFloor: materials.industrialFloor, masonry: materials.masonry, timber: materials.timber, vehicleBody: materials.vehicleBody, snow: materials.snow, water: materials.water, ice: materials.ice, railBallast: materials["rail-ballast"], cobblestone: materials.cobblestone }, applyTo, applyWeather, dispose };
 }
 
 export default { REGIONAL_PROFILES, WEATHER_MATERIAL_STATES, ENVIRONMENT_ATLAS_URL, ENVIRONMENT_TEXTURE_URLS, ENVIRONMENT_ATLAS_TILES, environmentAtlasTransform, resolveRegion, createMaterials };

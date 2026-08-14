@@ -7,12 +7,13 @@ import {
   environmentAtlasTransform,
 } from "./transport-regional-materials.js";
 
-test("the authored environment atlas exposes sixteen unique tiles", () => {
+test("the authored environment library exposes three non-duplicated texture families", () => {
   assert.match(ENVIRONMENT_ATLAS_URL, /world-environment-material-atlas-v1\.png$/);
   const coordinates = Object.values(ENVIRONMENT_ATLAS_TILES).map(value => value.join(","));
   assert.equal(coordinates.length, 16);
   assert.equal(new Set(coordinates).size, 16);
-  assert.equal(Object.keys(ENVIRONMENT_TEXTURE_URLS).length, 16);
+  assert.equal(Object.keys(ENVIRONMENT_TEXTURE_URLS).length, 48);
+  assert.equal(new Set(Object.values(ENVIRONMENT_TEXTURE_URLS)).size, 48);
   for (const url of Object.values(ENVIRONMENT_TEXTURE_URLS)) assert.match(url, /^\.\/generated-textures\/environment-.+-v1\.png$/);
 });
 
