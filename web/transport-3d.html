@@ -235,6 +235,7 @@
       import { createBorderOperations } from "./transport-border-operations.js";
       import { createSaveCenter } from "./transport-save-center.js";
       import { createAmbientLife } from "./transport-ambient-life.js";
+      import { createCityLife } from "./transport-city-life.js";
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
       import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
       import { createWeighStation } from "./transport-weigh-station.js";
@@ -1577,6 +1578,7 @@
       const enhancements = createTransportEnhancements({ THREE: T, scene: S, renderer: R, sun, vehicle: V, qualityLevel, roadWidth: 30 });
       const worldEvents = createWorldEvents({ THREE: T, scene: S, qualityLevel });
       const ambientLife = createAmbientLife({ THREE: T, scene: S, qualityLevel, roadHalfWidth: 15 });
+      const cityLife = createCityLife({ THREE: T, scene: S, qualityLevel });
       onresize = () => {
         C.aspect = innerWidth / innerHeight;
         C.updateProjectionMatrix();
@@ -1722,6 +1724,8 @@
         const trafficDt = Math.min(.05, Math.max(.001, (now - lastTrafficFrame) / 1000)); lastTrafficFrame = now; adaptiveResolution.sample(trafficDt);
         if (V) {
           ambientLife.update({ vehicle: V, camera: C, biome: document.querySelector("#city")?.textContent === "Valleverde" ? "alpine" : "rural", time: now, dt: trafficDt });
+          const cityName=document.querySelector("#city")?.textContent||"";
+          cityLife.update({vehicle:V,hour:new Date().getHours(),day:new Date().getDay(),settlement:cityName==="Valleverde"?"village":"city",ambientRoot:ambientLife.root});
           const firePosition = V.position.clone().add(new T.Vector3(55,0,-95)); liveFire.update(trafficDt, liveWeatherState, firePosition);
           for (let i = 0; i < traffic3d.length; i++) {
             const o = traffic3d[i];
