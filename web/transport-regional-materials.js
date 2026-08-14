@@ -26,6 +26,15 @@ export const REGIONAL_PROFILES = Object.freeze({
   polar: { terrain: ["#bdc8ca", "#e0e5e4", "#87999e"], vegetation: ["#526b60", "#71877a", "#9aa79c"], facade: "#aeb9bc", roof: "#59666c", shoulder: "#d8dddd", sign: "#276e9b", port: "#47788a", airport: "#7e898c" },
 });
 
+export const WEATHER_MATERIAL_STATES = Object.freeze({
+  clear: { roughnessDelta: 0, metalnessDelta: 0, colorScale: 1, envMapIntensity: 0.8 },
+  rain: { roughnessDelta: -0.3, metalnessDelta: 0.03, colorScale: 0.72, envMapIntensity: 1.35 },
+  storm: { roughnessDelta: -0.38, metalnessDelta: 0.04, colorScale: 0.58, envMapIntensity: 1.55 },
+  fog: { roughnessDelta: 0.08, metalnessDelta: -0.02, colorScale: 0.86, envMapIntensity: 0.45 },
+  snow: { roughnessDelta: 0.1, metalnessDelta: -0.03, colorScale: 1.18, envMapIntensity: 1.05 },
+  heat: { roughnessDelta: 0.04, metalnessDelta: 0, colorScale: 1.08, envMapIntensity: 0.7 },
+});
+
 export function resolveRegion(position = {}) {
   if (typeof position === "string" && REGIONAL_PROFILES[position]) return position;
   const lat = finite(position.lat ?? position.latitude), lon = finite(position.lon ?? position.lng ?? position.longitude);
@@ -90,9 +99,21 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
   make("sign", profile.sign, texture("sign", [profile.sign, "#f2f5ee", "#123b55"], "marking"), { roughness: .45, metalness: .12 });
   make("port", profile.port, texture("port", [profile.port, "#263a41", "#b6c0c0"], "facade"), { roughness: .64, metalness: .28 });
   make("airport", profile.airport, texture("airport", [profile.airport, "#2f3538", "#d8d8cf"], "marking"), { roughness: .7, metalness: .08 });
+  // Verified gaps: operational interiors, exposed timber/masonry and regional fleet
+  // finishes were previously forced through the generic facade/port materials.
+  make("industrialFloor", "#747a7b", texture("industrial_floor", ["#747a7b", "#3e4548", "#a5a6a0"], "marking", { repeat: [8, 20] }), { roughness: .82, metalness: .05, detailMap: detail("industrial_floor", [8, 20]), bumpScale: .028 });
+  make("masonry", profile.facade, texture("masonry", [profile.facade, profile.roof, "#d8cdbb"], "roof", { repeat: [5, 5] }), { roughness: .94, detailMap: detail("masonry", [5, 5]), bumpScale: .075 });
+  make("timber", "#76583e", texture("timber", ["#76583e", "#3f3025", "#aa8058"], "roof", { repeat: [2, 7] }), { roughness: .84, detailMap: detail("timber", [2, 7]), bumpScale: .045 });
+  make("vehicleBody", profile.sign, texture("vehicle_body", [profile.sign, "#e6eceb", "#28343a"], "noise", { repeat: [1, 1] }), { roughness: .34, metalness: .22, detailMap: detail("vehicle_body", [1, 1]), bumpScale: .008 });
+  make("snow", "#dce5e6", texture("snow", ["#dce5e6", "#f4f6f3", "#aebfc2"], "noise", { repeat: [10, 10] }), { roughness: .98, detailMap: detail("snow", [10, 10]), bumpScale: .12 });
 
   function materialFor(object) {
     const label = `${object.name || ""} ${object.userData?.surface || ""} ${object.userData?.regionalSurface || ""}`.toLowerCase();
+    if (/vehicle_body|fleet_body|regional_vehicle|service_vehicle_body/.test(label)) return materials.vehicleBody;
+    if (/snow|ice_bank|snowbank/.test(label)) return materials.snow;
+    if (/hangar_floor|warehouse_floor|station_floor|garage_floor|industrial_floor/.test(label)) return materials.industrialFloor;
+    if (/brick|masonry|stone_wall/.test(label)) return materials.masonry;
+    if (/timber|wood|wooden/.test(label)) return materials.timber;
     if (/airport|runway|taxiway|hangar|apron/.test(label)) return materials.airport;
     if (/port|harbour|harbor|dock|quay|terminal|crane/.test(label)) return materials.port;
     if (/sign|gantry|bollard/.test(label)) return materials.sign;
@@ -105,6 +126,23 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     if (/tree|leaf|leaves|forest|hedge|vegetation/.test(label)) return materials.vegetation;
     if (/terrain|ground|grass|field|farmland|park|garden/.test(label)) return materials.terrain;
     return null;
+  }
+  const weatherBase = new Map(Object.values(materials).map(material => [material, {
+    color: material.color.clone(), roughness: material.roughness, metalness: material.metalness,
+    envMapIntensity: material.envMapIntensity ?? 1,
+  }]));
+  function applyWeather(state = "clear", intensity = 1) {
+    const preset = WEATHER_MATERIAL_STATES[state] || WEATHER_MATERIAL_STATES.clear;
+    const amount = clamp(finite(intensity, 1), 0, 1);
+    for (const material of Object.values(materials)) {
+      const base = weatherBase.get(material); if (!base) continue;
+      material.color.copy(base.color).multiplyScalar(1 + (preset.colorScale - 1) * amount);
+      material.roughness = clamp(base.roughness + preset.roughnessDelta * amount, .08, 1);
+      material.metalness = clamp(base.metalness + preset.metalnessDelta * amount, 0, 1);
+      material.envMapIntensity = base.envMapIntensity + (preset.envMapIntensity - base.envMapIntensity) * amount;
+      material.needsUpdate = true;
+    }
+    return { state: WEATHER_MATERIAL_STATES[state] ? state : "clear", intensity: amount };
   }
   function applyTo(target, { clone = false } = {}) {
     let applied = 0;
@@ -119,7 +157,7 @@ export function createMaterials({ THREE: T, region, coordinates, qualityLevel = 
     return applied;
   }
   function dispose() { textures.forEach(value => value.dispose()); Object.values(materials).forEach(value => value.dispose()); }
-  return { region: regionId, profile, qualityLevel: quality, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain }, applyTo, dispose };
+  return { region: regionId, profile, qualityLevel: quality, materials, maps: { asphalt: materials.asphalt, shoulder: materials.shoulder, ground: materials.terrain, industrialFloor: materials.industrialFloor, masonry: materials.masonry, timber: materials.timber, vehicleBody: materials.vehicleBody, snow: materials.snow }, applyTo, applyWeather, dispose };
 }
 
-export default { REGIONAL_PROFILES, resolveRegion, createMaterials };
+export default { REGIONAL_PROFILES, WEATHER_MATERIAL_STATES, resolveRegion, createMaterials };

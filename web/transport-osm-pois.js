@@ -9,7 +9,7 @@ export function createOsmRoutePois({ THREE: T, scene, qualityLevel = 2, fetchImp
   if (!T || !scene) throw new Error("THREE and scene are required");
   const root = new T.Group(); root.name = "osm-route-pois"; scene.add(root);
   const geometries = [new T.CylinderGeometry(.14, .2, 3.2, 8), new T.BoxGeometry(2.5, 1.25, .18)];
-  const colors = { fuel: 0x43d9c2, charging: 0x58a9ff, rest: 0x8eb7ff, workshop: 0xf1ad45 };
+  const colors = { fuel: 0x43d9c2, charging: 0x58a9ff, rest: 0x8eb7ff, workshop: 0xf1ad45, inspection: 0xff8a32 };
   const materials = Object.fromEntries(Object.entries(colors).map(([type, color]) => [type, new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: .22, roughness: .5 })]));
   let records = [], requestToken = 0, disposed = false;
 
@@ -17,6 +17,7 @@ export function createOsmRoutePois({ THREE: T, scene, qualityLevel = 2, fetchImp
   function normalizeGeo(route) { return (route?.coordinates || route || []).map(point => ({ lon: Number(point.lon ?? point.lng ?? point[0]), lat: Number(point.lat ?? point[1]) })).filter(point => Number.isFinite(point.lon) && Number.isFinite(point.lat)); }
   function normalizeWorld(route) { return (route || []).map(point => ({ x: Number(point.x ?? point[0]), y: Number(point.y ?? point[1] ?? 0), z: Number(point.z ?? point[2] ?? point[1]) })); }
   function classify(tags = {}) {
+    if (tags.amenity === "weighbridge" || tags.man_made === "weighbridge" || tags.highway === "checkpoint" && tags.hgv !== "no") return "inspection";
     if (tags.amenity === "fuel") return "fuel";
     if (tags.amenity === "charging_station") return "charging";
     if (tags.shop === "car_repair" || tags.shop === "truck_repair") return "workshop";
@@ -64,7 +65,7 @@ export function createOsmRoutePois({ THREE: T, scene, qualityLevel = 2, fetchImp
     const token = ++requestToken, points = samples(geo), key = `${CACHE_PREFIX}.${hash(points.map(p => `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`).join(";"))}`; let data;
     try { const cached = JSON.parse(localStorage.getItem(key) || "null"); if (cached && Date.now() - cached.at < CACHE_TTL) data = cached.data; } catch {}
     if (!data) {
-      const clauses = points.map(p => `nwr(around:1800,${p.lat},${p.lon})[amenity~"^(fuel|charging_station|parking)$"];nwr(around:1800,${p.lat},${p.lon})[highway~"^(rest_area|services)$"];nwr(around:1800,${p.lat},${p.lon})[shop~"^(car_repair|truck_repair)$"];`).join("");
+      const clauses = points.map(p => `nwr(around:1800,${p.lat},${p.lon})[amenity~"^(fuel|charging_station|parking|weighbridge)$"];nwr(around:1800,${p.lat},${p.lon})[highway~"^(rest_area|services|checkpoint)$"];nwr(around:1800,${p.lat},${p.lon})[shop~"^(car_repair|truck_repair)$"];nwr(around:1800,${p.lat},${p.lon})[man_made="weighbridge"];`).join("");
       const query = `[out:json][timeout:18][maxsize:8388608];(${clauses});out center tags qt;`; let failure;
       for (const url of endpoint ? [endpoint] : ENDPOINTS) { try { const response = await fetchImpl(`${url}?data=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" } }); if (!response.ok) throw new Error(`Overpass ${response.status}`); data = await response.json(); break; } catch (error) { failure = error; } }
       if (!data) throw failure || new Error("Overpass unavailable");

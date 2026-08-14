@@ -1,4 +1,4 @@
-const TYPES = ["workshop", "fuel", "rest"];
+const TYPES = ["workshop", "fuel", "rest", "inspection"];
 
 export function createRoadsideServices({ THREE: T, scene, qualityLevel = 2, roadLength = 6000, atlasUrl }) {
   const root = new T.Group(); root.name = "roadside_service_network"; scene.add(root);
@@ -11,6 +11,9 @@ export function createRoadsideServices({ THREE: T, scene, qualityLevel = 2, road
     glass: new T.MeshPhysicalMaterial({ color: 0x4b8798, roughness: .12, transmission: .12, transparent: true, opacity: .82 }),
     accent: new T.MeshStandardMaterial({ color: 0x27cdb8, emissive: 0x0b5c55, emissiveIntensity: .7, roughness: .38 }),
     lamp: new T.MeshStandardMaterial({ color: 0xffedc2, emissive: 0xffd982, emissiveIntensity: 2.1 }),
+    workshopFloor: new T.MeshStandardMaterial({ color: 0x30373b, roughness: .72, metalness: .08 }),
+    safety: new T.MeshStandardMaterial({ color: 0xf0a429, roughness: .58, metalness: .12 }),
+    tool: new T.MeshStandardMaterial({ color: 0x1d4254, roughness: .44, metalness: .42 }),
   };
   const geometries = [];
   const mesh = (geometry, material, parent, x, y, z, name = "service_part") => {
@@ -35,13 +38,37 @@ export function createRoadsideServices({ THREE: T, scene, qualityLevel = 2, road
   function workshop(parent, side) {
     base(parent, side);
     const buildingX = side * 48;
-    mesh(new T.BoxGeometry(27, 10, 24), materials.workshop, parent, buildingX, 5, 4, "service_workshop");
+    const frontX = buildingX - side * 13.45, backX = buildingX + side * 13.25;
+    mesh(new T.BoxGeometry(27, .3, 24), materials.workshopFloor, parent, buildingX, .28, 4, "workshop_epoxy_floor");
+    mesh(new T.BoxGeometry(.45, 9.4, 24), materials.workshop, parent, backX, 4.9, 4, "workshop_back_wall");
+    for (const z of [-7.8, 15.8]) mesh(new T.BoxGeometry(27, 9.4, .45), materials.workshop, parent, buildingX, 4.9, z, "workshop_side_wall");
+    mesh(new T.BoxGeometry(27.6, .5, 24.6), materials.dark, parent, buildingX, 9.7, 4, "workshop_roof");
     for (const z of [-5, 3, 11]) {
-      mesh(new T.BoxGeometry(.18, 6.2, 6), materials.dark, parent, buildingX - side * 13.6, 3.25, z, "roller_door");
-      if (qualityLevel > 1) mesh(new T.BoxGeometry(.3, .18, 5.1), materials.accent, parent, buildingX - side * 13.75, 6.1, z, "door_lamp");
+      for (const edge of [-3.25, 3.25]) mesh(new T.BoxGeometry(.45, 7.1, .45), materials.dark, parent, frontX, 3.65, z + edge, "workshop_bay_frame");
+      mesh(new T.BoxGeometry(.48, .5, 6.9), materials.dark, parent, frontX, 7.05, z, "workshop_bay_header");
+      if (qualityLevel > 1) mesh(new T.BoxGeometry(.3, .18, 5.1), materials.accent, parent, frontX - side * .15, 6.55, z, "door_lamp");
     }
     const sign = mesh(new T.PlaneGeometry(12, 3.4), labelMaterial("TALLER 24H", "Mecánica · neumáticos"), parent, buildingX - side * 13.72, 8.3, 3, "workshop_sign"); sign.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
     for (const z of [-5, 5]) { const lift = mesh(new T.BoxGeometry(5, .28, 4), materials.accent, parent, side * 30, .45, z, "service_lift"); lift.rotation.z = side * .03; }
+    for (const z of [-5, 3]) {
+      const bayX = buildingX - side * 2;
+      mesh(new T.BoxGeometry(7.2, .12, 5.8), materials.dark, parent, bayX, .5, z, "workshop_inspection_tray");
+      for (const offset of [-3, 3]) {
+        mesh(new T.BoxGeometry(.55, 6.7, .65), materials.tool, parent, bayX + side * offset, 3.65, z, "workshop_lift_column");
+        mesh(new T.BoxGeometry(1.05, .18, 2.8), materials.safety, parent, bayX + side * (offset - Math.sign(offset) * 1.1), 1.05, z, "workshop_lift_arm");
+      }
+    }
+    const receptionX = buildingX + side * 8.5;
+    mesh(new T.BoxGeometry(5.5, 1.15, 5.2), materials.tool, parent, receptionX, 1, 11, "workshop_reception");
+    mesh(new T.BoxGeometry(.18, 3.4, 6), materials.glass, parent, receptionX - side * 2.9, 3.3, 11, "workshop_reception_glass");
+    for (const z of [-4, 0, 4, 8]) {
+      mesh(new T.BoxGeometry(1.15, 2.2, 3.4), materials.tool, parent, backX - side * .8, 1.35, z, "workshop_tool_cabinet");
+      if (qualityLevel > 1) for (let tyre = 0; tyre < 3; tyre++) { const wheel = mesh(new T.TorusGeometry(.48, .16, 8, 18), materials.dark, parent, backX - side * 1.25, 2 + tyre * 1.05, z + 1.25, "workshop_tyre_stock"); wheel.rotation.y = Math.PI / 2; }
+    }
+    if (qualityLevel > 0) for (const z of [-5, 3, 11]) {
+      mesh(new T.BoxGeometry(7.5, .12, .38), materials.lamp, parent, buildingX, 8.9, z, "workshop_ceiling_light");
+      for (const stripe of [-2.7, 2.7]) mesh(new T.BoxGeometry(7.5, .035, .12), materials.safety, parent, buildingX, .47, z + stripe, "workshop_safety_line");
+    }
   }
   function fuel(parent, side) {
     base(parent, side);
@@ -66,12 +93,26 @@ export function createRoadsideServices({ THREE: T, scene, qualityLevel = 2, road
     }
     const sign = mesh(new T.PlaneGeometry(10, 3), labelMaterial("DESCANSO", "Parking · cafetería"), parent, side * 37.85, 6.1, 7, "rest_sign"); sign.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
   }
+  function inspection(parent, side) {
+    base(parent, side);
+    const laneX = side * 31;
+    mesh(new T.BoxGeometry(7.2, .18, 25), materials.dark, parent, laneX, .2, 1, "weighbridge_platform");
+    for (const x of [-2.8, 2.8]) mesh(new T.BoxGeometry(.35, .12, 23), materials.accent, parent, laneX + x, .34, 1, "weighbridge_sensor");
+    const officeX = side * 49;
+    mesh(new T.BoxGeometry(14, 7, 15), materials.workshop, parent, officeX, 3.55, 5, "inspection_office");
+    mesh(new T.BoxGeometry(.2, 2.6, 6), materials.glass, parent, officeX - side * 7.1, 4.1, 5, "inspection_window");
+    const gantry = new T.Group(); gantry.name = "inspection_gantry"; parent.add(gantry);
+    for (const x of [-4.4, 4.4]) mesh(new T.BoxGeometry(.32, 6.4, .32), materials.dark, gantry, laneX + x, 3.2, -9, "inspection_gantry_post");
+    mesh(new T.BoxGeometry(9.2, .38, .38), materials.dark, gantry, laneX, 6.25, -9, "inspection_gantry_beam");
+    const sign = mesh(new T.PlaneGeometry(8.4, 2.7), labelMaterial("CONTROL", "Peso · documentación"), parent, laneX, 5.1, -8.78, "inspection_sign");
+    sign.rotation.y = Math.PI;
+  }
   const spacing = qualityLevel > 0 ? 760 : 1100;
   let index = 0;
   for (let z = -roadLength / 2 + 380; z < roadLength / 2 - 260; z += spacing) {
     const type = TYPES[index % TYPES.length], side = index % 2 ? -1 : 1, group = new T.Group();
     group.name = `roadside_${type}`; group.position.z = z; root.add(group);
-    ({ workshop, fuel, rest })[type](group, side);
+    ({ workshop, fuel, rest, inspection })[type](group, side);
     services.push({ type, side, z, group }); index++;
   }
   const ready = atlasUrl ? new Promise((resolve, reject) => new T.TextureLoader().load(atlasUrl, source => {

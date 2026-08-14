@@ -175,7 +175,7 @@
     <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa · posición del camión</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">×</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posición/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
     <aside class="map-panel europe-panel" id="worldPanel" hidden><header><h3>Red mundial de carga</h3><button id="worldClose">×</button></header><div class="world-planner"><select id="worldFrom"></select><select id="worldTo"></select></div><div class="map-tools" style="margin-top:8px"><button id="worldPlanButton">Calcular transporte</button><button id="worldDriveButton" disabled>Conducir tramo terrestre</button><button id="worldFlyButton" disabled>Volar tramo aéreo</button><button id="worldSailButton" disabled>Navegar tramo marítimo</button></div><div class="world-plan" id="worldPlanOutput">Selecciona dos centros logísticos.</div></aside>
     <aside class="map-panel events-panel" id="eventsPanel" hidden aria-label="Centro maestro de eventos"><header><div><h3>Centro maestro de eventos</h3><small id="eventResultCount">0 eventos</small></div><div class="map-tools"><button id="eventExportButton">Exportar JSON</button><button id="eventsClose" aria-label="Cerrar">×</button></div></header><div class="event-kpis"><div class="event-kpi"><b id="eventKpiTotal">0</b><span>Total</span></div><div class="event-kpi"><b id="eventKpiToday">0</b><span>Últimas 24 h</span></div><div class="event-kpi"><b id="eventKpiCompleted">0</b><span>Completados</span></div><div class="event-kpi"><b id="eventKpiPending">0</b><span>Pendientes</span></div><div class="event-kpi"><b id="eventKpiCritical">0</b><span>Críticos</span></div></div><div class="event-filters"><select id="eventCategoryFilter" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option><option value="career">Carrera</option><option value="contracts">Contratos</option><option value="truck">Vehículo</option><option value="economy">Economía</option><option value="operations">Operaciones</option><option value="technical">Técnicos</option></select><select id="eventSeverityFilter" aria-label="Filtrar por severidad"><option value="all">Todas las severidades</option><option value="info">Información</option><option value="warning">Avisos</option><option value="critical">Críticos</option></select><input id="eventSearch" type="search" placeholder="Buscar evento, jugador, región…" /></div><div class="event-table-wrap"><table class="event-stream"><thead><tr><th>Fecha</th><th>Severidad</th><th>Categoría</th><th>Evento</th><th>Jugador / empresa</th><th>Detalle</th></tr></thead><tbody id="eventRows"></tbody></table><div class="event-empty" id="eventEmpty" hidden>No hay eventos para estos filtros.</div></div></aside>
-    <aside class="map-panel cargo-monitor" id="cargoMonitor" hidden aria-label="Control operativo de la mercancía"><header><div><h3>Control de la mercancía</h3><small id="cargoProfile">Carga general</small></div><button id="cargoMonitorClose" aria-label="Cerrar">×</button></header><div class="cargo-condition-grid"><div class="cargo-meter"><header>Integridad</header><b id="cargoIntegrity">100%</b><progress id="cargoIntegrityBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Temperatura</header><b id="cargoTemperature">18 °C</b><progress id="cargoTemperatureBar" max="100" value="50"></progress></div><div class="cargo-meter"><header>Sujeción</header><b id="cargoRestraint">100%</b><progress id="cargoRestraintBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Equipo</header><b id="cargoEquipment">Cerrado · estable</b><small id="cargoHydration"></small></div></div><p class="cargo-alert" id="cargoAlert" role="status" aria-live="polite">Mercancía estable</p><div class="cargo-actions"><button id="cargoDoorButton" aria-pressed="false">Abrir puertas</button><button id="reeferButton" class="on" aria-pressed="true">Frío activo</button><button id="secureCargoButton">Revisar sujeción</button></div></aside>
+    <aside class="map-panel cargo-monitor" id="cargoMonitor" hidden aria-label="Control operativo de la mercancía"><header><div><h3>Control de la mercancía</h3><small id="cargoProfile">Carga general</small></div><button id="cargoMonitorClose" aria-label="Cerrar">×</button></header><label class="cargo-selector">Tipo de operación<select id="cargoTypeSelect" aria-label="Tipo de mercancía"><option value="standard">Carga general</option><option value="cold">Cadena de frío</option><option value="fragile">Carga frágil</option><option value="adr">Mercancía ADR</option><option value="livestock">Transporte de animales</option></select></label><div class="cargo-condition-grid"><div class="cargo-meter"><header>Integridad</header><b id="cargoIntegrity">100%</b><progress id="cargoIntegrityBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Temperatura</header><b id="cargoTemperature">18 °C</b><progress id="cargoTemperatureBar" max="100" value="50"></progress></div><div class="cargo-meter"><header>Sujeción</header><b id="cargoRestraint">100%</b><progress id="cargoRestraintBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Equipo</header><b id="cargoEquipment">Cerrado · estable</b><small id="cargoHydration"></small></div></div><p class="cargo-alert" id="cargoAlert" role="status" aria-live="polite">Mercancía estable</p><div class="cargo-actions"><button id="cargoDoorButton" aria-pressed="false">Abrir puertas</button><button id="reeferButton" class="on" aria-pressed="true">Frío activo</button><button id="secureCargoButton">Revisar sujeción</button></div></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
       <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-navigation" aria-label="Navegación"><small>Ruta activa</small><b id="dashNavInstruction">Continúa por la vía</b><output id="dashNavDistance">-- m</output></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState" role="status" aria-live="polite">AEBS listo</b></div></div>
@@ -220,11 +220,23 @@
       import { createOsmRoadMesh } from "./transport-osm-road-mesh.js";
       import { createDrivingAcademy } from "./transport-driving-academy.js";
       import { createLiveEnvironment } from "./transport-live-environment.js";
+      import { createRegionalEventDirector } from "./transport-regional-events.js";
       import { createFireEffect } from "./transport-fire-effects.js";
       import { createEngineAudio } from "./transport-engine-audio.js";
       import { createOperationCinematics } from "./transport-operation-cinematics.js";
       import { AIR_FLEET, SEA_FLEET, FLEET_LIVERIES, createFleetVehicle, createSeaVehicle } from "./transport-air-sea-fleet.js";
       import { createAviationUI } from "./transport-aviation-ui.js";
+      import { createVehicleAnimationRig } from "./transport-vehicle-animation-rig.js";
+      import { applyCanvaTransportTheme } from "./transport-canva-theme.js";
+      import { createHudMotion } from "./transport-hud-motion.js";
+      import { createBorderOperations } from "./transport-border-operations.js";
+      import { createSaveCenter } from "./transport-save-center.js";
+      import { createAmbientLife } from "./transport-ambient-life.js";
+      import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
+      import { createWeighStation } from "./transport-weigh-station.js";
+      import { createStoryRuntime, createStoryPanel } from "./transport-story-runtime.js";
+      const canvaTheme = applyCanvaTransportTheme();
+      const hudMotion = createHudMotion({ hud:document.querySelector(".hud"), controls:document.querySelector(".controls:not(.drive)"), cockpit:document.querySelector("#cockpitPanel") });
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -260,6 +272,23 @@
       const transportUiShell = createTransportUiShell({ career });
       const regionOperations = createRegionOperationsPanel({ controls:document.querySelector(".controls:not(.drive)"), cityElement:document.querySelector("#city") });
       const eventLog = createTransportEventLog();
+      const regionalEventDirector = createRegionalEventDirector({ eventLog });
+      let regionalEventFrame = { id:null, effects:{ weather:null, gripMultiplier:1, waterDepth:0, windSpeed:0, speedLimit:null, trafficMultiplier:1, roadClosure:false } };
+      let renderedRegionalEventId = null;
+      const missionRuntime = createMissionRuntime();
+      const missionPanel = createMissionPanel({ runtime:missionRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog });
+      const storyRuntime = createStoryRuntime();
+      const storyPanel = createStoryPanel({ runtime:storyRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog });
+      eventLog.subscribe(event => missionRuntime.handleEvent(event));
+      missionRuntime.subscribe(event => {
+        if (event.type !== "mission:completed") return;
+        const reward = event.detail.reward || {};
+        if (reward.money) career.record(reward.money, `Misión: ${event.detail.title}`, { missionId:event.detail.missionId });
+        if (reward.xp) career.addXp(reward.xp);
+        career.emit("mission:rewarded", { missionId:event.detail.missionId, reward });
+      });
+      const borderOperations = createBorderOperations({career,eventLog});
+      const saveCenter = createSaveCenter({career,eventLog,controls:document.querySelector(".controls:not(.drive)")});
       const eventsPanel = document.querySelector("#eventsPanel"), eventRows = document.querySelector("#eventRows"), eventEmpty = document.querySelector("#eventEmpty");
       const eventCategory = document.querySelector("#eventCategoryFilter"), eventSeverity = document.querySelector("#eventSeverityFilter"), eventSearch = document.querySelector("#eventSearch");
       eventCategory.add(new Option("Seguridad", "security"));
@@ -298,6 +327,7 @@
       document.querySelector("#cargoDoorButton").onclick=()=>{cargoDoorOpen=!cargoDoorOpen;const button=document.querySelector("#cargoDoorButton");button.textContent=cargoDoorOpen?"Cerrar puertas":"Abrir puertas";button.classList.toggle("on",cargoDoorOpen);button.setAttribute("aria-pressed",String(cargoDoorOpen));eventLog.record("operations",cargoDoorOpen?"cargo:doors_opened":"cargo:doors_closed",{speed:Math.round(speed)});renderCargoCondition()};
       document.querySelector("#reeferButton").onclick=()=>{reeferPowered=!reeferPowered;const button=document.querySelector("#reeferButton");button.textContent=reeferPowered?"Frío activo":"Frío apagado";button.classList.toggle("on",reeferPowered);button.setAttribute("aria-pressed",String(reeferPowered));eventLog.record("operations",reeferPowered?"cargo:reefer_started":"cargo:reefer_stopped",{});renderCargoCondition()};
       document.querySelector("#secureCargoButton").onclick=()=>{if(speed>1){document.querySelector("#cargoAlert").textContent="Detén el vehículo para revisar la sujeción";return}cargoFrame=cargoCondition.secure();eventLog.record("operations","cargo:secured",{restraint:100});renderCargoCondition()};
+      document.querySelector("#cargoTypeSelect").onchange=event=>{if(speed>1){event.target.value=cargoFrame.type;document.querySelector("#cargoAlert").textContent="Detén el vehículo para cambiar la operación";return}cargoFrame=cargoCondition.select(event.target.value);cargoAssigned=true;reeferPowered=cargoFrame.type==="cold";document.querySelector("#reeferButton").hidden=cargoFrame.type!=="cold";document.querySelector("#cargoHydration").hidden=cargoFrame.type!=="livestock";eventLog.record("operations","cargo:profile_selected",{type:cargoFrame.type,label:cargoFrame.label});renderCargoCondition()};
       renderCargoCondition();
       const osmRoutePlanner = createOsmRoutePlanner();
       let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
@@ -365,6 +395,7 @@
         atlasUrl: "./generated-textures/roadside-services-atlas-v1.png",
       });
       roadsideServices.ready.catch(error => console.warn("No se pudo cargar el atlas de servicios", error));
+      const weighStation = createWeighStation({ controls:document.querySelector(".controls:not(.drive)"), eventLog, career });
       const osmScenery = createOsmScenery({ THREE:T, scene:S, qualityLevel, city:"madrid" });
       osmScenery.load().then(counts => {
         document.querySelector("#roadEvent").title = `OSM: ${counts.trees} árboles, ${counts.gardens} jardines y ${counts.roundabouts} rotondas`;
@@ -532,7 +563,7 @@
           const tree = worldDetail.createTree({ seed: Math.abs(z + q) * .013, height: 8.5 + Math.abs((z * 7 + q) % 5) });
           tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
         }
-      let V, specialTransport, detailedTruckExterior = null,
+      let V, specialTransport, detailedTruckExterior = null, vehicleAnimationRig = null,
         kind = "truck",
         view = 0,
         cameraReady = false,
@@ -887,6 +918,7 @@
           }
         });
         V = g;
+        vehicleAnimationRig = createVehicleAnimationRig(V);
         V.position.set(0, 0, 60);
         S.add(V);
         vehicleTextures.apply(V);
@@ -1139,9 +1171,9 @@
       const worldPanel=document.querySelector("#worldPanel"),worldFrom=document.querySelector("#worldFrom"),worldTo=document.querySelector("#worldTo"),worldOutput=document.querySelector("#worldPlanOutput"),worldDrive=document.querySelector("#worldDriveButton"),worldFly=document.querySelector("#worldFlyButton"),worldSail=document.querySelector("#worldSailButton");
       const worldOptions=WORLD_HUBS.map(hub=>`<option value="${hub.id}">${hub.name} · ${hub.countryCode}</option>`).join("");worldFrom.innerHTML=worldOptions;worldTo.innerHTML=worldOptions;worldFrom.value="madrid";worldTo.value="new_york";
       document.querySelector("#worldMapButton").onclick=()=>{europeMapPanel.hidden=true;worldPanel.hidden=false};document.querySelector("#worldClose").onclick=()=>worldPanel.hidden=true;
-      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${leg.mode==="road"?"Carretera":leg.mode==="sea"?"Barco":"Avión"}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
-      worldDrive.onclick=async()=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode==="road"&&item.coordinates);if(!leg)return;await activateRoadRoute({coordinates:leg.coordinates,steps:[],distanceKm:leg.distanceKm,durationHours:leg.durationHours},leg.from.name,leg.to.name);document.querySelector("#city").textContent=leg.from.name;worldPanel.hidden=true};
-      const activateMultimodalLeg=(mode,vehicleType)=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode===mode);if(!leg)return;build(vehicleType);fleetVehicle.value=vehicleType;document.querySelector("#city").textContent=leg.from.name;document.querySelector("#workState").textContent=`${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`;cargoAssigned=true;worldPanel.hidden=true;eventLog.record("operations",`multimodal:${mode}_started`,{from:leg.from.name,to:leg.to.name,distanceKm:Math.round(leg.distanceKm),vehicle:vehicleType})};
+      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${leg.mode==="road"?"Carretera":leg.mode==="sea"?"Barco":"Avión"}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;const customsLeg=plannedWorldRoute.legs.find(leg=>leg.from.countryCode!==leg.to.countryCode)||plannedWorldRoute.legs[0];borderOperations.inspect(customsLeg,{cargo:specialTransport?.state?.cargo?.name||career.activeContract?.cargo||"Carga general",adr:specialCargoIndex>=0});borderOperations.render(worldOutput);worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
+      worldDrive.onclick=async()=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode==="road"&&item.coordinates);if(!leg)return;borderOperations.clear();await activateRoadRoute({coordinates:leg.coordinates,steps:[],distanceKm:leg.distanceKm,durationHours:leg.durationHours},leg.from.name,leg.to.name);document.querySelector("#city").textContent=leg.from.name;worldPanel.hidden=true};
+      const activateMultimodalLeg=(mode,vehicleType)=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode===mode);if(!leg)return;borderOperations.clear();build(vehicleType);fleetVehicle.value=vehicleType;document.querySelector("#city").textContent=leg.from.name;document.querySelector("#workState").textContent=`${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`;cargoAssigned=true;worldPanel.hidden=true;eventLog.record("operations",`multimodal:${mode}_started`,{from:leg.from.name,to:leg.to.name,distanceKm:Math.round(leg.distanceKm),vehicle:vehicleType})};
       worldFly.onclick=()=>activateMultimodalLeg("air","cargo_plane");
       worldSail.onclick=()=>activateMultimodalLeg("sea","container_ship");
       function drawRouteMap() {
@@ -1268,8 +1300,17 @@
           wheelButton.classList.remove("on");
         }
         const convoyNow = typeof window.MoonConvoy?.now === "function" ? window.MoonConvoy.now() : Date.now();
-        const worldState = worldEvents.update({ position: V.position, speed, dt, weather: currentWeather(), synchronizedTime: convoyNow / 1000 });
+        const routeProgress = activeOsmRoute ? Math.min(1, physicalDistance / Math.max(1, routeRuntime.length)) : 0;
+        const regionalCoordinate = activeOsmRoute ? coordinateAtRouteProgress(activeOsmRoute, routeProgress) : { lat:40.4168, lon:-3.7038 };
+        regionalEventFrame = regionalEventDirector.update({ at:convoyNow, coordinates:regionalCoordinate, weather:liveWeatherState?.weather||currentWeather(), temperature:liveWeatherState?.temperature, precipitation:liveWeatherState?.precipitation, windSpeed:liveWeatherState?.windSpeed, wildfire:liveWeatherState?.wildfire, source:liveWeatherState?.source||"calendar" });
+        if (regionalEventFrame.id !== renderedRegionalEventId) {
+          renderedRegionalEventId = regionalEventFrame.id;
+          regionalMaterials?.applyWeather(regionalEventFrame.effects.weather || currentWeather(), regionalEventFrame.id ? 1 : 0);
+          applyWeatherVisuals();
+        }
+        const worldState = worldEvents.update({ position: V.position, speed, dt, weather: regionalEventFrame.effects.weather||currentWeather(), synchronizedTime: convoyNow / 1000, defaultSpeedLimit:regionalEventFrame.effects.speedLimit||90 });
         nearestRoadsideService = activeOsmRoute ? (osmRoutePois.nearest(V.position) || routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null) : roadsideServices.update(V.position);
+        weighStation.update({ service:nearestRoadsideService, speed, cargoMassKg:cargoAssigned ? ({standard:12000,cold:15000,fragile:9000,adr:17500,livestock:13500}[cargoFrame.type] || 12000) : 0, restraint:cargoFrame.restraint });
         const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso", charging: "Carga eléctrica" };
         document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
           ? `${nearestRoadsideService.name || serviceNames[nearestRoadsideService.type] || "Servicio"} · ${Math.round(nearestRoadsideService.distance)} m`
@@ -1316,14 +1357,16 @@
           physicalFrame = physics.update({
             throttle: !onFoot && engineRunning ? Math.max(Number(accelerating) || 0, cruiseThrottle) : 0,
             brake: !onFoot ? Math.max(Number(braking) || 0, cruiseEnabled && speed > desired + 2 ? 0.42 : 0) : 0,
+            engineRunning,
             retarder: retarderOn ? 1 : 0,
-            steering: wheel.connected ? wheel.steering : (left ? -1 : right ? 1 : 0), parkingBrake, wetness: isWetWeather() ? 1 : currentWeather() === "snow" ? .55 : 0,
+            steering: wheel.connected ? wheel.steering : (left ? -1 : right ? 1 : 0), parkingBrake, wetness: (regionalEventFrame.effects.weather==="storm"||isWetWeather()) ? 1 : (regionalEventFrame.effects.weather==="snow"||currentWeather()==="snow") ? .55 : 0,
             offroad: Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2, damage, distance: physicalDistance,
             surface: Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "gravel" : "asphalt",
-            waterDepth: isWetWeather() ? 0.004 + Math.max(0, Math.sin(V.position.z * .013)) * .006 : 0,
+            waterDepth: regionalEventFrame.effects.waterDepth || (isWetWeather() ? 0.004 + Math.max(0, Math.sin(V.position.z * .013)) * .006 : 0),
+            gripMultiplier: regionalEventFrame.effects.gripMultiplier || 1,
             cargoMass: specialFrame.active ? specialFrame.cargo.mass : career.activeContract ? 18000 : loadedPallets * 1200,
             cargoHeight: specialFrame.active ? specialFrame.cargo.height * .52 : 1.65,
-            windSpeed: currentWeather() === "storm" ? 34 : isWetWeather() ? 18 : 5, windAngle: Math.sin(now * 0.00017),
+            windSpeed: regionalEventFrame.effects.windSpeed || (currentWeather() === "storm" ? 34 : isWetWeather() ? 18 : 5), windAngle: Math.sin(now * 0.00017),
             roadGrade,
             vehicleType: kind,
           }, dt);
@@ -1387,10 +1430,11 @@
         }
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
         document.querySelector("#physicsState").textContent = physicalFrame?.aquaplaning > .12 ? `Aquaplaning · ${Math.round(physicalFrame.aquaplaning * 100)}%` : Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "Arcén · baja adherencia" : isWetWeather() ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : currentWeather() === "snow" ? `Nieve · ${Math.round((physicalFrame?.grip || .58) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
-        document.querySelector("#transmissionState").textContent = engineRunning ? `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}ª`} · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · pendiente ${((physicalFrame?.roadGrade || 0) * 100).toFixed(1)}% · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°` : "Motor apagado";
+        document.querySelector("#transmissionState").textContent = engineRunning ? `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}ª`} · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°` : `Motor apagado · aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar`;
         engineAudio.update({rpm:engineRunning?(physicalFrame?.rpm||physics.rpm):0,load:Number(accelerating)||0,running:engineRunning,speed,surface:Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?"gravel":"asphalt",weather:currentWeather(),windSpeed:liveWeatherState?.windSpeed||(currentWeather()==="storm"?34:isWetWeather()?18:5),braking:Boolean(braking),indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0,hazards:hazardsOn});
         document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
         if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
+        else if (physicalFrame?.lowAirPressure) document.querySelector("#assistState").textContent = `⚠ Presión de aire baja · ${physicalFrame.airPressureBar.toFixed(1)} bar`;
         else if (physicalFrame?.absActive) document.querySelector("#assistState").textContent = `ABS actuando · ${Math.round(physicalFrame.absPressure * 100)}% presión`;
         else if (physicalFrame?.tractionLimited) document.querySelector("#assistState").textContent = "Control de tracción actuando";
         if (specialFrame.active) {
@@ -1399,6 +1443,10 @@
           if (specialFrame.restricted) document.querySelector("#assistState").textContent = "Carga especial: centra el convoy y reduce velocidad";
         }
         document.querySelector("#dashSpeed").textContent = Math.round(speed);
+        const activeAssist=document.querySelector("#assistState"),assistText=activeAssist.textContent;
+        const assistLevel=/colisión|sin combustible|vuelco|frenando/i.test(assistText)?"critical":/exceso|actuando|reduce|preparación|especial/i.test(assistText)?"warning":"info";
+        activeAssist.dataset.level=assistLevel;
+        hudMotion.update({speed,limit:worldState.currentSpeedLimit||90,alertLevel:assistLevel});
         document.querySelector("#dashGear").textContent = `D${physicalFrame?.gear || physics.gear}`;
         document.querySelector("#dashFuel").textContent = `${Math.round(career.state.truck.fuel)}% combustible`;
         document.querySelector("#dashLimit").textContent = worldState.currentSpeedLimit ? `Límite ${worldState.currentSpeedLimit}` : "STOP";
@@ -1479,6 +1527,7 @@
           : navigationFrame?.arrived ? ["normal","Destino alcanzado"] : ["normal","AEBS listo"];
         alertElement.dataset.level=contextualAlert[0]; alertElement.textContent=contextualAlert[1];
         syncCockpitControls();
+        vehicleAnimationRig?.update({dt,time:now,steering:steer,speed,suspension:physicalFrame?.suspension||0,parking:parkingBrake,siren:sirenOn});
         V.traverse((part) => {
           if (!part.userData.isWheel) return;
           const rollingParts = part.userData.rollingParts;
@@ -1504,6 +1553,7 @@
       build("truck");
       const enhancements = createTransportEnhancements({ THREE: T, scene: S, renderer: R, sun, vehicle: V, qualityLevel, roadWidth: 30 });
       const worldEvents = createWorldEvents({ THREE: T, scene: S, qualityLevel });
+      const ambientLife = createAmbientLife({ THREE: T, scene: S, qualityLevel, roadHalfWidth: 15 });
       onresize = () => {
         C.aspect = innerWidth / innerHeight;
         C.updateProjectionMatrix();
@@ -1606,6 +1656,7 @@
       const liveFire = createFireEffect({ THREE:T, scene:S, qualityLevel });
       let weatherMode = 0, weatherSelection = 0, liveWeatherState = null, nextLightningAt = 0, lightningUntil = 0;
       function currentWeather() {
+        if (regionalEventFrame?.effects?.weather) return regionalEventFrame.effects.weather;
         if (liveWeatherState?.weather) return String(liveWeatherState.weather).toLowerCase();
         return weatherMode === 2 ? "night" : weatherMode === 1 ? "rain" : "clear";
       }
@@ -1647,6 +1698,7 @@
       function worldLoop(now = performance.now()) {
         const trafficDt = Math.min(.05, Math.max(.001, (now - lastTrafficFrame) / 1000)); lastTrafficFrame = now;
         if (V) {
+          ambientLife.update({ vehicle: V, camera: C, biome: document.querySelector("#city")?.textContent === "Valleverde" ? "alpine" : "rural", time: now, dt: trafficDt });
           const firePosition = V.position.clone().add(new T.Vector3(55,0,-95)); liveFire.update(trafficDt, liveWeatherState, firePosition);
           for (let i = 0; i < traffic3d.length; i++) {
             const o = traffic3d[i];
@@ -1661,7 +1713,7 @@
             }
             const previousSpeed = o.userData.roadSpeedKmh;
             const safeGap = 17 + previousSpeed * .42;
-            let targetSpeed = o.userData.cruiseSpeedKmh;
+            let targetSpeed = o.userData.cruiseSpeedKmh * (regionalEventFrame.effects.trafficMultiplier || 1);
             if (nearestAhead < safeGap) {
               const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
               const alternateLane = lanes.find((lane) => lane !== o.userData.laneX);
@@ -1707,7 +1759,7 @@
           else if (workDistance >= 35 && workDistance < 190) eventLabel.textContent = `Obras a ${Math.round(workDistance)} m`;
           else if (tunnelDistance >= 0 && tunnelDistance < 220) eventLabel.textContent = `Túnel a ${Math.round(tunnelDistance)} m`;
           else if (tunnelDistance < 0 && tunnelDistance > -175) eventLabel.textContent = "Túnel Sierra Norte";
-          else eventLabel.textContent = "Sin incidencias";
+          else eventLabel.textContent = regionalEventFrame.id ? regionalEventFrame.label : "Sin incidencias";
           if (workDistance < -150) roadworks.position.z = V.position.z - 520 - Math.random() * 260;
           rain.position.set(V.position.x, 0, V.position.z - 30);
           if (rain.visible) {

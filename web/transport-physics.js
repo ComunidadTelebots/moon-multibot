@@ -51,6 +51,8 @@ export function createTruckPhysics(options = {}) {
   let filteredCrosswind = 0;
   let absPressure = 1;
   let wheelSlipRatio = 0;
+  let airPressureBar = clamp(options.initialAirPressureBar ?? 10.5, 0, 12);
+  let previousBrakeDemand = 0;
 
   function reset(speedKmh = 0) {
     velocity = Math.max(0, speedKmh / 3.6);
@@ -59,6 +61,8 @@ export function createTruckPhysics(options = {}) {
     trailerAngle = trailerYawRate = filteredCrosswind = shiftTimer = 0;
     absPressure = 1;
     wheelSlipRatio = 0;
+    airPressureBar = clamp(options.initialAirPressureBar ?? 10.5, 0, 12);
+    previousBrakeDemand = 0;
     gear = 1;
     rpm = 600;
     brakeTemperature = 85;
@@ -110,7 +114,10 @@ export function createTruckPhysics(options = {}) {
     const aquaplaningSpeed = 25.5 * Math.sqrt(0.006 / Math.max(0.001, waterDepth));
     const aquaplaning = wetness * clamp((velocity - aquaplaningSpeed) / 16, 0, 1);
     const wetGripLoss = wetness * (surface === "asphalt" || surface === "concrete" ? 0.22 : 0.3);
-    const gripFactor = clamp((1 - wetGripLoss) * (1 - aquaplaning * 0.68), 0.18, 1);
+    // Regional/temporary events may reduce available adhesion without replacing
+    // the regular surface, rain and aquaplaning simulation.
+    const eventGripMultiplier = clamp(input.gripMultiplier ?? 1, 0.25, 1);
+    const gripFactor = clamp((1 - wetGripLoss) * (1 - aquaplaning * 0.68) * eventGripMultiplier, 0.18, 1);
     const grip = clamp(surfaceGrip * gripFactor, 0.08, 0.92);
     const engineHealth = clamp(1 - damage * 0.006, 0.25, 1);
 
@@ -151,6 +158,20 @@ export function createTruckPhysics(options = {}) {
     const brakeFade = clamp(1 - Math.max(0, brakeTemperature - 430) / 520, 0.38, 1);
     const tyreBrakeLimit = mass * 9.81 * grip;
     const requestedBrakeForce = brake * mass * 9.81 * clamp(0.72 * profile.brake, 0.58, 0.9) * brakeFade;
+    // Heavy-vehicle service brakes consume compressed air when their demand rises.
+    // The compressor only charges with the engine running; this makes repeated
+    // applications and starting with an empty system observable without adding
+    // a separate simulation loop.
+    const brakeDemandRise = Math.max(0, brake - previousBrakeDemand);
+    const compressorRate = input.engineRunning === false ? 0 : (airPressureBar < 9.4 ? 0.22 : 0.08);
+    const auxiliaryAirUse = clamp(input.auxiliaryAirUse || 0, 0, 1) * 0.16;
+    airPressureBar = clamp(
+      airPressureBar + compressorRate * dt - brakeDemandRise * 0.34 - auxiliaryAirUse * dt,
+      0,
+      12,
+    );
+    previousBrakeDemand = brake;
+    const airBrakeFactor = clamp((airPressureBar - 3.6) / 2.4, 0.18, 1);
     // Deterministic ABS controller: estimate longitudinal wheel slip, release pressure
     // progressively above the stable-slip window, then rebuild it when grip returns.
     const targetSlip = velocity > 2 && brake > 0.08
@@ -160,7 +181,7 @@ export function createTruckPhysics(options = {}) {
     const absActive = velocity > 2 && brake > 0.08 && wheelSlipRatio > 0.08;
     const targetAbsPressure = absActive ? clamp(1 - (wheelSlipRatio - 0.08) * 2.7, 0.34, 0.92) : 1;
     absPressure = moveTowards(absPressure, targetAbsPressure, dt * (targetAbsPressure < absPressure ? 8 : 3.5));
-    const brakeForce = Math.min(requestedBrakeForce * absPressure, tyreBrakeLimit * 0.96);
+    const brakeForce = Math.min(requestedBrakeForce * absPressure * airBrakeFactor, tyreBrakeLimit * 0.96);
     // Auxiliary braking is strongest at road speed and does not heat wheel brakes.
     const retarderForce = retarder * clamp(velocity / 8, 0, 1) * Math.min(105000, 430000 / Math.max(velocity, 3));
     const netForce = tractionForce - rollingForce - aeroForce - gradeForce - brakeForce - retarderForce;
@@ -249,6 +270,9 @@ export function createTruckPhysics(options = {}) {
       brakeFade,
       absActive,
       absPressure,
+      airPressureBar,
+      airBrakeFactor,
+      lowAirPressure: airPressureBar < 5.5,
       wheelSlipRatio,
       totalMass: mass,
       cargoMass,
@@ -274,6 +298,7 @@ export function createTruckPhysics(options = {}) {
     get gear() { return gear; },
     get rpm() { return rpm; },
     get brakeTemperature() { return brakeTemperature; },
+    get airPressureBar() { return airPressureBar; },
     get trailerAngle() { return trailerAngle; },
   };
 }
