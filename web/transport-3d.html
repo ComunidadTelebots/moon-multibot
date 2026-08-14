@@ -236,6 +236,7 @@
       import { createSaveCenter } from "./transport-save-center.js";
       import { createAmbientLife } from "./transport-ambient-life.js";
       import { createCityLife } from "./transport-city-life.js";
+      import { createBakedMaterialLibrary } from "./transport-baked-materials.js";
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
       import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
       import { createWeighStation } from "./transport-weigh-station.js";
@@ -357,6 +358,7 @@
       const routeNavigation = createRouteNavigation();
       let routeRuntime;
       const textures = createProceduralTransportTextures(T, qualityLevel);
+      const bakedMaterials=createBakedMaterialLibrary({THREE:T,qualityLevel});
       const vehicleTextures = createVehicleTextureSystem({
         THREE: T, qualityLevel,
         fleetAtlasUrl: "./generated-textures/transport-fleet-atlas-v1.png",
@@ -943,6 +945,7 @@
         V.position.set(0, 0, 60);
         S.add(V);
         vehicleTextures.apply(V);
+        bakedMaterials.ready.then(()=>{if(kind==="truck")bakedMaterials.apply(V);}).catch(error=>console.warn("No se cargaron los atlas estaticos Aster",error));
         specialTransport = createSpecialTransport({ THREE: T, scene: S, vehicle: V, qualityLevel });
         specialTransport.root.visible = false;
         if (!emergency && typeof specialCargoIndex !== "undefined" && specialCargoIndex >= 0 && specialCargoIndex < SPECIAL_CARGOES.length) specialTransport.select(SPECIAL_CARGOES[specialCargoIndex].id);
