@@ -520,7 +520,7 @@
           const tree = worldDetail.createTree({ seed: Math.abs(z + q) * .013, height: 8.5 + Math.abs((z * 7 + q) % 5) });
           tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
         }
-      let V, specialTransport,
+      let V, specialTransport, detailedTruckExterior = null,
         kind = "truck",
         view = 0,
         cameraReady = false,
@@ -726,13 +726,13 @@
       function build(type) {
         specialTransport?.dispose(); specialTransport = null;
         if (V) { V.userData.disposeCabin?.(); S.remove(V); }
+        detailedTruckExterior = null;
         kind = type;
         const g = new T.Group(),
           bus = type === "bus",
           emergency = emergencyFleet.definitions[type],
           fleetDescriptor = [...AIR_FLEET,...SEA_FLEET].find(item=>item.id===type),
           seaDescriptor = SEA_FLEET.find(item=>item.id===type);
-        let detailedTruckExterior = null;
         g.name = emergency ? `player_${type}` : bus ? "player_bus" : "player_truck";
         if (fleetDescriptor) {
           const model=seaDescriptor?createSeaVehicle({THREE:T,descriptor:fleetDescriptor,qualityLevel,liveryVariant:Number(document.querySelector("#fleetLivery").value)||0}):createFleetVehicle({THREE:T,descriptor:fleetDescriptor,qualityLevel,liveryVariant:Number(document.querySelector("#fleetLivery").value)||0});
