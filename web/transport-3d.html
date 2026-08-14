@@ -201,6 +201,7 @@
       import { createWheelInput } from "./transport-wheel-input.js";
       import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
       import { createBusCabinVariant } from "./transport-bus-cabin.js";
+      import { createBusAuthoredMaterials } from "./transport-bus-materials.js";
       import { createSpecialTransport, SPECIAL_CARGOES } from "./transport-special-cargo.js";
       import { createWorldDetail } from "./transport-world-detail.js";
       import { loadPhotorealAtlas } from "./transport-photoreal-atlas.js";
@@ -819,8 +820,9 @@
           g.userData.maxSpeed = responseVehicle.userData.maxSpeed;
         } else if (bus) {
           const busBody = part(g, 5.3, 3.7, 13.6, 0x2389b7, 0, 2.55, 0);
+          busBody.name = "bus_body_exterior";
           busBody.material.userData.vehicleSurface = "commercial";
-          part(g, 5.15, 0.55, 13.2, 0x18232c, 0, 4.65, 0);
+          const busRoof=part(g, 5.15, 0.55, 13.2, 0x18232c, 0, 4.65, 0);busRoof.name="bus_roof_exterior";
           let wind = part(g, 4.5, 2, 0.12, 0x173d52, 0, 3.45, -6.87);
           wind.material = glass;
           for (let r = -4.9; r <= 5; r += 2.2)
@@ -946,6 +948,7 @@
           g.userData.updateMirrors = modeledCabin.userData.updateMirrors;
           if(!bus){asterStaticCabin=createAsterStaticCabinLoader({THREE:T,qualityLevel});asterStaticCabin.apply(modeledCabin).then(()=>bakedMaterials.ready).then(()=>bakedMaterials.apply(modeledCabin)).catch(error=>console.warn("No se cargo la cabina estatica Aster",error));}
           g.userData.disposeCabin = () => {asterStaticCabin?.dispose();modeledCabin.userData.dispose?.();};
+          if(bus){const busMaterials=createBusAuthoredMaterials({THREE:T,qualityLevel});busMaterials.ready.then(()=>busMaterials.apply(g)).catch(error=>console.warn("No se cargaron los materiales estaticos del autobus",error));const disposeCabin=g.userData.disposeCabin;g.userData.disposeCabin=()=>{disposeCabin?.();busMaterials.dispose()};}
         }
         g.traverse((o) => {
           if (o.isMesh) {

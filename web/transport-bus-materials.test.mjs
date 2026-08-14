@@ -1,0 +1,2 @@
+import assert from"node:assert/strict";import test from"node:test";import{busMaterialRole}from"./transport-bus-materials.js";
+test("bus components receive their authored material",()=>{assert.equal(busMaterialRole("bus_body_exterior"),"exterior");assert.equal(busMaterialRole("bus_driver_side_console"),"cockpit");assert.equal(busMaterialRole("bus_low_floor_platform"),"floor");assert.equal(busMaterialRole("driver_seat_cushion"),"upholstery");assert.equal(busMaterialRole("windscreen"),"")});
