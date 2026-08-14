@@ -6,7 +6,7 @@ const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, Number(va
 export function createEngineAudio(){
   let context=null,master=null,engineBus=null,low=null,high=null,intake=null,engineFilter=null;
   let roadSource=null,roadGain=null,roadFilter=null,weatherSource=null,windGain=null,rainGain=null,windFilter=null,rainFilter=null;
-  let running=false,lastIndicator=0,lastIndicatorPulse=false,lastBraking=false,lastAirAt=-Infinity;
+  let running=false,lastIndicator=0,lastIndicatorPulse=false,lastBraking=false,lastAirAt=-Infinity,volume=.72;
   const nodes=[];
   const connect=(node)=>{nodes.push(node);return node};
   function noiseBuffer(seconds=2){
@@ -26,7 +26,7 @@ export function createEngineAudio(){
     windGain=connect(context.createGain());windGain.gain.value=0;windFilter=connect(context.createBiquadFilter());windFilter.type="highpass";windFilter.frequency.value=420;loopNoise(buffer,windGain,windFilter);windGain.connect(master);
     rainGain=connect(context.createGain());rainGain.gain.value=0;rainFilter=connect(context.createBiquadFilter());rainFilter.type="bandpass";rainFilter.frequency.value=2700;rainFilter.Q.value=.28;weatherSource=loopNoise(buffer,rainGain,rainFilter);rainGain.connect(master);
   }
-  async function setRunning(value){await ensure();await context.resume();running=Boolean(value);const now=context.currentTime;master.gain.cancelScheduledValues(now);master.gain.setTargetAtTime(.72,now,.08);engineBus.gain.setTargetAtTime(running?.2:0,now,running?.12:.06);return running}
+  async function setRunning(value){await ensure();await context.resume();running=Boolean(value);const now=context.currentTime;master.gain.cancelScheduledValues(now);master.gain.setTargetAtTime(volume,now,.08);engineBus.gain.setTargetAtTime(running?.2:0,now,running?.12:.06);return running}
   function cue({frequency=700,duration=.055,gain=.035,type="square",slide=1}={}){if(!context||context.state!=="running")return;const now=context.currentTime,osc=context.createOscillator(),amp=context.createGain();osc.type=type;osc.frequency.setValueAtTime(frequency,now);osc.frequency.exponentialRampToValueAtTime(Math.max(20,frequency*slide),now+duration);amp.gain.setValueAtTime(0,now);amp.gain.linearRampToValueAtTime(gain,now+.006);amp.gain.exponentialRampToValueAtTime(.0001,now+duration);osc.connect(amp).connect(master);osc.start(now);osc.stop(now+duration+.01)}
   function triggerAirBrake(intensity=.7){if(!context||context.currentTime-lastAirAt<.28)return;lastAirAt=context.currentTime;cue({frequency:190,duration:.24,gain:.055*clamp(intensity,.2,1),type:"sawtooth",slide:.18})}
   function update({rpm=600,load=0,running:value=running,speed=0,surface="asphalt",weather="clear",windSpeed=0,braking=false,indicator=0,hazards=false}={}){
@@ -41,5 +41,6 @@ export function createEngineAudio(){
     if(lastBraking&&!braking&&normalizedSpeed<.18)triggerAirBrake(.55);lastBraking=Boolean(braking);
   }
   function dispose(){try{nodes.forEach(node=>{if(typeof node.stop==="function")node.stop();node.disconnect?.()});context?.close()}catch{}context=master=engineBus=low=high=intake=engineFilter=roadSource=roadGain=roadFilter=weatherSource=windGain=rainGain=windFilter=rainFilter=null}
-  return {setRunning,update,triggerAirBrake,dispose,get running(){return running}};
+  function setVolume(value){volume=clamp(value);if(master&&context)master.gain.setTargetAtTime(volume,context.currentTime,.06);return volume}
+  return {setRunning,setVolume,update,triggerAirBrake,dispose,get running(){return running},get volume(){return volume}};
 }

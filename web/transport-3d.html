@@ -227,6 +227,7 @@
       import { createRegionalEventDirector } from "./transport-regional-events.js";
       import { createFireEffect } from "./transport-fire-effects.js";
       import { createEngineAudio } from "./transport-engine-audio.js";
+      import { createTransportSettingsPanel } from "./transport-settings-panel.js";
       import { createOperationCinematics } from "./transport-operation-cinematics.js";
       import { AIR_FLEET, SEA_FLEET, FLEET_LIVERIES, createFleetVehicle, createSeaVehicle } from "./transport-air-sea-fleet.js";
       import { createAviationUI } from "./transport-aviation-ui.js";
@@ -283,6 +284,7 @@
       applyRealisticRendererSettings(T, R, qualityLevel);
       window.__transportBootPhase?.("Render","Aceleracion grafica preparada");
       const graphicsSelector=mountGraphicsProfileSelector({profile:detectedGraphics,onSelect:id=>{const url=new URL(location.href);url.searchParams.set("quality",id);location.replace(url)}});
+      const settingsPanel=createTransportSettingsPanel({engineAudio});
       const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>graphicsSelector.update(frame)});
       const career = createTransportCareer();
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
