@@ -239,6 +239,7 @@
       import { createCityLife } from "./transport-city-life.js";
       import { createBakedMaterialLibrary } from "./transport-baked-materials.js";
       import { createAsterStaticModelLoader } from "./transport-aster-static-model.js";
+      import { createAsterStaticCabinLoader } from "./transport-aster-static-cabin.js";
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
       import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
       import { createWeighStation } from "./transport-weigh-station.js";
@@ -590,7 +591,7 @@
           const tree = worldDetail.createTree({ seed: Math.abs(z + q) * .013, height: 8.5 + Math.abs((z * 7 + q) % 5) });
           tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
         }
-      let V, specialTransport, detailedTruckExterior = null, asterStaticModel = null, vehicleAnimationRig = null,
+      let V, specialTransport, detailedTruckExterior = null, asterStaticModel = null, asterStaticCabin = null, vehicleAnimationRig = null,
         kind = "truck",
         view = 0,
         cameraReady = false,
@@ -795,6 +796,7 @@
       }
       function build(type) {
         asterStaticModel?.dispose();asterStaticModel=null;
+        asterStaticCabin?.dispose();asterStaticCabin=null;
         specialTransport?.dispose(); specialTransport = null;
         if (V) { V.userData.disposeCabin?.(); S.remove(V); }
         detailedTruckExterior = null;
@@ -939,7 +941,8 @@
           g.userData.updateCabinControls = modeledCabin.userData.updateCabinControls;
           g.userData.cockpitOffset = modeledCabin.userData.cockpitOffset;
           g.userData.updateMirrors = modeledCabin.userData.updateMirrors;
-          g.userData.disposeCabin = () => modeledCabin.userData.dispose?.();
+          if(!bus){asterStaticCabin=createAsterStaticCabinLoader({THREE:T,qualityLevel});asterStaticCabin.apply(modeledCabin).catch(error=>console.warn("No se cargo la cabina estatica Aster",error));}
+          g.userData.disposeCabin = () => {asterStaticCabin?.dispose();modeledCabin.userData.dispose?.();};
         }
         g.traverse((o) => {
           if (o.isMesh) {
