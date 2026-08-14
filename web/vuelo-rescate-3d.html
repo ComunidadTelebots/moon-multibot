@@ -73,18 +73,24 @@
       <div class="pill">Rescates <b id="score">0</b></div>
       <div class="pill">Altitud <b id="alt">30 m</b></div>
       <div class="pill">Vista <b id="view">Exterior</b></div>
+      <div class="pill">Velocidad <b id="airspeed">65 km/h</b></div>
+      <div class="pill">Vertical <b id="vertical">0 m/s</b></div>
+      <div class="pill">Combustible <b id="fuel">100%</b></div>
+      <div class="pill">Viento <b id="wind">0 kt</b></div>
     </div>
     <div class="bar">
       <button id="cam">Vista</button><button id="mode2d">Versión 2D</button
-      ><button id="full">⛶</button>
+      ><button id="convoy">Mundo compartido</button><button id="liveWeather">Clima real</button><button id="full">⛶</button>
     </div>
     <div class="bar right">
       <button class="mobile" data-k="a">◀</button
       ><button data-k="s">Bajar</button><button data-k="w">Subir</button
       ><button class="mobile" data-k="d">▶</button>
     </div>
-    <script type="module">
+    <script src="/games-convoy.js"></script><script src="/games-shared-world.js"></script><script src="/games-shared-operations.js"></script><script type="module">
       import * as T from "./vendor/three.module.min.js";
+      import { createRotorcraftDynamics } from "./flight-dynamics.js";
+      import { createLiveEnvironment } from "./transport-live-environment.js";
       const graphicsParams = new URLSearchParams(location.search),
         graphicsMode = graphicsParams.get("graphics") || "auto",
         graphicsQuality = graphicsParams.get("quality") || "high",
@@ -92,6 +98,9 @@
         pixelRatio = [0.75, 1.15, 1.75, 2.4][qualityLevel],
         shadows = graphicsMode !== "compat" && qualityLevel > 0;
       const S = new T.Scene();
+      const sharedWorldPresence = window.MoonSharedWorld.createThreePresence({ THREE: T, scene: S });
+      const sharedOperations = window.MoonSharedOperations.create();
+      const liveEnvironment = createLiveEnvironment(); let liveWeatherState = null;
       S.background = new T.Color(0x8ad3ef);
       S.fog = new T.Fog(0x9edcf0, 100, 520);
       const C = new T.PerspectiveCamera(66, innerWidth / innerHeight, 0.1, 800),
@@ -200,6 +209,8 @@
         score = 0,
         view = 0,
         speed = 25;
+      const dynamics = createRotorcraftDynamics();
+      let previousFrame = performance.now();
       document.querySelectorAll("[data-k]").forEach((q) => {
         const k = q.dataset.k;
         q.onpointerdown = () => (keys[k] = 1);
@@ -215,6 +226,9 @@
           ? "Cabina"
           : "Exterior";
       };
+      convoy.onclick = () => window.MoonConvoy.join(prompt("Código del mundo compartido (vacío para crear)") || "");
+      liveWeather.onclick = async () => { if(liveWeatherState){liveEnvironment.disable();liveWeatherState=null;liveWeather.textContent="Clima real";return} liveWeather.textContent="Cargando…";liveEnvironment.setLocation({lat:40.4168,lon:-3.7038});liveWeatherState=await liveEnvironment.load(true);liveWeather.textContent=`${liveWeatherState.weather} · ${Math.round(liveWeatherState.temperature||0)}°C`;S.fog.near=liveWeatherState.weather==="fog"?25:100;S.fog.far=liveWeatherState.weather==="fog"?180:liveWeatherState.weather==="rain"?350:520; };
+      window.MoonConvoy.onChange(state => { sharedWorldPresence.update(state, state.you); const operation=sharedOperations.get(state); convoy.textContent = state.joined ? `${state.room} · ${state.players.length + state.ai.length} vehículos · ${state.mode === "online" ? `${state.ping} ms` : "LAN"}` : "Mundo compartido"; convoy.title=operation?`${operation.name} · ${operation.ready}/${operation.roles.length} medios · ${operation.remaining}s`:""; });
       mode2d.onclick = () => {
         try {
           parent.document.querySelector('[data-game="flight2d"]').click();
@@ -226,19 +240,15 @@
         document.fullscreenElement
           ? document.exitFullscreen()
           : document.documentElement.requestFullscreen();
-      function loop() {
-        heli.position.z -= 0.38;
-        heli.position.x = T.MathUtils.clamp(
-          heli.position.x + (keys.a ? 0.42 : keys.d ? -0.42 : 0),
-          -95,
-          95,
-        );
-        heli.position.y = T.MathUtils.clamp(
-          heli.position.y + (keys.w ? 0.3 : keys.s ? -0.3 : 0),
-          5,
-          85,
-        );
-        rotor.rotation.y += 0.35;
+      function loop(now = performance.now()) {
+        const dt = Math.min(.05, (now - previousFrame) / 1000); previousFrame = now;
+        const frame = dynamics.update({ up: keys.w, down: keys.s, left: keys.a, right: keys.d, time: now, windSpeed: liveWeatherState?.windSpeed }, dt);
+        heli.position.x = T.MathUtils.clamp(heli.position.x + frame.velocity.x * dt, -95, 95);
+        heli.position.y = T.MathUtils.clamp(heli.position.y + frame.velocity.y * dt, 1.4, 85);
+        heli.position.z += frame.velocity.z * dt;
+        heli.rotation.z += ((keys.a ? -.13 : keys.d ? .13 : 0) - heli.rotation.z) * Math.min(1, dt * 3.4);
+        heli.rotation.x += ((frame.verticalSpeed * -.012) - heli.rotation.x) * Math.min(1, dt * 2.5);
+        rotor.rotation.y += (.22 + frame.collective * .32) * dt * 60;
         for (const t of targets) {
           if (t.position.distanceTo(heli.position) < 7) {
             score++;
@@ -269,6 +279,13 @@
         }
         document.querySelector("#alt").textContent =
           Math.round(heli.position.y) + " m";
+        document.querySelector("#airspeed").textContent = `${Math.round(frame.airspeed)} km/h`;
+        document.querySelector("#vertical").textContent = `${frame.verticalSpeed >= 0 ? "+" : ""}${frame.verticalSpeed.toFixed(1)} m/s`;
+        document.querySelector("#fuel").textContent = `${Math.round(frame.fuel)}%`;
+        document.querySelector("#wind").textContent = `${Math.round(Math.abs(frame.wind) * 1.944)} kt`;
+        window.MoonConvoy.update({ game: "air", vehicle: "helicopter", x: heli.position.x, y: heli.position.z, z: heli.position.z, altitude: heli.position.y, speed: frame.airspeed, heading: heli.rotation.y, cargo: `Rescates ${score}`, engine:frame.fuel>0, headlights:false, braking:false, indicator:0, hazards:false, siren:false, weather:liveWeatherState?.weather||"clear" });
+        sharedWorldPresence.tick(dt);
+        const operation = sharedOperations.get(window.MoonConvoy.state, Date.now()); if (operation && window.MoonConvoy.state.joined) document.querySelector("#view").title = operation.complete ? `${operation.name} completada` : `${operation.name}: ${operation.ready}/${operation.roles.length} medios en destino`;
         R.render(S, C);
         requestAnimationFrame(loop);
       }
@@ -282,6 +299,8 @@
     </script>
     <script>
       var cam = document.querySelector("#cam"),
+        convoy = document.querySelector("#convoy"),
+        liveWeather = document.querySelector("#liveWeather"),
         mode2d = document.querySelector("#mode2d"),
         full = document.querySelector("#full");
     </script>

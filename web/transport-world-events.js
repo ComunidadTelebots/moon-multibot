@@ -493,7 +493,7 @@ export function createWorldEvents({ THREE: T, scene, qualityLevel = 2 } = {}) {
     eventState.policeAlert = false;
 
     for (const light of trafficLights) {
-      const phase = (eventState.time + light.userData.cycleOffset) % 20;
+      const phase = ((Number.isFinite(input.synchronizedTime) ? input.synchronizedTime : eventState.time) + light.userData.cycleOffset) % 20;
       const index = phase < 10 ? 2 : phase < 13 ? 1 : 0;
       light.userData.worldEvent.signal = ["red", "yellow", "green"][index];
       light.userData.lamps.forEach((lamp, lampIndex) => {

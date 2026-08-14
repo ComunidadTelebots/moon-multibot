@@ -188,20 +188,27 @@ def public_games_convoy():
             rid = requested or secrets.token_hex(3).upper()
             room = _convoy_rooms.setdefault(rid, {"id": rid, "created": now, "updated": now, "players": {}, "cargo": [], "seed": secrets.randbelow(999999)})
             if len(room["players"]) >= 16: return jsonify({"ok": False, "error": "Convoy completo"}), 409
-            room["players"][uid] = {"id": uid, "name": str(user.get("first_name") or "Conductor")[:24], "game": "truck", "x": 0.0, "y": 0.0, "speed": 0.0, "heading": 0.0, "cargo": "", "seen": now}
+            room["players"][uid] = {"id": uid, "name": str(user.get("first_name") or "Conductor")[:24], "game": "truck", "vehicle": "truck", "x": 0.0, "y": 0.0, "z": 0.0, "altitude": 0.0, "speed": 0.0, "heading": 0.0, "cargo": "", "seen": now}
         if room is None: return jsonify({"ok": False, "error": "Únete a un convoy"}), 409
         player = room["players"][uid]; player["seen"] = now; room["updated"] = now
         if action == "update":
             player["game"] = str(body.get("game") or player["game"])[:16]
-            for key in ("x", "y", "speed", "heading"):
+            player["vehicle"] = str(body.get("vehicle") or player.get("vehicle") or player["game"])[:16]
+            for key in ("x", "y", "z", "altitude", "speed", "heading"):
                 try: player[key] = max(-100000.0, min(100000.0, float(body.get(key, player[key]))))
                 except (TypeError, ValueError): pass
             player["cargo"] = str(body.get("cargo") or "")[:80]
+            for key in ("engine", "headlights", "braking", "hazards", "siren"):
+                player[key] = bool(body.get(key, False))
+            try: player["indicator"] = max(-1, min(1, int(body.get("indicator") or 0)))
+            except (TypeError, ValueError): player["indicator"] = 0
+            player["weather"] = str(body.get("weather") or "clear")[:12]
+            player["snapshotTime"] = round(now, 3)
         elapsed = now-room["created"]
         ai = []
         for index, game in enumerate(("truck", "rail", "air", "sea")):
             phase = elapsed * (0.18 + index * 0.035) + room["seed"] * 0.001 + index * 1.7
-            ai.append({"id": f"ai-{index}", "name": ("Aster IA", "Expreso IA", "CargoJet IA", "Marina IA")[index], "game": game, "x": round(math.sin(phase)*260, 1), "y": round(math.cos(phase*.73)*420, 1), "speed": 55+index*18, "heading": round(phase % (math.pi*2), 3), "ai": True})
+            ai.append({"id": f"ai-{index}", "name": ("Aster IA", "Expreso IA", "CargoJet IA", "Marina IA")[index], "game": game, "vehicle": ("truck", "train", "plane", "ship")[index], "x": round(math.sin(phase)*260, 1), "y": round(math.cos(phase*.73)*420, 1), "z": round(math.cos(phase*.73)*420, 1), "altitude": 55 if game == "air" else 0, "speed": 55+index*18, "heading": round(phase % (math.pi*2), 3), "ai": True})
         players = [{key: value for key, value in row.items() if key != "seen"} for row in room["players"].values()]
         return jsonify({"ok": True, "room": room["id"], "you": uid, "players": players, "ai": ai, "serverTime": round(now, 3)})
 

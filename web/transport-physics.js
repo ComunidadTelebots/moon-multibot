@@ -49,12 +49,16 @@ export function createTruckPhysics(options = {}) {
   let trailerAngle = 0;
   let trailerYawRate = 0;
   let filteredCrosswind = 0;
+  let absPressure = 1;
+  let wheelSlipRatio = 0;
 
   function reset(speedKmh = 0) {
     velocity = Math.max(0, speedKmh / 3.6);
     acceleration = yawRate = steerAngle = suspension = suspensionVelocity = 0;
     suspensionPitch = suspensionPitchVelocity = suspensionRoll = suspensionRollVelocity = 0;
     trailerAngle = trailerYawRate = filteredCrosswind = shiftTimer = 0;
+    absPressure = 1;
+    wheelSlipRatio = 0;
     gear = 1;
     rpm = 600;
     brakeTemperature = 85;
@@ -145,8 +149,18 @@ export function createTruckPhysics(options = {}) {
     const gradeForce = mass * 9.81 * roadGrade;
     const ambientTemperature = input.ambientTemperature ?? 22;
     const brakeFade = clamp(1 - Math.max(0, brakeTemperature - 430) / 520, 0.38, 1);
-    const serviceBrakeLimit = mass * 9.81 * grip * clamp(0.72 * profile.brake, 0.58, 0.9);
-    const brakeForce = brake * serviceBrakeLimit * brakeFade;
+    const tyreBrakeLimit = mass * 9.81 * grip;
+    const requestedBrakeForce = brake * mass * 9.81 * clamp(0.72 * profile.brake, 0.58, 0.9) * brakeFade;
+    // Deterministic ABS controller: estimate longitudinal wheel slip, release pressure
+    // progressively above the stable-slip window, then rebuild it when grip returns.
+    const targetSlip = velocity > 2 && brake > 0.08
+      ? clamp((requestedBrakeForce - tyreBrakeLimit * 0.82) / Math.max(tyreBrakeLimit, 1), 0, 1)
+      : 0;
+    wheelSlipRatio += (targetSlip - wheelSlipRatio) * Math.min(1, dt * 14);
+    const absActive = velocity > 2 && brake > 0.08 && wheelSlipRatio > 0.08;
+    const targetAbsPressure = absActive ? clamp(1 - (wheelSlipRatio - 0.08) * 2.7, 0.34, 0.92) : 1;
+    absPressure = moveTowards(absPressure, targetAbsPressure, dt * (targetAbsPressure < absPressure ? 8 : 3.5));
+    const brakeForce = Math.min(requestedBrakeForce * absPressure, tyreBrakeLimit * 0.96);
     // Auxiliary braking is strongest at road speed and does not heat wheel brakes.
     const retarderForce = retarder * clamp(velocity / 8, 0, 1) * Math.min(105000, 430000 / Math.max(velocity, 3));
     const netForce = tractionForce - rollingForce - aeroForce - gradeForce - brakeForce - retarderForce;
@@ -233,6 +247,9 @@ export function createTruckPhysics(options = {}) {
       engineTorque,
       brakeTemperature,
       brakeFade,
+      absActive,
+      absPressure,
+      wheelSlipRatio,
       totalMass: mass,
       cargoMass,
       centreOfGravity,

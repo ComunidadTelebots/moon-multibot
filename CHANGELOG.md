@@ -1,5 +1,25 @@
 # Changelog - Moon Multibot
 
+## v18.25.12 - 2026-08-14 - Sistema visual multimodal de Canva
+
+### Auditoría previa
+
+- Revisa las 80 páginas actuales del diseño maestro de Canva y separa catálogo general, interfaces del camión, aviación, navegación marítima y operaciones regionales.
+- Confirma que ya existían modelos básicos de aeronaves y barcos, pero funcionaban como selecciones genéricas dentro de la carretera y no como experiencias propias.
+- Confirma que carreteras, OSM, servicios y nodos logísticos ya existían, pero carecían de una interfaz regional unificada.
+
+### Cambios nuevos verificados
+
+- Añade un sistema visual principal con secciones Conducir, Empresa, Operaciones y Sistema, conectado a las pantallas y estados reales del simulador.
+- Añade Moon Aviation con instrumentos, aeropuertos, destinos, misiones, progreso, despegue, ascenso, aterrizaje, cabeceo, alabeo y rotores animados.
+- Convierte Puerto Logístico en una experiencia naval con carguero, ferri, remolcador, timón, inercia, radar, ruta balizada, atraque y descarga.
+- Añade un centro operativo regional con territorio, nodo logístico, puertos, aeropuertos, centros intermodales, accesos, servicios, estado de vía y punto kilométrico.
+- Mantiene interfaces responsive para escritorio, móvil y Telegram sin generar ni descargar imágenes nuevas.
+
+### Verificación local
+
+- Sintaxis validada en HTML y módulos nuevos; simulador naval comprobado y 7/7 pruebas combinadas superadas.
+
 ## v18.25.11 - 2026-08-14 - Seguridad, flota y operaciones animadas
 
 ### Auditoría previa de Canva y código

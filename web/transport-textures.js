@@ -127,6 +127,38 @@ export function createProceduralTransportTextures(T, qualityLevel = 2) {
   }), 4, 2);
   const tyreBump = make(scalarMap(size, 116, 4871, size * 4, true), 4, 2, false);
 
+  const trimRandom = randomFactory(5541);
+  const trim = make(textureCanvas(size, "#171b1e", (ctx, s) => {
+    const gradient = ctx.createLinearGradient(0, 0, s, 0);
+    gradient.addColorStop(0, "#090c0e"); gradient.addColorStop(.48, "#252b2f"); gradient.addColorStop(1, "#0c1012");
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, s, s);
+    ctx.globalAlpha = .16; speckles(ctx, s, trimRandom, size * 4, ["#050607", "#566067"], 1.1); ctx.globalAlpha = 1;
+  }), 2, 2);
+  const trimRoughness = make(scalarMap(size, 178, 5542, size * 3), 2, 2, false);
+
+  const rimRandom = randomFactory(7719);
+  const rim = make(textureCanvas(size, "#b9c1c4", (ctx, s) => {
+    const gradient = ctx.createLinearGradient(0, 0, s, 0);
+    gradient.addColorStop(0, "#4c555a"); gradient.addColorStop(.22, "#e8eeee");
+    gradient.addColorStop(.5, "#899397"); gradient.addColorStop(.78, "#f6f8f7"); gradient.addColorStop(1, "#3e474c");
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, s, s);
+    ctx.globalAlpha = .24;
+    for (let y = 0; y < s; y += Math.max(2, s / 180)) { ctx.fillStyle = rimRandom() > .5 ? "#fff" : "#263035"; ctx.fillRect(0, y, s, 1); }
+    ctx.globalAlpha = 1;
+  }), 1, 3);
+  const rimRoughness = make(scalarMap(size, 82, 7720, size * 2, true), 1, 3, false);
+
+  const trailerRandom = randomFactory(4317);
+  const trailerPanel = make(textureCanvas(size, "#e6e8e4", (ctx, s) => {
+    const gradient = ctx.createLinearGradient(0, 0, s, 0);
+    gradient.addColorStop(0, "#aeb4b3"); gradient.addColorStop(.08, "#f5f6f1");
+    gradient.addColorStop(.9, "#e6e8e4"); gradient.addColorStop(1, "#969e9d");
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, s, s);
+    ctx.globalAlpha = .17; speckles(ctx, s, trailerRandom, size * 3, ["#ffffff", "#697271", "#8c7359"], 1.2);
+    ctx.fillStyle = "#737b7b"; ctx.fillRect(s - Math.max(2, s / 96), 0, Math.max(2, s / 96), s); ctx.globalAlpha = 1;
+  }), 5, 2);
+  const trailerRoughness = make(scalarMap(size, 142, 4318, size * 3, true), 5, 2, false);
+
   const concreteRandom = randomFactory(6630);
   const concrete = make(textureCanvas(size, "#999b96", (ctx, s) => {
     speckles(ctx, s, concreteRandom, detail, ["#747672", "#8b8c87", "#b3b1a8", "#cbc7ba"], 2.8);
@@ -148,7 +180,8 @@ export function createProceduralTransportTextures(T, qualityLevel = 2) {
     // Original keys remain intact for existing callers.
     asphalt, grass, metal, paint,
     asphaltRoughness, asphaltBump, groundRoughness,
-    metalRoughness, paintRoughness, tyre, tyreBump,
+    metalRoughness, paintRoughness, tyre, tyreBump, trim, trimRoughness,
+    rim, rimRoughness, trailerPanel, trailerRoughness,
     concrete, concreteRoughness, sign,
     maps: {
       asphalt: { map: asphalt, roughnessMap: asphaltRoughness, bumpMap: asphaltBump, bumpScale: 0.055 },
@@ -156,6 +189,9 @@ export function createProceduralTransportTextures(T, qualityLevel = 2) {
       metal: { map: metal, roughnessMap: metalRoughness },
       paint: { map: paint, roughnessMap: paintRoughness },
       tyre: { map: tyre, bumpMap: tyreBump, bumpScale: 0.035 },
+      trim: { map: trim, roughnessMap: trimRoughness, bumpMap: trimRoughness, bumpScale: 0.012 },
+      rim: { map: rim, roughnessMap: rimRoughness },
+      trailer: { map: trailerPanel, roughnessMap: trailerRoughness, bumpMap: trailerRoughness, bumpScale: 0.018 },
       concrete: { map: concrete, roughnessMap: concreteRoughness },
       sign: { map: sign },
     },

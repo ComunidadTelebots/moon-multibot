@@ -162,7 +162,21 @@
       const dt = clamp(finite(deltaSeconds), 0, 0.1);
       const laneCount = Math.max(1, Math.floor(settings.lanesPerDirection));
       const occupied = actors.traffic;
-      const laneSafe = (actor, lane) => !occupied.some(other => other !== actor && other.direction === actor.direction && other.lane === lane && Math.min(forwardGap(actor.distance, other.distance, actor.direction), forwardGap(other.distance, actor.distance, actor.direction)) < Math.max(18, actor.speed * 1.6));
+      const playerDistance = finite(context?.playerDistance);
+      const playerSpeed = Math.max(0, finite(context?.playerSpeed));
+      const playerDirection = finite(context?.playerDirection) < 0 ? -1 : 1;
+      const playerLateral = finite(context?.playerLateral);
+      const playerLength = Math.max(4, finite(context?.playerLength) || 16.5);
+      const playerLane = Array.from({ length: laneCount }, (_, lane) => lane)
+        .map(lane => ({ lane, offset: Math.abs(playerLateral - playerDirection * settings.laneWidth * (lane + 0.5)) }))
+        .sort((a, b) => a.offset - b.offset)[0];
+      const playerOnLane = playerLane && playerLane.offset <= settings.laneWidth * 0.68 ? playerLane.lane : -1;
+      const laneSafe = (actor, lane) => {
+        const trafficClear = !occupied.some(other => other !== actor && other.direction === actor.direction && other.lane === lane && Math.min(forwardGap(actor.distance, other.distance, actor.direction), forwardGap(other.distance, actor.distance, actor.direction)) < Math.max(18, actor.speed * 1.6));
+        if (!trafficClear || playerOnLane !== lane || playerDirection !== actor.direction) return trafficClear;
+        const separation = Math.min(forwardGap(actor.distance, playerDistance, actor.direction), forwardGap(playerDistance, actor.distance, actor.direction));
+        return separation > Math.max(22, actor.speed * 1.8, playerSpeed * 1.5);
+      };
       actors.traffic.forEach(actor => {
         actor.laneChangeTimer = Math.max(0, actor.laneChangeTimer - dt);
         let obstacleGap = Infinity;
@@ -177,6 +191,10 @@
           const gap = forwardGap(actor.distance, event.distance, actor.direction) - 4;
           if (gap < obstacleGap) { obstacleGap = gap; leadSpeed = 0; }
         });
+        if (actor.direction === playerDirection && actor.lane === playerOnLane) {
+          const gap = forwardGap(actor.distance, playerDistance, actor.direction) - playerLength * 0.5;
+          if (gap < obstacleGap) { obstacleGap = gap; leadSpeed = playerSpeed; }
+        }
         const desiredGap = settings.minGap + actor.speed * settings.reactionTime;
         if (obstacleGap < desiredGap * 1.8 && actor.laneChangeTimer <= 0) {
           const candidates = [actor.lane + 1, actor.lane - 1].filter(lane => lane >= 0 && lane < laneCount);
@@ -196,8 +214,6 @@
         if (actor.direction < 0) actor.pose.heading += Math.PI;
         adapter.move?.(actor.handle, actor.pose, actor, context);
       });
-      const playerDistance = finite(context?.playerDistance);
-      const playerDirection = finite(context?.playerDirection) < 0 ? -1 : 1;
       let nearest = null;
       actors.traffic.forEach(actor => {
         const gap = Math.min(forwardGap(playerDistance, actor.distance, playerDirection), forwardGap(actor.distance, playerDistance, playerDirection));
