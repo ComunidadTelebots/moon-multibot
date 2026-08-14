@@ -941,7 +941,7 @@
           g.userData.updateCabinControls = modeledCabin.userData.updateCabinControls;
           g.userData.cockpitOffset = modeledCabin.userData.cockpitOffset;
           g.userData.updateMirrors = modeledCabin.userData.updateMirrors;
-          if(!bus){asterStaticCabin=createAsterStaticCabinLoader({THREE:T,qualityLevel});asterStaticCabin.apply(modeledCabin).catch(error=>console.warn("No se cargo la cabina estatica Aster",error));}
+          if(!bus){asterStaticCabin=createAsterStaticCabinLoader({THREE:T,qualityLevel});asterStaticCabin.apply(modeledCabin).then(()=>bakedMaterials.ready).then(()=>bakedMaterials.apply(modeledCabin)).catch(error=>console.warn("No se cargo la cabina estatica Aster",error));}
           g.userData.disposeCabin = () => {asterStaticCabin?.dispose();modeledCabin.userData.dispose?.();};
         }
         g.traverse((o) => {
