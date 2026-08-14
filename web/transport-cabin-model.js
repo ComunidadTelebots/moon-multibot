@@ -64,6 +64,7 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const frontZ = bus ? -5.93 : -5.79;
   roundedPanel("dashboard_swept_shell", bus ? 4.72 : 4.42, .68, .72, .18, [0, 2.22, frontZ], soft, [-.06, 0, 0]);
   roundedPanel("dashboard_upper_pad", bus ? 4.82 : 4.52, .18, 1.25, .09, [0, 2.63, frontZ + .12], polymer, [-.04, 0, 0]);
+  roundedPanel("continuous_digital_cockpit_bezel",3.55,.92,.12,.2,[-.08,2.38,frontZ-.5],piano,[-.045,0,0]);
   roundedPanel("driver_instrument_hood", 1.92, .48, .64, .2, [-.75, 2.66, frontZ - .08], soft, [-.08, 0, 0]);
   roundedPanel("centre_stack", 1.18, 1.18, .18, .16, [.92, 2.15, frontZ - .49], piano, [0, 0, -.035]);
   roundedPanel("wraparound_driver_console", 2.05,.48,1.75,.18,[-1.18,1.83,frontZ+.62],soft,[-.08,.04,0]);
@@ -86,6 +87,16 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const navCanvas = document.createElement("canvas"); navCanvas.width = 384; navCanvas.height = 384;
   const navTexture = new T.CanvasTexture(navCanvas); navTexture.colorSpace = T.SRGBColorSpace;
   add(new T.PlaneGeometry(.82, .72), new T.MeshBasicMaterial({ map: navTexture, toneMapped: false }), "navigation_touchscreen", [.92, 2.29, frontZ - .61]);
+  // The Canva Aster cabin has one visually continuous digital fascia, plus
+  // portrait mirror cameras at eye level. The existing live canvases remain
+  // functional; these bezels unify their proportions instead of duplicating UI.
+  roundedPanel("instrument_display_visor",1.82,.72,.08,.14,[-.67,2.49,frontZ-.53],polymer,[-.045,0,0]);
+  roundedPanel("navigation_display_visor",1.12,.88,.08,.14,[.92,2.31,frontZ-.67],polymer,[-.045,0,0]);
+  const mirrorScreenMaterial=material("camera_mirror_screen",0x10252c,.18,.08,{emissive:new T.Color(0x285c68),emissiveIntensity:.5,clearcoat:.75});
+  for(const side of[-1,1]){
+    roundedPanel("portrait_camera_monitor",.42,1.04,.08,.11,[side*1.88,3.18,frontZ-.5],piano,[0,0,side*.035]);
+    roundedPanel("portrait_camera_feed",.33,.86,.025,.07,[side*1.88,3.18,frontZ-.555],mirrorScreenMaterial,[0,0,side*.035]);
+  }
   const switchIcons=["☼","P","△","A","R","M","+","−","◁","○","D","S"];
   for(let row=0;row<2;row++)for(let column=0;column<6;column++){
     const switchCanvas=document.createElement("canvas");switchCanvas.width=switchCanvas.height=64;const sx=switchCanvas.getContext("2d"),hazard=column===2&&row===0;sx.fillStyle=hazard?"#67181a":"#151b1e";sx.fillRect(0,0,64,64);sx.strokeStyle=hazard?"#ff7771":"#92e9dc";sx.lineWidth=3;sx.strokeRect(3,3,58,58);sx.fillStyle=hazard?"#ffaaa4":"#d9f5ef";sx.font="bold 26px sans-serif";sx.textAlign="center";sx.textBaseline="middle";sx.fillText(switchIcons[row*6+column],32,34);
@@ -112,6 +123,8 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
     root.add(vent);
   }
   roundedPanel("climate_control_surround",1.02,.38,.055,.08,[.92,1.58,frontZ-.545],polymer);
+  roundedPanel("lower_dashboard_knee_panel",4.12,.42,.52,.16,[0,1.08,frontZ-.08],soft,[-.03,0,0]);
+  roundedPanel("passenger_storage_drawer",1.36,.26,.12,.08,[1.25,1.17,frontZ-.38],polymer);
   for(const [index,x] of [.62,.92,1.22].entries()){
     add(new T.CylinderGeometry(.105,.105,.055,qualityLevel>1?28:16),aluminium,"climate_rotary_bezel",[x,1.59,frontZ-.605],[Math.PI/2,0,0]);
     add(new T.CylinderGeometry(.078,.085,.073,qualityLevel>1?28:16),piano,index===0?"temperature_rotary":"climate_rotary",[x,1.59,frontZ-.637],[Math.PI/2,0,0]);

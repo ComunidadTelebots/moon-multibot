@@ -36,6 +36,11 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, te
   roundedBody(4.12,.42,1.36,.17,paint,"roof_air_deflector",[0,5.12,-2.68],[-.22,0,0]);
   for(const side of[-1,1]) roundedBody(.48,3.55,2.1,.2,paint,"cab_corner_fairing",[side*2.24,2.92,-4.38],[0,side*.06,side*.025]);
   roundedBody(4.3,.72,.48,.2,paint,"sloped_front_brow",[0,4.48,-6.42],[-.12,0,0]);
+  // Aster's reference silhouette uses a continuous, rounded mask instead of a
+  // stack of rectangular boxes. These three shells visually join roof, glass
+  // and grille while leaving the real windshield unobstructed.
+  roundedBody(4.58,.34,.42,.15,paint,"upper_windshield_crown",[0,4.62,-6.37],[-.13,0,0]);
+  for(const side of[-1,1]) roundedBody(.52,2.58,.42,.16,paint,"front_corner_blade",[side*2.13,3.05,-6.5],[0,side*.075,side*.025]);
   box([4.24,1.62,.08], glass, "panoramic_split_windshield", [0,3.55,-6.66], [-.025,0,0]);
   box([.085,1.64,.12], dark, "windshield_centre_divider", [0,3.55,-6.72]);
   for (const side of [-1,1]) {
@@ -52,8 +57,13 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, te
     const sideIndicator=box([.2,.2,.08], amber, "side_indicator", [side*2.57,2.0,-6.02]);sideIndicator.userData.turnSide=side;
   }
   box([4.64,.94,.34], dark, "deep_front_grille", [0,1.72,-6.82]);
-  for (let y=1.42;y<=2.02;y+=.2) box([3.85,.065,.09], chrome, "grille_horizontal_blade", [0,y,-7.02]);
-  box([4.88,.48,.48], chrome, "reinforced_front_bumper", [0,.88,-6.83]);
+  for (let y=1.34;y<=2.14;y+=.2) {
+    const width=3.42+(y-1.34)*.62;
+    roundedBody(width,.065,.09,.025,chrome,"grille_horizontal_blade",[0,y,-7.02]);
+  }
+  roundedBody(4.88,.48,.48,.18,chrome,"reinforced_front_bumper",[0,.88,-6.83]);
+  roundedBody(3.55,.24,.16,.08,dark,"lower_cooling_intake",[0,.68,-7.08]);
+  for(const side of[-1,1]) roundedBody(.62,.22,.14,.08,lamp,"vertical_daylight_signature",[side*2.02,1.74,-7.18],[0,0,side*.16]);
   for (const side of [-1,1]) {
     const housing = box([1.02,.78,.18], dark, "headlamp_housing", [side*1.72,1.35,-7.06], [0,0,side*.04]);
     const headlamp=box([.72,.48,.07], lamp, "led_headlamp", [side*1.72,1.37,-7.17]);headlamp.userData.vehicleLamp="headlight";
@@ -78,9 +88,17 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, te
   for (const side of [-1,1]) for (const z of [-1.48,1.12]) box([.09,1.22,.12], dark, "tank_retaining_band", [side*2.18,.92,z]);
   box([1.02,.95,1.35], chrome,"battery_and_adblue_box",[-2.2,.9,1.72]);
   box([1.02,.95,1.35],chrome,"exhaust_treatment_box",[2.2,.9,1.72]);
+  for(const side of[-1,1]){
+    roundedBody(.24,1.28,5.15,.1,paint,"aerodynamic_side_skirt",[side*2.49,1.05,-.05],[0,side*Math.PI/2,0]);
+    for(const z of[-1.25,.05,1.32]) roundedBody(.09,.72,.82,.04,dark,"side_skirt_service_joint",[side*2.625,1.03,z],[0,side*Math.PI/2,0]);
+  }
   box([3.6,.38,7.1],dark,"tractor_ladder_chassis",[0,.82,-.25]);
   for(const side of[-1,1])box([.24,.48,7.4],dark,"tractor_frame_rail",[side*.82,.76,-.2]);
   const fifth=add(new T.CylinderGeometry(1.02,1.02,.22,qualityLevel>1?30:18),dark,"fifth_wheel_coupling",[0,1.28,1.82]);fifth.rotation.x=Math.PI/2;
+  if(qualityLevel>1){
+    const badge=new T.Group();badge.name="aster_geometric_badge";badge.position.set(0,2.38,-7.09);badge.rotation.x=Math.PI/2;root.add(badge);
+    for(const angle of[0,Math.PI/3,-Math.PI/3]){const bar=box([.08,.44,.06],chrome,"brandless_badge_segment",[0,0,0],[0,0,angle],badge);bar.castShadow=false;}
+  }
   function wheel(x,z,radius=1.02,width=.62){
     const group=new T.Group();group.name="detailed_road_wheel";group.position.set(x,radius,z);group.userData.isWheel=true;group.userData.frontWheel=z< -2;
     const rolling=new T.Group();rolling.name="wheel_rolling_assembly";group.add(rolling);group.userData.rollingParts=rolling;
