@@ -13,7 +13,7 @@ export function createTransportDrivingDock({ controls = document.querySelector("
   const hud = document.querySelector(".hud");
   const driveHeader = document.createElement("header");
   driveHeader.className = "moon-drive-header";
-  driveHeader.innerHTML = \`<div class="moon-drive-brand"><small>TODO SOBRE ALLTECH STUDIOS</small><b>Rutas del Continente</b></div><div class="moon-drive-route"><small>RUTA ACTIVA</small><b data-live-city>En carretera</b><span data-live-road>Sin incidencias</span></div><div><small>VEHÍCULO · CÁMARA</small><b data-live-vehicle>Aster Viento 3D</b><span data-live-view>Exterior</span></div>\`;
+  driveHeader.innerHTML = '<div class="moon-drive-brand"><small>TODO SOBRE ALLTECH STUDIOS</small><b>Rutas del Continente</b></div><div class="moon-drive-route"><small>RUTA ACTIVA</small><b data-live-city>En carretera</b><span data-live-road>Sin incidencias</span></div><div><small>VEHÍCULO · CÁMARA</small><b data-live-vehicle>Aster Viento 3D</b><span data-live-view>Exterior</span></div>';
   document.body.append(driveHeader);
   if (hud) {
     hud.classList.add("moon-route-hud");
