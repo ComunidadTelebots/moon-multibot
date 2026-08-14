@@ -188,7 +188,7 @@
       import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
       import { createTransportCareer } from "./transport-career.js";
       import { createCompanyPanel } from "./transport-company-panel.js";
-      import { createTransportUiShell } from "./transport-ui-shell.js?v=20260814-ui2";
+      import { createTransportUiShell } from "./transport-ui-shell.js?v=20260815-ui4";
       import { createTransportDrivingDock } from "./transport-driving-dock.js?v=20260814-ui3";
       import { createRegionOperationsPanel } from "./transport-region-operations.js";
       import { createTransportEventLog } from "./transport-event-log.js";
@@ -812,7 +812,7 @@
         g.name = emergency ? `player_${type}` : bus ? "player_bus" : "player_truck";
         if (fleetDescriptor) {
           const model=seaDescriptor?createSeaVehicle({THREE:T,descriptor:fleetDescriptor,qualityLevel,liveryVariant:Number(document.querySelector("#fleetLivery").value)||0}):createFleetVehicle({THREE:T,descriptor:fleetDescriptor,qualityLevel,liveryVariant:Number(document.querySelector("#fleetLivery").value)||0});
-          g.add(model);g.userData.maxSpeed=seaDescriptor?65:fleetDescriptor.kind==="helicopter"?240:fleetDescriptor.kind==="glider"?180:850;g.userData.cockpitOffset=[0,seaDescriptor?3.2:1.25,-1.2];g.userData.updateAircraft=model.userData.updateAircraft;g.userData.disposeCabin=()=>model.userData.dispose?.();
+          g.add(model);g.userData.maxSpeed=seaDescriptor?65:fleetDescriptor.kind==="helicopter"?240:fleetDescriptor.kind==="glider"?180:850;g.userData.cockpitOffset=[0,seaDescriptor?3.2:1.25,-1.2];g.userData.updateAircraft=model.userData.updateAircraft||model.userData.updateVessel;g.userData.disposeCabin=()=>model.userData.dispose?.();
         } else if (emergency) {
           const responseVehicle = emergencyFleet.create(type); g.add(responseVehicle);
           g.userData.cockpitOffset = responseVehicle.userData.cockpitOffset;
