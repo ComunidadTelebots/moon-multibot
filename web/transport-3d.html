@@ -249,7 +249,7 @@
       import { createLogisticsChain, mountLogisticsChainUI } from "./transport-logistics-chain.js";
       import { createStoryRuntime, createStoryPanel } from "./transport-story-runtime.js";
       import { createStoryIntro } from "./transport-story-intro.js";
-      import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js";
+      import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js?v=20260815-profile-ui2";
       window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
       const canvaTheme = applyCanvaTransportTheme();
       const hudMotion = createHudMotion({ hud:document.querySelector(".hud"), controls:document.querySelector(".controls:not(.drive)"), cockpit:document.querySelector("#cockpitPanel") });
