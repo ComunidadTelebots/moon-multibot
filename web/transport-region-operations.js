@@ -16,7 +16,7 @@ export function createRegionOperationsPanel({ controls, cityElement }) {
   const panel=document.createElement("aside"); panel.className="region-ops"; panel.hidden=true; panel.setAttribute("aria-label","Centro operativo regional");
   panel.innerHTML=`<div class="region-ops__hero"><div class="region-ops__code">NL</div><div><h2>Nova Liria</h2><p>Capital industrial · Meseta</p></div><button class="region-ops__close" aria-label="Cerrar">×</button></div><div class="region-ops__body"><div class="region-ops__route"><small>Nodo de esta región</small><span class="region-ops__access">A-10 · E-27</span><b>Centro intermodal Norte</b></div><div class="region-ops__signals"><span class="region-ops__signal"><i></i>Vía abierta</span><span class="region-ops__signal"><i></i>Servicios activos</span><span class="region-ops__signal"><i></i>Zona segura</span></div><div class="region-ops__facilities"></div><div class="region-ops__footer"><span>Próximo servicio <b data-next>En ruta</b></span><span>PK <b data-km>0.0</b></span></div></div>`;
   document.body.append(panel);
-  const button=document.createElement("button"); button.id="regionOperationsButton"; button.textContent="Región / servicios"; controls?.insertBefore(button, controls.querySelector("#worldMapButton"));
+  const button=document.createElement("button"); button.id="regionOperationsButton"; button.textContent="Región / servicios"; controls?.append(button);
   const close=()=>{panel.hidden=true;button.classList.remove("on")};
   panel.querySelector(".region-ops__close").onclick=close;
   button.onclick=()=>{panel.hidden=!panel.hidden;button.classList.toggle("on",!panel.hidden)};
