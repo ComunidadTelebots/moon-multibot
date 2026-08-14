@@ -1,4 +1,30 @@
 /** Efficient road renderer for routes projected from OpenStreetMap. */
+export function roadSignLabel(step = {}) {
+  const raw = String(step.destination || step.destinations || step.ref || step.name || "").trim();
+  const clean = raw.replace(/\s+/g, " ").replace(/^Carretera sin nombre$/i, "");
+  if (!clean) return "Siguiente salida";
+  return clean.length > 34 ? `${clean.slice(0, 31).trimEnd()}…` : clean;
+}
+
+export function buildRoadSignPlan(route = [], steps = [], maximum = 24) {
+  if (!Array.isArray(route) || route.length < 2 || !Array.isArray(steps) || !steps.length) return [];
+  const totalKm = Math.max(0, Number(route.at(-1)?.distanceKm) || 0);
+  let travelledKm = 0;
+  return steps.slice(0, Math.max(0, maximum)).map((step, order) => {
+    travelledKm += Math.max(0, Number(step.distanceKm) || 0);
+    const targetKm = totalKm ? Math.min(totalKm, travelledKm) : (order + 1) / (steps.length + 1);
+    let index = 1;
+    if (totalKm) {
+      let best = Infinity;
+      route.forEach((point, candidate) => {
+        const delta = Math.abs((Number(point.distanceKm) || 0) - targetKm);
+        if (delta < best) { best = delta; index = candidate; }
+      });
+    } else index = Math.max(1, Math.min(route.length - 2, Math.round(targetKm * (route.length - 1))));
+    return { index, label: roadSignLabel(step), maneuver: String(step.maneuver || "continue"), distanceKm: targetKm };
+  }).filter((item, index, list) => item.index > 0 && item.index < route.length - 1 && !list.slice(0, index).some(previous => previous.index === item.index || previous.label === item.label));
+}
+
 export function createOsmRoadMesh({ THREE, scene, roadWidth = 15 } = {}) {
   if (!THREE || !scene) throw new Error("THREE and scene are required");
   const group = new THREE.Group(); group.name = "osm-route-road"; group.visible = false; scene.add(group);
@@ -15,7 +41,7 @@ export function createOsmRoadMesh({ THREE, scene, roadWidth = 15 } = {}) {
   let route = [], elapsed = 0;
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   function clear(){
-    group.traverse(o=>{if(o!==group)o.geometry?.dispose()});
+    group.traverse(o=>{if(o!==group){o.geometry?.dispose();if(o.userData?.uniqueMaterial){o.userData.texture?.dispose?.();o.material?.dispose?.()}}});
     while(group.children.length)group.remove(group.children[0]);
   }
   function clean(points){
@@ -54,16 +80,30 @@ export function createOsmRoadMesh({ THREE, scene, roadWidth = 15 } = {}) {
     placements.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.rotation.set(p.rx||0,p.ry||0,p.rz||0);dummy.scale.set(p.sx||1,p.sy||1,p.sz||1);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix)});
     mesh.instanceMatrix.needsUpdate=true;mesh.frustumCulled=true;group.add(mesh);
   }
+  function directionSign(plan, p, f, angle){
+    let material=materials.sign, texture=null;
+    if(typeof document!=="undefined"){
+      const canvas=document.createElement("canvas"),ctx=canvas.getContext?.("2d");
+      if(ctx){
+        canvas.width=768;canvas.height=256;ctx.fillStyle="#12609a";ctx.fillRect(0,0,768,256);ctx.strokeStyle="#f5f7ed";ctx.lineWidth=14;ctx.strokeRect(10,10,748,236);
+        ctx.fillStyle="#fff";ctx.font="700 52px system-ui, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(plan.label,384,102,690);
+        ctx.font="800 70px system-ui, sans-serif";ctx.fillText(/left/.test(plan.maneuver)?"←":/right/.test(plan.maneuver)?"→":"↑",384,184);
+        texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace||texture.colorSpace;texture.needsUpdate=true;
+        material=new THREE.MeshStandardMaterial({map:texture,color:0xffffff,roughness:.5,metalness:.04});
+      }
+    }
+    const sign=new THREE.Mesh(new THREE.BoxGeometry(4.8,1.6,.1),material);sign.name="road-direction-sign";sign.position.set(p.x+f.nx*(roadWidth/2+2),p.y+2.6,p.z+f.nz*(roadWidth/2+2));sign.rotation.y=angle;sign.userData={label:plan.label,maneuver:plan.maneuver,texture,uniqueMaterial:material!==materials.sign};group.add(sign);
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,2.25,8),materials.rail);post.name="road-sign-post";post.position.set(sign.position.x,p.y+1.12,sign.position.z);group.add(post);
+  }
   function furniture(metadata={}){
-    const rails=[],reflectors=[],signs=[],junctions=[];
+    const rails=[],reflectors=[],junctions=[];
     const stride=roadWidth<13?10:8;
     for(let i=4;i<route.length-4;i+=stride){const p=route[i],f=frame(route,i),angle=Math.atan2(f.tx,f.tz);[-1,1].forEach(side=>{const edge=roadWidth/2+1.15;rails.push({x:p.x+f.nx*edge,y:p.y+.58,z:p.z+f.nz*edge,ry:angle,sx:1,sy:1,sz:Math.max(2.4,stride*.65)});reflectors.push({x:p.x+f.nx*(roadWidth/2+.35),y:p.y+.16,z:p.z+f.nz*(roadWidth/2+.35),ry:angle})})}
-    const nodes=Array.isArray(metadata.junctions)?metadata.junctions:route.filter(p=>p.junction||p.exit||p.destination);
-    nodes.slice(0,48).forEach(n=>{let idx=Number.isInteger(n.index)?n.index:route.indexOf(n);if(idx<0&&Number.isFinite(n.routeIndex))idx=n.routeIndex;if(idx<0||idx>=route.length)return;const p=route[idx],f=frame(route,idx),angle=Math.atan2(f.tx,f.tz);junctions.push({x:p.x,y:p.y+.035,z:p.z,rx:-Math.PI/2,rz:-angle,sx:Math.min(roadWidth*.6,7),sz:2.4});signs.push({x:p.x+f.nx*(roadWidth/2+2),y:p.y+2.4,z:p.z+f.nz*(roadWidth/2+2),ry:angle})});
+    const nodes=buildRoadSignPlan(route,Array.isArray(metadata.junctions)?metadata.junctions:[],metadata.mobile?10:24);
+    nodes.forEach(n=>{const p=route[n.index],f=frame(route,n.index),angle=Math.atan2(f.tx,f.tz);junctions.push({x:p.x,y:p.y+.035,z:p.z,rx:-Math.PI/2,rz:-angle,sx:Math.min(roadWidth*.6,7),sz:2.4});directionSign(n,p,f,angle)});
     instances("road-guardrails",new THREE.BoxGeometry(.12,.34,1),materials.rail,rails);
     instances("road-reflectors",new THREE.BoxGeometry(.1,.28,.08),materials.reflector,reflectors);
     instances("road-junction-markers",new THREE.PlaneGeometry(1,1),materials.junction,junctions);
-    instances("road-direction-signs",new THREE.BoxGeometry(1.9,.9,.08),materials.sign,signs);
   }
   function setRoute(points,metadata={}){
     clear();route=clean(points);group.visible=route.length>1;if(!group.visible)return false;

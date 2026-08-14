@@ -48,6 +48,9 @@ export function createTruckPhysics(options = {}) {
   let brakeTemperature = 85;
   let trailerAngle = 0;
   let trailerYawRate = 0;
+  let trailerSwayVelocity = 0;
+  let trailerSway = 0;
+  let stabilityIntervention = 0;
   let filteredCrosswind = 0;
   let absPressure = 1;
   let wheelSlipRatio = 0;
@@ -58,7 +61,7 @@ export function createTruckPhysics(options = {}) {
     velocity = Math.max(0, speedKmh / 3.6);
     acceleration = yawRate = steerAngle = suspension = suspensionVelocity = 0;
     suspensionPitch = suspensionPitchVelocity = suspensionRoll = suspensionRollVelocity = 0;
-    trailerAngle = trailerYawRate = filteredCrosswind = shiftTimer = 0;
+    trailerAngle = trailerYawRate = trailerSwayVelocity = trailerSway = stabilityIntervention = filteredCrosswind = shiftTimer = 0;
     absPressure = 1;
     wheelSlipRatio = 0;
     airPressureBar = clamp(options.initialAirPressureBar ?? 10.5, 0, 12);
@@ -144,7 +147,9 @@ export function createTruckPhysics(options = {}) {
     // Approximate driven-axle normal load, including longitudinal load transfer.
     const drivenLoadShare = clamp(0.43 + loadRatio * 0.11 + Math.max(0, acceleration) * 0.012, 0.38, 0.58);
     const tractionLimit = mass * 9.81 * grip * drivenLoadShare;
-    const tractionForce = Math.min(drivenForce, tractionLimit);
+    // Trailer stability control carries its intervention into the next physics
+    // step, progressively reducing drive torque instead of producing a jump.
+    const tractionForce = Math.min(drivenForce, tractionLimit) * (1 - stabilityIntervention * 0.48);
 
     const surfaceRolling = {
       asphalt: 0.0065, concrete: 0.006, cobblestone: 0.012, gravel: 0.026,
@@ -218,11 +223,40 @@ export function createTruckPhysics(options = {}) {
 
     // Single-track articulated response: trailer yaw lags and articulation self-centres.
     const hitchResponse = velocity / trailerWheelbase;
-    const trailerTargetRate = yawRate - hitchResponse * Math.sin(trailerAngle);
+    // Trailer yaw follows the hitch toward the tractor heading. Keeping the
+    // tractor yaw inside this target would make articulation self-amplify after
+    // the steering wheel returned to centre.
+    const trailerTargetRate = hitchResponse * Math.sin(trailerAngle);
     trailerYawRate += (trailerTargetRate - trailerYawRate) * Math.min(1, dt * 3.2);
     trailerAngle += (yawRate - trailerYawRate) * dt;
     trailerAngle -= trailerAngle * Math.min(1, dt * (0.22 + velocity * 0.018));
     trailerAngle = clamp(trailerAngle, -0.82, 0.82);
+
+    // Articulated-trailer sway. Crosswind, abrupt tractor yaw and a high cargo
+    // centre of gravity excite the trailer; tyre grip and speed-dependent hitch
+    // damping settle it. The stability controller damps severe oscillation and
+    // requests a smooth torque cut on the following step.
+    const swayExcitation = filteredCrosswind * Math.abs(filteredCrosswind) * 0.000018
+      + yawRate * velocity * (0.035 + loadRatio * cargoHeight * 0.018);
+    const swayStiffness = 2.8 + grip * 3.8;
+    const swayDamping = 2.1 + grip * 2.4 + Math.min(2.2, velocity * 0.035);
+    trailerSwayVelocity += (swayExcitation - trailerSway * swayStiffness - trailerSwayVelocity * swayDamping) * dt;
+    trailerSway += trailerSwayVelocity * dt;
+    trailerSway = clamp(trailerSway, -0.72, 0.72);
+    const articulationSeverity = Math.abs(trailerAngle) / 0.82;
+    const swaySeverity = Math.abs(trailerSway) / 0.34;
+    const targetStabilityIntervention = velocity > 8
+      ? clamp(Math.max(articulationSeverity - 0.1, swaySeverity - 0.08) * 1.5, 0, 1)
+      : 0;
+    stabilityIntervention = moveTowards(
+      stabilityIntervention,
+      targetStabilityIntervention,
+      dt * (targetStabilityIntervention > stabilityIntervention ? 5.5 : 1.8),
+    );
+    trailerSwayVelocity *= 1 - stabilityIntervention * Math.min(0.72, dt * 7.5);
+    trailerYawRate += (yawRate - trailerYawRate) * stabilityIntervention * Math.min(1, dt * 4.2);
+    trailerAngle -= trailerAngle * stabilityIntervention * Math.min(1, dt * 2.8);
+    const jackknifeRisk = clamp(Math.max(articulationSeverity, swaySeverity * 0.72), 0, 1.5);
 
     const roughness = {
       asphalt: 0.022, concrete: 0.018, cobblestone: 0.065, gravel: 0.09,
@@ -279,6 +313,12 @@ export function createTruckPhysics(options = {}) {
       centreOfGravity,
       crosswind: filteredCrosswind,
       trailerAngle,
+      trailerSway,
+      trailerSwayVelocity,
+      stabilityIntervention,
+      trailerStabilityActive: stabilityIntervention > 0.08,
+      jackknifeRisk,
+      jackknifeWarning: jackknifeRisk >= 0.72,
       rolloverRisk,
       rolloverWarning: rolloverRisk >= 0.78,
       acceleration,
