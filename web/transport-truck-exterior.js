@@ -101,12 +101,34 @@ export function createDetailedTruckExterior({ THREE: T, paint, glass, chrome, te
   }
   for(const side of[-1,1])for(const z of[-4.55,1.48])wheel(side*2.42,z);
   const trailer=new T.Group();trailer.name="pearl_white_box_trailer";root.add(trailer);
-  const trailerBody=add(new T.BoxGeometry(5.02,4.35,12.4),trailerWhite,"insulated_trailer_body",[0,3.12,6.95],[0,0,0],trailer);
+  // Keep the inexpensive cuboid on legacy hardware. Higher profiles get the
+  // radiused insulated body used by modern European refrigerated trailers,
+  // avoiding the oversized flat slab visible from the pursuit cameras.
+  const trailerBody=qualityLevel===0
+    ? add(new T.BoxGeometry(5.02,4.35,12.4),trailerWhite,"insulated_trailer_body",[0,3.12,6.95],[0,0,0],trailer)
+    : roundedBody(5.02,4.35,12.4,.16,trailerWhite,"radiused_insulated_trailer_body",[0,3.12,6.95],[0,0,0],trailer);
   add(new T.BoxGeometry(5.16,.2,12.55),chrome,"trailer_roof_edge",[0,5.34,6.95],[0,0,0],trailer);
   add(new T.BoxGeometry(5.2,.42,12.5),dark,"trailer_underframe",[0,.94,6.95],[0,0,0],trailer);
   for(let z=1.25;z<12.8;z+=1.2)for(const side of[-1,1])add(new T.BoxGeometry(.065,4.08,.075),chrome,"trailer_panel_seam",[side*2.54,3.12,z],[0,0,0],trailer);
   for(const side of[-1,1]){add(new T.BoxGeometry(.16,.54,9.2),chrome,"trailer_side_guard",[side*2.58,.8,6.2],[0,0,0],trailer);for(const z of[3.2,5.45,7.7,9.95])add(new T.BoxGeometry(.09,.72,.12),dark,"side_guard_support",[side*2.54,.75,z],[0,0,0],trailer);}
   for(const side of[-1,1])for(const z of[9.15,11.35,13.55])wheel(side*2.38,z,.88,.56);
+  if(qualityLevel>0){
+    const coolingUnit=roundedBody(3.72,2.22,.34,.18,dark,"refrigeration_unit_housing",[0,3.5,.62],[0,0,0],trailer);
+    coolingUnit.userData.vehicleSurface="machinery";
+    roundedBody(2.62,.82,.09,.12,chrome,"refrigeration_condenser_grille",[0,3.7,.425],[0,0,0],trailer);
+    for(const x of[-1.42,1.42]) add(new T.CylinderGeometry(.2,.2,.1,qualityLevel>1?20:12),dark,"refrigeration_service_fan",[x,3.28,.4],[Math.PI/2,0,0],trailer);
+    for(const side of[-1,1]){
+      box([.16,1.25,.16],dark,"trailer_landing_leg",[side*1.62,.72,1.42],undefined,trailer);
+      box([.72,.1,.46],dark,"landing_leg_foot",[side*1.62,.08,1.42],undefined,trailer);
+    }
+    if(qualityLevel>1){
+      for(let y=3.42;y<=3.98;y+=.14) box([2.34,.035,.035],dark,"condenser_cooling_fin",[0,y,.365],undefined,trailer);
+      for(const side of[-1,1]) for(const z of[9.15,11.35,13.55]){
+        const guard=add(new T.TorusGeometry(.98,.08,8,qualityLevel>2?28:18,Math.PI),dark,"trailer_wheel_arch",[side*2.49,1.14,z],[0,Math.PI/2,0],trailer);
+        guard.rotation.z=Math.PI/2;
+      }
+    }
+  }
   add(new T.BoxGeometry(4.78,3.95,.12),trailerWhite,"double_rear_door",[0,3.05,13.18],[0,0,0],trailer);
   add(new T.BoxGeometry(.09,3.74,.16),dark,"rear_door_divider",[0,3.05,13.27],[0,0,0],trailer);
   for(const side of[-1,1]){add(new T.CylinderGeometry(.055,.055,3.42,10),chrome,"rear_door_lock",[side*1.88,3.05,13.3],[0,0,0],trailer);add(new T.BoxGeometry(.58,.28,.12),red,"trailer_tail_lamp",[side*1.82,.86,13.32],[0,0,0],trailer);}

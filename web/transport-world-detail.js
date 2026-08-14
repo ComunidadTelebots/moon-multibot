@@ -1,3 +1,18 @@
+const clampQuality = value => Math.max(0, Math.min(3, Number.isFinite(Number(value)) ? Number(value) : 2));
+
+/** Deterministic architectural variety without downloading external assets. */
+export function deriveBuildingVariant({ seed = 0, qualityLevel = 2, height = 18 } = {}) {
+  const quality = clampQuality(qualityLevel), key = Math.abs(Math.trunc(Number(seed) || 0));
+  const family = ["residential", "commercial", "traditional"][key % 3];
+  return {
+    family,
+    roof: quality === 0 ? "flat" : family === "traditional" && height < 30 ? "gable" : family === "residential" && key % 2 ? "setback" : "flat",
+    groundFloor: quality > 0 ? (family === "commercial" ? "shops" : family === "traditional" ? "arcade" : "lobby") : "simple",
+    awnings: quality > 1 && family === "commercial" ? 2 + key % 3 : 0,
+    rooftopProps: quality > 0 ? (quality > 2 ? 3 : 1) : 0,
+  };
+}
+
 export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {} }) {
   const mats = {
     concrete: new T.MeshStandardMaterial({ color: 0x89949a, roughness: .86, bumpMap: textureMaps.concrete?.bumpMap, bumpScale: .08 }),
@@ -15,10 +30,21 @@ export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {}
   const mesh = (geometry, material, name, position, parent) => { const item = new T.Mesh(geometry, material); item.name = name; item.position.set(...position); item.castShadow = item.receiveShadow = true; parent.add(item); return item; };
   function createBuilding({ width, height, depth, color, roadSide = 1, seed = 0 }) {
     const root = new T.Group(); root.name = "detailed_city_building";
+    const variant = deriveBuildingVariant({ seed, qualityLevel, height });
+    root.userData.architecture = variant;
     const facade = new T.MeshPhysicalMaterial({ color, roughness: .72, metalness: .04, clearcoat: .06, bumpMap: textureMaps.concrete?.bumpMap, bumpScale: .07 });
     mesh(new T.BoxGeometry(width, height, depth, 2, Math.max(2, Math.round(height / 7)), 2), facade, "facade_shell", [0, height / 2, 0], root);
     mesh(new T.BoxGeometry(width + .35, .55, depth + .35), mats.concrete, "stone_plinth", [0, .28, 0], root);
-    mesh(new T.BoxGeometry(width + .45, .32, depth + .45), mats.dark, "roof_parapet", [0, height + .16, 0], root);
+    if (variant.roof === "gable") {
+      const roof = mesh(new T.CylinderGeometry(width * .58, width * .58, depth + .55, 3, 1, false), mats.dark, "pitched_roof", [0, height + width * .28, 0], root);
+      roof.rotation.x = Math.PI / 2; roof.rotation.z = Math.PI / 2;
+    } else {
+      mesh(new T.BoxGeometry(width + .45, .32, depth + .45), mats.dark, "roof_parapet", [0, height + .16, 0], root);
+      if (variant.roof === "setback") {
+        mesh(new T.BoxGeometry(width * .68, 1.5, depth * .72), facade, "roof_setback", [0, height + .9, 0], root);
+        mesh(new T.BoxGeometry(width * .72, .18, depth * .76), mats.dark, "setback_cornice", [0, height + 1.7, 0], root);
+      }
+    }
     const floors = Math.max(2, Math.floor((height - 2) / 4.2)), columns = Math.max(2, Math.floor(depth / 3));
     const windowGeometry = new T.BoxGeometry(.09, 1.65, Math.min(1.55, depth / (columns + 1)));
     const frontX = -roadSide * (width / 2 + .055);
@@ -43,12 +69,27 @@ export function createWorldDetail({ THREE: T, qualityLevel = 2, textureMaps = {}
       entrance.material = mats.glass;
       mesh(new T.BoxGeometry(.4, .22, 2.15), mats.dark, "entrance_canopy", [frontX - roadSide * .42, 2.68, depth * .27], root);
     }
+    if (variant.groundFloor !== "simple") {
+      const bays = variant.groundFloor === "shops" ? Math.max(2, Math.min(4, Math.floor(depth / 3.4))) : 2;
+      for (let bay = 0; bay < bays; bay += 1) {
+        const pz = -depth * .34 + bay * (depth * .68 / Math.max(1, bays - 1));
+        const opening = mesh(new T.BoxGeometry(.14, variant.groundFloor === "arcade" ? 2.35 : 2.05, Math.min(2.35, depth / (bays + .4))), mats.glass, `${variant.groundFloor}_front`, [frontX - roadSide * .12, 1.28, pz], root);
+        opening.userData.regionalSurface = "street level glass storefront";
+        if (bay < variant.awnings) {
+          const awning = mesh(new T.BoxGeometry(.85, .12, Math.min(2.5, depth / bays)), mats.dark, "shop_awning", [frontX - roadSide * .48, 2.55, pz], root);
+          awning.rotation.z = roadSide * .12;
+        }
+      }
+      mesh(new T.BoxGeometry(.18, .28, depth + .12), mats.concrete, "ground_floor_cornice", [frontX - roadSide * .1, 2.78, 0], root);
+    }
     for (const side of [-1, 1]) {
       mesh(new T.CylinderGeometry(.07, .09, height - 1, 10), mats.chrome, "rain_downpipe", [frontX, height / 2, side * (depth / 2 - .22)], root);
     }
-    if (qualityLevel > 0) {
-      mesh(new T.BoxGeometry(2.1, .8, 1.55), mats.dark, "roof_hvac", [width * .18, height + .55, 0], root);
-      const antenna = mesh(new T.CylinderGeometry(.035, .05, 2.2, 8), mats.chrome, "roof_antenna", [-width * .22, height + 1.2, 0], root); antenna.rotation.z = -.05;
+    if (qualityLevel > 0 && variant.roof !== "gable") {
+      for (let prop = 0; prop < variant.rooftopProps; prop += 1) {
+        mesh(new T.BoxGeometry(1.25 + prop * .25, .6, 1.05), mats.dark, "roof_hvac", [width * (.18 - prop * .2), height + .48 + (variant.roof === "setback" ? 1.55 : 0), depth * ((prop % 2) * .22 - .11)], root);
+      }
+      const antenna = mesh(new T.CylinderGeometry(.035, .05, 2.2, 8), mats.chrome, "roof_antenna", [-width * .22, height + 1.2 + (variant.roof === "setback" ? 1.5 : 0), 0], root); antenna.rotation.z = -.05;
     }
     return root;
   }

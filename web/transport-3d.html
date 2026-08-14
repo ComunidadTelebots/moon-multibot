@@ -238,6 +238,7 @@
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
       import { createWeighStation } from "./transport-weigh-station.js";
       import { createStoryRuntime, createStoryPanel } from "./transport-story-runtime.js";
+      import { createStoryIntro } from "./transport-story-intro.js";
       import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js";
       window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
       const canvaTheme = applyCanvaTransportTheme();
@@ -289,7 +290,8 @@
       const missionRuntime = createMissionRuntime();
       const missionPanel = createMissionPanel({ runtime:missionRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog });
       const storyRuntime = createStoryRuntime();
-      const storyPanel = createStoryPanel({ runtime:storyRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog });
+      const storyIntro = createStoryIntro({ runtime:storyRuntime, eventLog });
+      const storyPanel = createStoryPanel({ runtime:storyRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog, introPlayer:storyIntro });
       eventLog.subscribe(event => missionRuntime.handleEvent(event));
       missionRuntime.subscribe(event => {
         if (event.type !== "mission:completed") return;

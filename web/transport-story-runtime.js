@@ -3,7 +3,7 @@ import { STORY_TRUCK_ORIGINS, transportStoryOrigins } from "./transport-story-ca
 export const STORY_STORAGE_KEY = "moon.transport.story.v1";
 
 const copy = value => JSON.parse(JSON.stringify(value));
-const initialState = () => ({ version: 1, origin: null, choices: {}, variables: {}, startedAt: null, updatedAt: null });
+const initialState = () => ({ version: 1, origin: null, choices: {}, variables: {}, intro: { sceneId:null, completed:false, skipped:false }, startedAt: null, updatedAt: null });
 
 function mergeEffects(target, effects = {}) {
   for (const [key, value] of Object.entries(effects)) {
@@ -18,6 +18,7 @@ function normalize(raw) {
     ...initialState(), ...state, origin,
     choices: state.choices && typeof state.choices === "object" ? state.choices : {},
     variables: state.variables && typeof state.variables === "object" ? state.variables : {},
+    intro: state.intro && typeof state.intro === "object" ? { sceneId:null, completed:false, skipped:false, ...state.intro } : { sceneId:null, completed:false, skipped:false },
   };
 }
 
@@ -55,11 +56,21 @@ export function createStoryRuntime({ storage = globalThis.localStorage ?? null, 
       state.updatedAt = Date.now();
       return emit("story:choice_made", { originId: state.origin, sceneId, choiceId, label: choice.label, effects: choice.effects || {}, next: choice.next || null });
     },
+    updateIntro(sceneId) {
+      if (!state.origin) throw new Error("Elige primero una campaÃ±a");
+      state.intro = { sceneId:String(sceneId || ""), completed:false, skipped:false }; state.updatedAt = Date.now();
+      return emit("story:intro_scene", { originId:state.origin, sceneId:state.intro.sceneId });
+    },
+    completeIntro({ skipped = false } = {}) {
+      if (!state.origin) throw new Error("Elige primero una campaÃ±a");
+      state.intro = { ...state.intro, completed:true, skipped:Boolean(skipped) }; state.updatedAt = Date.now();
+      return emit(skipped ? "story:intro_skipped" : "story:intro_completed", { originId:state.origin, sceneId:state.intro.sceneId });
+    },
     reset() { state = initialState(); return emit("story:reset", {}); },
   };
 }
 
-export function createStoryPanel({ runtime, controls, eventLog } = {}) {
+export function createStoryPanel({ runtime, controls, eventLog, introPlayer } = {}) {
   if (!runtime || !globalThis.document) return null;
   const button = document.createElement("button"); button.id = "storyButton"; button.textContent = "Historia"; controls?.append(button);
   const panel = document.createElement("aside"); panel.className = "mission-panel story-panel"; panel.hidden = true; document.body.append(panel);
@@ -73,7 +84,7 @@ export function createStoryPanel({ runtime, controls, eventLog } = {}) {
       panel.innerHTML = `<header><div><small>${runtime.origin.name}</small><h3>${transportStoryOrigins[state.origin].title}</h3></div><button data-close>×</button></header>${pending ? `<p>${pending.prompt}</p><div class="story-options">${pending.choices.map(choice => `<button data-scene="${pending.id}" data-choice="${choice.id}">${choice.label}</button>`).join("")}</div>` : `<p>Prólogo configurado. Tus decisiones quedarán activas durante la partida.</p><ol class="mission-objectives">${Object.entries(state.choices).map(([scene, choice]) => `<li class="done">${scene}: ${choice}</li>`).join("")}</ol>`}<footer><button data-reset>Cambiar campaña</button></footer>`;
     }
     panel.querySelector("[data-close]").onclick = () => { panel.hidden = true; button.classList.remove("on"); };
-    panel.querySelectorAll("[data-origin]").forEach(item => item.onclick = () => { runtime.selectOrigin(item.dataset.origin); render(); });
+    panel.querySelectorAll("[data-origin]").forEach(item => item.onclick = () => { runtime.selectOrigin(item.dataset.origin); render(); panel.hidden = true; button.classList.remove("on"); introPlayer?.play(); });
     panel.querySelectorAll("[data-choice]").forEach(item => item.onclick = () => { runtime.choose(item.dataset.scene, item.dataset.choice); render(); });
     const reset = panel.querySelector("[data-reset]"); if (reset) reset.onclick = () => { runtime.reset(); render(); };
   };
