@@ -202,6 +202,7 @@
       import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
       import { createBusCabinVariant } from "./transport-bus-cabin.js";
       import { createBusAuthoredMaterials } from "./transport-bus-materials.js";
+      import { createVehicleSurfaceStates } from "./transport-vehicle-surface-states.js";
       import { createSpecialTransport, SPECIAL_CARGOES } from "./transport-special-cargo.js";
       import { createWorldDetail } from "./transport-world-detail.js";
       import { loadPhotorealAtlas } from "./transport-photoreal-atlas.js";
@@ -375,6 +376,7 @@
       });
       vehicleTextures.ready.then(() => vehicleTextures.apply(S)).catch(error => console.warn("No se pudieron cargar las texturas de vehículos", error));
       const emergencyFleet = createEmergencyFleet({ THREE:T, qualityLevel, atlasUrl:"./generated-textures/emergency-fleet-atlas-v1.png" });
+      const vehicleSurfaceStates=createVehicleSurfaceStates({THREE:T,qualityLevel});
       emergencyFleet.ready.catch(error => console.warn("No se cargaron las texturas de emergencias", error));
       const worldDetail = createWorldDetail({ THREE: T, qualityLevel, textureMaps: textures.maps });
       const routeActorRoot = new T.Group(); routeActorRoot.name = "osm_route_actors"; S.add(routeActorRoot);
@@ -957,6 +959,7 @@
           }
         });
         V = g;
+        vehicleSurfaceStates.ready.then(()=>vehicleSurfaceStates.setVehicle(V)).catch(error=>console.warn("No se cargaron los estados estaticos del vehiculo",error));
         vehicleAnimationRig = createVehicleAnimationRig(V);
         V.position.set(0, 0, 60);
         S.add(V);
@@ -1572,6 +1575,7 @@
         alertElement.dataset.level=contextualAlert[0]; alertElement.textContent=contextualAlert[1];
         syncCockpitControls();
         vehicleAnimationRig?.update({dt,time:now,steering:steer,speed,suspension:physicalFrame?.suspension||0,parking:parkingBrake,siren:sirenOn});
+        vehicleSurfaceStates.update({speed,weather:currentWeather(),surface:Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?"gravel":"asphalt",distanceKm:physicalDistance/1000});
         V.traverse((part) => {
           if (!part.userData.isWheel) return;
           const rollingParts = part.userData.rollingParts;
