@@ -21,7 +21,7 @@ const hub = (id, name, countryCode, region, lon, lat, modes, textureProfile) =>
   Object.freeze({ id, name, countryCode, region, coordinates: Object.freeze([lon, lat]), modes: Object.freeze(modes), textureProfile });
 
 export const WORLD_HUBS = Object.freeze([
-  hub("madrid", "Madrid", "ES", "europe", -3.7038, 40.4168, ["road", "air"], "iberian-inland"),
+  hub("madrid", "Madrid", "ES", "europe", -3.7038, 40.4168, ["road", "rail", "air"], "iberian-inland"),
   hub("rotterdam", "Róterdam", "NL", "europe", 4.4777, 51.9244, ["road", "sea", "air"], "north-sea-industrial"),
   hub("hamburg", "Hamburgo", "DE", "europe", 9.9937, 53.5511, ["road", "sea", "air"], "north-sea-industrial"),
   hub("valencia", "Valencia", "ES", "europe", -0.3763, 39.4699, ["road", "sea", "air"], "mediterranean-port"),
@@ -57,6 +57,7 @@ const link = (from, to, mode, options = {}) => Object.freeze({ from, to, mode, b
 // contra OSRM. Los enlaces sea/air son abstracciones logísticas, no carreteras.
 export const WORLD_LINKS = Object.freeze([
   link("madrid", "valencia", "road"), link("madrid", "rotterdam", "road"), link("rotterdam", "hamburg", "road"),
+  link("madrid", "valencia", "rail"), link("madrid", "rotterdam", "rail"), link("rotterdam", "hamburg", "rail"), link("hamburg", "istanbul", "rail"),
   link("hamburg", "istanbul", "road"), link("valencia", "istanbul", "sea"),
   link("new_york", "chicago", "road"), link("chicago", "los_angeles", "road"), link("los_angeles", "vancouver", "road"),
   link("los_angeles", "mexico_city", "road"), link("santos", "sao_paulo", "road"), link("sao_paulo", "buenos_aires", "road"),
@@ -74,8 +75,8 @@ export const WORLD_LINKS = Object.freeze([
 ]);
 
 const HUB_BY_ID = new Map(WORLD_HUBS.map((item) => [item.id, item]));
-const SPEED_KMH = Object.freeze({ road: 72, sea: 32, air: 760 });
-const MODE_PENALTY_KM = Object.freeze({ road: 0, sea: 350, air: 900 });
+const SPEED_KMH = Object.freeze({ road: 72, rail: 82, sea: 32, air: 760 });
+const MODE_PENALTY_KM = Object.freeze({ road: 0, rail: 80, sea: 350, air: 900 });
 
 export const getWorldHub = (id) => HUB_BY_ID.get(String(id || "").toLowerCase()) || null;
 export const getHubsByRegion = (region) => WORLD_HUBS.filter((item) => item.region === region);
@@ -97,7 +98,7 @@ function makeLeg(edge, fromId) {
   return { from, to, mode: edge.mode, distanceKm, durationHours: distanceKm / SPEED_KMH[edge.mode], source: edge.mode === "road" ? "road-estimate-awaiting-osrm" : "world-network", requiresExternalRouting: edge.mode === "road" };
 }
 
-export function findMultimodalRoute(fromId, toId, { allowedModes = ["road", "sea", "air"] } = {}) {
+export function findMultimodalRoute(fromId, toId, { allowedModes = ["road", "rail", "sea", "air"] } = {}) {
   if (!getWorldHub(fromId) || !getWorldHub(toId)) return null;
   const allowed = new Set(allowedModes), distances = new Map(WORLD_HUBS.map(({ id }) => [id, Infinity]));
   const previous = new Map(), pending = new Set(distances.keys());

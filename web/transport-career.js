@@ -5,7 +5,20 @@
  */
 
 export const CAREER_STORAGE_KEY = "moon.transport.career.v1";
-export const CAREER_SCHEMA_VERSION = 2;
+export const CAREER_SCHEMA_VERSION = 3;
+
+const FLEET_VEHICLES = Object.freeze({
+  aster: { id: "aster", name: "Aster Viento", kind: "truck", price: 78000, capacityKg: 24000, baseYield: 1, requiredLevel: 1 },
+  nortia: { id: "nortia", name: "Nortia Urbano X8", kind: "bus", price: 112000, capacityKg: 0, baseYield: 1.12, requiredLevel: 3 },
+  atlas: { id: "atlas", name: "Atlas Carga 6x4", kind: "truck", price: 148000, capacityKg: 36000, baseYield: 1.28, requiredLevel: 5 },
+  boreal: { id: "boreal", name: "Boreal Frío E", kind: "truck", price: 186000, capacityKg: 26000, baseYield: 1.42, requiredLevel: 7 },
+});
+
+const FLEET_UPGRADES = Object.freeze({
+  engine: { id: "engine", name: "Cadena cinemática", costs: [9000, 22000, 48000], maxRank: 3 },
+  efficiency: { id: "efficiency", name: "Eficiencia", costs: [7000, 18000, 39000], maxRank: 3 },
+  safety: { id: "safety", name: "Seguridad activa", costs: [6500, 16000, 35000], maxRank: 3 },
+});
 
 const DRIVER_TALENTS = Object.freeze({
   efficiency: { id: "efficiency", name: "Eco-conducción", description: "Reduce costes operativos", maxRank: 3 },
@@ -59,6 +72,7 @@ function initialState(name = "Transportista") {
     economy: { money: 35000, totalEarned: 0, totalSpent: 0, finesPaid: 0 },
     progress: { xp: 0, level: 1, completedJobs: 0, failedJobs: 0, distanceKm: 0 },
     truck: { fuel: 100, fuelCapacity: 100, condition: 100, odometerKm: 0 },
+    fleet: [{ id: "vehicle_aster_1", modelId: "aster", name: "Aster Viento 01", garageId: "nova_liria", driverId: null, condition: 100, odometerKm: 0, upgrades: {}, purchasedAt: now }],
     garages: [{ ...GARAGES.nova_liria, purchasedAt: now }],
     drivers: [],
     deliveryBots: [],
@@ -83,7 +97,8 @@ function normalize(raw) {
     truck: { ...base.truck, ...raw.truck },
     settings: { ...base.settings, ...raw.settings },
     garages: Array.isArray(raw.garages) ? raw.garages : base.garages,
-    drivers: Array.isArray(raw.drivers) ? raw.drivers.map(driver => ({ trainingXp: 0, talentPoints: 0, talents: {}, deliveries: 0, ...driver })) : [],
+    drivers: Array.isArray(raw.drivers) ? raw.drivers.map(driver => ({ trainingXp: 0, talentPoints: 0, talents: {}, deliveries: 0, vehicleId: null, ...driver })) : [],
+    fleet: Array.isArray(raw.fleet) && raw.fleet.length ? raw.fleet.map(vehicle => ({ driverId: null, condition: 100, odometerKm: 0, upgrades: {}, ...vehicle })) : base.fleet,
     deliveryBots: Array.isArray(raw.deliveryBots) ? raw.deliveryBots : [],
     loans: Array.isArray(raw.loans) ? raw.loans : [],
     contracts: Array.isArray(raw.contracts) ? raw.contracts : [],
@@ -97,6 +112,16 @@ function normalize(raw) {
   };
   state.truck.fuel = clamp(state.truck.fuel, 0, state.truck.fuelCapacity);
   state.truck.condition = clamp(state.truck.condition, 0, 100);
+  const vehicleIds = new Set(state.fleet.map(vehicle => vehicle.id));
+  const driverIds = new Set(state.drivers.map(driver => driver.id));
+  state.fleet.forEach(vehicle => {
+    vehicle.condition = clamp(vehicle.condition, 0, 100);
+    vehicle.odometerKm = Math.max(0, Number(vehicle.odometerKm) || 0);
+    vehicle.upgrades = vehicle.upgrades && typeof vehicle.upgrades === "object" ? vehicle.upgrades : {};
+    if (!driverIds.has(vehicle.driverId)) vehicle.driverId = null;
+  });
+  state.drivers.forEach(driver => { if (!vehicleIds.has(driver.vehicleId)) driver.vehicleId = null; });
+  state.schema = CAREER_SCHEMA_VERSION;
   return state;
 }
 
@@ -112,7 +137,7 @@ export class TransportCareer {
   get snapshot() { return copy(this.state); }
   get level() { return this.state.progress.level; }
   get activeContract() { return this.state.contracts.find((job) => job.id === this.state.activeContractId) || null; }
-  get catalog() { return { cities: copy(CITIES), cargo: copy(CARGO), garages: copy(Object.values(GARAGES)), talents: copy(Object.values(DRIVER_TALENTS)), deliveryBots: copy(Object.values(DELIVERY_BOTS)) }; }
+  get catalog() { return { cities: copy(CITIES), cargo: copy(CARGO), garages: copy(Object.values(GARAGES)), talents: copy(Object.values(DRIVER_TALENTS)), deliveryBots: copy(Object.values(DELIVERY_BOTS)), fleetVehicles: copy(Object.values(FLEET_VEHICLES)), fleetUpgrades: copy(Object.values(FLEET_UPGRADES)) }; }
 
   subscribe(listener) {
     if (typeof listener !== "function") throw new TypeError("listener debe ser una función");
@@ -309,6 +334,66 @@ export class TransportCareer {
     return copy(owned);
   }
 
+  buyFleetVehicle(modelId, garageId = this.state.garages[0]?.id) {
+    const model = FLEET_VEHICLES[modelId];
+    const garage = this.state.garages.find(item => item.id === garageId);
+    if (!model || !garage) throw new Error("Vehículo o garaje no disponible");
+    if (this.level < model.requiredLevel) throw new Error(`Nivel ${model.requiredLevel} necesario`);
+    const parked = this.state.fleet.filter(item => item.garageId === garageId).length;
+    if (parked >= garage.slots) throw new Error("No quedan plazas para vehículos en el garaje");
+    if (this.state.economy.money < model.price) throw new Error("Fondos insuficientes");
+    const vehicle = { id: uid("vehicle"), modelId, name: `${model.name} ${this.state.fleet.length + 1}`, garageId, driverId: null, condition: 100, odometerKm: 0, upgrades: {}, purchasedAt: Date.now() };
+    this.state.fleet.push(vehicle);
+    this.record(-model.price, `Vehículo: ${model.name}`, { vehicleId: vehicle.id, modelId, garageId });
+    this.emit("fleet:vehicle_purchased", { vehicle, model });
+    return copy(vehicle);
+  }
+
+  assignFleetVehicle(vehicleId, driverId = null) {
+    const vehicle = this.state.fleet.find(item => item.id === vehicleId);
+    if (!vehicle) throw new Error("Vehículo no disponible");
+    const driver = driverId ? this.state.drivers.find(item => item.id === driverId) : null;
+    if (driverId && !driver) throw new Error("Conductor no disponible");
+    if (driver && driver.garageId !== vehicle.garageId) throw new Error("Vehículo y conductor deben estar en el mismo garaje");
+    const previousDriver = this.state.drivers.find(item => item.id === vehicle.driverId);
+    if (previousDriver) previousDriver.vehicleId = null;
+    if (driver?.vehicleId) {
+      const previousVehicle = this.state.fleet.find(item => item.id === driver.vehicleId);
+      if (previousVehicle) previousVehicle.driverId = null;
+    }
+    vehicle.driverId = driver?.id || null;
+    if (driver) driver.vehicleId = vehicle.id;
+    this.emit("fleet:vehicle_assigned", { vehicle, driver });
+    return copy(vehicle);
+  }
+
+  serviceFleetVehicle(vehicleId, targetCondition = 100) {
+    const vehicle = this.state.fleet.find(item => item.id === vehicleId);
+    if (!vehicle) throw new Error("Vehículo no disponible");
+    const restored = clamp(targetCondition, vehicle.condition, 100) - vehicle.condition;
+    const cost = roundMoney(restored * 165);
+    if (!restored) throw new Error("El vehículo no necesita mantenimiento");
+    if (this.state.economy.money < cost) throw new Error("Fondos insuficientes");
+    vehicle.condition = clamp(vehicle.condition + restored, 0, 100);
+    this.record(-cost, `Mantenimiento de flota: ${vehicle.name}`, { vehicleId });
+    this.emit("fleet:vehicle_serviced", { vehicle, restored, cost });
+    return { vehicle: copy(vehicle), restored, cost };
+  }
+
+  upgradeFleetVehicle(vehicleId, upgradeId) {
+    const vehicle = this.state.fleet.find(item => item.id === vehicleId);
+    const upgrade = FLEET_UPGRADES[upgradeId];
+    if (!vehicle || !upgrade) throw new Error("Mejora no disponible");
+    const rank = clamp(vehicle.upgrades?.[upgradeId], 0, upgrade.maxRank);
+    if (rank >= upgrade.maxRank) throw new Error("Mejora al nivel máximo");
+    const cost = upgrade.costs[rank];
+    if (this.state.economy.money < cost) throw new Error("Fondos insuficientes");
+    vehicle.upgrades = { ...vehicle.upgrades, [upgradeId]: rank + 1 };
+    this.record(-cost, `${upgrade.name}: ${vehicle.name}`, { vehicleId, upgradeId, rank: rank + 1 });
+    this.emit("fleet:vehicle_upgraded", { vehicle, upgradeId, rank: rank + 1, cost });
+    return copy(vehicle);
+  }
+
   hireDriver({ name, skill, salary } = {}) {
     const capacity = this.state.garages.reduce((sum, garage) => sum + garage.slots, 0);
     if (this.state.drivers.length >= capacity) throw new Error("No quedan plazas en los garajes");
@@ -324,6 +409,7 @@ export class TransportCareer {
     if (!driver || !garage) throw new Error("Conductor o garaje no disponible");
     const occupied = this.state.drivers.filter((item) => item.garageId === garageId && item.id !== driverId).length;
     if (occupied >= garage.slots) throw new Error("El garaje está completo");
+    if (driver.vehicleId) this.assignFleetVehicle(driver.vehicleId, null);
     driver.garageId = garageId;
     this.emit("driver:assigned", { driver, garage });
     return copy(driver);
@@ -376,13 +462,20 @@ export class TransportCareer {
   runCompanyDay() {
     let net = 0;
     for (const driver of this.state.drivers) {
+      const vehicle = this.state.fleet.find(item => item.id === driver.vehicleId);
+      if (!vehicle || vehicle.condition < 20) continue;
+      const model = FLEET_VEHICLES[vehicle.modelId] || FLEET_VEHICLES.aster;
       const efficiency = Number(driver.talents?.efficiency) || 0;
       const fragile = Number(driver.talents?.fragile) || 0;
       const punctuality = Number(driver.talents?.punctuality) || 0;
-      const gross = Math.round((450 + driver.skill * 135 + Math.random() * 400) * (1 + fragile * .05 + punctuality * .04));
+      const upgradeEfficiency = Number(vehicle.upgrades?.efficiency) || 0;
+      const gross = Math.round((450 + driver.skill * 135 + Math.random() * 400) * model.baseYield * (1 + fragile * .05 + punctuality * .04));
       const profit = gross - driver.salary / 30 * (1 - efficiency * .06);
       driver.earnings += profit;
       driver.deliveries = (driver.deliveries || 0) + 1 + (punctuality >= 3 ? 1 : 0);
+      const tripKm = 90 + driver.skill * 12;
+      vehicle.odometerKm += tripKm;
+      vehicle.condition = clamp(vehicle.condition - Math.max(.15, .8 - upgradeEfficiency * .12), 0, 100);
       net += profit;
     }
     for (const bot of this.state.deliveryBots.filter(item => item.status === "active" && item.condition > 0)) {

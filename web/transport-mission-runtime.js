@@ -59,7 +59,7 @@ function normalize(raw, catalog) {
   for (const [id, progress] of Object.entries(state.missions || {})) {
     if (!validIds.has(id) || !progress || typeof progress !== "object") continue;
     missions[id] = {
-      status: ["available", "active", "completed"].includes(progress.status) ? progress.status : "available",
+      status: ["available", "active", "completed", "failed"].includes(progress.status) ? progress.status : "available",
       objectiveIndex: Math.max(0, Number(progress.objectiveIndex) || 0),
       startedAt: Number(progress.startedAt) || null,
       completedAt: Number(progress.completedAt) || null,
@@ -111,7 +111,9 @@ export function createMissionRuntime(options = {}) {
       const previous = progressFor(id);
       if (previous.status === "completed") return this.activeMission;
       state.activeId = id;
-      state.missions[id] = { ...previous, status: "active", startedAt: previous.startedAt || Date.now() };
+      state.missions[id] = previous.status === "failed"
+        ? { status: "active", objectiveIndex: 0, startedAt: Date.now(), completedAt: null }
+        : { ...previous, status: "active", startedAt: previous.startedAt || Date.now() };
       emit("mission:started", { missionId: id, title: mission.title });
       return this.activeMission;
     },
@@ -132,6 +134,17 @@ export function createMissionRuntime(options = {}) {
       }
       state.missions[mission.id] = progress;
       return emit("mission:objective_completed", { missionId: mission.id, objectiveId: objective.id, nextObjective: mission.objectives[progress.objectiveIndex].id });
+    },
+    fail(reason = "Misión cancelada") {
+      const mission = definition(state.activeId);
+      if (!mission) return null;
+      const progress = progressFor(mission.id);
+      progress.status = "failed";
+      progress.failedAt = Date.now();
+      progress.failureReason = String(reason).slice(0, 240);
+      state.missions[mission.id] = progress;
+      state.activeId = null;
+      return emit("mission:failed", { missionId: mission.id, title: mission.title, reason: progress.failureReason });
     },
   };
 }

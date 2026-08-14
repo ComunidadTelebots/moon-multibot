@@ -236,7 +236,9 @@
       import { createSaveCenter } from "./transport-save-center.js";
       import { createAmbientLife } from "./transport-ambient-life.js";
       import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
+      import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
       import { createWeighStation } from "./transport-weigh-station.js";
+      import { createLogisticsChain, mountLogisticsChainUI } from "./transport-logistics-chain.js";
       import { createStoryRuntime, createStoryPanel } from "./transport-story-runtime.js";
       import { createStoryIntro } from "./transport-story-intro.js";
       import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js";
@@ -289,6 +291,7 @@
       let renderedRegionalEventId = null;
       const missionRuntime = createMissionRuntime();
       const missionPanel = createMissionPanel({ runtime:missionRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog });
+      const vehicleJobs = createVehicleJobSystem({ storage:localStorage, career, eventLog, controls:document.querySelector(".controls:not(.drive)"), selectVehicle:type=>build(type) });
       const storyRuntime = createStoryRuntime();
       const storyIntro = createStoryIntro({ runtime:storyRuntime, eventLog });
       const storyPanel = createStoryPanel({ runtime:storyRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog, introPlayer:storyIntro });
@@ -301,6 +304,7 @@
         career.emit("mission:rewarded", { missionId:event.detail.missionId, reward });
       });
       const borderOperations = createBorderOperations({career,eventLog});
+      const logisticsChain = createLogisticsChain({eventLog});
       const saveCenter = createSaveCenter({career,eventLog,controls:document.querySelector(".controls:not(.drive)")});
       const eventsPanel = document.querySelector("#eventsPanel"), eventRows = document.querySelector("#eventRows"), eventEmpty = document.querySelector("#eventEmpty");
       const eventCategory = document.querySelector("#eventCategoryFilter"), eventSeverity = document.querySelector("#eventSeverityFilter"), eventSearch = document.querySelector("#eventSearch");
@@ -1051,14 +1055,15 @@
         document.querySelector("#specialState").textContent = operation.ready ? "Lista · cadenas, presión y señalización verificadas" : operation.label;
       };
       truck.onclick = () => build("truck");
-      document.querySelector("#bus").onclick = () => build("bus");
-      document.querySelector("#ambulance").onclick = () => build("ambulance");
-      document.querySelector("#fireEngine").onclick = () => build("fire");
-        document.querySelector("#recoveryTruck").onclick = () => build("recovery");
+      const chooseVehicle = type => { build(type); eventLog.record("operations","vehicle:selected",{vehicle:type}); };
+      document.querySelector("#bus").onclick = () => chooseVehicle("bus");
+      document.querySelector("#ambulance").onclick = () => chooseVehicle("ambulance");
+      document.querySelector("#fireEngine").onclick = () => chooseVehicle("fire");
+        document.querySelector("#recoveryTruck").onclick = () => chooseVehicle("recovery");
       const fleetVehicle=document.querySelector("#fleetVehicle"),fleetLivery=document.querySelector("#fleetLivery");
       fleetVehicle.innerHTML='<option value="">Flota aire y mar</option><optgroup label="Aeronaves">'+AIR_FLEET.map(v=>`<option value="${v.id}">${v.name}</option>`).join("")+'</optgroup><optgroup label="Barcos">'+SEA_FLEET.map(v=>`<option value="${v.id}">${v.name}</option>`).join("")+'</optgroup>';
       fleetLivery.innerHTML=FLEET_LIVERIES.map((v,i)=>`<option value="${i}">${v.name}</option>`).join("");
-      fleetVehicle.onchange=()=>{if(fleetVehicle.value)build(fleetVehicle.value)};
+      fleetVehicle.onchange=()=>{if(fleetVehicle.value)chooseVehicle(fleetVehicle.value)};
       fleetLivery.onchange=()=>{if(fleetVehicle.value)build(fleetVehicle.value)};
       let aviationVerticalSpeed=0, aviationRouteStart=0;
       const aviationUI=createAviationUI({
@@ -1073,6 +1078,7 @@
         sirenOn = !sirenOn;
         document.querySelector("#sirenButton").classList.toggle("on", sirenOn);
         document.querySelector("#sirenButton").textContent = sirenOn ? "Sirena activa" : "Sirena";
+        eventLog.record("operations",sirenOn?"siren:enabled":"siren:disabled",{vehicle:kind});
       };
       document.querySelector("#moreControls").onclick = () => {
         document.body.classList.toggle("controls-expanded");
@@ -1188,9 +1194,10 @@
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
       const worldPanel=document.querySelector("#worldPanel"),worldFrom=document.querySelector("#worldFrom"),worldTo=document.querySelector("#worldTo"),worldOutput=document.querySelector("#worldPlanOutput"),worldDrive=document.querySelector("#worldDriveButton"),worldFly=document.querySelector("#worldFlyButton"),worldSail=document.querySelector("#worldSailButton");
+      const logisticsUI=mountLogisticsChainUI({chain:logisticsChain,controls:document.querySelector(".controls:not(.drive)"),getPlan:()=>plannedWorldRoute,getCargo:()=>({name:specialTransport?.state?.cargo?.name||career.activeContract?.cargo?.name||career.activeContract?.cargo||cargoFrame.label||"Carga general",type:cargoFrame.type,massKg:specialTransport?.state?.cargo?.mass||12000,units:Math.max(1,loadedPallets||1),temperature:cargoFrame.temperature}),getCondition:()=>({integrity:cargoFrame.integrity,temperature:cargoFrame.temperature,restraint:cargoFrame.restraint}),onActivateLeg:order=>{const leg=order?.legs?.[order.currentLeg];if(!leg)return;if(leg.mode==="air")activateMultimodalLeg("air","cargo_plane");else if(leg.mode==="sea")activateMultimodalLeg("sea","container_ship");else if(leg.mode==="road")worldDrive.click()}});
       const worldOptions=WORLD_HUBS.map(hub=>`<option value="${hub.id}">${hub.name} · ${hub.countryCode}</option>`).join("");worldFrom.innerHTML=worldOptions;worldTo.innerHTML=worldOptions;worldFrom.value="madrid";worldTo.value="new_york";
       document.querySelector("#worldMapButton").onclick=()=>{europeMapPanel.hidden=true;worldPanel.hidden=false};document.querySelector("#worldClose").onclick=()=>worldPanel.hidden=true;
-      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${leg.mode==="road"?"Carretera":leg.mode==="sea"?"Barco":"Avión"}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;const customsLeg=plannedWorldRoute.legs.find(leg=>leg.from.countryCode!==leg.to.countryCode)||plannedWorldRoute.legs[0];borderOperations.inspect(customsLeg,{cargo:specialTransport?.state?.cargo?.name||career.activeContract?.cargo||"Carga general",adr:specialCargoIndex>=0});borderOperations.render(worldOutput);worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
+      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}const modeLabel={road:"Carretera",rail:"Ferrocarril",sea:"Barco",air:"Avión"};worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${modeLabel[leg.mode]||leg.mode}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;const customsLeg=plannedWorldRoute.legs.find(leg=>leg.from.countryCode!==leg.to.countryCode)||plannedWorldRoute.legs[0];borderOperations.inspect(customsLeg,{cargo:specialTransport?.state?.cargo?.name||career.activeContract?.cargo||"Carga general",adr:specialCargoIndex>=0});borderOperations.render(worldOutput);worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
       worldDrive.onclick=async()=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode==="road"&&item.coordinates);if(!leg)return;borderOperations.clear();await activateRoadRoute({coordinates:leg.coordinates,steps:[],distanceKm:leg.distanceKm,durationHours:leg.durationHours},leg.from.name,leg.to.name);document.querySelector("#city").textContent=leg.from.name;worldPanel.hidden=true};
       const activateMultimodalLeg=(mode,vehicleType)=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode===mode);if(!leg)return;borderOperations.clear();build(vehicleType);fleetVehicle.value=vehicleType;document.querySelector("#city").textContent=leg.from.name;document.querySelector("#workState").textContent=`${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`;cargoAssigned=true;worldPanel.hidden=true;eventLog.record("operations",`multimodal:${mode}_started`,{from:leg.from.name,to:leg.to.name,distanceKm:Math.round(leg.distanceKm),vehicle:vehicleType})};
       worldFly.onclick=()=>activateMultimodalLeg("air","cargo_plane");
