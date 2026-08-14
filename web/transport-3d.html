@@ -545,12 +545,15 @@
       for (let n = -cityRadius; n <= cityRadius; n++)
         for (const side of [-1, 1])
           for (let i = 0; i < cityRows; i++) {
-            const h = 12 + ((n * 19 + i * 23 + 80) % 43), width = 9 + (i % 3) * 3, depth = 11 + (i % 2) * 4,
-              b = worldDetail.createBuilding({ width, height: h, depth, color: [0x50667b, 0xc28b58, 0x6f8799, 0x92676b][(i + n + 8) % 4], roadSide: side, seed: i + n + 12 });
+            const blockSeed = Math.abs(n * 37 + i * 19 + side * 11),
+              h = 11 + (blockSeed % 37) + (blockSeed % 5 === 0 ? 9 : 0),
+              width = 8 + (blockSeed % 4) * 2.4,
+              depth = 9 + ((blockSeed >> 2) % 4) * 2.6,
+              b = worldDetail.createBuilding({ width, height: h, depth, color: [0x50667b, 0xc28b58, 0x6f8799, 0x92676b][blockSeed % 4], roadSide: side, seed: blockSeed });
             b.position.set(
-              side * (43 + (i % 2) * 15),
+              side * (39 + (i % 3) * 13 + (blockSeed % 3) * 2),
               0,
-              n * 76 + (i - 3) * 16,
+              n * 76 + (i - (cityRows - 1) / 2) * 15 + (blockSeed % 7) - 3,
             );
             S.add(b);
           }

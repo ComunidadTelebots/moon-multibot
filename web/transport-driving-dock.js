@@ -1,8 +1,8 @@
 const GROUPS = [
-  { id: "vehicle", label: "Vehiculo", ids: ["truck", "bus", "ambulance", "fireEngine", "recoveryTruck", "fleetVehicle", "fleetLivery"] },
-  { id: "route", label: "Ruta", ids: ["cam", "cruise", "parking", "mapButton", "europeMapButton", "worldMapButton"] },
-  { id: "work", label: "Trabajo", ids: ["workMode", "toolButton", "interactButton", "contractButton", "cargoMonitorButton", "specialButton", "specialOperate"] },
-  { id: "services", label: "Servicios", ids: ["engineButton", "rest", "rescue", "serviceButton", "sirenButton", "convoyButton", "academyButton", "achievementsButton", "eventsButton", "wheelButton", "full"] },
+  { id: "vehicle", icon: "▰", label: "Vehículo", hint: "Flota y configuración", ids: ["truck", "bus", "ambulance", "fireEngine", "recoveryTruck", "fleetVehicle", "fleetLivery"] },
+  { id: "route", icon: "⌁", label: "Ruta", hint: "Mapa, cámara y conducción", ids: ["cam", "cruise", "parking", "mapButton", "europeMapButton", "worldMapButton"] },
+  { id: "work", icon: "◇", label: "Trabajo", hint: "Contratos y mercancía", ids: ["workMode", "toolButton", "interactButton", "contractButton", "cargoMonitorButton", "specialButton", "specialOperate"] },
+  { id: "services", icon: "＋", label: "Servicios", hint: "Motor, taller y asistencia", ids: ["engineButton", "rest", "rescue", "serviceButton", "sirenButton", "convoyButton", "academyButton", "achievementsButton", "eventsButton", "wheelButton", "full"] },
 ];
 
 export function createTransportDrivingDock({ controls = document.querySelector(".controls:not(.drive)") } = {}) {
@@ -10,19 +10,33 @@ export function createTransportDrivingDock({ controls = document.querySelector("
   controls.dataset.drivingDock = "ready";
   controls.classList.add("driving-dock");
 
+  const hud = document.querySelector(".hud");
+  if (hud) {
+    hud.classList.add("moon-route-hud");
+    Array.from(hud.querySelectorAll(".pill")).forEach(pill => {
+      const id = pill.querySelector("b")?.id;
+      pill.classList.add(id === "vn" ? "moon-hud-vehicle" : id === "city" ? "moon-hud-city" : id === "roadEvent" ? "moon-hud-road" : id === "view" ? "moon-hud-view" : "moon-hud-secondary");
+    });
+    ["city", "roadEvent", "vn"].forEach(id => {
+      const pill = document.getElementById(id)?.closest(".pill");
+      if (pill) hud.append(pill);
+    });
+  }
+
   const style = document.createElement("style");
   style.textContent = `
-    .driving-dock{--dock-accent:#4ce6d0;align-items:center!important;flex-wrap:nowrap!important;max-width:min(980px,calc(100vw - 240px))!important;padding:5px!important;overflow:visible!important}
-    .driving-dock .dock-primary{display:flex;align-items:center;gap:5px;min-width:0;overflow-x:auto;scrollbar-width:none}.driving-dock .dock-primary::-webkit-scrollbar{display:none}
-    .driving-dock .dock-tab{display:inline-flex!important;align-items:center;gap:7px;min-height:42px!important;white-space:nowrap}.driving-dock .dock-tab::before{content:"";width:7px;height:7px;border-radius:50%;background:#6f8792}.driving-dock .dock-tab[aria-expanded="true"]{border-color:var(--dock-accent)!important;color:#72f3df!important}.driving-dock .dock-tab[aria-expanded="true"]::before{background:var(--dock-accent);box-shadow:0 0 12px var(--dock-accent)}
+    .driving-dock{--dock-accent:#54ead4;align-items:stretch!important;flex-wrap:nowrap!important;max-width:min(760px,calc(100vw - 270px))!important;padding:4px!important;border-radius:22px!important;overflow:visible!important}
+    .driving-dock .dock-primary{display:grid;grid-template-columns:repeat(4,minmax(92px,1fr));align-items:stretch;gap:3px;min-width:0;overflow:visible}.driving-dock .dock-primary::-webkit-scrollbar{display:none}
+    .driving-dock .dock-tab{position:relative;display:grid!important;grid-template-columns:24px 1fr;grid-template-rows:auto auto;column-gap:7px;align-items:center;min-height:50px!important;padding:7px 10px!important;border-color:transparent!important;background:transparent!important;text-align:left;white-space:nowrap}.driving-dock .dock-tab-icon{grid-row:1/3;display:grid;place-items:center;width:24px;height:24px;border:1px solid #47606c;border-radius:8px;color:#9db2bb;font-size:14px}.driving-dock .dock-tab-label{font-size:11px;line-height:1.1}.driving-dock .dock-tab small{color:#708994;font-size:8px;font-weight:500;line-height:1.1}.driving-dock .dock-tab[aria-expanded="true"]{border-color:#54ead455!important;background:linear-gradient(145deg,#153e3a,#0c2628)!important;color:#7bf5e3!important}.driving-dock .dock-tab[aria-expanded="true"] .dock-tab-icon{border-color:var(--dock-accent);background:#173f3b;color:#7bf5e3;box-shadow:0 0 18px #54ead42b}.driving-dock .dock-tab[aria-expanded="true"] small{color:#a7d8d1}
     .driving-dock .dock-overflow{position:fixed;z-index:16;left:50%;bottom:68px;width:min(760px,calc(100vw - 24px));max-height:min(56vh,430px);transform:translateX(-50%);padding:12px;border:1px solid #4ce6d04d;border-radius:18px;background:linear-gradient(145deg,#0b1e29f7,#061019fa);box-shadow:0 20px 70px #000d;backdrop-filter:blur(20px);overflow:auto}.driving-dock .dock-overflow[hidden]{display:none}
-    .driving-dock .dock-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.driving-dock .dock-head b{font-size:14px}.driving-dock .dock-head small{color:#7f9ba8}.driving-dock .dock-grid{display:grid;grid-template-columns:repeat(4,minmax(125px,1fr));gap:7px}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{width:100%;min-width:0;min-height:44px!important;text-align:left}
+    .driving-dock .dock-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:3px 3px 9px;border-bottom:1px solid #ffffff13}.driving-dock .dock-head b{font-size:16px}.driving-dock .dock-head small{color:#7f9ba8}.driving-dock .dock-grid{display:grid;grid-template-columns:repeat(4,minmax(125px,1fr));gap:7px}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{width:100%;min-width:0;min-height:48px!important;text-align:left}
     .driving-dock .dock-close{display:block!important;width:38px!important;min-height:38px!important;padding:4px!important;text-align:center!important}
     body:not(.controls-expanded) .driving-dock .dock-grid button{display:block!important}
-    .driving-dock>#moreControls{margin-left:auto;flex:0 0 auto;font-size:0}.driving-dock>#moreControls::after{content:"Menu";font-size:12px}
-    @media(max-width:900px){.driving-dock{max-width:calc(100vw - 205px)!important}.driving-dock .dock-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
-    @media(max-width:700px){.driving-dock{left:6px!important;right:6px!important;bottom:66px!important;max-width:none!important;transform:none!important;overflow:visible!important}.driving-dock .dock-primary{flex:1}.driving-dock .dock-tab{min-height:46px!important}.driving-dock .dock-overflow{bottom:124px;max-height:46vh;padding:10px}.driving-dock .dock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{min-height:48px!important}.driving-dock>#moreControls{min-width:52px}}
-    @media(max-width:390px){.driving-dock .dock-tab{padding-inline:9px!important}.driving-dock .dock-grid{grid-template-columns:1fr}}
+    .driving-dock>#moreControls{margin-left:3px;flex:0 0 52px;font-size:0!important;border-color:#54ead455!important;background:#12302f!important}.driving-dock>#moreControls::before{content:"☰";display:block;color:#67efdc;font-size:18px}.driving-dock>#moreControls::after{content:"Menú";display:block;color:#9dc0c3;font-size:8px}
+    .hud.moon-route-hud{display:grid!important;grid-template-columns:minmax(150px,1fr) minmax(180px,1.35fr) minmax(150px,1fr);max-width:min(700px,calc(100vw - 390px))!important}.hud.moon-route-hud .pill{min-width:0}.hud.moon-route-hud .pill b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hud.moon-route-hud .moon-hud-secondary{display:none}.hud.moon-route-hud .moon-hud-road{border-color:#f49a3255!important;background:linear-gradient(145deg,#392516d9,#171d24d9)!important}.hud.moon-route-hud .moon-hud-road b{color:#ffc070!important}.moon-driving .hud.moon-route-hud{opacity:.72}.moon-driving .hud.moon-route-hud:hover{opacity:1}
+    @media(max-width:900px){.driving-dock{max-width:calc(100vw - 205px)!important}.driving-dock .dock-tab{grid-template-columns:22px 1fr;padding-inline:7px!important}.driving-dock .dock-tab small{display:none}.driving-dock .dock-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
+    @media(max-width:700px){.driving-dock{left:6px!important;right:6px!important;bottom:66px!important;max-width:none!important;transform:none!important;overflow:visible!important}.driving-dock .dock-primary{flex:1;grid-template-columns:repeat(4,1fr)}.driving-dock .dock-tab{display:flex!important;flex-direction:column;justify-content:center;gap:3px;min-height:52px!important;padding:5px 2px!important;text-align:center}.driving-dock .dock-tab-icon{width:22px;height:22px}.driving-dock .dock-tab-label{font-size:9px}.driving-dock .dock-tab small{display:none}.driving-dock .dock-overflow{bottom:124px;max-height:46vh;padding:10px}.driving-dock .dock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{min-height:48px!important}.driving-dock>#moreControls{min-width:48px;flex-basis:48px}.hud.moon-route-hud{grid-template-columns:1fr 1fr;max-width:calc(100vw - 12px)!important}.hud.moon-route-hud .moon-hud-vehicle{display:none}.hud.moon-route-hud .pill{padding:6px 8px!important}}
+    @media(max-width:390px){.driving-dock .dock-grid{grid-template-columns:1fr}}
     @media(prefers-reduced-motion:reduce){.driving-dock *{scroll-behavior:auto!important;transition:none!important}}
   `;
   document.head.append(style);
@@ -33,7 +47,7 @@ export function createTransportDrivingDock({ controls = document.querySelector("
   overflow.className = "dock-overflow";
   overflow.hidden = true;
   overflow.setAttribute("aria-label", "Controles del simulador");
-  overflow.innerHTML = `<header class="dock-head"><div><b>Controles</b><br><small>Selecciona una categoria</small></div><button type="button" class="dock-close" aria-label="Cerrar controles">x</button></header><div class="dock-grid"></div>`;
+  overflow.innerHTML = `<header class="dock-head"><div><b>Controles</b><br><small>Selecciona una categoría</small></div><button type="button" class="dock-close" aria-label="Cerrar controles">×</button></header><div class="dock-grid"></div>`;
   const grid = overflow.querySelector(".dock-grid");
   controls.prepend(primary);
   controls.append(overflow);
@@ -45,7 +59,7 @@ export function createTransportDrivingDock({ controls = document.querySelector("
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "dock-tab";
-    tab.textContent = group.label;
+    tab.innerHTML = `<span class="dock-tab-icon" aria-hidden="true">${group.icon}</span><span class="dock-tab-label">${group.label}</span><small>${group.hint}</small>`;
     tab.setAttribute("aria-expanded", "false");
     tab.setAttribute("aria-controls", `dock-${group.id}`);
     tab.onclick = () => show(active === group.id ? "" : group.id);
@@ -60,6 +74,7 @@ export function createTransportDrivingDock({ controls = document.querySelector("
     const group = GROUPS.find(item => item.id === active);
     overflow.id = `dock-${active}`;
     overflow.querySelector(".dock-head b").textContent = group.label;
+    overflow.querySelector(".dock-head small").textContent = group.hint;
     Array.from(grid.children).forEach(element => { element.hidden = element.dataset.dockGroup !== active; });
     overflow.hidden = false;
     grid.querySelector("button:not([hidden]),select:not([hidden])")?.focus({ preventScroll: true });
