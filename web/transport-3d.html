@@ -214,6 +214,7 @@
       import { createOsmRoutePlanner, projectRouteToWorld, coordinateAtRouteProgress } from "./transport-osm-routing.js";
       import { createRouteNavigation } from "./transport-route-navigation.js";
       import { createOsmCorridor } from "./transport-osm-corridor.js";
+      import { createWorldPolygonMesh } from "./transport-world-polygon-mesh.js";
       import { createOsmRoutePois } from "./transport-osm-pois.js";
       import { createCargoHubs } from "./transport-cargo-hubs.js";
       import { WORLD_HUBS, findMultimodalRoute, resolveMultimodalRoads } from "./transport-world-network.js";
@@ -353,6 +354,8 @@
       let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
       const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
       const osmCorridor = createOsmCorridor({THREE:T,scene:S,qualityLevel});
+      const worldPolygonMesh=createWorldPolygonMesh({THREE:T,scene:S,qualityProfile:detectedGraphics?.name||(["LEGACY","LOW","MEDIUM","HIGH","ULTRA"][qualityLevel]||"MEDIUM")});
+      let worldPolygonRouteRef=null;
       const osmRoutePois = createOsmRoutePois({THREE:T,scene:S,qualityLevel});
       const cargoHubs = createCargoHubs({THREE:T,scene:S,qualityLevel});
       let regionalMaterials = null, plannedWorldRoute = null;
@@ -1425,6 +1428,8 @@
           if (routePose) { V.position.x=routePose.x; V.position.z=routePose.z; V.rotation.y=routePose.heading; }
           routeRuntime.update(dt,{playerDistance:physicalDistance,playerSpeed:speed/3.6,playerDirection:1,playerLateral:routeLaneOffset,playerLength:kind==="bus"?13:16.5});
           osmCorridor.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[450,700,1100,1600][qualityLevel]});
+          if(activeOsmRoute&&activeWorldRoute!==worldPolygonRouteRef){worldPolygonRouteRef=activeWorldRoute;worldPolygonMesh.setRoute(activeOsmRoute,activeWorldRoute);worldPolygonMesh.applyMaterials(regionalMaterials);}
+          worldPolygonMesh.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[700,1200,2200,4200,5200][qualityLevel]||2200});
           const cargoHub=cargoHubs.update(dt,{playerPosition:V.position,camera:C});
           if(cargoHub?.distance<180){document.querySelector("#cargoState").textContent=`${cargoHub.name} · ${cargoHub.type}`;if(cargoHub.active)document.querySelector("#workState").textContent="Zona de transferencia de carga";}
         } else {
