@@ -4,6 +4,7 @@ export function createOriginalEuropeanCabin({ THREE: T, bus = false, qualityLeve
   const root = new T.Group(); root.name = "aster_original_cabin";
   const cabinTextures = [];
   const texture = (name, base, detail, pattern = "grain", repeat = [3, 3]) => {
+    if (qualityLevel >= 2) return null;
     const canvas=document.createElement("canvas"),size=qualityLevel>1?512:256;canvas.width=canvas.height=size;const x=canvas.getContext("2d");
     x.fillStyle=base;x.fillRect(0,0,size,size);let seed=name.length*7919;
     if(pattern==="weave") for(let p=-size;p<size*2;p+=7){x.strokeStyle=`rgba(${detail},${detail},${detail},.11)`;x.lineWidth=2;x.beginPath();x.moveTo(p,0);x.lineTo(p-size,size);x.stroke();x.beginPath();x.moveTo(p,0);x.lineTo(p+size,size);x.stroke();}

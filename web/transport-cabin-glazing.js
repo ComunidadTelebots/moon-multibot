@@ -4,16 +4,8 @@ export function createCabinGlazing({ THREE: T, bus = false, qualityLevel = 2 }) 
   const frontZ = bus ? -5.93 : -5.79;
   const sideX = bus ? 2.35 : 2.18;
 
-  const doorCanvas = document.createElement("canvas"); doorCanvas.width = doorCanvas.height = qualityLevel > 1 ? 512 : 256;
-  const doorContext = doorCanvas.getContext("2d");
-  doorContext.fillStyle = "#252b2e"; doorContext.fillRect(0, 0, doorCanvas.width, doorCanvas.height);
-  for (let y = 0; y < doorCanvas.height; y += 3) {
-    const shade = 38 + (y * 17 % 13); doorContext.fillStyle = `rgba(${shade},${shade+4},${shade+5},.18)`;
-    doorContext.fillRect(0, y, doorCanvas.width, 1);
-  }
-  const doorMap = new T.CanvasTexture(doorCanvas); doorMap.name = "door_satin_micrograin";
-  doorMap.colorSpace = T.SRGBColorSpace; doorMap.wrapS = doorMap.wrapT = T.RepeatWrapping;
-  doorMap.repeat.set(7, 5); doorMap.anisotropy = qualityLevel > 2 ? 16 : qualityLevel > 1 ? 8 : 2;
+  let doorMap=null;
+  if(qualityLevel<2){const doorCanvas=document.createElement("canvas");doorCanvas.width=doorCanvas.height=256;const doorContext=doorCanvas.getContext("2d");doorContext.fillStyle="#252b2e";doorContext.fillRect(0,0,doorCanvas.width,doorCanvas.height);for(let y=0;y<doorCanvas.height;y+=3){const shade=38+(y*17%13);doorContext.fillStyle=`rgba(${shade},${shade+4},${shade+5},.18)`;doorContext.fillRect(0,y,doorCanvas.width,1);}doorMap=new T.CanvasTexture(doorCanvas);doorMap.name="door_satin_micrograin";doorMap.colorSpace=T.SRGBColorSpace;doorMap.wrapS=doorMap.wrapT=T.RepeatWrapping;doorMap.repeat.set(7,5);doorMap.anisotropy=2;}
   const polymer = new T.MeshPhysicalMaterial({ name:"door_satin_polymer", color: 0xffffff, map:doorMap, bumpMap:doorMap, bumpScale:.009, roughness: .72, metalness: .025, clearcoat: .06, clearcoatRoughness:.68 });
   const rubber = new T.MeshStandardMaterial({ color: 0x070a0c, roughness: .96 });
   const alloy = new T.MeshPhysicalMaterial({ color: 0x9ca5a8, roughness: .25, metalness: .78, clearcoat: .28 });
@@ -125,6 +117,6 @@ export function createCabinGlazing({ THREE: T, bus = false, qualityLevel = 2 }) 
     capture.lastUpdate = now;
     nextMirror = (nextMirror + 1) % mirrorCaptures.length;
   };
-  root.userData.dispose = () => { mirrorCaptures.forEach(({ target }) => target.dispose()); doorMap.dispose(); mirrorGlass.dispose(); };
+  root.userData.dispose = () => { mirrorCaptures.forEach(({ target }) => target.dispose()); doorMap?.dispose(); mirrorGlass.dispose(); };
   return root;
 }

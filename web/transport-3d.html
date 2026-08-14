@@ -362,7 +362,10 @@
       let regionalMaterials = null, plannedWorldRoute = null;
       const routeNavigation = createRouteNavigation();
       let routeRuntime;
-      const textures = createProceduralTransportTextures(T, qualityLevel);
+      // HIGH/ULTRA are authored-asset modes: no decorative texture is created
+      // at runtime. Lower profiles retain the old fallback until every asset
+      // has a lightweight static replacement.
+      const textures = qualityLevel>=2 ? {maps:{},dispose(){}} : createProceduralTransportTextures(T, qualityLevel);
       const bakedMaterials=createBakedMaterialLibrary({THREE:T,qualityLevel});
       const vehicleTextures = createVehicleTextureSystem({
         THREE: T, qualityLevel,
