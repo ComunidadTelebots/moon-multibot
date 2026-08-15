@@ -1,5 +1,16 @@
 # Changelog - Moon Multibot
 
+## [v16.86.0-alpha] - 2026-08-16
+### Feature - Suite de Control Maestro en Mini App Hub & Separación de Entretenimiento
+- **Pestaña y Suite Maestra (`web/hub.html`)**:
+  - Detección y desbloqueo automático de la pestaña **`👑 Master`** en la barra de navegación para el dueño del bot (`master === true` o `?master=1`).
+  - **Telemetría en tiempo real**: CPU %, RAM %, GB de memoria consumida, canales y lista de baneos.
+  - **Difusión Masiva (Broadcast)**: Emisión simultánea de comunicados Markdown a todos los canales y grupos gestionados con un solo clic.
+  - **Configuración del Núcleo IA**: Selector dinámico de proveedor (Modo Híbrido, Ollama Local, Google Gemini) y personalidades (Friendly, Cyberpunk, Filosófico).
+  - **Seguridad y Moderación**: Interruptores directos para Escudo Global CAS, Modo Escucha (Listen Mode) y Auto-Backup de base de datos SQLite a Telegram.
+  - **Gestión de Bots e Infraestructura**: Monitoreo de bots activos (Multi-Bot), estado de proxies MTProto anti-bloqueo y consola de logs/auditoría en tiempo real.
+  - **Separación de roles**: Aislamiento estricto de juegos (Simulador 3D y Arcade) en sus secciones de entretenimiento correspondientes fuera del panel maestro.
+
 ## [v16.85.0-alpha] - 2026-08-16
 ### Feature - Ecosistema Alfa 3D Heavy Transport & Arcade Adaptativo iOS/Android
 - **Motor 3D Real en Three.js (`web/transport-3d.html`)**:

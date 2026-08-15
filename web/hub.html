@@ -206,6 +206,46 @@
   .badge-status-hub.beta{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.4);}
   .badge-status-hub.alfa{background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.4);}
 
+  /* ── 🍏 Tema iOS Día (Light Cupertino) ── */
+  body.theme-ios-light {
+    --bg: #f2f2f7; --ink: #000000; --muted: #6e6e73;
+    --teal: #007aff; --cyan: #5856d6; --amber: #ff9500; --red: #ff3b30;
+    --line: rgba(0,0,0,.09); --card: #ffffff; --card2: #f9f9fb;
+    --grad: linear-gradient(120deg, #007aff, #5856d6);
+  }
+  body.theme-ios-light .topbar, body.theme-ios-light .tabbar { background: rgba(242,242,247,.88); border-color: rgba(0,0,0,.08); }
+  body.theme-ios-light .card, body.theme-ios-light .c-card, body.theme-ios-light .stat { box-shadow: 0 2px 10px rgba(0,0,0,.04); border-color: rgba(0,0,0,.06); }
+  body.theme-ios-light .badge-status-hub.alfa { background: rgba(255,149,0,.15); color: #d97706; border-color: rgba(255,149,0,.4); }
+
+  /* ── 🍏 Tema iOS Noche (OLED Dark) ── */
+  body.theme-ios-dark {
+    --bg: #000000; --ink: #ffffff; --muted: #8e8e93;
+    --teal: #0a84ff; --cyan: #5e5ce6; --amber: #ffd60a; --red: #ff453a;
+    --line: #2c2c2e; --card: #1c1c1e; --card2: #141416;
+    --grad: linear-gradient(120deg, #0a84ff, #5e5ce6);
+  }
+  body.theme-ios-dark .topbar, body.theme-ios-dark .tabbar { background: rgba(0,0,0,.85); border-color: #2c2c2e; }
+
+  /* ── 🤖 Tema Android Día (Material 3 Light) ── */
+  body.theme-android-light {
+    --bg: #fdfcff; --ink: #1a1c1e; --muted: #73777f;
+    --teal: #006874; --cyan: #006a6a; --amber: #7b5800; --red: #ba1a1a;
+    --line: #e0e2ec; --card: #f0f3fa; --card2: #e8ebf2;
+    --grad: linear-gradient(120deg, #006874, #006a6a);
+  }
+  body.theme-android-light .card, body.theme-android-light .c-card { border-radius: 24px; }
+  body.theme-android-light .topbar, body.theme-android-light .tabbar { background: #fdfcff; border-color: #e0e2ec; }
+
+  /* ── 🤖 Tema Android Noche (Material Dark) ── */
+  body.theme-android-dark {
+    --bg: #121316; --ink: #e2e2e6; --muted: #8d9199;
+    --teal: #4fd8eb; --cyan: #80d5d4; --amber: #fbbc04; --red: #ffb4ab;
+    --line: #2a2b2f; --card: #1e1f24; --card2: #191a1e;
+    --grad: linear-gradient(120deg, #4fd8eb, #80d5d4);
+  }
+  body.theme-android-dark .card, body.theme-android-dark .c-card { border-radius: 24px; }
+  body.theme-android-dark .topbar, body.theme-android-dark .tabbar { background: #121316; border-color: #2a2b2f; }
+
   /* Modal de Selección Rápida de Versión */
   .hub-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:999;display:none;align-items:flex-end;justify-content:center;}
   .hub-modal-backdrop.open{display:flex;}
@@ -230,7 +270,7 @@
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l3-1 2 4 3-9 3 6 2-3h3"/></svg></div>
     <div class="who">
       <div class="hi">Hola <b id="uname">invitado</b> <span class="badge" id="roleBadge" hidden>master</span> <span class="badge-status-hub alfa" id="hubStatusBadge">ALFA</span></div>
-      <div class="sub">ComunidadTelebots · <span class="hub-ver-label" style="color:var(--teal);font-weight:600;">v16.85.0-alpha</span></div>
+      <div class="sub">ComunidadTelebots · <span class="hub-ver-label" style="color:var(--teal);font-weight:600;">v16.86.0-alpha</span></div>
     </div>
     <button class="gear" id="btnAjustes" aria-label="Ajustes" data-ic="settings"></button>
   </div>
@@ -259,7 +299,7 @@
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
     <div class="logo" style="width:44px;height:44px;border-radius:13px;font-size:22px;"><svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l3-1 2 4 3-9 3 6 2-3h3"/></svg></div>
     <div><div style="font-family:var(--display);font-weight:800;font-size:20px;display:flex;align-items:center;gap:8px;">Panel <span class="badge-status-hub alfa" id="c-hubStatusBadge">ALFA</span></div>
-    <div style="font-size:12px;color:var(--muted);">ComunidadTelebots · <span class="hub-ver-label" style="color:var(--teal);font-weight:600;">v16.85.0-alpha</span></div></div>
+    <div style="font-size:12px;color:var(--muted);">ComunidadTelebots · <span class="hub-ver-label" style="color:var(--teal);font-weight:600;">v16.86.0-alpha</span></div></div>
   </div>
   <div class="hi" id="c-hello" style="font-size:14px;color:var(--muted);margin:14px 2px 16px;">Bienvenido al panel principal.</div>
   <div class="c-card" id="c-masterCard" style="display:none;">
@@ -746,12 +786,17 @@
   // ── Ajustes ──
   function loadAjustes(){
     const el=document.getElementById("v-ajustes");
-    el.innerHTML=`<div class="vtitle">Ajustes</div><div class="vsub">Personaliza tu panel y canal de versión.</div>
-      <div class="sec">Tema de Interfaz</div>
-      <div class="themeopt" data-theme-opt="nuevo"><div class="ra"></div><div class="to-t"><b>Nuevo</b><span>Pestañas, jerarquía por producto. Recomendado.</span></div></div>
-      <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>Clásico</b><span>La maqueta original con tarjetas apiladas.</span></div></div>
+    el.innerHTML=`<div class="vtitle">Ajustes</div><div class="vsub">Personaliza tu panel, tema móvil y canal de versión.</div>
+      <div class="sec">Tema de Interfaz & Plataforma Móvil</div>
+      <div class="themeopt" data-theme-opt="nuevo"><div class="ra"></div><div class="to-t"><b>✨ Moon Neón (Cyberpunk)</b><span>Diseño por defecto con acentos teal/cyan fluidos.</span></div></div>
+      <div class="themeopt" data-theme-opt="ios-dark"><div class="ra"></div><div class="to-t"><b>🍏 iOS Cupertino Noche (OLED Dark)</b><span>Diseño nativo de Apple, negro puro y acentos azules.</span></div></div>
+      <div class="themeopt" data-theme-opt="ios-light"><div class="ra"></div><div class="to-t"><b>🍏 iOS Cupertino Día (Light)</b><span>Diseño nativo de Apple en fondo blanco suave y gris.</span></div></div>
+      <div class="themeopt" data-theme-opt="android-dark"><div class="ra"></div><div class="to-t"><b>🤖 Android Material 3 Noche</b><span>Material You Dark con esquinas de 24px y turquesa.</span></div></div>
+      <div class="themeopt" data-theme-opt="android-light"><div class="ra"></div><div class="to-t"><b>🤖 Android Material 3 Día</b><span>Material You Light tonal con tarjetas elevadas.</span></div></div>
+      <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>📜 Clásico Retro</b><span>La maqueta original de tarjetas apiladas.</span></div></div>
+      
       <div class="sec">Canal / Estado de Versión</div>
-      <div class="themeopt" data-channel-opt="alfa"><div class="ra"></div><div class="to-t"><b>🟠 ALFA</b><span>Canal de desarrollo activo (v16.85.0-alpha, Simulador 3D).</span></div></div>
+      <div class="themeopt" data-channel-opt="alfa"><div class="ra"></div><div class="to-t"><b>🟠 ALFA</b><span>Canal de desarrollo activo (v16.86.0-alpha, Simulador 3D).</span></div></div>
       <div class="themeopt" data-channel-opt="beta"><div class="ra"></div><div class="to-t"><b>🟣 BETA</b><span>Canal de estabilización previa.</span></div></div>
       <div class="themeopt" data-channel-opt="rc"><div class="ra"></div><div class="to-t"><b>🔵 RC (Release Candidate)</b><span>Candidata final de lanzamiento.</span></div></div>
       <div class="themeopt" data-channel-opt="estable"><div class="ra"></div><div class="to-t"><b>🟢 ESTABLE</b><span>Rama principal estable verificada.</span></div></div>`;
@@ -1042,13 +1087,17 @@
   // ── Tema: carga/guardado por usuario ──
   let curTheme="nuevo";
   function applyTheme(t){
-    curTheme=(t==="clasico")?"clasico":"nuevo";
-    const nuevo=curTheme==="nuevo";
-    document.getElementById("app").hidden=!nuevo;
-    document.getElementById("app-classic").hidden=nuevo;
-    if(nuevo)initNew();else initClassic();
+    curTheme = t || "nuevo";
+    document.body.classList.remove("theme-ios-light", "theme-ios-dark", "theme-android-light", "theme-android-dark");
+    if(curTheme === "ios-light" || curTheme === "ios-dark" || curTheme === "android-light" || curTheme === "android-dark"){
+      document.body.classList.add("theme-" + curTheme);
+    }
+    const clasico = curTheme === "clasico";
+    document.getElementById("app").hidden = clasico;
+    document.getElementById("app-classic").hidden = !clasico;
+    if(!clasico) initNew(); else initClassic();
   }
-  function setTheme(t){ev("theme_change",{theme:t});saveTheme(t);applyTheme(t);if(curTheme==="nuevo"){reflectTheme();}}
+  function setTheme(t){ev("theme_change",{theme:t});saveTheme(t);applyTheme(t);reflectTheme();}
   function saveTheme(t){
     try{if(tg&&tg.CloudStorage)tg.CloudStorage.setItem("hub_theme",t);}catch(e){}
     try{localStorage.setItem("hub_theme",t);}catch(e){}
