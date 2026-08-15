@@ -252,6 +252,7 @@
       import { createDisplayControls } from "./transport-display-controls.js?v=20260815-display1";
       import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js?v=20260815-profile-ui2";
       import { createReleaseChannelSystem } from "./transport-release-channel.js?v=20260815-release1";
+      import { applyReleaseProfile, stableEditionUrl } from "./transport-release-profile.js?v=20260815-release2";
       window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
       const canvaTheme = applyCanvaTransportTheme();
       const hudMotion = createHudMotion({ hud:document.querySelector(".hud"), controls:document.querySelector(".controls:not(.drive)"), cockpit:document.querySelector("#cockpitPanel") });
@@ -292,7 +293,16 @@
       const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>{performanceFrame=frame;graphicsSelector.update(frame)}});
       const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
       const career = createTransportCareer();
-      const releaseChannel = createReleaseChannelSystem();
+      const releaseChannel = createReleaseChannelSystem({onChange:channel=>{
+        if(channel==="stable")location.assign(stableEditionUrl());
+        else applyReleaseProfile(channel);
+      }});
+      await releaseChannel.ready;
+      if(releaseChannel.channel==="stable"){
+        location.replace(stableEditionUrl());
+        await new Promise(()=>{});
+      }
+      applyReleaseProfile(releaseChannel.channel);
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
         document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`;
         document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`;
