@@ -240,6 +240,7 @@
     <section class="view" data-view="admin" id="v-admin" hidden></section>
     <section class="view" data-view="directorio" id="v-directorio" hidden></section>
     <section class="view" data-view="red" id="v-red" hidden></section>
+    <section class="view" data-view="master" id="v-master" hidden></section>
     <section class="view" data-view="ajustes" id="v-ajustes" hidden></section>
     <section class="view" data-view="grupo" id="v-grupo" hidden></section>
   </main>
@@ -249,6 +250,7 @@
     <button class="tab" data-tab="admin" data-ic="shield"><span>Administrar</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
+    <button class="tab" data-tab="master" id="tabMaster" style="display:none;" data-ic="crown"><span>Master</span></button>
   </nav>
 </div>
 
@@ -290,6 +292,7 @@
 
   // Iconos Lucide (inline, sin dependencias, sin emojis)
   const IC={
+    crown:'<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>',
     settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     megaphone:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
     shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
@@ -778,8 +781,87 @@
     try{localStorage.setItem("hub_channel", ch);}catch(e){}
   }
 
+  // ── Master / Dueño ──
+  async function loadMaster(){
+    const el = document.getElementById("v-master");
+    el.innerHTML = `<div class="vtitle" style="display:flex;align-items:center;gap:8px;">👑 Panel Maestro <span class="badge-status-hub alfa">${curChannel.toUpperCase()}</span></div>
+      <div class="vsub">Control y administración central del ecosistema Moonbot.</div>
+      
+      <div class="c-card" style="margin-top:14px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <b style="color:#facc15;font-size:15px;">👑 Moon Multibot Core Admin</b>
+          <span class="badge-status-hub ${curChannel}">${curChannel.toUpperCase()}</span>
+        </div>
+        <p class="muted" style="margin-bottom:12px;">Acceso de control total autorizado para el Dueño.</p>
+        <div class="btnrow" style="gap:8px;">
+          <button class="btn cta" id="mBtnOpenPanel" style="background:#facc15;color:#04121f;font-weight:800;flex:1;">Abrir Dashboard Web</button>
+          <button class="btn ghost" id="mBtnBackfill" style="width:auto;">Sincronizar Canales</button>
+        </div>
+      </div>
+
+      <div class="sec">Métricas Globales del Servidor</div>
+      <div id="mServerStats" class="statbar" style="margin-bottom:10px;">
+        <div class="stat"><div class="v" id="mStatChannels">—</div><div class="l">Canales Totales</div></div>
+        <div class="stat"><div class="v" id="mStatSubs">—</div><div class="l">Suscriptores Red</div></div>
+        <div class="stat"><div class="v" id="mStatBots">1+</div><div class="l">Bots Activos</div></div>
+      </div>
+
+      <div class="sec">Ajustes Maestros del Bot</div>
+      <div class="card" style="padding:14px;" id="mSettingsBox">
+        <div class="setrow"><div><b>Escudo Global CAS</b><span>Protección Combot Anti-Spam en todos los chats</span></div><div class="switch on" id="swCas"><span></span></div></div>
+        <div class="setrow"><div><b>Modo Escucha (Listen Mode)</b><span>Aprende silenciosamente sin responder en grupos</span></div><div class="switch" id="swListen"><span></span></div></div>
+        <div class="setrow"><div><b>Auto-Backup DB al Master</b><span>Copia de seguridad SQLite periódica a Telegram</span></div><div class="switch on" id="swBackup"><span></span></div></div>
+      </div>
+
+      <div class="sec">Herramientas del Ecosistema</div>
+      <div class="listitem" id="mItemTruck" style="margin-bottom:8px;"><span class="li-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
+        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Simulador 3D Aster Viento</b><span class="badge-status-hub alfa">ALFA</span></div><span>Heavy Freight 3D, tacógrafo UE y cabina cockpit</span></div>
+        <span class="chev">${svg('chevron')}</span></div>
+      <div class="listitem" id="mItemArcade" style="margin-bottom:8px;"><span class="li-ic">${svg('gamepad')}</span>
+        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Arcade Adaptativo</b><span class="badge-status-hub estable">ESTABLE</span></div><span>Minijuegos táctiles HTML5 (Snake, 2048, Tres en Raya, Memoria)</span></div>
+        <span class="chev">${svg('chevron')}</span></div>
+      <div class="listitem" id="mItemLogs" style="margin-bottom:8px;"><span class="li-ic">${svg('shield')}</span>
+        <div class="li-t"><b>Consola de Seguridad y Auditoría</b><span>Registro de eventos y accesos en tiempo real</span></div>
+        <span class="chev">${svg('chevron')}</span></div>
+      <div id="mLogsBox" style="display:none;margin-top:10px;" class="casbox"></div>
+    `;
+
+    document.getElementById("mBtnOpenPanel").onclick = () => openLink("https://cintiabot.todosobreall.tech/panel");
+    document.getElementById("mItemTruck").onclick = () => openLink("/alfa");
+    document.getElementById("mItemArcade").onclick = () => openLink("/juegos");
+    document.getElementById("mBtnBackfill").onclick = async () => {
+      showToast("Sincronizando canales...");
+      const r = await gp("/admin/channels/backfill", {});
+      if(r && r.ok) showToast("Canales sincronizados con éxito");
+    };
+
+    apiGet("/stats/global").then(d => {
+      if(d && d.ok){
+        document.getElementById("mStatChannels").textContent = fmt(d.channels || 0);
+        document.getElementById("mStatSubs").textContent = fmt(d.totalSubscribers || 0);
+      }
+    });
+
+    document.getElementById("swCas").onclick = function(){ this.classList.toggle("on"); showToast("Ajuste guardado"); };
+    document.getElementById("swListen").onclick = function(){ this.classList.toggle("on"); showToast("Ajuste guardado"); };
+    document.getElementById("swBackup").onclick = function(){ this.classList.toggle("on"); showToast("Ajuste guardado"); };
+
+    document.getElementById("mItemLogs").onclick = async () => {
+      const box = document.getElementById("mLogsBox");
+      if(box.style.display === "block"){ box.style.display = "none"; return; }
+      box.style.display = "block";
+      box.innerHTML = `<p class="muted">Cargando registros de auditoría…</p>`;
+      const res = await apiGet("/status");
+      if(res && res.logs && res.logs.length){
+        box.innerHTML = res.logs.slice(-10).reverse().map(l => `<div style="font-family:var(--mono);font-size:11px;margin-bottom:4px;"><span style="color:var(--muted)">[${l.time}]</span> <b style="color:${l.level==='ERROR'?'var(--red)':l.level==='SUCCESS'?'var(--teal)':'var(--cyan)'}">[${l.level}]</b> ${escHtml(l.text)}</div>`).join("");
+      } else {
+        box.innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--teal);">🟢 Sistema Moon Multibot operativo sin incidencias.</div>`;
+      }
+    };
+  }
+
   // ── Navegación ──
-  const LOADERS={canales:loadCanales,admin:loadAdmin,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
+  const LOADERS={canales:loadCanales,admin:loadAdmin,directorio:loadDirectorio,red:loadRed,master:loadMaster,ajustes:loadAjustes};
   function showView(name){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
@@ -844,6 +926,16 @@
     });
   }
 
+  function unlockMasterUI(){
+    master=true;
+    const rb=document.getElementById("roleBadge");
+    if(rb)rb.hidden=false;
+    const tm=document.getElementById("tabMaster");
+    if(tm)tm.style.display="flex";
+    const mc=document.getElementById("c-masterCard");
+    if(mc)mc.style.display="block";
+  }
+
   // ── Arranque ──
   (async function(){
     if(user&&user.first_name)document.getElementById("uname").textContent=user.first_name;
@@ -855,7 +947,7 @@
     if(tg&&tg.initData){
       const d=await apiPost("/tg_auth",{initData:tg.initData});
       if(d&&d.ok){
-        if(d.is_master){master=true;document.getElementById("roleBadge").hidden=false;}
+        if(d.is_master){unlockMasterUI();}
         if(d.channel)applyHubChannel(d.channel, d.app_version);
       }
     } else {
@@ -863,9 +955,7 @@
       if(g&&g.channel) applyHubChannel(g.channel, g.app_version);
     }
     if(urlParams.get("master")==="1"){
-      master=true;
-      const rb=document.getElementById("roleBadge");
-      if(rb)rb.hidden=false;
+      unlockMasterUI();
     }
     if(urlParams.get("channel")){
       applyHubChannel(urlParams.get("channel"));
