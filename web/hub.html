@@ -198,11 +198,21 @@
   .tab.active{color:var(--teal);}
 
   .badge-status-hub{font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-    padding:2px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;vertical-align:middle;}
+    padding:2px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;vertical-align:middle;
+    cursor:pointer;user-select:none;transition:transform .15s, filter .15s;}
+  .badge-status-hub:active{transform:scale(.92);filter:brightness(1.2);}
   .badge-status-hub.estable{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.4);}
   .badge-status-hub.rc{background:rgba(34,211,238,.15);color:#22d3ee;border:1px solid rgba(34,211,238,.4);}
   .badge-status-hub.beta{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.4);}
   .badge-status-hub.alfa{background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.4);}
+
+  /* Modal de Selección Rápida de Versión */
+  .hub-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:999;display:none;align-items:flex-end;justify-content:center;}
+  .hub-modal-backdrop.open{display:flex;}
+  .hub-modal-sheet{background:#0c1524;border:1px solid var(--line);border-radius:24px 24px 0 0;padding:20px 20px calc(24px + env(safe-area-inset-bottom));width:100vw;max-width:560px;animation:slideUp .2s cubic-bezier(.16,1,.3,1);}
+  .hub-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .hub-modal-close{background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--ink);border-radius:50%;width:30px;height:30px;font-size:13px;font-weight:700;cursor:pointer;}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 
   /* ── Tema clásico ── */
   #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;}
@@ -862,7 +872,55 @@
     }
     const t=await loadTheme();
     applyTheme(t);
+
+    // Modal de selección rápida de versión
+    function openVersionModal(){
+      const m=document.getElementById("modalVersion");
+      if(m){
+        m.classList.add("open");
+        reflectModalChannel();
+      }
+    }
+    function closeVersionModal(){
+      const m=document.getElementById("modalVersion");
+      if(m)m.classList.remove("open");
+    }
+    function reflectModalChannel(){
+      document.querySelectorAll("[data-mchannel]").forEach(o=>o.classList.toggle("sel",o.dataset.mchannel===curChannel));
+    }
+
+    document.querySelectorAll(".badge-status-hub").forEach(badge=>{
+      badge.title="Toca para cambiar de versión / canal";
+      badge.onclick=openVersionModal;
+    });
+    const btnClose=document.getElementById("btnCloseVersionModal");
+    if(btnClose)btnClose.onclick=closeVersionModal;
+    const modalBack=document.getElementById("modalVersion");
+    if(modalBack)modalBack.onclick=(e)=>{if(e.target.id==="modalVersion")closeVersionModal();};
+    document.querySelectorAll("[data-mchannel]").forEach(o=>{
+      o.onclick=()=>{
+        setChannel(o.dataset.mchannel);
+        reflectModalChannel();
+        closeVersionModal();
+        if(tg&&tg.HapticFeedback)try{tg.HapticFeedback.notificationOccurred("success");}catch(e){}
+      };
+    });
   })();
 </script>
+
+<!-- Modal Selección Rápida de Canal / Versión -->
+<div id="modalVersion" class="hub-modal-backdrop">
+  <div class="hub-modal-sheet">
+    <div class="hub-modal-header">
+      <div style="font-family:var(--display);font-size:17px;font-weight:800;display:flex;align-items:center;gap:6px;">🏷️ Seleccionar Versión / Canal</div>
+      <button class="hub-modal-close" id="btnCloseVersionModal">✕</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px;">Elige qué versión y conjunto de funciones quieres ver en el Hub:</p>
+    <div class="themeopt" data-mchannel="alfa"><div class="ra"></div><div class="to-t"><b>🟠 ALFA · v16.85.0-alpha</b><span>Desarrollo activo, nuevas vistas y simulador 3D.</span></div></div>
+    <div class="themeopt" data-mchannel="beta"><div class="ra"></div><div class="to-t"><b>🟣 BETA · v16.84.0-beta</b><span>Canal de estabilización y pruebas previas.</span></div></div>
+    <div class="themeopt" data-mchannel="rc"><div class="ra"></div><div class="to-t"><b>🔵 RC · v16.80.0-rc</b><span>Release Candidate para lanzamiento.</span></div></div>
+    <div class="themeopt" data-mchannel="estable"><div class="ra"></div><div class="to-t"><b>🟢 ESTABLE · v16.75.0</b><span>Versión general recomendada de producción.</span></div></div>
+  </div>
+</div>
 </body>
 </html>
