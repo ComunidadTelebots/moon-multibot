@@ -1693,6 +1693,7 @@
         <button class="master-action" id="masterActivity"><span class="mai">${svg('clock')}</span><b>Actividad</b><small>Auditoría administrativa</small></button>
         <button class="master-action" id="masterEngagement"><span class="mai">${svg('users')}</span><b>Comunidad y eventos</b><small>Encuestas, agenda, retos y sorteos</small></button>
         <button class="master-action" id="masterGroupAdmin"><span class="mai">${svg('settings')}</span><b>Grupos avanzados</b><small>Versiones, sincronización y delegaciones</small></button>
+        <button class="master-action" id="masterGameVersions"><span class="mai">${svg('gamepad')}</span><b>Versiones de MoonJuegos</b><small>Stable, RC, Beta y Alpha por usuario</small></button>
         <button class="master-action" id="masterAdvancedAccounts"><span class="mai">${svg('users')}</span><b>Cuentas avanzadas</b><small>Herramientas equiparadas con TodoSobreAllTech</small></button>
         <button class="master-action" id="masterGlobalAccess"><span class="mai">${svg('shield')}</span><b>Acceso global</b><small>Canal obligatorio para todos los grupos</small></button>
         <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
@@ -1724,6 +1725,7 @@
     document.getElementById("masterActivity").onclick=()=>openMasterPage("Actividad","Auditoría administrativa",loadMasterActivity);
     document.getElementById("masterEngagement").onclick=()=>openMasterPage("Comunidad y eventos","Encuestas, agenda, retos y sorteos",loadMasterEngagement);
     document.getElementById("masterGroupAdmin").onclick=()=>openMasterPage("Grupos avanzados","Versiones, sincronización y delegaciones",loadMasterGroupAdministration);
+    document.getElementById("masterGameVersions").onclick=()=>openMasterPage("Versiones de MoonJuegos","Vista previa y asignación de canales",loadMasterGameVersions);
     document.getElementById("masterAdvancedAccounts").onclick=()=>openMasterPage("Cuentas avanzadas","Herramientas de TodoSobreAllTech en un acceso master seguro",loadMasterAdvancedAccounts);
     document.getElementById("masterGlobalAccess").onclick=()=>openMasterPage("Acceso global","Suscripción obligatoria general para todos los grupos",loadMasterGlobalAccess);
     document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
@@ -1772,6 +1774,30 @@
         <button class="master-action" data-web-admin-link="https://todosobreall.tech/admin/onion-webs"><span class="mai">${svg('shield')}</span><b>Onion Webs</b><small>Servicios y dominios activos</small></button>
       </div>`;
     el.querySelectorAll('[data-web-admin-link]').forEach(button=>button.onclick=()=>openLink(button.dataset.webAdminLink));
+  }
+
+  const GAME_RELEASE_CHANNELS=[
+    {id:"stable",name:"Stable",color:"#5dcaa5",copy:"Primera edición 3D, conducción básica y máxima compatibilidad."},
+    {id:"rc",name:"RC",color:"#56c8ff",copy:"Simulación terrestre, cabina, físicas y nueva interfaz."},
+    {id:"beta",name:"Beta",color:"#ffad45",copy:"Europa OSM, empresa, carga, trabajos y servicios."},
+    {id:"alpha",name:"Alpha",color:"#ff667c",copy:"Mundo conectado, convoy, historia, aire, mar y pruebas nuevas."}
+  ];
+  async function loadMasterGameVersions(){
+    const box=document.getElementById("masterDetail");
+    box.innerHTML=`<div class="card master-hero"><div class="master-kicker">MoonJuegos · control de versiones</div><h3>Publicación por canales</h3><p>Prueba cada edición de Rutas del Continente y asigna el canal permitido a cada usuario de Telegram.</p><div class="master-status">Master · acceso completo</div></div>
+      <div class="sec">Abrir una versión</div><div class="master-action-grid">${GAME_RELEASE_CHANNELS.map(item=>`<button class="master-action" data-game-preview="${item.id}" style="border-color:${item.color}55"><span class="mai" style="color:${item.color}">${item.name.slice(0,2).toUpperCase()}</span><b>${item.name}</b><small>${item.copy}</small></button>`).join("")}</div>
+      <div class="card"><b>Asignar versión a un usuario</b><p class="muted">El ID debe ser el identificador numérico de Telegram.</p><form id="gameReleaseAssign" class="feature-schema-form"><label>ID de Telegram<input name="telegram_id" inputmode="numeric" pattern="[0-9]+" required></label><label>Nombre<input name="display_name" maxlength="120" placeholder="Opcional"></label><label>Canal<select name="release_channel">${GAME_RELEASE_CHANNELS.map(item=>`<option value="${item.id}">${item.name}</option>`).join("")}</select></label><button class="btn teal">Guardar asignación</button></form><p id="gameReleaseStatus" class="muted" role="status" aria-live="polite"></p></div>
+      <div class="sec">Usuarios asignados</div><div id="gameReleaseUsers">${skel()}</div>
+      <div class="card"><b>Otros MoonJuegos</b><p class="muted">Gato Soda Rush, Leyenda Latina y los arcades conservan actualmente una versión publicada. Cuando tengan builds separadas aparecerán aquí sin cambiar sus enlaces.</p></div>`;
+    box.querySelectorAll("[data-game-preview]").forEach(button=>button.onclick=()=>{
+      const channel=button.dataset.gamePreview;
+      openLink(channel==="stable"?`${location.origin}/transport-stable.html?release=stable`:`${location.origin}/transport-3d.html?channel=${encodeURIComponent(channel)}`);
+    });
+    const status=document.getElementById("gameReleaseStatus"),users=document.getElementById("gameReleaseUsers");
+    const draw=rows=>{users.innerHTML=(rows||[]).map(row=>`<div class="userchip"><span class="uid"><b>${escHtml(row.display_name||"Usuario")}</b><small style="display:block;color:var(--muted)">${escHtml(row.telegram_id)}</small></span><span class="rbadge">${escHtml(row.enabled?String(row.release_channel||"stable").toUpperCase():"REVOCADO")}</span>${row.enabled?`<button class="minibtn red" data-release-revoke="${escAttr(row.telegram_id)}">Revocar</button>`:""}</div>`).join("")||'<p class="muted">No hay usuarios asignados.</p>';users.querySelectorAll("[data-release-revoke]").forEach(button=>button.onclick=async()=>save("revoke",{telegram_id:button.dataset.releaseRevoke}));};
+    const save=async(action,payload={})=>{status.textContent="Guardando…";const data=await apiPost("/release-channels/admin",{initData:tg?.initData||"",action,...payload});if(!data?.ok){status.textContent=data?.error||"No se pudo actualizar";return;}status.textContent="Canales actualizados";draw(data.assignments);};
+    document.getElementById("gameReleaseAssign").onsubmit=event=>{event.preventDefault();save("assign",Object.fromEntries(new FormData(event.currentTarget)))};
+    await save("list");
   }
   function loadMasterAdvancedAccounts(){
     const box=document.getElementById("masterDetail"),saved=uxRead("hub_accounts_web_url","https://todosobreall.tech/dashboard"),base=advancedAccountsUrl(saved)||advancedAccountsUrl("https://todosobreall.tech/dashboard");

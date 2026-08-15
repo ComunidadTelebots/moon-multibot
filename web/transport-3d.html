@@ -1300,8 +1300,10 @@
       document.querySelector("#convoyButton").onclick = () => window.MoonConvoy.join(prompt("Código del convoy (vacío para crear)") || "");
       window.MoonConvoy.onChange(state => {
         document.querySelector("#convoyState").textContent = state.joined ? `${state.room} · ${state.players.length} jugadores · ${state.ai.length} IA · ${state.mode === "online" ? `${state.ping} ms` : "LAN"}` : "Desconectado";
-        sharedWorldPresence.update(state, state.you);
-        const operation = sharedOperations.get(state); if (operation) document.querySelector("#convoyState").title = `${operation.name} · ${operation.ready}/${operation.roles.length} medios en destino · ${operation.remaining} s`;
+        if(releaseChannel.includes("alpha")){
+          sharedWorldPresence.update(state, state.you);
+          const operation = sharedOperations.get(state); if (operation) document.querySelector("#convoyState").title = `${operation.name} · ${operation.ready}/${operation.roles.length} medios en destino · ${operation.remaining} s`;
+        }else sharedWorldPresence.update({players:[],ai:[]}, state.you);
       });
       updateCareerHud();
       document.querySelector("#rest").onclick = () => {
@@ -1379,9 +1381,11 @@
           ? `${nearestRoadsideService.name || serviceNames[nearestRoadsideService.type] || "Servicio"} · ${Math.round(nearestRoadsideService.distance)} m`
           : "En ruta";
         const specialFrame = specialTransport.update({ dt, speed, laneOffset: V.position.x });
-        window.MoonConvoy.update({ game: "truck", vehicle: kind, x: V.position.x, y: V.position.z, z: V.position.z, altitude: V.position.y, speed, heading: V.rotation.y, cargo: career.activeContract?.cargo?.name || "", engine:engineRunning, headlights:headlightsOn, braking:Boolean(braking), indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0, hazards:hazardsOn, siren:sirenOn, weather:worldState.localWeather });
-        sharedWorldPresence.tick(dt);
-        const sharedMission = sharedOperations.get(window.MoonConvoy.state, Date.now()); if (sharedMission && window.MoonConvoy.state.joined) document.querySelector("#specialState").textContent = sharedMission.complete ? `${sharedMission.name} · COMPLETADA` : `${sharedMission.name} · ${sharedMission.ready}/${sharedMission.roles.length} · ${sharedMission.remaining}s`;
+        if(releaseChannel.includes("alpha")){
+          window.MoonConvoy.update({ game: "truck", vehicle: kind, x: V.position.x, y: V.position.z, z: V.position.z, altitude: V.position.y, speed, heading: V.rotation.y, cargo: career.activeContract?.cargo?.name || "", engine:engineRunning, headlights:headlightsOn, braking:Boolean(braking), indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0, hazards:hazardsOn, siren:sirenOn, weather:worldState.localWeather });
+          sharedWorldPresence.tick(dt);
+          const sharedMission = sharedOperations.get(window.MoonConvoy.state, Date.now()); if (sharedMission && window.MoonConvoy.state.joined) document.querySelector("#specialState").textContent = sharedMission.complete ? `${sharedMission.name} · COMPLETADA` : `${sharedMission.name} · ${sharedMission.ready}/${sharedMission.roles.length} · ${sharedMission.remaining}s`;
+        }
         window.TransportAchievements.update({ distance: career.state.progress.distanceKm, speed, loaded: loadedPallets, rain: isWetWeather(), night: currentWeather() === "night", convoyPlayers: window.MoonConvoy.state.players.length, damage: Math.round(damage) });
         if (worldState.totalFines > lastWorldFine) {
           const fineDelta = worldState.totalFines - lastWorldFine; career.applyFine({ amount: fineDelta, reason: "Exceso de velocidad" }); lastWorldFine = worldState.totalFines; updateCareerHud();
