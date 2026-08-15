@@ -6,9 +6,28 @@
   <title>Aster Viento 3D · Heavy Transport Simulator Canva Official Ecosystem</title>
   <script src="./vendor/three.min.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --bg: #070b14;
+      --ink: #e9f0fb;
+      --muted: #8794ad;
+      --teal: #5DCAA5;
+      --cyan: #22D3EE;
+      --amber: #ffb43c;
+      --red: #f87171;
+      --line: rgba(255, 255, 255, 0.08);
+      --card: rgba(7, 11, 20, 0.88);
+      --card-hover: rgba(93, 202, 165, 0.12);
+      --grad: linear-gradient(120deg, #5DCAA5, #22D3EE);
+      --display: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, sans-serif;
+      --body: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; user-select: none; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #070d17; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); -webkit-font-smoothing: antialiased; }
     #canvas-container { position: fixed; inset: 0; z-index: 1; outline: none; }
     canvas { width: 100% !important; height: 100% !important; display: block; }
 
@@ -24,13 +43,13 @@
       pointer-events: none;
     }
     .telemetry-card {
-      background: rgba(11, 23, 38, 0.88);
-      border: 1px solid rgba(76, 230, 208, 0.45);
+      background: var(--card);
+      border: 1px solid rgba(93, 202, 165, 0.35);
       border-radius: 16px;
-      padding: 14px 20px;
+      padding: 14px 18px;
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 12px 36px rgba(0,0,0,0.8);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.8), 0 0 20px rgba(34, 211, 238, 0.08);
       min-width: 250px;
     }
     .telem-row {
@@ -40,10 +59,10 @@
       margin-bottom: 5px;
     }
     .telem-row:last-child { margin-bottom: 0; }
-    .telem-label { font-size: 13px; color: #cbd5e1; font-weight: 500; }
-    .telem-val { font-size: 15px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
-    .telem-val.green { color: #34d399; font-weight: 800; }
-    .telem-val.speed { font-size: 20px; color: #4ce6d0; font-weight: 900; }
+    .telem-label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+    .telem-val { font-size: 14px; font-weight: 700; color: var(--ink); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .telem-val.green { color: var(--teal); font-weight: 700; }
+    .telem-val.speed { font-size: 21px; color: var(--cyan); font-weight: 800; font-family: var(--display); letter-spacing: -0.02em; }
 
     /* Circular Navigation Radar */
     .radar-wrapper {
@@ -56,23 +75,24 @@
       width: 116px;
       height: 116px;
       border-radius: 50%;
-      border: 3px solid rgba(76, 230, 208, 0.75);
-      background: radial-gradient(circle, rgba(14, 30, 48, 0.95), rgba(7, 16, 29, 0.98));
+      border: 2px solid rgba(93, 202, 165, 0.6);
+      background: radial-gradient(circle, rgba(14, 30, 48, 0.95), rgba(7, 11, 20, 0.98));
       backdrop-filter: blur(14px);
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(76,230,208,0.25);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(34, 211, 238, 0.2);
       position: relative;
     }
     #miniCanvas { width: 100%; height: 100%; }
     .road-pill-badge {
-      background: rgba(11, 23, 38, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(7, 11, 20, 0.92);
+      border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 5px 12px;
-      font-size: 11px;
-      font-weight: 800;
-      color: #94a3b8;
-      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      font-size: 10.5px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--teal);
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       box-shadow: 0 4px 14px rgba(0,0,0,0.6);
     }
@@ -83,15 +103,16 @@
       top: max(env(safe-area-inset-top), 20px);
       left: 50%;
       transform: translateX(-50%) translateY(-100px);
-      background: rgba(6, 78, 59, 0.95);
-      border: 2px solid #34d399;
-      color: #fff;
-      padding: 10px 24px;
-      border-radius: 30px;
-      font-size: 13px;
-      font-weight: 800;
+      background: rgba(7, 11, 20, 0.95);
+      border: 1.5px solid var(--teal);
+      color: var(--ink);
+      padding: 9px 22px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 700;
+      font-family: var(--display);
       z-index: 40;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(52, 211, 153, 0.4);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(93, 202, 165, 0.25);
       display: flex;
       align-items: center;
       gap: 10px;
