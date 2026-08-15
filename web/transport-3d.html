@@ -286,6 +286,54 @@
       R.toneMapping = T.ACESFilmicToneMapping;
       R.toneMappingExposure = qualityLevel >= 2 ? 1.15 : 1;
       applyRealisticRendererSettings(T, R, qualityLevel);
+      let renderRecoveryLevel = 0;
+      function recoverIncompatiblePhysicalMaterials(){
+        renderRecoveryLevel += 1;
+        S.traverse(object=>{
+          if(!object?.material)return;
+          const materials=Array.isArray(object.material)?object.material:[object.material];
+          const recovered=materials.map(material=>{
+            if(!material?.isMeshPhysicalMaterial)return material;
+            if(renderRecoveryLevel===1){
+              material.transmission=0;
+              material.thickness=0;
+              material.clearcoat=0;
+              material.sheen=0;
+              material.iridescence=0;
+              material.anisotropy=0;
+              if("dispersion" in material)material.dispersion=0;
+              material.needsUpdate=true;
+              return material;
+            }
+            const standard=new T.MeshStandardMaterial({
+              name:`${material.name||"material"}_compatible`, color:material.color,
+              map:material.map, normalMap:material.normalMap, normalScale:material.normalScale,
+              roughnessMap:material.roughnessMap, roughness:material.roughness,
+              metalnessMap:material.metalnessMap, metalness:material.metalness,
+              aoMap:material.aoMap, aoMapIntensity:material.aoMapIntensity,
+              bumpMap:material.bumpMap, bumpScale:material.bumpScale,
+              emissive:material.emissive, emissiveMap:material.emissiveMap,
+              emissiveIntensity:material.emissiveIntensity, alphaMap:material.alphaMap,
+              transparent:material.transparent, opacity:material.opacity, side:material.side,
+              depthWrite:material.depthWrite, depthTest:material.depthTest
+            });
+            standard.userData={...material.userData,recoveredFromPhysical:true};
+            return standard;
+          });
+          object.material=Array.isArray(object.material)?recovered:recovered[0];
+        });
+        console.warn(`[Rutas] Recuperacion grafica nivel ${renderRecoveryLevel}: materiales fisicos compatibles`);
+      }
+      function renderFrameSafely(){
+        for(;;){
+          try{R.render(S,C);return true}
+          catch(error){
+            const recoverable=error instanceof TypeError&&/undefined|value/i.test(String(error?.message||error));
+            if(!recoverable||renderRecoveryLevel>=2)throw error;
+            recoverIncompatiblePhysicalMaterials();
+          }
+        }
+      }
       window.__transportBootPhase?.("Render","Aceleracion grafica preparada");
       const graphicsSelector=mountGraphicsProfileSelector({profile:detectedGraphics,onSelect:id=>{const url=new URL(location.href);url.searchParams.set("quality",id);location.replace(url)}});
       const settingsPanel=createTransportSettingsPanel({engineAudio});
@@ -1615,7 +1663,7 @@
         enhancements.update({ time: now, speed, steering: steer, weather: currentWeather(), dayPhase: currentWeather() === "night" ? 0.78 : 0.34, wipers: isWetWeather() || currentWeather() === "snow" || manualWipers, cameraPosition: C.position });
         V?.userData.updateMirrors?.(R, S, now, view === 1 || view === 2);
         if(shadows&&now>=shadowRefreshAt){const stressed=performanceFrame.fps<detectedGraphics.targetFps*.72,desiredShadowSize=stressed?(qualityLevel===3?2048:1024):(qualityLevel===3?4096:qualityLevel===2?2048:1024);if(desiredShadowSize!==appliedShadowSize){appliedShadowSize=desiredShadowSize;sun.shadow.mapSize.set(appliedShadowSize,appliedShadowSize);sun.shadow.map?.dispose();sun.shadow.map=null}shadowRefreshAt=now+1000/Math.max(1,detectedGraphics.shadowHz);R.shadowMap.needsUpdate=true}
-        R.render(S, C);
+        renderFrameSafely();
         requestAnimationFrame(loop);
       }
       build("truck");
