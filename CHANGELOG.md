@@ -1,5 +1,42 @@
 # Changelog - Moon Multibot
 
+## v18.25.14 - 2026-08-15 - Canales de publicación del simulador
+
+### Cambios verificados
+
+- Añade los canales Estable, RC, Beta y Alfa para distribuir progresivamente las funciones de Rutas del Continente.
+- Vincula el canal efectivo al ID del usuario de Telegram validado mediante `Telegram.WebApp.initData`; un jugador normal no puede elevar su propio acceso.
+- Añade al master la gestión de asignaciones por usuario, la revocación de accesos y la posibilidad de revisar los cuatro canales.
+- Persiste las asignaciones en la colección `feature_release_access` de PocketBase y aplica Estable como valor seguro cuando no existe una asignación válida.
+- Recupera como edición Estable la primera versión WebGL verificable del commit `5f4a52e`, con camión, autobús, tres cámaras y conducción básica.
+- Clasifica la simulación terrestre moderna como RC; empresa, carga, trabajos y rutas OSM como Beta; y convoyes, campañas, eventos regionales, aviación, navegación y logística mundial como Alfa.
+- Separa Estable en un recurso propio y aplica controles de disponibilidad a las interfaces modernas según la madurez del canal.
+
+### Verificación local
+
+- Sintaxis Python, JavaScript y módulos HTML validada; pruebas de asignación, normalización, jerarquía y perfiles de publicación superadas.
+
+## v18.25.13 - 2026-08-14 - Interfaz Canva, aduanas y continuidad
+
+### Auditoría previa
+
+- Contrasta el código con las páginas 21–23, 32, 41 y 51–60 del diseño maestro de Canva.
+- Confirma que el planificador mundial, la cadena de frío y la carga frágil ya existían; se amplían sin duplicarlos.
+- Detecta como carencias reales la reacción visual del HUD, las aduanas, la normativa por país, la operación visible de animales y una interfaz para migrar partidas.
+
+### Cambios nuevos verificados
+
+- Unifica HUD, cabina, controles, mapas, empresa, carga, aviación y navegación con la paleta azul petróleo, turquesa y naranja de Canva.
+- Añade animaciones de cambios del HUD, alertas por severidad, exceso de velocidad, estados en marcha/detenido y respuesta táctil/háptica accesible.
+- Añade aduanas internacionales con inspección, tasas, normativa ADR/HazMat, sentido de circulación, límites para pesados y peajes por país.
+- Conecta el despacho aduanero con la economía y el registro maestro de eventos antes de conducir, volar o navegar.
+- Hace seleccionables carga general, cadena de frío, frágil, ADR y animales; muestra temperatura, integridad, sujeción, hidratación y equipo específico.
+- Añade continuidad de partida con copia local, restauración, exportación e importación JSON normalizada al esquema actual.
+
+### Verificación local
+
+- Sintaxis validada en el módulo principal y cinco módulos nuevos; 6/6 pruebas de telemetría, carga y cinemáticas superadas.
+
 ## v18.25.12 - 2026-08-14 - Sistema visual multimodal de Canva
 
 ### Auditoría previa
