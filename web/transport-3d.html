@@ -251,6 +251,7 @@
       import { createStoryIntro } from "./transport-story-intro.js";
       import { createDisplayControls } from "./transport-display-controls.js?v=20260815-display1";
       import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js?v=20260815-profile-ui2";
+      import { createReleaseChannelSystem } from "./transport-release-channel.js?v=20260815-release1";
       window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
       const canvaTheme = applyCanvaTransportTheme();
       const hudMotion = createHudMotion({ hud:document.querySelector(".hud"), controls:document.querySelector(".controls:not(.drive)"), cockpit:document.querySelector("#cockpitPanel") });
@@ -291,6 +292,7 @@
       const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>{performanceFrame=frame;graphicsSelector.update(frame)}});
       const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
       const career = createTransportCareer();
+      const releaseChannel = createReleaseChannelSystem({query:location.search,storage:localStorage});
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
         document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`;
         document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`;
