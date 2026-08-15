@@ -93,19 +93,29 @@ def _verify_init_data(init_data, max_age=86400):
     now = int(time.time())
     if auth_date <= 0 or now - auth_date > max_age or auth_date - now > _AUTH_DATE_SKEW:
         return None
-    # 2) Firma: únicamente el bot del hub (fail-closed si no está activo).
-    bot = _hub_bot()
-    token = getattr(bot, "token", None) if bot else None
-    if not token:
+    # 2) Firma: comprobar contra el bot del hub y contra cualquier bot activo del ecosistema
+    tokens_to_try = []
+    hub_b = _hub_bot()
+    if hub_b and getattr(hub_b, "token", None):
+        tokens_to_try.append(hub_b.token)
+    if _get_active_bots:
+        for b in _get_active_bots() or []:
+            tok = getattr(b, "token", None)
+            if tok and tok not in tokens_to_try:
+                tokens_to_try.append(tok)
+    
+    if not tokens_to_try:
         return None
+
     data_check = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
-    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-    calc = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
-    if hmac.compare_digest(calc, recv_hash):
-        try:
-            return json.loads(pairs.get("user", "{}"))
-        except Exception:
-            return {}
+    for token in tokens_to_try:
+        secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+        calc = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+        if hmac.compare_digest(calc, recv_hash):
+            try:
+                return json.loads(pairs.get("user", "{}"))
+            except Exception:
+                return {}
     return None
 
 
