@@ -1,4 +1,9 @@
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'): sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception: pass
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from dotenv import load_dotenv
 from collections import Counter
@@ -453,6 +458,22 @@ app.register_blueprint(_setup_ops(
 def index(): return send_from_directory("web", "landing.html")
 @app.route("/panel")
 def panel(): return send_from_directory("web", "index.html")
+@app.route("/hub")
+@app.route("/app")
+@app.route("/miniapp")
+def hub_app(): return send_from_directory("web", "hub.html")
+
+@app.route("/alfa")
+@app.route("/alpha")
+@app.route("/transport")
+@app.route("/trucks")
+@app.route("/camiones")
+def transport_app(): return send_from_directory("web", "transport-3d.html")
+
+@app.route("/juegos")
+@app.route("/games")
+def games_app(): return send_from_directory("web", "games.html")
+
 @app.route("/<path:path>")
 def static_proxy(path): return send_from_directory("web", path)
 

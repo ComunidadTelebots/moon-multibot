@@ -484,6 +484,25 @@
         </div>
       </section>
 
+      <!-- 5. Simulador 3D de Camiones Aster Viento -->
+      <section class="game-card" style="grid-column: 1 / -1;">
+        <div class="game-header">
+          <div class="game-title">🚛 Simulador de Camiones 3D <span class="badge-status alfa">ALFA</span></div>
+          <div class="score-pill">Aster 770 S V8</div>
+        </div>
+        <div style="background:var(--dpad-bg);border:1px solid var(--dpad-border);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:38px;margin-bottom:6px;">🚛</div>
+          <h3 style="font-family:var(--font-display);font-size:16px;font-weight:800;margin-bottom:4px;">Scania 770 S V8 & Heavy Freight 3D</h3>
+          <p style="font-size:12.5px;color:var(--ink-muted);line-height:1.4;margin-bottom:14px;">
+            Simulador físico 3D con dirección real, tacógrafo digital UE 561/2006, radio CB diegética y báscula WIM.
+          </p>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button id="launchTruckGameBtn" class="btn-action" style="flex:1;min-width:180px;">🎮 Jugar Conducción 3D</button>
+            <button id="launchCockpitBtn" class="btn-ghost" style="flex:1;min-width:180px;">👁️ Vista Cabina Cockpit</button>
+          </div>
+        </div>
+      </section>
+
     </div>
   </div>
 
@@ -523,6 +542,19 @@
     });
 
     applyThemeAndPlatform(currentPlatform, currentTheme);
+
+    const btnTruck = document.getElementById('launchTruckGameBtn');
+    if (btnTruck) btnTruck.onclick = () => {
+      triggerHaptic("medium");
+      if (tg && tg.openLink) tg.openLink(window.location.origin + '/alfa');
+      else window.location.href = '/alfa';
+    };
+    const btnCockpit = document.getElementById('launchCockpitBtn');
+    if (btnCockpit) btnCockpit.onclick = () => {
+      triggerHaptic("medium");
+      if (tg && tg.openLink) tg.openLink(window.location.origin + '/alfa?view=cockpit');
+      else window.location.href = '/alfa?view=cockpit';
+    };
 
     // Helper de vibración háptica
     function triggerHaptic(type) {
