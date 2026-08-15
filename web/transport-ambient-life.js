@@ -1,11 +1,84 @@
-const BIOMES = {
-  mediterranean: ["boar", "deer", "fox", "rabbit"],
-  alpine: ["ibex", "deer", "marmot"],
-  atlantic: ["deer", "badger", "fox"],
-  nordic: ["moose", "reindeer", "lynx"],
-  wetland: ["heron", "otter", "gull"],
-  rural: ["sheep", "cow", "horse", "dog"],
-};
+/**
+ * Biblioteca Ampliada de Fauna Forestal, de Montaña y Rural (Canal Alfa)
+ * Basada en las especificaciones de las páginas 93 y 94 de Canva.
+ */
+
+export const BIOMES = Object.freeze({
+  conifer_forest: ["ciervo_rojo", "jabali", "lobo", "oso_pardo"],
+  deciduous_forest: ["corzo", "zorro", "lince", "buho"],
+  high_mountain: ["cabra_montes", "rebeco", "aguila_real", "marmota"],
+  rocky_slope: ["cabra_montes", "rebeco", "marmota", "lince"],
+  rural_pasture: ["vaca", "oveja", "cabra", "caballo"],
+  village_edge: ["cerdo", "perro_pastor", "gato", "conejo", "erizo", "cigueña", "ganso"],
+  mediterranean: ["jabali", "corzo", "zorro", "conejo", "lince"],
+  alpine: ["cabra_montes", "rebeco", "ciervo_rojo", "marmota"],
+  atlantic: ["corzo", "zorro", "jabali", "lobo"],
+  nordic: ["ciervo_rojo", "lobo", "oso_pardo", "lince"],
+  wetland: ["cigueña", "ganso", "erizo", "zorro"],
+  rural: ["vaca", "oveja", "caballo", "perro_pastor"]
+});
+
+export const WILDLIFE_SPECIES = Object.freeze({
+  ciervo_rojo:  { name: "Ciervo Rojo",   heightM: 2.20, color: 0x7c4e2d, habitat: "conifer_forest", category: "forest" },
+  cabra_montes: { name: "Cabra Montés",  heightM: 1.70, color: 0x6e5a48, habitat: "high_mountain",  category: "mountain" },
+  lobo:         { name: "Lobo Ibérico",  heightM: 1.30, color: 0x7a7974, habitat: "conifer_forest", category: "forest" },
+  corzo:        { name: "Corzo",         heightM: 0.90, color: 0x936539, habitat: "deciduous_forest", category: "forest" },
+  jabali:       { name: "Jabalí",        heightM: 0.80, color: 0x483a30, habitat: "conifer_forest", category: "forest" },
+  zorro:        { name: "Zorro",         heightM: 0.70, color: 0xb55122, habitat: "deciduous_forest", category: "forest" },
+  lince:        { name: "Lince",         heightM: 0.60, color: 0xa87c4a, habitat: "deciduous_forest", category: "forest" },
+  marmota:      { name: "Marmota",       heightM: 0.45, color: 0x7e6344, habitat: "high_mountain",  category: "mountain" },
+  buho:         { name: "Búho Real",     heightM: 0.40, color: 0x614f3c, habitat: "deciduous_forest", category: "forest" },
+  oso_pardo:    { name: "Oso Pardo",     heightM: 2.10, color: 0x433123, habitat: "conifer_forest", category: "forest" },
+  rebeco:       { name: "Rebeco",        heightM: 1.10, color: 0x54473d, habitat: "high_mountain",  category: "mountain" },
+  aguila_real:  { name: "Águila Real",   heightM: 0.85, color: 0x3d3023, habitat: "high_mountain",  category: "mountain" },
+  vaca:         { name: "Vaca",          heightM: 1.50, color: 0xd6d1cb, habitat: "rural_pasture",  category: "rural" },
+  oveja:        { name: "Oveja",         heightM: 0.85, color: 0xe0dbd1, habitat: "rural_pasture",  category: "rural" },
+  cabra:        { name: "Cabra",         heightM: 0.80, color: 0x5b4738, habitat: "rural_pasture",  category: "rural" },
+  caballo:      { name: "Caballo",       heightM: 1.65, color: 0x5d3b24, habitat: "rural_pasture",  category: "rural" },
+  cerdo:        { name: "Cerdo",         heightM: 0.75, color: 0xc89d8f, habitat: "village_edge",   category: "rural" },
+  perro_pastor: { name: "Perro Pastor",  heightM: 0.65, color: 0x34312e, habitat: "rural_pasture",  category: "rural" },
+  gato:         { name: "Gato",          heightM: 0.30, color: 0x8a7f72, habitat: "village_edge",   category: "rural" },
+  conejo:       { name: "Conejo",        heightM: 0.35, color: 0x887258, habitat: "village_edge",   category: "rural" },
+  erizo:        { name: "Erizo",         heightM: 0.22, color: 0x4e4539, habitat: "village_edge",   category: "rural" },
+  cigueña:      { name: "Cigüeña",       heightM: 1.05, color: 0xf0eeea, habitat: "village_edge",   category: "rural" },
+  ganso:        { name: "Ganso",         heightM: 0.70, color: 0x989288, habitat: "village_edge",   category: "rural" }
+});
+
+export const WILDLIFE_BEHAVIORS = Object.freeze({
+  dawnDuskActivity: true,
+  fleeFromHorn: true,
+  flockBlocksRoad: true,
+  noHornOnFlock: true,
+  speedLimitKmh: 70,
+  ruleOfGold: "VER → PREVER → DECIDIR → ACTUAR"
+});
+
+export function evaluateWildlifeHazard({ distanceM = 100, species = "ciervo_rojo", speedKmh = 80, timeOfDay = "day", hornUsed = false } = {}) {
+  const spec = WILDLIFE_SPECIES[species] || WILDLIFE_SPECIES.ciervo_rojo;
+  const isTwilight = timeOfDay === "dawn" || timeOfDay === "dusk";
+  const isFlock = species === "oveja" || species === "vaca";
+  const hazardLevel = distanceM < 40 ? "critical" : distanceM < 90 ? "high" : "normal";
+  
+  let recommendedAction = "Mantener precaución y observar arcenes.";
+  if (isFlock) {
+    recommendedAction = "Rebaño en calzada: detenerse a distancia segura. No tocar el claxon.";
+  } else if (distanceM < 60) {
+    recommendedAction = `Paso de fauna (${spec.name}): reducir a 70 km/h o frenar. Atento a ambos lados.`;
+  }
+
+  return {
+    warning: distanceM < 90,
+    hazardLevel,
+    species: spec.name,
+    distanceM: Math.round(distanceM),
+    safeSpeedKmh: 70,
+    isTwilight,
+    isFlock,
+    claxonAllowed: !isFlock,
+    recommendedAction,
+    ruleOfGold: WILDLIFE_BEHAVIORS.ruleOfGold
+  };
+}
 
 function seeded(index, salt = 0) {
   const value = Math.sin(index * 91.17 + salt * 37.31) * 43758.5453;
@@ -81,13 +154,22 @@ export function createAmbientLife({ THREE, scene, qualityLevel = 2, roadHalfWidt
   let initialized = false;
 
   return {
-    update({ vehicle, camera, biome = "rural", time = performance.now(), dt = 1 / 60 }) {
+    update({ vehicle, camera, biome = "rural", time = performance.now(), dt = 1 / 60, hornActive = false, hour = 12 }) {
       if (!vehicle || !camera) return;
       if (!initialized) { pool.forEach(actor => place(actor, vehicle)); initialized = true; }
-      const species = BIOMES[biome] || BIOMES.rural;
+      const speciesList = BIOMES[biome] || BIOMES.rural;
+      const isTwilight = (hour >= 6 && hour <= 8) || (hour >= 19 && hour <= 21);
+
       for (const actor of pool) {
         const data = actor.userData;
-        data.species = data.pedestrian ? "pedestrian" : species[data.index % species.length];
+        const assignedSpecies = speciesList[data.index % speciesList.length];
+        data.species = data.pedestrian ? "pedestrian" : assignedSpecies;
+        const spec = WILDLIFE_SPECIES[assignedSpecies];
+        if (spec && !data.pedestrian) {
+          const targetScale = Math.max(0.4, Math.min(1.8, spec.heightM / 1.1));
+          data.detailed.scale.setScalar(targetScale);
+        }
+
         const dx = actor.position.x - vehicle.position.x, dz = actor.position.z - vehicle.position.z;
         const distance = Math.hypot(dx, dz);
         if (dz > 120 || dz < -720) place(actor, vehicle, true);
@@ -95,14 +177,18 @@ export function createAmbientLife({ THREE, scene, qualityLevel = 2, roadHalfWidt
         if (!actor.visible) continue;
         data.detailed.visible = distance < 95;
         data.distant.visible = !data.detailed.visible;
-        const threatened = distance < (data.pedestrian ? 22 : 34);
-        if (threatened) { data.state = "flee"; data.stateUntil = time + 2600; }
-        else if (time > data.stateUntil) {
-          data.state = seeded(data.index, Math.floor(time / 5000)) > .54 ? "walk" : "idle";
+
+        const threatened = distance < (data.pedestrian ? 22 : 34) || (hornActive && distance < 80);
+        if (threatened) {
+          data.state = "flee";
+          data.stateUntil = time + 2600;
+        } else if (time > data.stateUntil) {
+          const activityThreshold = isTwilight ? 0.35 : 0.54;
+          data.state = seeded(data.index, Math.floor(time / 5000)) > activityThreshold ? "walk" : "idle";
           data.stateUntil = time + 2400 + seeded(data.index, 8) * 4200;
           data.heading += (seeded(data.index, Math.floor(time / 3000)) - .5) * 1.2;
         }
-        data.speed = data.state === "flee" ? 4.2 : data.state === "walk" ? (data.pedestrian ? 1.2 : .75) : 0;
+        data.speed = data.state === "flee" ? 4.6 : data.state === "walk" ? (data.pedestrian ? 1.2 : .85) : 0;
         if (threatened) data.heading = Math.atan2(dx, dz);
         actor.rotation.y = data.heading;
         actor.position.x += Math.sin(data.heading) * data.speed * dt;
@@ -128,7 +214,20 @@ export function createAmbientLife({ THREE, scene, qualityLevel = 2, roadHalfWidt
         }
       }
     },
+    evaluateNearestHazard(vehiclePosition) {
+      if (!vehiclePosition) return null;
+      let nearest = null, minDistance = Infinity;
+      for (const actor of pool) {
+        if (actor.userData.pedestrian) continue;
+        const d = Math.hypot(actor.position.x - vehiclePosition.x, actor.position.z - vehiclePosition.z);
+        if (d < minDistance) { minDistance = d; nearest = actor; }
+      }
+      if (!nearest) return null;
+      return evaluateWildlifeHazard({ distanceM: minDistance, species: nearest.userData.species });
+    },
     dispose() { scene.remove(root); bodyGeometry.dispose(); headGeometry.dispose(); distantGeometry.dispose(); animalMaterial.dispose(); pedestrianMaterial.dispose(); safetyMaterial.dispose(); workwearMaterial.dispose(); skinMaterial.dispose(); },
     root,
   };
 }
+
+export default { BIOMES, WILDLIFE_SPECIES, WILDLIFE_BEHAVIORS, evaluateWildlifeHazard, createAmbientLife };

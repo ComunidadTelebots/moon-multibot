@@ -1831,7 +1831,7 @@
         if(now-lastWorldUpdate<worldInterval){requestAnimationFrame(worldLoop);return}
         const trafficDt=Math.min(.1,Math.max(.001,(now-lastWorldUpdate)/1000));lastWorldUpdate=now;
         if (V) {
-          ambientLife.update({ vehicle: V, camera: C, biome: document.querySelector("#city")?.textContent === "Valleverde" ? "alpine" : "rural", time: now, dt: trafficDt });
+          ambientLife.update({ vehicle: V, camera: C, biome: document.querySelector("#city")?.textContent === "Valleverde" ? "alpine" : "rural", time: now, dt: trafficDt, hornActive: honking, hour: new Date().getHours() });
           const cityName=document.querySelector("#city")?.textContent||"";
           cityLife.update({vehicle:V,hour:new Date().getHours(),day:new Date().getDay(),settlement:cityName==="Valleverde"?"village":"city",ambientRoot:ambientLife.root});
           const firePosition = V.position.clone().add(new T.Vector3(55,0,-95)); liveFire.update(trafficDt, liveWeatherState, firePosition);
@@ -1889,11 +1889,13 @@
           }
           const workDistance = roadworks.position.z + 70 - V.position.z,
             tunnelDistance = -170 - V.position.z,
+            wildlifeHazard = ambientLife.evaluateNearestHazard?.(V.position),
             eventLabel = document.querySelector("#roadEvent");
           if (workDistance < 35 && workDistance > -125) eventLabel.textContent = "⚠ Obras · reduzca velocidad";
           else if (workDistance >= 35 && workDistance < 190) eventLabel.textContent = `Obras a ${Math.round(workDistance)} m`;
           else if (tunnelDistance >= 0 && tunnelDistance < 220) eventLabel.textContent = `Túnel a ${Math.round(tunnelDistance)} m`;
           else if (tunnelDistance < 0 && tunnelDistance > -175) eventLabel.textContent = "Túnel Sierra Norte";
+          else if (wildlifeHazard && wildlifeHazard.warning) eventLabel.textContent = `🦌 ${wildlifeHazard.recommendedAction}`;
           else eventLabel.textContent = regionalEventFrame.id ? regionalEventFrame.label : "Sin incidencias";
           if (workDistance < -150) roadworks.position.z = V.position.z - 520 - Math.random() * 260;
           rain.position.set(V.position.x, 0, V.position.z - 30);
