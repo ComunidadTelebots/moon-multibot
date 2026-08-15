@@ -4,6 +4,7 @@ const EXTERIOR_TILES={
 const CABIN_TILES={soft:[0,0],polymer:[1,0],piano:[2,0],leather:[3,0],fabric:[0,1],headliner:[1,1],rubber:[2,1],aluminium:[3,1],screen:[0,2],glass:[2,2],sleeper:[0,3],curtain:[1,3],cabinet:[2,3],seatbelt:[3,3]};
 
 export function atlasTileTransform(column,row){return {repeat:[.25,.25],offset:[column*.25,.75-row*.25]};}
+export function hasTileSafeUv(object){const values=object?.geometry?.attributes?.uv?.array;if(!values?.length)return false;for(const value of values){const number=Number(value);if(!Number.isFinite(number)||number<-.001||number>1.001)return false}return true;}
 
 function exteriorKind(name=""){
   if(/tyre_tread/.test(name))return"tread";if(/tyre|sidewall/.test(name))return"rubber";if(/rim|wheel_nut|brake_disc/.test(name))return"rim";
@@ -26,6 +27,6 @@ export function createBakedMaterialLibrary({THREE:T,qualityLevel=2,exteriorUrl="
     // HIGH/ULTRA use only authored, baked atlas assets. Remove the canvas/noise
     // maps inherited from the legacy material instead of mixing both systems.
     material.map=map;material.normalMap=null;material.bumpMap=null;material.roughnessMap=null;material.metalnessMap=null;material.aoMap=null;material.displacementMap=null;material.userData={...material.userData,bakedStaticAtlas:true,bakedTile:key};material.needsUpdate=true;materials.set(cacheKey,material);return material;}
-  function apply(root){if(!enabled||!textures.exterior||!root)return false;root.traverse(object=>{if(!object.isMesh||!object.material||Array.isArray(object.material))return;const isCabin=object.parent?.name==="aster_original_cabin"||(()=>{let p=object.parent;while(p){if(p.name==="aster_original_cabin")return true;p=p.parent;}return false;})();const table=isCabin?CABIN_TILES:EXTERIOR_TILES,kind=isCabin?cabinKind(object.name):exteriorKind(object.name);if(isCabin&&(kind==="screen"||kind==="glass"))return;object.material=materialFor(object.material,isCabin?textures.cabin:textures.exterior,table[kind],`${isCabin?"c":"e"}:${kind}`);});return true;}
+  function apply(root){if(!enabled||!textures.exterior||!root)return false;root.traverse(object=>{if(!object.isMesh||!object.material||Array.isArray(object.material)||!hasTileSafeUv(object))return;const isCabin=object.parent?.name==="aster_original_cabin"||(()=>{let p=object.parent;while(p){if(p.name==="aster_original_cabin")return true;p=p.parent;}return false;})();const table=isCabin?CABIN_TILES:EXTERIOR_TILES,kind=isCabin?cabinKind(object.name):exteriorKind(object.name);if(isCabin&&(kind==="screen"||kind==="glass"))return;object.material=materialFor(object.material,isCabin?textures.cabin:textures.exterior,table[kind],`${isCabin?"c":"e"}:${kind}`);});return true;}
   return{enabled,ready,apply,dispose(){for(const material of materials.values()){material.map?.dispose();material.dispose();}textures.exterior?.dispose();textures.cabin?.dispose();materials.clear();}};
 }
