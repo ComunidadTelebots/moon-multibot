@@ -1,7 +1,8 @@
 /**
  * Sistema de Inmuebles Comerciales, Franquicias y Pago de Impuestos Municipales.
  * Permite a los jugadores adquirir Hoteles, Restaurantes, Bares, Gasolineras y Talleres,
- * mejorarlos a Tier 1, Tier 2 y Tier 3, y gestionar el pago de tasas a la ciudad.
+ * mejorarlos a Tier 1, Tier 2 y Tier 3, y financiar los servicios públicos de cada ciudad.
+ * Si no hay pagos de impuestos, los servicios municipales (policía, asfalto, farolas, bomberos) se cortan.
  */
 
 export const PROPERTY_TYPES = Object.freeze({
@@ -78,7 +79,8 @@ export function createCommercialPropertySystem({ initialPlayerMoney = 150000 } =
     pendingCityTaxes: 0,
     paidCityTaxesTotal: 0,
     totalBusinessRevenue: 0,
-    taxDebtPerCity: {}
+    taxDebtPerCity: {},
+    unpaidCyclesPerCity: {}
   };
 
   const listeners = new Set();
@@ -144,6 +146,12 @@ export function createCommercialPropertySystem({ initialPlayerMoney = 150000 } =
       let accruedTaxes = 0;
 
       for (const prop of state.ownedProperties) {
+        const debtCycles = state.unpaidCyclesPerCity[prop.city] || 0;
+        // Si la ciudad tiene 3+ ciclos de impago, los negocios se clausuran preventivamente y no generan ingresos
+        if (debtCycles >= 3) {
+          continue;
+        }
+
         const cityRate = CITY_TAX_RATES[prop.city]?.baseRatePercent || 10;
         const income = prop.dailyIncome;
         const tax = Math.round(income * (cityRate / 100) + prop.municipalTaxDaily);
@@ -152,6 +160,7 @@ export function createCommercialPropertySystem({ initialPlayerMoney = 150000 } =
         accruedTaxes += tax;
 
         state.taxDebtPerCity[prop.city] = (state.taxDebtPerCity[prop.city] || 0) + tax;
+        state.unpaidCyclesPerCity[prop.city] = (state.unpaidCyclesPerCity[prop.city] || 0) + 1;
       }
 
       state.playerMoney += grossRevenue;
@@ -159,6 +168,50 @@ export function createCommercialPropertySystem({ initialPlayerMoney = 150000 } =
       state.pendingCityTaxes += accruedTaxes;
 
       return { grossRevenue, accruedTaxes, state: emit() };
+    },
+    getCityServiceStatus(cityName = "Nova Liria") {
+      const debt = state.taxDebtPerCity[cityName] || 0;
+      const unpaidCycles = state.unpaidCyclesPerCity[cityName] || 0;
+
+      if (debt <= 0 || unpaidCycles === 0) {
+        return {
+          city: cityName,
+          status: "OPERATIVO",
+          serviceHealthPercent: 100,
+          policeActive: true,
+          roadMaintenanceActive: true,
+          streetLightingActive: true,
+          fireRescueActive: true,
+          businessClosedDueToDebt: false,
+          description: "Todos los servicios municipales están completamente operativos y financiados."
+        };
+      }
+
+      if (unpaidCycles < 3) {
+        return {
+          city: cityName,
+          status: "DEGRADADO",
+          serviceHealthPercent: 55,
+          policeActive: true,
+          roadMaintenanceActive: false, // Se suspende el bacheo y limpieza de carreteras
+          streetLightingActive: true,
+          fireRescueActive: true,
+          businessClosedDueToDebt: false,
+          description: `Alerta de impago (${debt.toLocaleString("es-ES")} € pendientes). Mantenimiento de asfalto suspendido.`
+        };
+      }
+
+      return {
+        city: cityName,
+        status: "SUSPENDIDO",
+        serviceHealthPercent: 0,
+        policeActive: false,
+        roadMaintenanceActive: false,
+        streetLightingActive: false,
+        fireRescueActive: false,
+        businessClosedDueToDebt: true,
+        description: `Servicios municipales cortados por impago tributario de ${unpaidCycles} ciclos. Negocios clausurados.`
+      };
     },
     payCityTaxes(city = "all") {
       let amountToPay = 0;
@@ -171,6 +224,7 @@ export function createCommercialPropertySystem({ initialPlayerMoney = 150000 } =
         state.paidCityTaxesTotal += amountToPay;
         state.pendingCityTaxes = 0;
         state.taxDebtPerCity = {};
+        state.unpaidCyclesPerCity = {};
       } else {
         amountToPay = state.taxDebtPerCity[city] || 0;
         if (state.playerMoney < amountToPay) {
@@ -180,6 +234,7 @@ export function createCommercialPropertySystem({ initialPlayerMoney = 150000 } =
         state.paidCityTaxesTotal += amountToPay;
         state.pendingCityTaxes = Math.max(0, state.pendingCityTaxes - amountToPay);
         state.taxDebtPerCity[city] = 0;
+        state.unpaidCyclesPerCity[city] = 0;
       }
 
       return { success: true, paidAmount: amountToPay, state: emit() };

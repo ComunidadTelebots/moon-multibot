@@ -14,7 +14,6 @@ test("los tipos de negocio cubren hoteles, restaurantes, bares, gasolineras y ta
   assert.equal(ids.includes("gasolinera"), true);
   assert.equal(ids.includes("taller"), true);
 
-  // Verificar que cada tipo tiene Tier 1, Tier 2 y Tier 3
   for (const typeKey of ids) {
     const p = PROPERTY_TYPES[typeKey];
     assert.equal(p.tiers[1] !== undefined, true);
@@ -36,20 +35,17 @@ test("las tasas de impuestos municipales cubren las ciudades del juego", () => {
 test("un jugador puede comprar un negocio Tier 1, recaudar ingresos y pagar impuestos a la ciudad", () => {
   const sys = createCommercialPropertySystem({ initialPlayerMoney: 150000 });
 
-  // Comprar un bar Tier 1 en Nova Liria
   const buyRes = sys.acquireProperty({ type: "bar", city: "Nova Liria", name: "Café Ruta Nova" });
   assert.equal(buyRes.success, true);
   assert.equal(sys.state.ownedProperties.length, 1);
   assert.equal(sys.state.ownedProperties[0].tier, 1);
   assert.equal(sys.state.playerMoney < 150000, true);
 
-  // Avanzar ciclo diario (recaudar ingresos y generar impuestos municipales)
   const dayRes = sys.processDailyCycle();
   assert.equal(dayRes.grossRevenue > 0, true);
   assert.equal(dayRes.accruedTaxes > 0, true);
   assert.equal(sys.state.pendingCityTaxes > 0, true);
 
-  // Pagar los impuestos a la ciudad
   const taxPay = sys.payCityTaxes();
   assert.equal(taxPay.success, true);
   assert.equal(sys.state.pendingCityTaxes, 0);
@@ -68,4 +64,29 @@ test("un jugador puede mejorar un negocio de Tier 1 a Tier 2 y a Tier 3 aumentan
   assert.equal(upg2.success, true);
   assert.equal(upg2.property.tier, 3);
   assert.equal(upg2.property.dailyIncome >= 5500, true);
+});
+
+test("si no se pagan los impuestos municipales se suspenden los servicios de la ciudad", () => {
+  const sys = createCommercialPropertySystem({ initialPlayerMoney: 200000 });
+  sys.acquireProperty({ type: "gasolinera", city: "Nova Liria" });
+
+  // Simular 4 días sin pagar impuestos
+  for (let i = 0; i < 4; i++) {
+    sys.processDailyCycle();
+  }
+
+  const cityServices = sys.getCityServiceStatus("Nova Liria");
+  assert.equal(cityServices.status, "SUSPENDIDO");
+  assert.equal(cityServices.policeActive, false);
+  assert.equal(cityServices.roadMaintenanceActive, false);
+  assert.equal(cityServices.streetLightingActive, false);
+  assert.equal(cityServices.businessClosedDueToDebt, true);
+
+  // Al pagar la deuda municipal, los servicios se restauran de inmediato
+  sys.payCityTaxes("Nova Liria");
+  const restoredServices = sys.getCityServiceStatus("Nova Liria");
+  assert.equal(restoredServices.status, "OPERATIVO");
+  assert.equal(restoredServices.policeActive, true);
+  assert.equal(restoredServices.roadMaintenanceActive, true);
+  assert.equal(restoredServices.businessClosedDueToDebt, false);
 });
