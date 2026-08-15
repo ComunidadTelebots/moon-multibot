@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import {atlasTileTransform,hasTileSafeUv} from "./transport-baked-materials.js";
-assert.deepEqual(atlasTileTransform(0,0),{repeat:[.25,.25],offset:[0,.75]});
-assert.deepEqual(atlasTileTransform(3,3),{repeat:[.25,.25],offset:[.75,0]});
-assert.equal(hasTileSafeUv({geometry:{attributes:{uv:{array:new Float32Array([0,0,1,1,.5,.25])}}}}),true);
-assert.equal(hasTileSafeUv({geometry:{attributes:{uv:{array:new Float32Array([0,0,4.2,1])}}}}),false);
-console.log("transport-baked-materials: OK");
+import test from "node:test";
+import { CABIN_TILES, EXTERIOR_TILES, INDEPENDENT_TEXTURES } from "./transport-baked-materials.js";
+
+test("Aster uses one authored file per exterior and cabin material", () => {
+  assert.deepEqual(Object.keys(INDEPENDENT_TEXTURES.exterior), Object.keys(EXTERIOR_TILES));
+  assert.deepEqual(Object.keys(INDEPENDENT_TEXTURES.cabin), Object.keys(CABIN_TILES));
+  const urls = Object.values(INDEPENDENT_TEXTURES).flatMap(Object.values);
+  assert.equal(urls.length, 29);
+  assert.equal(new Set(urls).size, 29);
+  assert.ok(urls.every((url) => url.includes("/vehicle-parts/aster-viento/") && url.endsWith("-v1.png")));
+  assert.ok(urls.every((url) => !url.includes("atlas")));
+});
