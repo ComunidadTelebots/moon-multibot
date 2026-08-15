@@ -292,7 +292,7 @@
       const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>{performanceFrame=frame;graphicsSelector.update(frame)}});
       const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
       const career = createTransportCareer();
-      const releaseChannel = createReleaseChannelSystem({query:location.search,storage:localStorage});
+      const releaseChannel = createReleaseChannelSystem();
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
         document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`;
         document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`;

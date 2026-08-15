@@ -49,6 +49,7 @@ from core.feature_runtime import execute as execute_verified_feature, list_featu
 from core.feature_access import normalize_release_channel
 from core.config import APP_VERSION
 from core.hub_release_assets import read_hub_release_asset
+from core.release_channels import ensure_schema as ensure_release_schema, list_assignments as list_release_assignments, assign as assign_release_channel, revoke as revoke_release_channel
 from core.pb_client import PBError
 from plugins.todo_manager import add_task, list_tasks, update_task
 from plugins.url_tools import inspect_url
@@ -302,6 +303,13 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
     _group_administration = group_administration
     _tdlib_client = tdlib_client
     _get_cas_export_status = get_cas_export_status
+    try:
+        pb = getattr(channel_stats, "_pb", None)
+        if pb:
+            ensure_release_schema(pb)
+    except Exception as error:
+        if add_audit_log:
+            add_audit_log(f"No se pudo preparar feature_release_access: {error}")
     return bp
 
 
@@ -2664,6 +2672,44 @@ def tg_auth():
             _jwt_secret, algorithm="HS256",
         )
     return jsonify(resp)
+
+
+@bp.route("/api/public/release-channels/admin", methods=["POST", "OPTIONS"])
+def release_channels_admin():
+    """List and assign Telegram users to simulator channels. Master only."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.get_json(silent=True) or {}
+    user = _verify_init_data(body.get("initData", ""))
+    if user is None:
+        return jsonify({"ok": False, "error": "initData inválido"}), 401
+    if not _is_master(user):
+        return jsonify({"ok": False, "error": "solo el master puede asignar canales"}), 403
+    pb = getattr(_channel_stats, "_pb", None)
+    if not pb:
+        return jsonify({"ok": False, "error": "PocketBase no disponible"}), 503
+    try:
+        ensure_release_schema(pb)
+        action = str(body.get("action") or "list").lower()
+        if action == "assign":
+            assign_release_channel(
+                pb, body.get("telegram_id"), body.get("release_channel"),
+                display_name=body.get("display_name"), assigned_by=user.get("id"),
+                assigned_at=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.000Z"),
+            )
+        elif action == "revoke":
+            revoke_release_channel(pb, body.get("telegram_id"))
+        elif action != "list":
+            return jsonify({"ok": False, "error": "acción no válida"}), 400
+        rows = list_release_assignments(pb)
+        assignments = [{key: row.get(key) for key in (
+            "telegram_id", "display_name", "release_channel", "enabled", "assigned_at"
+        )} for row in rows]
+        return jsonify({"ok": True, "assignments": assignments})
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"ok": False, "error": f"No se pudieron guardar los canales: {error}"}), 503
 
 
 @bp.route("/api/public/hub-release-asset", methods=["POST", "OPTIONS"])
