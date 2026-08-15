@@ -1,123 +1,30 @@
-const GROUPS = [
-  { id: "vehicle", icon: "▰", label: "Vehículo", hint: "Flota y configuración", ids: ["truck", "bus", "ambulance", "fireEngine", "recoveryTruck", "fleetVehicle", "fleetLivery"] },
-  { id: "route", icon: "⌁", label: "Ruta", hint: "Mapa, cámara y conducción", ids: ["cam", "cruise", "parking", "mapButton", "europeMapButton", "worldMapButton"] },
-  { id: "work", icon: "◇", label: "Trabajo", hint: "Contratos y mercancía", ids: ["workMode", "toolButton", "interactButton", "contractButton", "cargoMonitorButton", "specialButton", "specialOperate"] },
-  { id: "services", icon: "＋", label: "Servicios", hint: "Motor, taller y asistencia", ids: ["engineButton", "rest", "rescue", "serviceButton", "sirenButton", "convoyButton", "academyButton", "achievementsButton", "eventsButton", "wheelButton", "full"] },
+const GROUPS=[
+ {id:"vehicle",icon:"▰",label:"Vehículo",ids:["truck","bus","ambulance","fireEngine","recoveryTruck","fleetVehicle","fleetLivery"]},
+ {id:"route",icon:"⌁",label:"Ruta",ids:["cam","cruise","parking","mapButton","europeMapButton","worldMapButton"]},
+ {id:"work",icon:"◇",label:"Trabajo",ids:["workMode","toolButton","interactButton","contractButton","cargoMonitorButton","specialButton","specialOperate"]},
+ {id:"services",icon:"＋",label:"Servicios",ids:["engineButton","rest","rescue","serviceButton","sirenButton","convoyButton","academyButton","achievementsButton","eventsButton","wheelButton","full"]}
 ];
 
-export function createTransportDrivingDock({ controls = document.querySelector(".controls:not(.drive)") } = {}) {
-  if (!controls || controls.dataset.drivingDock === "ready") return { dispose() {} };
-  controls.dataset.drivingDock = "ready";
-  controls.classList.add("driving-dock");
-
-  const hud = document.querySelector(".hud");
-  const driveHeader = document.createElement("header");
-  driveHeader.className = "moon-drive-header";
-  driveHeader.innerHTML = '<div class="moon-drive-brand"><small>TODO SOBRE ALLTECH STUDIOS</small><b>Rutas del Continente</b></div><div class="moon-drive-route"><small>RUTA ACTIVA</small><b data-live-city>En carretera</b><span data-live-road>Sin incidencias</span></div><div><small>VEHÍCULO · CÁMARA</small><b data-live-vehicle>Aster Viento 3D</b><span data-live-view>Exterior</span></div>';
-  document.body.append(driveHeader);
-  if (hud) {
-    hud.classList.add("moon-route-hud");
-    hud.hidden = true;
-    Array.from(hud.querySelectorAll(".pill")).forEach(pill => {
-      const id = pill.querySelector("b")?.id;
-      pill.classList.add(id === "vn" ? "moon-hud-vehicle" : id === "city" ? "moon-hud-city" : id === "roadEvent" ? "moon-hud-road" : id === "view" ? "moon-hud-view" : "moon-hud-secondary");
-    });
-    ["city", "roadEvent", "vn"].forEach(id => {
-      const pill = document.getElementById(id)?.closest(".pill");
-      if (pill) hud.append(pill);
-    });
-  }
-
-  const style = document.createElement("style");
-  style.textContent = `
-    .driving-dock{--dock-accent:#54ead4;align-items:stretch!important;flex-wrap:nowrap!important;max-width:min(760px,calc(100vw - 270px))!important;padding:4px!important;border-radius:22px!important;overflow:visible!important}
-    .driving-dock .dock-primary{display:grid;grid-template-columns:repeat(4,minmax(92px,1fr));align-items:stretch;gap:3px;min-width:0;overflow:visible}.driving-dock .dock-primary::-webkit-scrollbar{display:none}
-    .driving-dock .dock-tab{position:relative;display:grid!important;grid-template-columns:24px 1fr;grid-template-rows:auto auto;column-gap:7px;align-items:center;min-height:50px!important;padding:7px 10px!important;border-color:transparent!important;background:transparent!important;text-align:left;white-space:nowrap}.driving-dock .dock-tab-icon{grid-row:1/3;display:grid;place-items:center;width:24px;height:24px;border:1px solid #47606c;border-radius:8px;color:#9db2bb;font-size:14px}.driving-dock .dock-tab-label{font-size:11px;line-height:1.1}.driving-dock .dock-tab small{color:#708994;font-size:8px;font-weight:500;line-height:1.1}.driving-dock .dock-tab[aria-expanded="true"]{border-color:#54ead455!important;background:linear-gradient(145deg,#153e3a,#0c2628)!important;color:#7bf5e3!important}.driving-dock .dock-tab[aria-expanded="true"] .dock-tab-icon{border-color:var(--dock-accent);background:#173f3b;color:#7bf5e3;box-shadow:0 0 18px #54ead42b}.driving-dock .dock-tab[aria-expanded="true"] small{color:#a7d8d1}
-    .driving-dock .dock-overflow{position:fixed;z-index:16;left:50%;bottom:68px;width:min(760px,calc(100vw - 24px));max-height:min(56vh,430px);transform:translateX(-50%);padding:12px;border:1px solid #4ce6d04d;border-radius:18px;background:linear-gradient(145deg,#0b1e29f7,#061019fa);box-shadow:0 20px 70px #000d;backdrop-filter:blur(20px);overflow:auto}.driving-dock .dock-overflow[hidden]{display:none}
-    .driving-dock .dock-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:3px 3px 9px;border-bottom:1px solid #ffffff13}.driving-dock .dock-head b{font-size:16px}.driving-dock .dock-head small{color:#7f9ba8}.driving-dock .dock-grid{display:grid;grid-template-columns:repeat(4,minmax(125px,1fr));gap:7px}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{width:100%;min-width:0;min-height:48px!important;text-align:left}
-    .driving-dock .dock-close{display:block!important;width:38px!important;min-height:38px!important;padding:4px!important;text-align:center!important}
-    body:not(.controls-expanded) .driving-dock .dock-grid button{display:block!important}
-    .driving-dock>#moreControls{margin-left:3px;flex:0 0 52px;font-size:0!important;border-color:#54ead455!important;background:#12302f!important}.driving-dock>#moreControls::before{content:"☰";display:block;color:#67efdc;font-size:18px}.driving-dock>#moreControls::after{content:"Menú";display:block;color:#9dc0c3;font-size:8px}
-    .moon-drive-header{position:fixed;z-index:11;left:12px;top:12px;display:grid;grid-template-columns:minmax(180px,1fr) minmax(200px,1.25fr) minmax(170px,1fr);width:min(650px,calc(100vw - 390px));min-height:64px;padding:6px;border:1px solid #345462;border-radius:17px;background:linear-gradient(120deg,#07151ff2,#0d2b36e8);box-shadow:0 14px 44px #0009;backdrop-filter:blur(18px)}.moon-drive-header>div{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:6px 10px;border-right:1px solid #ffffff12}.moon-drive-header>div:last-child{border:0}.moon-drive-header small{color:#6ccfc4;font-size:8px;font-weight:800;letter-spacing:.1em}.moon-drive-header b{margin-top:2px;overflow:hidden;color:#f2ffff;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.moon-drive-header span{margin-top:2px;overflow:hidden;color:#8da9b5;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.moon-drive-route span{color:#ffb363}.hud.moon-route-hud{display:none!important}
-    @media(max-width:900px){.driving-dock{max-width:calc(100vw - 205px)!important}.driving-dock .dock-tab{grid-template-columns:22px 1fr;padding-inline:7px!important}.driving-dock .dock-tab small{display:none}.driving-dock .dock-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
-    @media(max-width:700px){.moon-drive-header{left:6px;right:6px;top:6px;width:auto;grid-template-columns:1fr 1fr;min-height:56px}.moon-drive-brand{display:none!important}.moon-drive-header>div{padding:4px 7px}.driving-dock{left:6px!important;right:6px!important;bottom:66px!important;max-width:none!important;transform:none!important;overflow:visible!important}.driving-dock .dock-primary{flex:1;grid-template-columns:repeat(4,1fr)}.driving-dock .dock-tab{display:flex!important;flex-direction:column;justify-content:center;gap:3px;min-height:52px!important;padding:5px 2px!important;text-align:center}.driving-dock .dock-tab-icon{width:22px;height:22px}.driving-dock .dock-tab-label{font-size:9px}.driving-dock .dock-tab small{display:none}.driving-dock .dock-overflow{bottom:124px;max-height:46vh;padding:10px}.driving-dock .dock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.driving-dock .dock-grid>button,.driving-dock .dock-grid>select{min-height:48px!important}.driving-dock>#moreControls{min-width:48px;flex-basis:48px}}
-    @media(max-width:390px){.driving-dock .dock-grid{grid-template-columns:1fr}}
-    @media(prefers-reduced-motion:reduce){.driving-dock *{scroll-behavior:auto!important;transition:none!important}}
-  `;
-  document.head.append(style);
-  const liveSources={city:document.getElementById("city"),road:document.getElementById("roadEvent"),vehicle:document.getElementById("vn"),view:document.getElementById("view")};
-  const syncHeader=()=>{driveHeader.querySelector("[data-live-city]").textContent=liveSources.city?.textContent||"En carretera";driveHeader.querySelector("[data-live-road]").textContent=liveSources.road?.textContent||"Sin incidencias";driveHeader.querySelector("[data-live-vehicle]").textContent=liveSources.vehicle?.textContent||"Aster Viento 3D";driveHeader.querySelector("[data-live-view]").textContent=liveSources.view?.textContent||"Exterior"};
-  syncHeader();const liveObserver=new MutationObserver(syncHeader);Object.values(liveSources).forEach(node=>node&&liveObserver.observe(node,{childList:true,characterData:true,subtree:true}));
-
-  const primary = document.createElement("div");
-  primary.className = "dock-primary";
-  const overflow = document.createElement("section");
-  overflow.className = "dock-overflow";
-  overflow.hidden = true;
-  overflow.setAttribute("aria-label", "Controles del simulador");
-  overflow.innerHTML = `<header class="dock-head"><div><b>Controles</b><br><small>Selecciona una categoría</small></div><button type="button" class="dock-close" aria-label="Cerrar controles">×</button></header><div class="dock-grid"></div>`;
-  const grid = overflow.querySelector(".dock-grid");
-  controls.prepend(primary);
-  controls.append(overflow);
-
-  let active = "";
-  const tabs = new Map();
-  const owner = new Map(GROUPS.flatMap(group => group.ids.map(id => [id, group.id])));
-  GROUPS.forEach(group => {
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = "dock-tab";
-    tab.innerHTML = `<span class="dock-tab-icon" aria-hidden="true">${group.icon}</span><span class="dock-tab-label">${group.label}</span><small>${group.hint}</small>`;
-    tab.setAttribute("aria-expanded", "false");
-    tab.setAttribute("aria-controls", `dock-${group.id}`);
-    tab.onclick = () => show(active === group.id ? "" : group.id);
-    primary.append(tab);
-    tabs.set(group.id, tab);
-  });
-
-  function show(groupId) {
-    active = groupId;
-    tabs.forEach((tab, id) => tab.setAttribute("aria-expanded", String(id === active)));
-    if (!active) { overflow.hidden = true; return; }
-    const group = GROUPS.find(item => item.id === active);
-    overflow.id = `dock-${active}`;
-    overflow.querySelector(".dock-head b").textContent = group.label;
-    overflow.querySelector(".dock-head small").textContent = group.hint;
-    Array.from(grid.children).forEach(element => { element.hidden = element.dataset.dockGroup !== active; });
-    overflow.hidden = false;
-    grid.querySelector("button:not([hidden]),select:not([hidden])")?.focus({ preventScroll: true });
-  }
-
-  function park(element) {
-    if (!(element instanceof HTMLElement) || element === primary || element === overflow || element.id === "moreControls") return;
-    const groupId = owner.get(element.id) || "services";
-    if (!owner.has(element.id)) owner.set(element.id, groupId);
-    element.dataset.dockGroup = groupId;
-    element.hidden = active !== groupId;
-    grid.append(element);
-  }
-  Array.from(controls.children).forEach(park);
-  const originalMore = document.getElementById("moreControls");
-  if (originalMore) {
-    originalMore.hidden = false;
-    originalMore.setAttribute("aria-label", "Abrir controles del simulador");
-  }
-  const interceptMore = event => {
-    if (event.target?.closest?.("#moreControls")) {
-      event.preventDefault();
-      event.stopPropagation();
-      show(active ? "" : "services");
-    }
-  };
-  controls.addEventListener("click", interceptMore, true);
-  overflow.querySelector(".dock-close").onclick = () => show("");
-
-  const observer = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(park)));
-  observer.observe(controls, { childList: true });
-  const onKey = event => { if (event.key === "Escape" && !overflow.hidden) { show(""); event.stopPropagation(); } };
-  document.addEventListener("keydown", onKey, true);
-
-  return { close: () => show(""), dispose() { observer.disconnect();liveObserver.disconnect();driveHeader.remove();if(hud)hud.hidden=false;controls.removeEventListener("click", interceptMore, true); document.removeEventListener("keydown", onKey, true); style.remove(); } };
+export function createTransportDrivingDock({controls=document.querySelector(".controls:not(.drive)")}={}){
+ if(!controls||controls.dataset.drivingDock==="canva")return{dispose(){}};
+ controls.dataset.drivingDock="canva";controls.classList.add("canva-drive-tools");
+ const hud=document.querySelector(".hud");if(hud)hud.hidden=true;
+ const style=document.createElement("style");style.textContent=`
+ :root{--rd-cyan:#24e0d0;--rd-orange:#ff952e;--rd-panel:#071823f2;--rd-muted:#82a0ad}
+ .moon-drive-header,.hud.moon-route-hud{display:none!important}.canva-drive-tools{position:fixed!important;z-index:18!important;left:12px!important;top:50%!important;bottom:auto!important;width:66px!important;max-width:none!important;transform:translateY(-50%)!important;display:flex!important;flex-direction:column!important;gap:7px!important;padding:7px!important;border:1px solid #1f5965!important;border-radius:14px!important;background:linear-gradient(180deg,#071722f2,#041019f7)!important;box-shadow:0 18px 55px #000b!important;overflow:visible!important;backdrop-filter:blur(18px)}
+ .canva-drive-tools .drive-rail{display:grid;gap:6px}.canva-drive-tools .drive-rail button{display:grid!important;place-items:center;gap:2px;width:52px!important;min-width:52px!important;min-height:51px!important;padding:5px 2px!important;border:1px solid transparent!important;border-radius:10px!important;background:transparent!important;color:#8da9b5!important}.canva-drive-tools .drive-rail i{display:grid;width:27px;height:27px;place-items:center;border:1px solid #214a57;border-radius:8px;background:#0d2632;color:#54e6d3;font-style:normal;font-size:15px}.canva-drive-tools .drive-rail span{font-size:8px;font-weight:800}.canva-drive-tools .drive-rail button[aria-expanded=true]{border-color:#25decf88!important;background:#103632!important;color:#fff!important;box-shadow:inset 3px 0 #25decf}
+ .canva-drive-tools .drive-drawer{position:fixed;left:88px;top:50%;width:min(560px,calc(100vw - 110px));max-height:min(74vh,620px);transform:translateY(-50%);padding:14px;border:1px solid #24717a;border-radius:16px;background:linear-gradient(145deg,#071823fa,#0a2530f7);box-shadow:0 24px 80px #000d;overflow:auto}.canva-drive-tools .drive-drawer[hidden]{display:none}.drive-drawer-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #ffffff18}.drive-drawer-head div{display:grid}.drive-drawer-head small{color:var(--rd-cyan);font-size:8px;font-weight:900;letter-spacing:.12em}.drive-drawer-head b{font-size:19px}.drive-drawer-head button{display:block!important;width:36px!important;min-width:36px!important;min-height:36px!important}.drive-drawer-grid{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:8px;padding-top:12px}.drive-drawer-grid>button,.drive-drawer-grid>select{display:block!important;width:100%!important;min-width:0!important;min-height:58px!important;padding:10px!important;border:1px solid #264b59!important;border-radius:10px!important;background:#0c202b!important;color:#eefcff!important;text-align:left!important}.drive-drawer-grid>button:hover{border-color:var(--rd-cyan)!important;background:#11322f!important}
+ #cockpitPanel{--dash-cyan:#28e1cf;--dash-orange:#ff922e}.cockpit-panel.exterior{top:auto!important;right:auto!important;left:50%!important;bottom:14px!important;width:min(690px,calc(100vw - 210px))!important;min-height:0!important;transform:translateX(-50%);padding:7px!important;border:1px solid #235b67!important;border-radius:20px!important;background:linear-gradient(145deg,#06151ff3,#0b2731ed)!important;box-shadow:0 18px 65px #000c!important;backdrop-filter:blur(17px)}.cockpit-panel.exterior .cockpit-grid{display:grid!important;grid-template-columns:112px minmax(0,1fr) 114px!important;gap:8px!important}.cockpit-panel.exterior .steering-wheel{display:grid!important;width:98px!important;height:98px!important;border:11px solid #111b20!important;box-shadow:inset 0 0 0 2px #41606a,0 0 0 1px #29ddcb55!important}.cockpit-panel.exterior .dash-screen{padding:8px 12px!important;border:1px solid #245763!important;border-radius:13px!important;background:linear-gradient(180deg,#06141d,#071f28)!important}.cockpit-panel.exterior .dash-main{display:flex;align-items:baseline}.cockpit-panel.exterior .dash-speed{font-size:42px!important}.cockpit-panel.exterior .dash-navigation{margin-top:5px!important;padding:6px 8px!important;border:1px solid #1d505b!important;border-radius:8px!important;background:#07171f!important}.cockpit-panel.exterior .dash-status{display:flex!important;gap:5px 12px!important;margin-top:6px!important;overflow:hidden;white-space:nowrap}.cockpit-panel.exterior .dash-status span:nth-child(n+4){display:none}.cockpit-panel.exterior .dash-buttons{display:grid!important;grid-template-columns:1fr 1fr!important;gap:5px!important}.cockpit-panel.exterior .dash-buttons button{display:block!important;min-height:42px!important;padding:5px!important;font-size:9px!important;border-color:#245361!important;background:#0d2631!important}.cockpit-panel.exterior .dash-buttons button[aria-pressed=true]{border-color:var(--dash-orange)!important;color:#ffc489!important;box-shadow:inset 0 -2px var(--dash-orange)}
+ .controls.drive{z-index:19!important;right:14px!important;bottom:14px!important}.controls.drive button{min-height:56px!important;border-radius:12px!important}.controls.drive button[data-key=w]{border-color:#ff9a35!important;background:linear-gradient(#f79b3b,#c75528)!important}.controls.drive .mobile{display:none!important}.osm-attribution{opacity:.55}
+ @media(max-width:760px){.canva-drive-tools{left:6px!important;top:auto!important;right:6px!important;bottom:70px!important;width:auto!important;transform:none!important;flex-direction:row!important}.canva-drive-tools .drive-rail{width:100%;grid-template-columns:repeat(4,1fr)}.canva-drive-tools .drive-rail button{width:100%!important;min-width:0!important;min-height:47px!important}.canva-drive-tools .drive-rail i{width:22px;height:22px}.canva-drive-tools .drive-drawer{left:6px;right:6px;top:auto;bottom:130px;width:auto;max-height:52vh;transform:none}.drive-drawer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cockpit-panel.exterior{left:6px!important;right:6px!important;top:6px!important;bottom:auto!important;width:auto!important;transform:none;padding:5px!important}.cockpit-panel.exterior .cockpit-grid{grid-template-columns:72px 1fr!important}.cockpit-panel.exterior .steering-wheel{width:62px!important;height:62px!important;border-width:7px!important}.cockpit-panel.exterior .dash-speed{font-size:29px!important}.cockpit-panel.exterior .dash-status,.cockpit-panel.exterior .dash-buttons{display:none!important}.controls.drive{right:6px!important;bottom:8px!important}.controls.drive .mobile{display:block!important}.controls.drive button{min-height:54px!important}}
+ @media(max-width:420px){.drive-drawer-grid{grid-template-columns:1fr}.cockpit-panel.exterior .dash-navigation{display:none!important}}@media(prefers-reduced-motion:reduce){.canva-drive-tools *{transition:none!important}}
+ `;document.head.append(style);
+ const rail=document.createElement("nav");rail.className="drive-rail";rail.setAttribute("aria-label","Controles de conducción");
+ const drawer=document.createElement("section");drawer.className="drive-drawer";drawer.hidden=true;drawer.innerHTML='<header class="drive-drawer-head"><div><small>TODO SOBRE ALLTECH STUDIOS</small><b data-title>Vehículo</b></div><button type="button" data-close aria-label="Cerrar">×</button></header><div class="drive-drawer-grid"></div>';
+ const grid=drawer.querySelector(".drive-drawer-grid"),owner=new Map(GROUPS.flatMap(group=>group.ids.map(id=>[id,group.id]))),tabs=new Map();let active="";controls.prepend(rail);controls.append(drawer);
+ const show=id=>{active=id===active?"":id;tabs.forEach((button,key)=>button.setAttribute("aria-expanded",String(key===active)));drawer.hidden=!active;if(!active)return;drawer.querySelector("[data-title]").textContent=GROUPS.find(group=>group.id===active)?.label||"Controles";Array.from(grid.children).forEach(node=>node.hidden=node.dataset.driveGroup!==active);grid.querySelector(":scope > :not([hidden])")?.focus?.({preventScroll:true})};
+ for(const group of GROUPS){const button=document.createElement("button");button.type="button";button.innerHTML=`<i aria-hidden="true">${group.icon}</i><span>${group.label}</span>`;button.setAttribute("aria-expanded","false");button.onclick=()=>show(group.id);rail.append(button);tabs.set(group.id,button)}
+ const park=node=>{if(!(node instanceof HTMLElement)||node===rail||node===drawer||node.id==="moreControls")return;node.dataset.driveGroup=owner.get(node.id)||"services";node.hidden=true;grid.append(node)};Array.from(controls.children).forEach(park);const more=document.getElementById("moreControls");if(more)more.hidden=true;drawer.querySelector("[data-close]").onclick=()=>show(active);const observer=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(park)));observer.observe(controls,{childList:true});const key=e=>{if(e.key==="Escape"&&active)show(active)};document.addEventListener("keydown",key);
+ return{close(){if(active)show(active)},dispose(){observer.disconnect();document.removeEventListener("keydown",key);rail.remove();drawer.remove();style.remove();if(hud)hud.hidden=false}};
 }
-
 export default createTransportDrivingDock;
