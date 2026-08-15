@@ -13,6 +13,22 @@
   - Barra selectora rápida para alternar plataforma y tema, con auto-detección según el dispositivo y `tg.colorScheme`.
   - Minijuegos táctiles: Cyber Snake con D-Pad virtual y gestos swipe, 2048 Cyber, Tres en Raya con IA y Memoria Cuántica.
 
+## [v16.84.5-alpha] - 2026-08-15
+### Feature - Suite de 23 Módulos de Simulación y Transporte Canva
+- **Integración de Suite Modular de Transporte (`web/transport-*.js`)**:
+  - `transport-adaptive-hud.js`: HUD dinámico con telemetría de viaje, velocidad, combustible y avisos de tacógrafo.
+  - `transport-adr-tunnel-routing.js`: Ruteo inteligente con restricciones de mercancías peligrosas ADR en túneles.
+  - `transport-commercial-properties.js` & `transport-economy-market.js`: Mercado económico, finanzas y adquisición de garajes comerciales.
+  - `transport-community-events.js` & `transport-connected-systems.js`: Eventos mundiales en convoy y sincronización multijugador.
+  - `transport-digital-tachograph.js`: Monitorización de tiempos de conducción continua y descansos obligatorios.
+  - `transport-dynamic-wim-scale.js`: Evaluación de peso por eje en básculas Weigh-In-Motion a velocidad de crucero.
+  - `transport-intermodal-reachstacker.js`: Logística portuaria y manipulación de contenedores marítimos.
+  - `transport-player-progression.js`: Niveles de experiencia de conductor, licencias y reputación de empresa.
+  - `transport-story-campaign.js`: Campaña narrativa del cuaderno de bitácora familiar y entrega especial de la Caja 07-A.
+  - `transport-ui-shell.js` & `transport-ui-data-binding.js`: Terminal de a bordo estilo Canva con 12 pestañas interactivas.
+- **Librería de Texturas de Alta Fidelidad Canva (`web/canva-assets/`)**:
+  - Texturas para tacómetro digital, pantalla GPS, display de radio CB, libreas de flota (*Rutas del Continente*, *SAMUR 112*, *Trans-Ibérica*) y señalización vial europea.
+
 ## [v16.84.1] - 2026-07-24
 ### Feature - Ecosistema de Canales, Mini App Hub y Backend PocketBase
 - **Telegram Mini App Hub (`web/hub.html`)**:
