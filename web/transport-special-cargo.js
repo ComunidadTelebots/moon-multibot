@@ -114,33 +114,70 @@ export function createSpecialTransport({ THREE: T, scene, vehicle, qualityLevel 
       box(root, [cargo.width * .75, cargo.height * .65, cargo.length * .7], cargo.color, [0, 3.5, 4.5], "special_heavy_body");
     }
     active = cargo;
+    root.visible = true;
   };
 
   return {
     get state() {
       return {
         activeCargo: active,
+        cargo: active,
         stage,
         stageLabel: stages[stage] || "En ruta",
         escortRequirements: active ? calculateEscortRequirement(active) : null
       };
     },
-    selectCargo(cargoId) {
+    select(cargoId) {
+      if (!cargoId) {
+        clear();
+        active = null;
+        stage = 0;
+        root.visible = false;
+        return null;
+      }
       const found = SPECIAL_CARGOES.find(c => c.id === cargoId) || SPECIAL_CARGOES[0];
       buildCargo(found);
       return found;
     },
+    selectCargo(cargoId) {
+      return this.select(cargoId);
+    },
     advanceStage() {
       if (stage < stages.length - 1) stage++;
-      return stages[stage];
+      const isReady = stage >= stages.length - 1;
+      return {
+        ready: isReady,
+        label: stages[stage] || "Inspección completada"
+      };
     },
-    update(time, dt) {
+    update(arg1 = {}, arg2) {
+      let dt = 0.016, speed = 0, laneOffset = 0;
+      if (typeof arg1 === "object" && arg1 !== null) {
+        dt = Number(arg1.dt) || 0.016;
+        speed = Number(arg1.speed) || 0;
+        laneOffset = Number(arg1.laneOffset) || 0;
+      } else if (typeof arg1 === "number") {
+        dt = Number(arg2) || 0.016;
+      }
+
       amberPhase += dt * 8;
       root.traverse(o => {
-        if (o.userData.beacon) {
-          o.material.color.setHex(Math.floor(amberPhase) % 2 === 0 ? 0xffaa00 : 0x442200);
+        if (o.userData && o.userData.beacon) {
+          o.material?.color?.setHex?.(Math.floor(amberPhase) % 2 === 0 ? 0xffaa00 : 0x442200);
         }
       });
+
+      const escortReq = active ? calculateEscortRequirement(active) : null;
+      const isReady = stage >= stages.length - 1;
+      return {
+        active: Boolean(active),
+        cargo: active || { mass: 0, height: 1.65, width: 2.55, length: 13.6 },
+        ready: isReady,
+        restricted: Math.abs(laneOffset) > 2.5 || (escortReq ? speed > escortReq.maxSpeedKmh : false),
+        stageLabel: stages[stage] || "En ruta",
+        escortCount: escortReq ? escortReq.pilotCars : 0,
+        maxSpeed: escortReq ? escortReq.maxSpeedKmh : 90
+      };
     },
     clear,
     root,
