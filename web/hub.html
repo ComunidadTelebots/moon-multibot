@@ -197,6 +197,13 @@
   .tab svg{font-size:21px;}
   .tab.active{color:var(--teal);}
 
+  .badge-status-hub{font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    padding:2px 7px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;vertical-align:middle;}
+  .badge-status-hub.estable{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.4);}
+  .badge-status-hub.rc{background:rgba(34,211,238,.15);color:#22d3ee;border:1px solid rgba(34,211,238,.4);}
+  .badge-status-hub.beta{background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.4);}
+  .badge-status-hub.alfa{background:rgba(251,146,60,.15);color:#fb923c;border:1px solid rgba(251,146,60,.4);}
+
   /* ── Tema clásico ── */
   #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;}
   #app-classic .c-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--card);margin-bottom:12px;}
@@ -212,7 +219,7 @@
   <div class="topbar">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l3-1 2 4 3-9 3 6 2-3h3"/></svg></div>
     <div class="who">
-      <div class="hi">Hola <b id="uname">invitado</b> <span class="badge" id="roleBadge" hidden>master</span></div>
+      <div class="hi">Hola <b id="uname">invitado</b> <span class="badge" id="roleBadge" hidden>master</span> <span class="badge-status-hub estable" id="hubStatusBadge">ESTABLE</span></div>
       <div class="sub">ComunidadTelebots</div>
     </div>
     <button class="gear" id="btnAjustes" aria-label="Ajustes" data-ic="settings"></button>
@@ -239,7 +246,7 @@
 <div id="app-classic" hidden>
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
     <div class="logo" style="width:44px;height:44px;border-radius:13px;font-size:22px;"><svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l3-1 2 4 3-9 3 6 2-3h3"/></svg></div>
-    <div><div style="font-family:var(--display);font-weight:800;font-size:20px;">Panel</div>
+    <div><div style="font-family:var(--display);font-weight:800;font-size:20px;display:flex;align-items:center;gap:8px;">Panel <span class="badge-status-hub estable">ESTABLE</span></div>
     <div style="font-size:12px;color:var(--muted);">ComunidadTelebots</div></div>
   </div>
   <div class="hi" id="c-hello" style="font-size:14px;color:var(--muted);margin:14px 2px 16px;">Bienvenido al panel principal.</div>

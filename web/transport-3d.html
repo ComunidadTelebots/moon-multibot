@@ -523,6 +523,13 @@
   <!-- Top-Left Canva Telemetry & Circular Radar -->
   <div class="canva-hud-topleft">
     <div class="telemetry-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:5px;">
+        <span style="font-size:12px;font-weight:800;color:var(--teal);display:flex;align-items:center;gap:4px;">🚛 ASTER 770 S</span>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <span class="badge-status-hub alfa">ALFA</span>
+          <span class="badge-status-hub master" id="alfaMasterBadge" hidden style="background:rgba(250,204,21,0.15);color:#facc15;border-color:rgba(250,204,21,0.4);">👑 MASTER</span>
+        </div>
+      </div>
       <div class="telem-row">
         <span class="telem-label">Speed:</span>
         <span class="telem-val speed" id="telemSpeed">0 km/h</span>
@@ -1708,6 +1715,32 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // Master & VIP authentication
+    (async function initAlfaMaster() {
+      const tg = window.Telegram?.WebApp;
+      if (tg) {
+        tg.ready();
+        try { tg.expand(); } catch(e){}
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      let isMaster = (urlParams.get("master") === "1");
+      if (tg && tg.initData) {
+        try {
+          const res = await fetch("/api/public/tg_auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData: tg.initData })
+          });
+          const d = await res.json();
+          if (d && d.ok && d.is_master) isMaster = true;
+        } catch(e) {}
+      }
+      if (isMaster) {
+        const mb = document.getElementById("alfaMasterBadge");
+        if (mb) mb.hidden = false;
+      }
+    })();
 
     animate();
   </script>

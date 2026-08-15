@@ -231,6 +231,24 @@
       align-items: center;
       gap: 8px;
     }
+    .badge-status {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      vertical-align: middle;
+    }
+    .badge-status.estable { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); }
+    .badge-status.rc { background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.4); }
+    .badge-status.beta { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge-status.alfa { background: rgba(251, 146, 60, 0.15); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.4); }
+
     .score-pill {
       font-family: var(--font-mono);
       font-size: 12px;
@@ -407,7 +425,7 @@
       <!-- 1. Cyber Snake -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">🐍 Cyber Snake</div>
+          <div class="game-title">🐍 Cyber Snake <span class="badge-status estable">ESTABLE</span></div>
           <div class="score-pill">Puntos: <span id="snakeScore">0</span></div>
         </div>
         <div class="canvas-box" id="snakeTouchArea">
@@ -430,7 +448,7 @@
       <!-- 2. 2048 Cyber Puzzle -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">⚡ 2048 Cyber</div>
+          <div class="game-title">⚡ 2048 Cyber <span class="badge-status estable">ESTABLE</span></div>
           <div class="score-pill">Score: <span id="score2048">0</span></div>
         </div>
         <div class="grid-2048" id="board2048"></div>
@@ -443,7 +461,7 @@
       <!-- 3. Tres en Raya -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">❌ Tres en Raya</div>
+          <div class="game-title">❌ Tres en Raya <span class="badge-status rc">RC</span></div>
           <div class="score-pill" id="tttStatus">Turno: X</div>
         </div>
         <div id="tttBoard" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:10px auto;"></div>
@@ -456,7 +474,7 @@
       <!-- 4. Memoria Cuántica -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">🧠 Memoria Cuántica</div>
+          <div class="game-title">🧠 Memoria Cuántica <span class="badge-status beta">BETA</span></div>
           <div class="score-pill">Intentos: <span id="memoryMoves">0</span></div>
         </div>
         <div id="memoryBoard" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:300px;margin:10px auto;"></div>
