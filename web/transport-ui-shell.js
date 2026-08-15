@@ -1,43 +1,295 @@
-export const TRANSPORT_INTERFACE_SECTIONS=[
- {id:"home",icon:"⌂",label:"Inicio",title:"Centro de operaciones",subtitle:"Estado general de tu conductor, empresa y mundo compartido."},
- {id:"drive",icon:"◉",label:"Conducción",title:"Puesto de conducción",subtitle:"Ruta, cámaras, vehículo y ayudas activas."},
- {id:"world",icon:"◇",label:"Mapas",title:"Planificación mundial",subtitle:"Carretera, Europa y conexiones multimodales."},
- {id:"cargo",icon:"▣",label:"Carga",title:"Logística y mercancía",subtitle:"Custodia, conservación, servicios y operaciones especiales."},
- {id:"company",icon:"▥",label:"Empresa",title:"Empresa y carrera",subtitle:"Contratos, flota, personal, sedes y economía."},
- {id:"safety",icon:"△",label:"Seguridad",title:"Emergencias y control",subtitle:"Incidencias, formación, convoy y telemetría."},
- {id:"system",icon:"⚙",label:"Sistema",title:"Configuración del simulador",subtitle:"Gráficos, dispositivos, accesibilidad y pantalla."}
+/**
+ * Ecosistema de Interfaces Canva para Rutas del Continente (Canal Alfa).
+ * Implementa fielmente las 12 pantallas y la capa de estado compartida de la página 022.
+ */
+
+export const TRANSPORT_INTERFACE_SECTIONS = [
+  { id: "home",      icon: "🏠", label: "Inicio",     title: "Inicio y perfil de piloto", subtitle: "Estado general de tu conductor, empresa, KPIs y mundo compartido." },
+  { id: "world",     icon: "🌐", label: "Mapa",       title: "Mapa mundial y conexiones", subtitle: "Red transcontinental de carreteras, ferris y corredores de carga." },
+  { id: "drive",     icon: "🧭", label: "Conducción", title: "Puesto de conducción y cabina", subtitle: "Ruta activa, cuadro digital, cámaras y ayudas a la conducción." },
+  { id: "garage",    icon: "🏢", label: "Garaje",     title: "Garaje y gestión de flota", subtitle: "Camiones, autobuses, vehículos de emergencia, barcos y aeronaves." },
+  { id: "contracts", icon: "📋", label: "Contratos",  title: "Contratos y carrera europea", subtitle: "Ofertas comerciales, pagos por kilometraje, plazos y reputación." },
+  { id: "cargo",     icon: "📦", label: "Logística",  title: "Logística, carga y custodia", subtitle: "Integridad, cadena de frío, materiales peligrosos y manifiesto." },
+  { id: "air",       icon: "✈️", label: "Aeropuertos", title: "Carga aérea y aeropuertos", subtitle: "Operaciones aéreas, hangares, pistas y aviones de carga." },
+  { id: "ports",     icon: "🚢", label: "Puertos",    title: "Puertos marítimos y ferris", subtitle: "Grúas de contenedores, atraques, despacho aduanero y buques." },
+  { id: "workshop",  icon: "🔧", label: "Taller",     title: "Taller, diagnóstico y mejoras", subtitle: "Mantenimiento preventivo, reparaciones, pintura y personalización." },
+  { id: "convoy",    icon: "👥", label: "Convoy",     title: "Convoy multijugador y radio CB", subtitle: "Salas online/LAN, telemetría compartida y comunicación diegética." },
+  { id: "weather",   icon: "⚡", label: "Clima",      title: "Clima en vivo y emergencias", subtitle: "Alertas meteorológicas, tormentas, asistencia y rescate en ruta." },
+  { id: "system",    icon: "⚙️", label: "Ajustes",    title: "Ajustes, gráficos y sistema", subtitle: "Calidad gráfica adaptativa, volantes FFB, accesibilidad y canales." }
 ];
-const cards=(section,rows)=>rows.map(([icon,title,description,target,tone])=>({section,icon,title,description,target,close:target==="close",tone}));
-export const TRANSPORT_INTERFACE_CARDS=[
- ...cards("home",[["↗","Continuar ruta","Regresa inmediatamente a la conducción.","close","primary"],["◎","Mapa mundial","Posición y red logística.","worldMapButton"],["▥","Empresa","Saldo, flota, empleados y contratos.","contractButton"],["▣","Trabajo activo","Objetivos y recompensa.","vehicleJobsButton"],["△","Incidencias","Alertas y actividad reciente.","eventsButton","warning"],["★","Progreso","Nivel, logros y carrera.","achievementsButton"]]),
- ...cards("drive",[["▰","Seleccionar vehículo","Camión, autobús y servicios.","truck"],["◫","Cámaras 1–9","Exterior, cabina, espejos y cinemática.","cam"],["⌁","Controles físicos","Volante, pedales y dispositivos.","wheelButton"],["◉","Academia","Maniobras y conducción eficiente.","academyButton"],["⚑","Asistencia","Recuperación en carretera.","rescue"],["P","Volver a conducir","Cierra el centro y toma el control.","close","primary"]]),
- ...cards("world",[["⌖","Mapa de ruta","Posición, zoom y próxima maniobra.","mapButton"],["EU","Red europea","Ciudades, carreteras, ferris y peajes.","europeMapButton"],["◎","Red mundial","Rutas terrestres, aéreas y marítimas.","worldMapButton","primary"],["✈","Flota aérea","Aeropuertos, misiones y carga.","fleetVehicle"],["≈","Puertos","Buques, terminales y operaciones.","fleetVehicle"],["⌘","Región y servicios","Accesos, nodos y estado de zona.","regionOperationsButton"]]),
- ...cards("cargo",[["▣","Control de carga","Integridad, temperatura y sujeción.","cargoMonitorButton","primary"],["◆","Cadena logística","Manifiesto, custodia y entrega.","logisticsChainButton"],["⚙","Taller y combustible","Diagnóstico, reparación y repostaje.","serviceButton"],["◇","Transporte especial","Carga pesada y escolta.","specialButton"],["⚖","Inspección y pesaje","Masa, documentos y seguridad.","weighStationButton"],["▤","Trabajos","Misiones para cada vehículo.","vehicleJobsButton"]]),
- ...cards("company",[["€","Centro de empresa","Contratos, cuentas y garajes.","contractButton","primary"],["▰","Flota","Compra, asignación y mantenimiento.","contractButton"],["♙","Personal y talentos","Conductores, formación y bots.","contractButton"],["⌂","Sedes y seguridad","Alarmas, vigilancia y riesgo.","contractButton"],["▦","Contratos","Ofertas, carga y recompensas.","contractButton"],["◫","Historia","Campañas y decisiones narrativas.","storyButton"]]),
- ...cards("safety",[["△","Centro de eventos","Alertas, registros y telemetría.","eventsButton","warning"],["◌","Convoy","Multijugador, IA y conexión.","convoyButton"],["★","Logros","Retos, hitos y recompensas.","achievementsButton"],["◉","Academia","Pruebas de conducción.","academyButton"],["⚕","Emergencias","Ambulancia, bomberos y grúa.","ambulance"],["▤","Historial","Sesiones, entregas y daños.","eventsButton"]]),
- ...cards("system",[["VER","Canal de versión","Alfa, Beta, RC o Estable.","releaseChannelButton","primary"],["GPU","Calidad gráfica","Legacy, bajo, alto y ultra.","transportQualitySelect"],["⌁","Volante y mandos","Gamepad, teclado y volante.","wheelButton"],["◫","Pantalla completa","Modo inmersivo de escritorio.","full"],["Aa","Accesibilidad","Escala, contraste y movimiento.","accessibilityButton"],["♫","Audio","Motor, ambiente y avisos.","audioButton"]])
+
+const cards = (section, rows) => rows.map(([icon, title, description, target, tone]) => ({
+  section,
+  icon,
+  title,
+  description,
+  target,
+  close: target === "close",
+  tone
+}));
+
+export const TRANSPORT_INTERFACE_CARDS = [
+  ...cards("home", [
+    ["↗", "Continuar ruta", "Regresa inmediatamente a la conducción.", "close", "primary"],
+    ["◎", "Mapa mundial", "Posición, zoom y red logística global.", "worldMapButton"],
+    ["▥", "Empresa y cuentas", "Saldo, facturación, garajes y contratos.", "contractButton"],
+    ["▣", "Trabajo activo", "Objetivos, mercancía y recompensa.", "vehicleJobsButton"],
+    ["△", "Incidencias de ruta", "Alertas meteorológicas y obras.", "eventsButton", "warning"],
+    ["★", "Progreso de piloto", "Nivel de experiencia, logros e hitos.", "achievementsButton"]
+  ]),
+  ...cards("world", [
+    ["◎", "Red mundial 3D", "28 hubs logísticos en 7 regiones globales.", "worldMapButton", "primary"],
+    ["EU", "Red europea OSM", "Ciudades europeas, autopistas y peajes.", "europeMapButton"],
+    ["⌖", "Minimapa de ruta", "Seguimiento GPS local y puntos de interés.", "mapButton"],
+    ["✈", "Vuelos de carga", "Conexiones aéreas transcontinentales.", "worldFlyButton"],
+    ["≈", "Líneas marítimas", "Transbordadores y transporte oceánico.", "worldSailButton"],
+    ["⌘", "Operaciones de zona", "Control de fronteras y aduanas.", "regionOperationsButton"]
+  ]),
+  ...cards("drive", [
+    ["▰", "Seleccionar vehículo", "Alternar entre camión, bus y flota.", "truck"],
+    ["◫", "Cámaras 1–9", "Cabina inmersiva, espejos y vistas exteriores.", "cam"],
+    ["⌁", "Controles y volante", "Asignación de pedales, force feedback y teclado.", "wheelButton"],
+    ["◉", "Academia de conducción", "Pruebas de habilidad y eficiencia.", "academyButton"],
+    ["⚑", "Asistencia en carretera", "Recuperación de vehículo y grúa.", "rescue"],
+    ["P", "Tomar el volante", "Cierra el centro y vuelve a conducir.", "close", "primary"]
+  ]),
+  ...cards("garage", [
+    ["🚛", "Camiones pesados", "Aster Viento, Frontier 88 y Aurora clásica.", "truck", "primary"],
+    ["🚌", "Autobuses de línea", "Flota de pasajeros y transporte interurbano.", "truck"],
+    ["🚒", "Flota de emergencias", "Ambulancia, bomberos y vehículos de auxilio.", "ambulance"],
+    ["✈️", "Aeronaves de carga", "Céfiro G2, Mercurio C70 y Altair H4.", "fleetVehicle"],
+    ["🚢", "Buques y ferris", "Marina Senda y Océano Vector.", "fleetVehicle"],
+    ["🎨", "Personalizar librea", "Diseños oficiales y colores de empresa.", "fleetLivery"]
+  ]),
+  ...cards("contracts", [
+    ["€", "Mercado de contratos", "Rutas disponibles con tarifa y plazo.", "contractButton", "primary"],
+    ["📦", "Cargas de alto valor", "Electrónica, medicina y maquinaria.", "contractButton"],
+    ["⏱", "Entregas urgentes", "Bonificación por puntualidad y rapidez.", "contractButton"],
+    ["📈", "Reputación de empresa", "Nivel de confianza y apertura de mercados.", "contractButton"],
+    ["◫", "Campaña narrativa", "Decisiones del prólogo y cuaderno familiar.", "storyButton"]
+  ]),
+  ...cards("cargo", [
+    ["▣", "Monitor de carga", "Temperatura, sujeción y estado del precinto.", "cargoMonitorButton", "primary"],
+    ["◆", "Cadena logística", "Trazabilidad multimodal puerta a puerta.", "logisticsChainButton"],
+    ["◇", "Transporte especial", "Cargas sobredimensionadas con escolta.", "specialButton"],
+    ["⚖", "Estación de pesaje", "Báscula por ejes y control de documentos.", "weighStationButton"],
+    ["📦", "Inspección Caja 07-A", "Precinto, manifiesto y análisis de carga.", "storyButton"]
+  ]),
+  ...cards("air", [
+    ["✈️", "Flota aérea", "Aeronaves de transporte urgente.", "fleetVehicle", "primary"],
+    ["🛫", "Pistas y despegue", "Simulación de aproximación y maniobra.", "fleetVehicle"],
+    ["📦", "Terminal de carga aérea", "Contenedores aéreos y pallets ULD.", "worldFlyButton"],
+    ["🌐", "Corredores aéreos", "Planificación de rutas de largo alcance.", "worldMapButton"]
+  ]),
+  ...cards("ports", [
+    ["🚢", "Terminal de contenedores", "Atraques de gran calado y grúas pórtico.", "fleetVehicle", "primary"],
+    ["⚓", "Ferry transfronterizo", "Embarque de tractoras y semirremolques.", "worldSailButton"],
+    ["📋", "Despacho de aduanas", "Inspección aduanera y permisos marítimos.", "worldMapButton"],
+    ["🌊", "Navegación costera", "Rutas marítimas del norte y mediterráneo.", "fleetVehicle"]
+  ]),
+  ...cards("workshop", [
+    ["⚙", "Taller mecánico", "Diagnóstico de motor, frenos y aceite.", "serviceButton", "primary"],
+    ["⛽", "Estación de servicio", "Repostaje de diésel y carga eléctrica.", "serviceButton"],
+    ["🧰", "Diagnóstico interactivo", "Inspección de mangueras, correas y fugas.", "storyButton"],
+    ["🎨", "Pintura y cabina", "Acabados metálicos y elementos estéticos.", "serviceButton"]
+  ]),
+  ...cards("convoy", [
+    ["👥", "Sala de convoy", "Unirse o crear sala con conductores e IA.", "convoyButton", "primary"],
+    ["📻", "Emisora Radio CB", "Canales 19, 9, 1 y 11 con mensajes rápidos.", "convoyButton"],
+    ["📡", "Telemetría compartida", "Velocidad, carga y posición del convoy.", "convoyButton"],
+    ["🏆", "Operaciones conjuntas", "Misiones cooperativas de transporte.", "convoyButton"]
+  ]),
+  ...cards("weather", [
+    ["⚡", "Alertas meteorológicas", "Lluvia, nieve, tormentas y niebla densa.", "eventsButton", "primary"],
+    ["🦌", "Fauna en calzada", "Alertas de rebaños y pasos de fauna silvestre.", "eventsButton"],
+    ["⚠️", "Obras y desvíos", "Carriles cortados y señalización de obras.", "eventsButton"],
+    ["🚒", "Servicios de rescate", "Asistencia de grúa y bomberos.", "ambulance"]
+  ]),
+  ...cards("system", [
+    ["VER", "Canal de lanzamiento", "Cambiar entre Alfa, Beta, RC y Estable.", "releaseChannelButton", "primary"],
+    ["GPU", "Rendimiento gráfico", "Perfil adaptable según hardware.", "transportQualitySelect"],
+    ["⌁", "Dispositivos de control", "Configuración de volantes FFB y mandos.", "wheelButton"],
+    ["◫", "Pantalla completa", "Modo inmersivo sin marcos.", "full"],
+    ["Aa", "Accesibilidad", "Tamaño de fuente, contraste y subtítulos.", "accessibilityButton"],
+    ["♫", "Ajustes de audio", "Sonido de motor diésel, radio y ambiente.", "audioButton"]
+  ])
 ];
-const money=value=>`${Math.round(Number(value)||0).toLocaleString("es-ES")} €`;
-export function createTransportUiShell({career}={}){
- const style=document.createElement("style");style.textContent=`
- :root{--moon-cyan:#55ead9;--moon-orange:#ff962f;--moon-bg:#061019;--moon-panel:#0b1b26;--moon-line:#234150;--moon-muted:#8da9b7}.moon-shell{position:fixed;z-index:60;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr);background:radial-gradient(circle at 72% 0,#123646 0,transparent 36%),linear-gradient(125deg,#050c13f7,#081824f2);color:#f2fbfd;backdrop-filter:blur(24px)}.moon-shell[hidden]{display:none}.moon-shell-nav{display:grid;grid-template-columns:minmax(190px,260px) minmax(0,1fr);align-items:center;padding:9px 18px;border-bottom:1px solid #24404e;background:#06111bf2}.moon-brand{padding:2px 16px 2px 0;border-right:1px solid #ffffff18}.moon-brand small{display:block;color:var(--moon-cyan);font-size:9px;font-weight:800;letter-spacing:.18em}.moon-brand b{display:block;margin-top:3px;font-size:17px}.moon-brand em{display:none}.moon-tabs{display:flex;gap:4px;padding-left:12px;overflow-x:auto}.moon-tabs button{display:grid;grid-template-columns:28px auto;align-items:center;min-height:40px;padding:4px 9px;text-align:left;border:1px solid transparent;border-radius:9px;background:transparent;color:#91abb7}.moon-tabs button i{display:grid;width:25px;height:25px;place-items:center;border-radius:7px;background:#102430;color:#77a6b5;font-style:normal}.moon-tabs button.on{border-color:#42decc55;background:linear-gradient(90deg,#12322f,#0b2029);color:#fff}.moon-tabs button.on i{background:#17443e;color:var(--moon-cyan)}.moon-shell-main{min-width:0;padding:14px 22px 30px;overflow:auto}.moon-global{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;margin-bottom:14px;border:1px solid #284553;border-radius:11px;background:#091a24d9}.moon-global-status{display:flex;gap:7px;flex-wrap:wrap}.moon-global-status span{padding:5px 8px;border-radius:7px;background:#102733;color:#91adba;font-size:10px}.moon-global-status b{color:#edfaff}.moon-shell-close{min-width:39px;min-height:34px;border-color:#ff963f66;background:#3b2119;color:#ffb06a;font-size:18px}.moon-shell-head{margin-bottom:13px}.moon-shell-head small{color:var(--moon-orange);font-weight:800;letter-spacing:.15em;text-transform:uppercase}.moon-shell-head h1{margin:3px 0 0;font-size:clamp(24px,3vw,38px);letter-spacing:-.04em}.moon-shell-head p{margin:4px 0 0;color:var(--moon-muted);font-size:12px}.moon-action-grid{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:10px}.moon-action{position:relative;display:grid;grid-template-columns:76px 1fr;grid-template-rows:auto 1fr;column-gap:13px;min-height:142px;padding:11px;text-align:left;overflow:hidden;border:1px solid #244453;border-radius:12px;background:linear-gradient(145deg,#102530,#091721);color:#fff;box-shadow:0 10px 24px #0005;transition:.18s ease}.moon-action:hover,.moon-action:focus-visible{transform:translateY(-2px);border-color:#54ead999}.moon-action i{grid-row:1/3;display:grid;width:76px;height:100%;min-height:116px;place-items:center;border:1px solid #4de5d43d;border-radius:9px;background:radial-gradient(circle at 50% 40%,#1f5b57,#0c282d 62%,#071820);color:var(--moon-cyan);font-style:normal;font-size:21px;font-weight:800;box-shadow:inset 0 0 26px #0007}.moon-action b{display:block;align-self:end;font-size:14px}.moon-action small{display:block;margin-top:6px;color:#91aab6;font-size:11px;line-height:1.4}.moon-action:after{content:"ACTIVO";position:absolute;right:8px;top:8px;color:#55ead970;font-size:7px;letter-spacing:.12em}.moon-action.primary{border-color:#41dcc777;background:linear-gradient(145deg,#12423d,#0b2028)}.moon-action.warning i{border-color:#ff963f66;background:radial-gradient(circle,#57331f,#26170f);color:#ffad5f}.moon-action.warning{border-color:#ff963f55}.moon-menu-button{position:fixed;z-index:14;left:max(10px,env(safe-area-inset-left));top:max(74px,calc(env(safe-area-inset-top) + 56px));min-height:40px;border:1px solid #4ce6d0;background:#09242aee;color:#83fff0;box-shadow:0 10px 28px #000a}.moon-shell-open{overflow:hidden}@media(max-width:900px){.moon-shell-nav{grid-template-columns:150px 1fr}.moon-brand small{font-size:7px}.moon-tabs button{grid-template-columns:25px}.moon-tabs button span{display:none}.moon-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.moon-shell{grid-template-rows:minmax(0,1fr) 62px}.moon-shell-nav{grid-row:2;grid-template-columns:1fr;padding:6px;border:0;border-top:1px solid #294653}.moon-brand{display:none}.moon-tabs{justify-content:space-between;padding:0}.moon-tabs button{flex:1 0 52px;justify-items:center;min-height:48px}.moon-tabs button:nth-child(n+6){display:none}.moon-shell-main{grid-row:1;padding:9px 9px 20px}.moon-global-status span:nth-child(n+4){display:none}.moon-shell-head h1{font-size:25px}.moon-action-grid{gap:7px}.moon-action{grid-template-columns:48px 1fr;min-height:104px;padding:8px}.moon-action i{width:48px;min-height:86px;font-size:15px}.moon-action b{font-size:12px}.moon-action small{font-size:9px}.moon-action:after{display:none}}`;
- document.head.append(style);
- const layoutStyle=document.createElement("style");layoutStyle.textContent=`
- .moon-shell{grid-template-columns:82px minmax(0,1fr)!important;grid-template-rows:72px minmax(0,1fr)!important;background:radial-gradient(circle at 72% -8%,#174555 0,transparent 34%),linear-gradient(135deg,#030910fa,#07131df7)!important}
- .moon-shell-nav{grid-column:1!important;grid-row:1/3!important;display:flex!important;flex-direction:column!important;grid-template-columns:none!important;padding:10px 7px!important;border:0!important;border-right:1px solid #1d4552!important;background:#050f18fa!important}.moon-brand{padding:7px 2px 14px!important;border:0!important;border-bottom:1px solid #ffffff14!important;text-align:center}.moon-brand small{font-size:6px!important;line-height:1.35}.moon-brand b{font-size:11px!important}.moon-tabs{display:grid!important;gap:5px!important;padding:12px 0 0!important;overflow:visible!important}.moon-tabs button{display:grid!important;grid-template-columns:1fr!important;justify-items:center!important;gap:3px!important;min-height:58px!important;padding:5px 2px!important;border-radius:9px!important;text-align:center!important}.moon-tabs button i{width:29px!important;height:29px!important}.moon-tabs button span{display:block!important;font-size:8px!important}.moon-tabs button.on{box-shadow:inset 3px 0 var(--moon-orange)!important}
- .moon-shell-main{grid-column:2!important;grid-row:1/3!important;padding:84px 18px 22px!important}.moon-global{position:fixed!important;z-index:2;left:82px;right:0;top:0;height:72px;box-sizing:border-box;margin:0!important;padding:10px 18px!important;border:0!important;border-bottom:1px solid #224754!important;border-radius:0!important;background:#06131ded!important}.moon-global-status{flex:1;display:grid!important;grid-template-columns:repeat(5,minmax(100px,1fr));gap:7px!important}.moon-global-status span{display:grid!important;gap:2px;padding:7px 10px!important;border:1px solid #1d3d49;border-radius:8px!important;background:#091d27!important}.moon-global-status span:before{color:#55ead9;font-size:7px;font-weight:900;letter-spacing:.12em}.moon-global-status b{font-size:11px}.moon-shell-close{min-width:46px!important;min-height:46px!important;border-radius:10px!important}
- .moon-shell-head{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:end;margin-bottom:12px!important}.moon-shell-head small{grid-row:1/3;display:grid;place-items:center;width:52px;height:52px;border:1px solid #25ddcb66;border-radius:12px;background:#0b2b31;color:#58ead8!important;font-size:0}.moon-shell-head small:after{content:"MOON";font-size:8px}.moon-shell-head h1{font-size:clamp(25px,3vw,40px)!important}.moon-action-grid{grid-template-columns:repeat(4,minmax(170px,1fr))!important;gap:8px!important}.moon-action{grid-template-columns:1fr!important;grid-template-rows:112px auto 1fr!important;min-height:208px!important;padding:8px!important;border-radius:9px!important}.moon-action i{grid-row:1!important;width:100%!important;min-height:112px!important;border-radius:7px!important;background:radial-gradient(circle at 70% 30%,#256a6c,#0b2730 52%,#06151d)!important;font-size:27px!important}.moon-action b{padding:9px 5px 0;font-size:13px!important}.moon-action small{padding:0 5px 6px;font-size:9px!important}.moon-action:after{content:"ABRIR  ›"!important;top:auto!important;right:12px!important;bottom:10px!important;color:#55ead9!important}.moon-menu-button{left:12px!important;top:12px!important;min-width:62px!important;height:48px;font-size:0!important}.moon-menu-button:before{content:"☰";font-size:20px}.moon-menu-button:after{content:" Centro";font-size:9px}
- @media(max-width:1100px){.moon-action-grid{grid-template-columns:repeat(3,minmax(160px,1fr))!important}.moon-global-status span:nth-child(n+4){display:none!important}.moon-global-status{grid-template-columns:repeat(3,1fr)!important}}
- @media(max-width:700px){.moon-shell{grid-template-columns:1fr!important;grid-template-rows:minmax(0,1fr) 62px!important}.moon-shell-nav{grid-column:1!important;grid-row:2!important;flex-direction:row!important;padding:5px!important;border-right:0!important;border-top:1px solid #1d4552!important}.moon-brand{display:none!important}.moon-tabs{display:flex!important;width:100%;padding:0!important;overflow-x:auto!important}.moon-tabs button{flex:1 0 54px;min-height:50px!important}.moon-tabs button:nth-child(n){display:grid!important}.moon-tabs button span{font-size:7px!important}.moon-shell-main{grid-column:1!important;grid-row:1!important;padding:67px 7px 15px!important}.moon-global{left:0;right:0;height:60px;padding:6px!important}.moon-global-status{grid-template-columns:1fr 1fr!important}.moon-global-status span:nth-child(n+3){display:none!important}.moon-shell-head{margin:5px 3px 10px!important}.moon-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}.moon-action{grid-template-rows:78px auto 1fr!important;min-height:157px!important}.moon-action i{min-height:78px!important}.moon-action small{font-size:8px!important}.moon-menu-button{left:6px!important;top:6px!important}}
- `;document.head.append(layoutStyle);
- const launcher=document.createElement("button");launcher.className="moon-menu-button";launcher.textContent="☰ Centro";launcher.setAttribute("aria-label","Abrir centro del simulador");document.body.append(launcher);
- const shell=document.createElement("section");shell.className="moon-shell";shell.hidden=true;shell.setAttribute("role","dialog");shell.setAttribute("aria-modal","true");shell.innerHTML=`<nav class="moon-shell-nav"><div class="moon-brand"><small>TODO SOBRE ALLTECH STUDIOS</small><b>Rutas del Continente</b><em>Centro del simulador</em></div><div class="moon-tabs">${TRANSPORT_INTERFACE_SECTIONS.map(s=>`<button data-section="${s.id}"><i>${s.icon}</i><span>${s.label}</span></button>`).join("")}</div></nav><main class="moon-shell-main"><div class="moon-global"><div class="moon-global-status"><span>Empresa <b data-company>Rutas Moon</b></span><span>Saldo <b data-money>0 €</b></span><span>Nivel <b data-level>1</b></span><span>Vehículo <b data-vehicle>Aster Viento 3D</b></span><span>Red <b>Conectada</b></span></div><button class="moon-shell-close" aria-label="Cerrar">×</button></div><header class="moon-shell-head"><small data-eyebrow></small><h1 data-title></h1><p data-subtitle></p></header><div class="moon-action-grid"></div></main>`;document.body.append(shell);
- let active="home",previousFocus=null;const grid=shell.querySelector(".moon-action-grid");
- function close(){shell.hidden=true;document.body.classList.remove("moon-shell-open");previousFocus?.focus?.()}
- function activate(action){if(action.close)return close();const target=document.getElementById(action.target);if(!target)return;close();target.focus?.();target.click?.()}
- function render(section=active){active=section;const meta=TRANSPORT_INTERFACE_SECTIONS.find(s=>s.id===section)||TRANSPORT_INTERFACE_SECTIONS[0],state=career?.snapshot;shell.querySelector("[data-title]").textContent=meta.title;shell.querySelector("[data-subtitle]").textContent=meta.subtitle;shell.querySelector("[data-eyebrow]").textContent=`Moon OS · ${meta.label}`;shell.querySelector("[data-company]").textContent=state?.profile?.company||"Rutas Moon";shell.querySelector("[data-money]").textContent=money(state?.economy?.money);shell.querySelector("[data-level]").textContent=state?.progress?.level||1;shell.querySelector("[data-vehicle]").textContent=document.getElementById("vn")?.textContent||"Aster Viento 3D";shell.querySelectorAll("[data-section]").forEach(b=>b.classList.toggle("on",b.dataset.section===section));grid.replaceChildren(...TRANSPORT_INTERFACE_CARDS.filter(a=>a.section===section).map(action=>{const button=document.createElement("button");button.className=`moon-action ${action.tone||""}`;button.innerHTML=`<i aria-hidden="true">${action.icon}</i><b>${action.title}</b><small>${action.description}</small>`;button.onclick=()=>activate(action);return button}))}
- function open(section="home"){previousFocus=document.activeElement;render(section);shell.hidden=false;document.body.classList.add("moon-shell-open");shell.querySelector(".moon-shell-close")?.focus()}
- launcher.onclick=()=>open();shell.querySelector(".moon-shell-close").onclick=close;shell.querySelectorAll("[data-section]").forEach(b=>b.onclick=()=>render(b.dataset.section));addEventListener("keydown",e=>{if(e.key==="Escape"&&!shell.hidden)close()});const unsubscribe=career?.subscribe?.(()=>{if(!shell.hidden)render()});
- return{open,close,render,dispose(){unsubscribe?.();launcher.remove();shell.remove();layoutStyle.remove();style.remove();document.body.classList.remove("moon-shell-open")}};
+
+const money = value => `${Math.round(Number(value) || 0).toLocaleString("es-ES")} €`;
+
+export function createTransportUiShell({ career } = {}) {
+  const style = document.createElement("style");
+  style.textContent = `
+    :root{--moon-cyan:#55ead9;--moon-orange:#ff962f;--moon-bg:#061019;--moon-panel:#0b1b26;--moon-line:#234150;--moon-muted:#8da9b7}
+    .moon-shell{position:fixed;z-index:60;inset:0;display:grid;grid-template-columns:92px minmax(0,1fr);grid-template-rows:76px minmax(0,1fr);background:radial-gradient(circle at 72% -8%,#174555 0,transparent 34%),linear-gradient(135deg,#030910fa,#07131df7);color:#f2fbfd;backdrop-filter:blur(24px)}
+    .moon-shell[hidden]{display:none}
+    .moon-shell-nav{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;padding:8px 5px;border-right:1px solid #1d4552;background:#050f18fa;overflow-y:auto}
+    .moon-brand{padding:6px 2px 10px;border-bottom:1px solid #ffffff14;text-align:center}
+    .moon-brand small{display:block;color:var(--moon-cyan);font-size:7px;font-weight:800;letter-spacing:.12em}
+    .moon-brand b{display:block;margin-top:2px;font-size:11px}
+    .moon-brand em{display:none}
+    .moon-tabs{display:grid;gap:4px;padding:8px 0 0}
+    .moon-tabs button{display:grid;grid-template-columns:1fr;justify-items:center;gap:2px;min-height:50px;padding:4px 2px;border:1px solid transparent;border-radius:8px;background:transparent;color:#91abb7;text-align:center;cursor:pointer}
+    .moon-tabs button i{display:grid;width:26px;height:26px;place-items:center;border-radius:7px;background:#102430;color:#77a6b5;font-style:normal;font-size:13px}
+    .moon-tabs button span{display:block;font-size:8px}
+    .moon-tabs button.on{border-color:#42decc55;background:linear-gradient(180deg,#12322f,#0b2029);color:#fff;box-shadow:inset 3px 0 var(--moon-orange)}
+    .moon-tabs button.on i{background:#17443e;color:var(--moon-cyan)}
+    .moon-shell-main{grid-column:2;grid-row:1/3;padding:88px 18px 24px;overflow-y:auto}
+    .moon-global{position:fixed;z-index:2;left:92px;right:0;top:0;height:76px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 18px;border-bottom:1px solid #224754;background:#06131df4;box-sizing:border-box}
+    .moon-global-status{flex:1;display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:6px}
+    .moon-global-status span{display:grid;gap:2px;padding:6px 8px;border:1px solid #1d3d49;border-radius:8px;background:#091d27}
+    .moon-global-status span small{color:#55ead9;font-size:7px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+    .moon-global-status b{font-size:11px;color:#edfaff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .moon-shell-close{min-width:44px;min-height:44px;border:1px solid #ff963f66;border-radius:10px;background:#3b2119;color:#ffb06a;font-size:20px;cursor:pointer}
+    .moon-shell-head{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:end;margin-bottom:12px}
+    .moon-shell-head small{grid-row:1/3;display:grid;place-items:center;width:48px;height:48px;border:1px solid #25ddcb66;border-radius:11px;background:#0b2b31;color:#58ead8;font-size:9px;font-weight:900}
+    .moon-shell-head h1{margin:0;font-size:clamp(22px,2.6vw,34px);letter-spacing:-.03em}
+    .moon-shell-head p{margin:3px 0 0;color:var(--moon-muted);font-size:12px}
+    .moon-action-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:9px}
+    .moon-action{position:relative;display:grid;grid-template-rows:92px auto 1fr;padding:9px;text-align:left;border:1px solid #244453;border-radius:11px;background:linear-gradient(145deg,#102530,#091721);color:#fff;box-shadow:0 8px 20px #0006;transition:.16s ease;cursor:pointer}
+    .moon-action:hover{transform:translateY(-2px);border-color:#54ead999}
+    .moon-action i{display:grid;width:100%;min-height:92px;place-items:center;border:1px solid #4de5d43d;border-radius:8px;background:radial-gradient(circle at 70% 30%,#256a6c,#0b2730 52%,#06151d);color:var(--moon-cyan);font-style:normal;font-size:24px;font-weight:800}
+    .moon-action b{display:block;padding:8px 4px 0;font-size:13px}
+    .moon-action small{display:block;padding:0 4px 4px;color:#91aab6;font-size:10px;line-height:1.4}
+    .moon-action.primary{border-color:#41dcc777;background:linear-gradient(145deg,#12423d,#0b2028)}
+    .moon-action.warning i{border-color:#ff963f66;background:radial-gradient(circle,#57331f,#26170f);color:#ffad5f}
+    .moon-action.warning{border-color:#ff963f55}
+    .moon-menu-button{position:fixed;z-index:14;left:12px;top:12px;min-width:64px;height:44px;padding:6px 10px;border:1px solid #4ce6d0;border-radius:10px;background:#09242aee;color:#83fff0;box-shadow:0 8px 24px #0009;cursor:pointer}
+    .moon-shell-open{overflow:hidden}
+    @media(max-width:900px){
+      .moon-shell{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 58px}
+      .moon-shell-nav{grid-column:1;grid-row:2;flex-direction:row;padding:4px;border-right:0;border-top:1px solid #1d4552}
+      .moon-brand{display:none}
+      .moon-tabs{display:flex;width:100%;padding:0;overflow-x:auto}
+      .moon-tabs button{flex:1 0 48px;min-height:48px}
+      .moon-shell-main{grid-column:1;grid-row:1;padding:74px 10px 16px}
+      .moon-global{left:0;height:68px}
+      .moon-global-status{grid-template-columns:repeat(3,1fr)}
+      .moon-global-status span:nth-child(n+4){display:none}
+      .moon-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+  `;
+  document.head.append(style);
+
+  const launcher = document.createElement("button");
+  launcher.className = "moon-menu-button";
+  launcher.innerHTML = "<b>☰ Menú</b>";
+  launcher.setAttribute("aria-label", "Abrir ecosistema de interfaces del simulador");
+  document.body.append(launcher);
+
+  const shell = document.createElement("section");
+  shell.className = "moon-shell";
+  shell.hidden = true;
+  shell.setAttribute("role", "dialog");
+  shell.setAttribute("aria-modal", "true");
+  shell.innerHTML = `
+    <nav class="moon-shell-nav">
+      <div class="moon-brand">
+        <small>MOON GAMES</small>
+        <b>Rutas 3D</b>
+      </div>
+      <div class="moon-tabs">
+        ${TRANSPORT_INTERFACE_SECTIONS.map(s => `<button data-section="${s.id}"><i>${s.icon}</i><span>${s.label}</span></button>`).join("")}
+      </div>
+    </nav>
+    <main class="moon-shell-main">
+      <div class="moon-global">
+        <div class="moon-global-status">
+          <span><small>Piloto</small><b data-pilot>Piloto Leyenda</b></span>
+          <span><small>Saldo</small><b data-money>0 €</b></span>
+          <span><small>Nivel</small><b data-level>1</b></span>
+          <span><small>Hora</small><b data-clock>14:35 · 24 May</b></span>
+          <span><small>Clima</small><b data-weather>18 °C · Nublado</b></span>
+          <span><small>Red</small><b data-network>42 ms · En línea</b></span>
+        </div>
+        <button class="moon-shell-close" aria-label="Cerrar">×</button>
+      </div>
+      <header class="moon-shell-head">
+        <small data-eyebrow>ALFA</small>
+        <div>
+          <h1 data-title></h1>
+          <p data-subtitle></p>
+        </div>
+      </header>
+      <div class="moon-action-grid"></div>
+    </main>
+  `;
+  document.body.append(shell);
+
+  let active = "home", previousFocus = null;
+  const grid = shell.querySelector(".moon-action-grid");
+
+  function close() {
+    shell.hidden = true;
+    document.body.classList.remove("moon-shell-open");
+    previousFocus?.focus?.();
+  }
+
+  function activate(action) {
+    if (action.close) return close();
+    const target = document.getElementById(action.target);
+    if (!target) return;
+    close();
+    target.focus?.();
+    target.click?.();
+  }
+
+  function render(section = active) {
+    active = section;
+    const meta = TRANSPORT_INTERFACE_SECTIONS.find(s => s.id === section) || TRANSPORT_INTERFACE_SECTIONS[0];
+    const state = career?.snapshot;
+    shell.querySelector("[data-title]").textContent = meta.title;
+    shell.querySelector("[data-subtitle]").textContent = meta.subtitle;
+    shell.querySelector("[data-eyebrow]").textContent = meta.label.toUpperCase();
+    shell.querySelector("[data-pilot]").textContent = state?.profile?.driverName || "Piloto Leyenda";
+    shell.querySelector("[data-money]").textContent = money(state?.economy?.money);
+    shell.querySelector("[data-level]").textContent = `${state?.progress?.level || 1} (${state?.progress?.xp || 0} XP)`;
+    
+    const d = new Date();
+    shell.querySelector("[data-clock]").textContent = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} · En ruta`;
+    shell.querySelector("[data-weather]").textContent = document.querySelector("#roadEvent")?.textContent?.slice(0, 18) || "Despejado · 19 °C";
+    shell.querySelector("[data-network]").textContent = document.querySelector("#convoyState")?.textContent?.includes("ms") ? document.querySelector("#convoyState").textContent : "42 ms · Alfa";
+
+    shell.querySelectorAll("[data-section]").forEach(b => b.classList.toggle("on", b.dataset.section === section));
+    grid.replaceChildren(...TRANSPORT_INTERFACE_CARDS.filter(a => a.section === section).map(action => {
+      const button = document.createElement("button");
+      button.className = `moon-action ${action.tone || ""}`;
+      button.innerHTML = `<i aria-hidden="true">${action.icon}</i><b>${action.title}</b><small>${action.description}</small>`;
+      button.onclick = () => activate(action);
+      return button;
+    }));
+  }
+
+  function open(section = "home") {
+    previousFocus = document.activeElement;
+    render(section);
+    shell.hidden = false;
+    document.body.classList.add("moon-shell-open");
+    shell.querySelector(".moon-shell-close")?.focus();
+  }
+
+  launcher.onclick = () => open();
+  shell.querySelector(".moon-shell-close").onclick = close;
+  shell.querySelectorAll("[data-section]").forEach(b => b.onclick = () => render(b.dataset.section));
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && !shell.hidden) close();
+  });
+  const unsubscribe = career?.subscribe?.(() => {
+    if (!shell.hidden) render();
+  });
+
+  return {
+    open,
+    close,
+    render,
+    dispose() {
+      unsubscribe?.();
+      launcher.remove();
+      shell.remove();
+      style.remove();
+      document.body.classList.remove("moon-shell-open");
+    }
+  };
 }
+
 export default createTransportUiShell;
