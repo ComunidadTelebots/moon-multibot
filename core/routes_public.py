@@ -21,6 +21,7 @@ import jwt
 from flask import Blueprint, request, jsonify
 
 from . import image_gen
+from .config import APP_VERSION
 
 bp = Blueprint("public", __name__)
 
@@ -140,7 +141,9 @@ def tg_auth():
     if user is None:
         return jsonify({"ok": False, "error": "initData inválido"}), 401
     is_master = _master_id is not None and str(user.get("id")) == str(_master_id)
-    resp = {"ok": True, "is_master": is_master, "user": {
+    v_lower = (APP_VERSION or "").lower()
+    ch = "alfa" if "alpha" in v_lower or "alfa" in v_lower else "beta" if "beta" in v_lower else "rc" if "rc" in v_lower else "estable"
+    resp = {"ok": True, "is_master": is_master, "app_version": APP_VERSION, "channel": ch, "user": {
         "id": user.get("id"), "first_name": user.get("first_name"), "username": user.get("username"),
     }}
     if is_master and _jwt_secret:
@@ -684,7 +687,9 @@ def join_verify():
 
 @bp.route("/api/public/stats/global")
 def public_global():
-    return jsonify({"ok": True, **_channel_stats.get_global_stats()})
+    v_lower = (APP_VERSION or "").lower()
+    ch = "alfa" if "alpha" in v_lower or "alfa" in v_lower else "beta" if "beta" in v_lower else "rc" if "rc" in v_lower else "estable"
+    return jsonify({"ok": True, "app_version": APP_VERSION, "channel": ch, **_channel_stats.get_global_stats()})
 
 
 @bp.route("/api/public/stats/channels")
