@@ -3280,6 +3280,8 @@ TELEGRAM_GAMES = {
     os.environ.get("TELEGRAM_GAME_ORBIT", "orbita_cero"): "orbit",
     os.environ.get("TELEGRAM_GAME_TOWER", "torre_pulso"): "tower",
     os.environ.get("TELEGRAM_GAME_HAULER", "rutas_continente"): "hauler",
+    os.environ.get("TELEGRAM_GAME_GATO_SODA", "gato_soda_rush"): "gatosoda",
+    os.environ.get("TELEGRAM_GAME_LEYENDA_LATINA", "leyenda_latina"): "leyendalatina",
 }
 TELEGRAM_GAME_SHORT_NAMES = {slug: short_name for short_name, slug in TELEGRAM_GAMES.items()}
 COMMUNITY_POST_URL = os.environ.get(
@@ -4386,6 +4388,8 @@ class MoonBot:
                 [{"text": "🚀 Órbita Cero", "callback_data": "moon_game:html5:orbit"},
                  {"text": "🏗 Torre Pulso", "callback_data": "moon_game:html5:tower"}],
                 [{"text": "🚛 Rutas del Continente", "callback_data": "moon_game:html5:hauler"}],
+                [{"text": "🐱 Gato Soda Rush", "callback_data": "moon_game:html5:gatosoda"},
+                 {"text": "🥊 Leyenda Latina", "callback_data": "moon_game:html5:leyendalatina"}],
             ]
         }
         self.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown", "reply_markup": json.dumps(kb)})
