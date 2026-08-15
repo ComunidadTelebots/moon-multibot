@@ -26,3 +26,20 @@ test("rechaza decisiones ajenas a la campaña elegida", () => {
   runtime.selectOrigin("aster");
   assert.throws(() => runtime.choose("player-choice", "family"), /Decisión no disponible/);
 });
+
+test("aplica y persiste el primer diagnóstico de taller", () => {
+  const storage = memory();
+  const runtime = createStoryRuntime({ storage });
+  runtime.repairTruck("call_mara");
+  assert.equal(runtime.snapshot.workshopDiagnostic.choiceId, "call_mara");
+  assert.equal(runtime.snapshot.variables.trustMara, 2);
+  assert.equal(runtime.snapshot.variables.moneyCost, 180);
+});
+
+test("selecciona y persiste la hipótesis de la Caja 07-A", () => {
+  const storage = memory();
+  const runtime = createStoryRuntime({ storage });
+  runtime.selectBoxHypothesis("medical");
+  assert.equal(runtime.snapshot.box07a.hypothesisId, "medical");
+  assert.equal(runtime.snapshot.variables.ethicsBonus, 2);
+});

@@ -54,6 +54,73 @@ export const transportStoryCampaign = freeze({
   ]
 });
 
+export const BOX_07A_SPEC = freeze({
+  id: "box-07a",
+  code: "07-A",
+  sealStatus: "Precinto alterado",
+  manifest: { sender: "Rutas del Continente", destination: "Puerto Alba / Inírida", declaredContent: "Equipos y documentos", declaredWeightKg: 32.4, guide: "RC-8841", status: "INCOMPLETO" },
+  auroraNote: "Si estás leyendo esto, es porque algo salió del camino. Confía en tu criterio. No todas las respuestas vienen en los papeles. - Aurora",
+  routePhoto: { location: "Km 117 Deslizamiento", date: "18/04 06:40" },
+  customsScan: { density: "Media", material: "Mixto", packages: "1 bulto", anomalies: "No se detectan armas ni materiales peligrosos" },
+  hypotheses: [
+    { id: "medical", label: "Prototipo médico", icon: "A", items: ["Dispositivo de diagnóstico portátil", "Muestras biológicas estabilizadas", "Requiere cadena de frío", "Valor humanitario alto"], coldChain: true, ethicsBonus: 2 },
+    { id: "mechanical", label: "Componentes mecánicos archivados", icon: "B", items: ["Piezas de maquinaria descontinuada", "Valor histórico e industrial", "Requiere manipulación especializada", "Interés de coleccionistas y museos"], coldChain: false, techBonus: 2 },
+    { id: "encrypted_logs", label: "Registros logísticos cifrados", icon: "C", items: ["Dispositivos de almacenamiento cifrado", "Contienen rutas, contratos y contactos", "Información sensible", "Alto valor estratégico"], coldChain: false, intelBonus: 2 }
+  ]
+});
+
+export const PERSISTENT_DECISION_MAP = freeze({
+  id: "decision-map-v1",
+  origin: "Taller Tormenta (Nova Liria)",
+  destination: "Puerto Alba",
+  decisions: [
+    {
+      id: "route_choice",
+      step: 1,
+      title: "Ruta segura vs Atajo inundado",
+      options: [
+        { id: "safe_route", label: "Ruta segura", effects: { timeHours: -2, fuelPercent: -10, reputation: 2, allies: 2 }, desc: "Llegas antes, entrega sólida, confían en ti." },
+        { id: "flooded_shortcut", label: "Atajo inundado", effects: { timeHours: 3, fuelPercent: 20, reputation: -2, allies: -2, wearTruck: 15 }, desc: "Retrasos por desvíos y daños, más consumo." }
+      ]
+    },
+    {
+      id: "family_choice",
+      step: 2,
+      title: "Visitar a los abuelos vs Continuar entrega",
+      options: [
+        { id: "visit_grandparents", label: "Visitar a los abuelos", effects: { familyBond: 2, emotionalSupport: true }, desc: "Vínculo familiar más fuerte y apoyo emocional." },
+        { id: "continue_delivery", label: "Continuar la entrega", effects: { familyBond: -1, onTimeBonus: 500 }, desc: "Se sienten descartados pero mantienes el cronograma." }
+      ]
+    },
+    {
+      id: "customs_box_choice",
+      step: 3,
+      title: "Declarar la caja 07-A vs Ocultar el precinto",
+      options: [
+        { id: "declare_box", label: "Declarar la caja", effects: { inspectionScore: 2, fineRisk: 0 }, desc: "Sin problemas en controles aduaneros." },
+        { id: "hide_seal", label: "Ocultar el precinto", effects: { inspectionScore: -2, fineRisk: 45, blackMarketVal: 3500 }, desc: "Riesgo alto de revisión profunda y multa." }
+      ]
+    }
+  ]
+});
+
+export const WORKSHOP_DIAGNOSTIC_SPEC = freeze({
+  id: "workshop-diagnostic-prologue",
+  title: "Primer diagnóstico",
+  initialState: { temperatureC: 112, oilPressureBar: 1.2, electricFault: "DETECTADA (P0562)", status: "warning" },
+  inspections: [
+    { id: "hoses", label: "Mangueras", warning: true },
+    { id: "belts", label: "Correas", warning: true },
+    { id: "leaks", label: "Fugas de aceite", warning: true },
+    { id: "connectors", label: "Conectores eléctricos", warning: true }
+  ],
+  repairChoices: [
+    { id: "quick_patch", label: "Reparación temporal", desc: "Solución rápida con bridas/cinta para seguir ruta.", effects: { timeCostMin: 15, moneyCost: 0, reliabilityStars: 2, trustMara: 0 } },
+    { id: "replace_part", label: "Reemplazar pieza", desc: "Solución definitiva con bomba nueva.", effects: { timeCostMin: 60, moneyCost: 450, reliabilityStars: 4, trustMara: 0 } },
+    { id: "call_mara", label: "Llamar a Mara", desc: "Soporte remoto, diagnóstico asistido y consejo.", effects: { timeCostMin: 35, moneyCost: 180, reliabilityStars: 4, trustMara: 2 } }
+  ]
+});
+
 export const STORY_TRUCK_ORIGINS = freeze({
   aurora: { id: "aurora", name: "Aurora", era: "classic", focus: ["restoration", "family", "manual-driving"], startingDebt: 30000 },
   frontier: { id: "frontier", name: "Frontier 88", era: "american-used", focus: ["independent-business", "heavy-haul", "survival"], startingDebt: 60000 },
