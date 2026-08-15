@@ -249,6 +249,7 @@
       import { createLogisticsChain, mountLogisticsChainUI } from "./transport-logistics-chain.js";
       import { createStoryRuntime, createStoryPanel } from "./transport-story-runtime.js";
       import { createStoryIntro } from "./transport-story-intro.js";
+      import { createDisplayControls } from "./transport-display-controls.js?v=20260815-display1";
       import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js?v=20260815-profile-ui2";
       window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
       const canvaTheme = applyCanvaTransportTheme();
@@ -287,6 +288,7 @@
       const graphicsSelector=mountGraphicsProfileSelector({profile:detectedGraphics,onSelect:id=>{const url=new URL(location.href);url.searchParams.set("quality",id);location.replace(url)}});
       const settingsPanel=createTransportSettingsPanel({engineAudio});
       const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>graphicsSelector.update(frame)});
+      const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
       const career = createTransportCareer();
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
         document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`;
@@ -1301,10 +1303,6 @@
         document.querySelector("#assistState").textContent = "Vehículo recuperado";
         eventLog.record("operations","vehicle:recovered",{damage:Math.round(damage),city:document.querySelector("#city").textContent},{severity:"warning"});
       };
-      full.onclick = () =>
-        document.fullscreenElement
-          ? document.exitFullscreen()
-          : document.documentElement.requestFullscreen();
       let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0, cockpitDrawAt = 0, cargoDrawAt = 0, europeMapDrawAt = 0;
       function loop(now) {
         const dt = Math.min(0.04, (now - last) / 1000);
@@ -1612,6 +1610,7 @@
         C.aspect = innerWidth / innerHeight;
         C.updateProjectionMatrix();
         R.setSize(innerWidth, innerHeight);
+        adaptiveResolution.resize();
       };
       requestAnimationFrame(loop);
       const traffic3d = [];
