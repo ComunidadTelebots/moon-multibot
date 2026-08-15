@@ -67,6 +67,29 @@ _ban_manager = None
 _get_bot_for_chat = None
 _check_cas = None
 _hub_bot_username = "cintiabot"
+_game_stats_lock = threading.RLock()
+_game_stats = {"events": [], "players": {}}
+_game_stats_file = os.environ.get("MOON_GAME_STATS_FILE", "/app/data/game-analytics.json")
+
+def _load_game_stats():
+    try:
+        with open(_game_stats_file, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        if isinstance(data, dict) and isinstance(data.get("events"), list) and isinstance(data.get("players"), dict):
+            _game_stats.update({"events": data["events"][-25000:], "players": data["players"]})
+    except (OSError, ValueError, TypeError):
+        pass
+
+def _save_game_stats():
+    try:
+        directory = os.path.dirname(_game_stats_file); os.makedirs(directory, exist_ok=True)
+        temporary = f"{_game_stats_file}.tmp"
+        with open(temporary, "w", encoding="utf-8") as handle: json.dump(_game_stats, handle, ensure_ascii=False, separators=(",", ":"))
+        os.replace(temporary, _game_stats_file)
+    except OSError:
+        current_app.logger.warning("No se pudieron persistir las estadísticas de MoonJuegos")
+
+_load_game_stats()
 _get_global_user_stats = None
 _get_global_chat_names = None
 _get_cas_export_status = None
@@ -212,6 +235,34 @@ def public_games_convoy():
             ai.append({"id": f"ai-{index}", "name": ("Aster IA", "Expreso IA", "CargoJet IA", "Marina IA")[index], "game": game, "vehicle": ("truck", "train", "plane", "ship")[index], "x": round(math.sin(phase)*260, 1), "y": round(math.cos(phase*.73)*420, 1), "z": round(math.cos(phase*.73)*420, 1), "altitude": 55 if game == "air" else 0, "speed": 55+index*18, "heading": round(phase % (math.pi*2), 3), "ai": True})
         players = [{key: value for key, value in row.items() if key != "seen"} for row in room["players"].values()]
         return jsonify({"ok": True, "room": room["id"], "you": uid, "players": players, "ai": ai, "serverTime": round(now, 3)})
+
+
+@bp.route("/api/public/games/analytics", methods=["POST", "OPTIONS"])
+def public_games_analytics():
+    """Telemetría mínima de MoonJuegos y resumen privado para el master."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
+    if user is None: return jsonify({"ok": False, "error": "Abre MoonJuegos desde Telegram"}), 401
+    action = str(body.get("action") or "event"); uid = str(user.get("id")); now = time.time()
+    with _game_stats_lock:
+        if action == "summary":
+            if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+            events = list(_game_stats["events"]); by_game = {}
+            for row in events:
+                item = by_game.setdefault(row["game"], {"game": row["game"], "sessions": 0, "plays": 0, "players": set(), "last_at": 0})
+                item["sessions"] += row["event"] == "open"; item["plays"] += row["event"] == "play"
+                item["players"].add(row["user_id"]); item["last_at"] = max(item["last_at"], row["at"])
+            games = [{**item, "players": len(item["players"])} for item in by_game.values()]
+            games.sort(key=lambda row: (-row["plays"], -row["sessions"], row["game"]))
+            active_day = {row["user_id"] for row in events if now-row["at"] <= 86400}
+            return jsonify({"ok": True, "totals": {"players": len(_game_stats["players"]), "active_24h": len(active_day), "sessions": sum(row["event"] == "open" for row in events), "plays": sum(row["event"] == "play" for row in events)}, "games": games, "generated_at": round(now)})
+        game = re.sub(r"[^a-z0-9_-]", "", str(body.get("game") or "unknown").lower())[:48] or "unknown"
+        event = str(body.get("event") or "open").lower(); event = event if event in {"open", "play", "finish"} else "open"
+        _game_stats["players"][uid] = {"name": str(user.get("first_name") or "Jugador")[:80], "seen": now}
+        _game_stats["events"].append({"user_id": uid, "game": game, "event": event, "at": now})
+        _game_stats["events"] = _game_stats["events"][-25000:]
+        _save_game_stats()
+    return jsonify({"ok": True})
 
 
 def _community_campaigns_for_audience(owner_verified=False):

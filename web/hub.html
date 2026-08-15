@@ -1694,6 +1694,7 @@
         <button class="master-action" id="masterEngagement"><span class="mai">${svg('users')}</span><b>Comunidad y eventos</b><small>Encuestas, agenda, retos y sorteos</small></button>
         <button class="master-action" id="masterGroupAdmin"><span class="mai">${svg('settings')}</span><b>Grupos avanzados</b><small>Versiones, sincronización y delegaciones</small></button>
         <button class="master-action" id="masterGameVersions"><span class="mai">${svg('gamepad')}</span><b>Versiones de MoonJuegos</b><small>Stable, RC, Beta y Alpha por usuario</small></button>
+        <button class="master-action" id="masterGameStats"><span class="mai">${svg('trendup')}</span><b>Estadísticas de juegos</b><small>Jugadores, sesiones y partidas</small></button>
         <button class="master-action" id="masterAdvancedAccounts"><span class="mai">${svg('users')}</span><b>Cuentas avanzadas</b><small>Herramientas equiparadas con TodoSobreAllTech</small></button>
         <button class="master-action" id="masterGlobalAccess"><span class="mai">${svg('shield')}</span><b>Acceso global</b><small>Canal obligatorio para todos los grupos</small></button>
         <button class="master-action" id="masterRoadmap"><span class="mai">${svg('sparkles')}</span><b>Centro avanzado</b><small>Automatización, IA, analítica, API y operaciones</small></button>
@@ -1726,6 +1727,7 @@
     document.getElementById("masterEngagement").onclick=()=>openMasterPage("Comunidad y eventos","Encuestas, agenda, retos y sorteos",loadMasterEngagement);
     document.getElementById("masterGroupAdmin").onclick=()=>openMasterPage("Grupos avanzados","Versiones, sincronización y delegaciones",loadMasterGroupAdministration);
     document.getElementById("masterGameVersions").onclick=()=>openMasterPage("Versiones de MoonJuegos","Vista previa y asignación de canales",loadMasterGameVersions);
+    document.getElementById("masterGameStats").onclick=()=>openMasterPage("Estadísticas de MoonJuegos","Actividad global de todos los juegos",loadMasterGameStats);
     document.getElementById("masterAdvancedAccounts").onclick=()=>openMasterPage("Cuentas avanzadas","Herramientas de TodoSobreAllTech en un acceso master seguro",loadMasterAdvancedAccounts);
     document.getElementById("masterGlobalAccess").onclick=()=>openMasterPage("Acceso global","Suscripción obligatoria general para todos los grupos",loadMasterGlobalAccess);
     document.getElementById("masterRoadmap").onclick=()=>openMasterPage("Centro avanzado","Automatización, IA, analítica, API y operaciones",loadMasterRoadmap);
@@ -1776,6 +1778,17 @@
     el.querySelectorAll('[data-web-admin-link]').forEach(button=>button.onclick=()=>openLink(button.dataset.webAdminLink));
   }
 
+  async function loadMasterGameStats(){
+    const box=document.getElementById("masterDetail");box.innerHTML=skel();
+    const data=await apiPost("/games/analytics",{initData:tg?.initData||"",action:"summary"});
+    if(!data?.ok){box.innerHTML=`<div class="master-error">${escHtml(data?.error||"No se pudieron cargar las estadísticas")}</div>`;return}
+    const totals=data.totals||{},games=data.games||[];
+    box.innerHTML=`<div class="card master-hero"><div class="master-kicker">MoonJuegos · telemetría global</div><h3>Actividad de los jugadores</h3><p>Datos agregados de sesiones autenticadas desde Telegram.</p><div class="master-status">Solo master</div></div>
+      <div class="master-kpis"><div class="card"><small>Jugadores</small><b>${Number(totals.players||0)}</b></div><div class="card"><small>Activos 24 h</small><b>${Number(totals.active_24h||0)}</b></div><div class="card"><small>Sesiones</small><b>${Number(totals.sessions||0)}</b></div><div class="card"><small>Partidas</small><b>${Number(totals.plays||0)}</b></div></div>
+      <div class="sec">Rendimiento por juego</div><div class="card" style="overflow:auto"><table class="audit-table" style="width:100%"><thead><tr><th>Juego</th><th>Jugadores</th><th>Sesiones</th><th>Partidas</th><th>Última actividad</th></tr></thead><tbody>${games.map(row=>`<tr><td><b>${escHtml(row.game)}</b></td><td>${Number(row.players||0)}</td><td>${Number(row.sessions||0)}</td><td>${Number(row.plays||0)}</td><td>${row.last_at?new Date(row.last_at*1000).toLocaleString("es-ES"):"—"}</td></tr>`).join("")||'<tr><td colspan="5">Todavía no hay actividad registrada.</td></tr>'}</tbody></table></div>
+      <button class="btn teal" id="gameStatsRefresh">${svg('refresh')} Actualizar</button>`;
+    document.getElementById("gameStatsRefresh").onclick=loadMasterGameStats;
+  }
   const GAME_RELEASE_CHANNELS=[
     {id:"stable",name:"Stable",color:"#5dcaa5",copy:"Primera edición 3D, conducción básica y máxima compatibilidad."},
     {id:"rc",name:"RC",color:"#56c8ff",copy:"Simulación terrestre, cabina, físicas y nueva interfaz."},
