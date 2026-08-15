@@ -1791,7 +1791,8 @@
       <div class="card"><b>Otros MoonJuegos</b><p class="muted">Gato Soda Rush, Leyenda Latina y los arcades conservan actualmente una versión publicada. Cuando tengan builds separadas aparecerán aquí sin cambiar sus enlaces.</p></div>`;
     box.querySelectorAll("[data-game-preview]").forEach(button=>button.onclick=()=>{
       const channel=button.dataset.gamePreview;
-      openLink(channel==="stable"?`${location.origin}/transport-stable.html?release=stable`:`${location.origin}/transport-3d.html?channel=${encodeURIComponent(channel)}`);
+      const url=channel==="stable"?`${location.origin}/transport-stable.html?release=stable`:`${location.origin}/transport-3d.html?channel=${encodeURIComponent(channel)}`;
+      openService({n:`Rutas del Continente · ${channel.toUpperCase()}`,d:"Vista master dentro de Telegram",ic:"gamepad",url});
     });
     const status=document.getElementById("gameReleaseStatus"),users=document.getElementById("gameReleaseUsers");
     const draw=rows=>{users.innerHTML=(rows||[]).map(row=>`<div class="userchip"><span class="uid"><b>${escHtml(row.display_name||"Usuario")}</b><small style="display:block;color:var(--muted)">${escHtml(row.telegram_id)}</small></span><span class="rbadge">${escHtml(row.enabled?String(row.release_channel||"stable").toUpperCase():"REVOCADO")}</span>${row.enabled?`<button class="minibtn red" data-release-revoke="${escAttr(row.telegram_id)}">Revocar</button>`:""}</div>`).join("")||'<p class="muted">No hay usuarios asignados.</p>';users.querySelectorAll("[data-release-revoke]").forEach(button=>button.onclick=async()=>save("revoke",{telegram_id:button.dataset.releaseRevoke}));};
@@ -2975,7 +2976,7 @@
     serviceFrame.hidden=true;instantNews.hidden=false;serviceLoading.hidden=false;serviceLoading.innerHTML=`<div>${svg(service.ic)}<p style="margin-top:10px">Preparando vista móvil…</p></div>`;const data=await apiGet(`/network/instant/${encodeURIComponent(service.instant)}${force?`?refresh=${Date.now()}`:""}`);serviceLoading.hidden=true;if(!data||!data.ok){instantNews.innerHTML=`<div class="iv-empty">No se pudieron cargar las publicaciones.<br><button class="btn" id="ivRetry">Reintentar</button></div>`;document.getElementById("ivRetry").onclick=()=>loadInstantChannel(service,true);return;}renderInstantChannel(data);
   }
   function openService(index){
-    const service=SERVICES[index];if(!service)return;activeService=service;
+    const service=typeof index==="object"&&index?index:SERVICES[index];if(!service)return;activeService=service;
     serviceTitle.textContent=service.n;serviceDescription.textContent=service.d;serviceLoading.hidden=false;
     serviceLoading.innerHTML=`<div>${svg(service.ic)}<p style="margin-top:10px">Cargando ${escHtml(service.n)}…</p><small>También puedes abrirlo externamente desde ↗</small></div>`;
     if(service.n==="Noticias Web3")loadInstantNews();else if(service.instant)loadInstantChannel(service);else{instantNews.hidden=true;serviceFrame.hidden=false;const embeddedUrl=new URL(service.url);embeddedUrl.searchParams.set("miniapp","1");Object.entries(service.params||{}).forEach(([key,value])=>embeddedUrl.searchParams.set(key,value));serviceFrame.src=embeddedUrl.toString();clearTimeout(serviceLoadTimer);serviceLoadTimer=setTimeout(()=>{serviceLoading.hidden=true;showToast("La carga está tardando; puedes recargar o abrir el sitio externamente.");},12000);}
