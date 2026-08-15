@@ -272,12 +272,16 @@
       <div class="hi">Hola <b id="uname">invitado</b> <span class="badge" id="roleBadge" hidden>master</span> <span class="badge-status-hub alfa" id="hubStatusBadge">ALFA</span></div>
       <div class="sub">ComunidadTelebots · <span class="hub-ver-label" style="color:var(--teal);font-weight:600;">v16.86.0-alpha</span></div>
     </div>
-    <button class="gear" id="btnAjustes" aria-label="Ajustes" data-ic="settings"></button>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="gear" id="btnToggleDesign" aria-label="Cambiar diseño" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;font-family:var(--body);" title="Alternar entre diseño Nuevo y Clásico">📐 Clásico</button>
+      <button class="gear" id="btnAjustes" aria-label="Ajustes" data-ic="settings"></button>
+    </div>
   </div>
 
   <main>
     <section class="view" data-view="canales" id="v-canales"></section>
     <section class="view" data-view="admin" id="v-admin" hidden></section>
+    <section class="view" data-view="noticias" id="v-noticias" hidden></section>
     <section class="view" data-view="directorio" id="v-directorio" hidden></section>
     <section class="view" data-view="red" id="v-red" hidden></section>
     <section class="view" data-view="master" id="v-master" hidden></section>
@@ -286,8 +290,9 @@
   </main>
 
   <nav class="tabbar">
-    <button class="tab active" data-tab="canales" data-ic="megaphone"><span>Mis canales</span></button>
-    <button class="tab" data-tab="admin" data-ic="shield"><span>Administrar</span></button>
+    <button class="tab active" data-tab="canales" data-ic="megaphone"><span>Canales</span></button>
+    <button class="tab" data-tab="admin" data-ic="shield"><span>Admin</span></button>
+    <button class="tab" data-tab="noticias" data-ic="newspaper"><span>Noticias</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
     <button class="tab" data-tab="master" id="tabMaster" style="display:none;" data-ic="crown"><span>Master</span></button>
@@ -1041,8 +1046,98 @@
     };
   }
 
+  // ── Vista: Noticias & Novedades Web3 / Tech ──
+  const NEWS_ITEMS = [
+    {
+      id: "news-1",
+      cat: "Web3 & Cripto",
+      title: "Descentralización y Soberanía: Redes Libres frente a Bloqueos",
+      desc: "Nuevos mecanismos de enrutamiento resiliente y proxies MTProto para mantener comunicaciones abiertas sin intermediarios.",
+      date: "Hoy",
+      url: "https://noticiasweb3.todosobreall.tech",
+      tag: "Destacado"
+    },
+    {
+      id: "news-2",
+      cat: "Censura & Proxies",
+      title: "Nuevas rutas MTProto desplegadas en el Ecosistema Telebots",
+      desc: "Los servidores de proxy comunitario han duplicado su ancho de banda para conexiones rápidas desde cualquier operadora.",
+      date: "Ayer",
+      url: "https://resistenciaalacensura.todosobreall.tech",
+      tag: "Red"
+    },
+    {
+      id: "news-3",
+      cat: "Tecnología & IA",
+      title: "IA Híbrida Local y Nube para Moderación Automatizada",
+      desc: "Integración de modelos Ollama con filtrado de spam y detección contextual en canales sin coste de API externa.",
+      date: "Hace 2 días",
+      url: "https://todosobreall.tech",
+      tag: "IA"
+    },
+    {
+      id: "news-4",
+      cat: "Comunidad Telebots",
+      title: "Lanzamiento del Hub Multibot con Minijuegos Adaptativos",
+      desc: "El panel estrena interfaz unificada para iOS y Android en modos Día/Noche y gestión de canales con un solo toque.",
+      date: "Hace 3 días",
+      url: "https://comunidadtelebots.todosobreall.tech",
+      tag: "Novedad"
+    }
+  ];
+
+  let currentNewsCat = "all";
+  function loadNoticias() {
+    const el = document.getElementById("v-noticias");
+    const cats = ["all", "Web3 & Cripto", "Censura & Proxies", "Tecnología & IA", "Comunidad Telebots"];
+    const filtered = currentNewsCat === "all" ? NEWS_ITEMS : NEWS_ITEMS.filter(n => n.cat === currentNewsCat);
+
+    el.innerHTML = `
+      <div class="vtitle">Noticias & Novedades</div>
+      <div class="vsub">Artículos de tecnología, Web3, resistencia a la censura y comunidad.</div>
+
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;" id="newsCatsBar">
+        ${cats.map(c => `<button class="btn ghost ${currentNewsCat===c?'teal':''}" style="width:auto;padding:6px 12px;font-size:12px;white-space:nowrap;" data-ncat="${c}">${c==='all'?'📰 Todas':c}</button>`).join("")}
+      </div>
+
+      <div class="news-feed">
+        ${filtered.map(n => `
+          <div class="card tappable" style="padding:16px;margin-bottom:12px;cursor:pointer;" data-nurl="${n.url}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span class="badge" style="background:rgba(34,211,238,0.12);color:var(--cyan);border-color:rgba(34,211,238,0.3);">${n.cat}</span>
+              <span class="muted" style="font-size:11.5px;">${n.date}</span>
+            </div>
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:6px;line-height:1.4;">${escHtml(n.title)}</h3>
+            <p class="muted" style="font-size:13px;line-height:1.5;margin-bottom:12px;">${escHtml(n.desc)}</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;color:var(--teal);font-weight:700;display:flex;align-items:center;gap:4px;">Leer completo ${svg('chevron')}</span>
+              <span class="badge">${n.tag}</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+
+      <button class="btn ghost" id="btnPortalNews" style="margin-top:10px;">${svg('ext')} Abrir portal de noticias completo</button>
+    `;
+
+    el.querySelectorAll("[data-ncat]").forEach(p => {
+      p.onclick = () => {
+        currentNewsCat = p.dataset.ncat;
+        loadNoticias();
+      };
+    });
+
+    el.querySelectorAll("[data-nurl]").forEach(card => {
+      card.onclick = () => {
+        openLink(card.dataset.nurl);
+      };
+    });
+
+    document.getElementById("btnPortalNews").onclick = () => openLink("https://noticiasweb3.todosobreall.tech");
+  }
+
   // ── Navegación ──
-  const LOADERS={canales:loadCanales,admin:loadAdmin,directorio:loadDirectorio,red:loadRed,master:loadMaster,ajustes:loadAjustes};
+  const LOADERS={canales:loadCanales,admin:loadAdmin,noticias:loadNoticias,directorio:loadDirectorio,red:loadRed,master:loadMaster,ajustes:loadAjustes};
   function showView(name){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
@@ -1054,6 +1149,8 @@
     if(!newBound){
       document.querySelectorAll("#app .tab").forEach(t=>t.onclick=()=>showView(t.dataset.tab));
       document.getElementById("btnAjustes").onclick=()=>showView("ajustes");
+      const btnTog = document.getElementById("btnToggleDesign");
+      if(btnTog) btnTog.onclick=()=>setTheme("clasico");
       newBound=true;
     }
     showView("canales");
