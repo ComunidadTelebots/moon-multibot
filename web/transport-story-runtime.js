@@ -57,12 +57,12 @@ export function createStoryRuntime({ storage = globalThis.localStorage ?? null, 
       return emit("story:choice_made", { originId: state.origin, sceneId, choiceId, label: choice.label, effects: choice.effects || {}, next: choice.next || null });
     },
     updateIntro(sceneId) {
-      if (!state.origin) throw new Error("Elige primero una campaÃ±a");
+      if (!state.origin) throw new Error("Elige primero una campaña");
       state.intro = { sceneId:String(sceneId || ""), completed:false, skipped:false }; state.updatedAt = Date.now();
       return emit("story:intro_scene", { originId:state.origin, sceneId:state.intro.sceneId });
     },
     completeIntro({ skipped = false } = {}) {
-      if (!state.origin) throw new Error("Elige primero una campaÃ±a");
+      if (!state.origin) throw new Error("Elige primero una campaña");
       state.intro = { ...state.intro, completed:true, skipped:Boolean(skipped) }; state.updatedAt = Date.now();
       return emit(skipped ? "story:intro_skipped" : "story:intro_completed", { originId:state.origin, sceneId:state.intro.sceneId });
     },

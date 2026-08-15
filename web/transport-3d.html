@@ -253,6 +253,7 @@
       import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js?v=20260815-profile-ui2";
       import { createReleaseChannelSystem } from "./transport-release-channel.js?v=20260815-release1";
       import { applyReleaseProfile, stableEditionUrl } from "./transport-release-profile.js?v=20260815-release2";
+      import { createConvoyPanel } from "./transport-convoy-panel.js?v=20260815-alfa1";
       window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
       const canvaTheme = applyCanvaTransportTheme();
       const hudMotion = createHudMotion({ hud:document.querySelector(".hud"), controls:document.querySelector(".controls:not(.drive)"), cockpit:document.querySelector("#cockpitPanel") });
@@ -1345,7 +1346,17 @@
       document.querySelector("#academyClose").onclick = () => academyPanel.hidden = true;
       document.querySelector("#engineButton").onclick = async () => { engineRunning=!engineRunning; await engineAudio.setRunning(engineRunning); document.querySelector("#engineButton").textContent=engineRunning?"Apagar motor":"Arrancar motor"; document.querySelector("#engineButton").classList.toggle("on",engineRunning); eventLog.record("operations",engineRunning?"engine:started":"engine:stopped",{vehicle:kind}); if(!engineRunning){cruiseEnabled=false;document.querySelector("#cruise").classList.remove("on")} };
       window.TransportAchievements.onUnlock(items => { const toast=document.querySelector("#achievementToast"); toast.textContent=`${items[0].icon} Logro: ${items[0].name}`; toast.classList.add("show"); setTimeout(()=>toast.classList.remove("show"),3200); renderAchievements(); });
-      document.querySelector("#convoyButton").onclick = () => window.MoonConvoy.join(prompt("Código del convoy (vacío para crear)") || "");
+      const convoyPanel = createConvoyPanel({ convoy: window.MoonConvoy, eventLog });
+      document.querySelector("#convoyButton").onclick = () => convoyPanel.open();
+      convoyPanel.radioSystem.onMessage(msg => {
+        if (msg.type === "message") {
+          const assist = document.querySelector("#assistState");
+          if (assist) {
+            assist.textContent = `📻 [CH ${msg.channel}] ${msg.text.slice(0, 32)}`;
+            assist.style.color = "#55ead9";
+          }
+        }
+      });
       window.MoonConvoy.onChange(state => {
         document.querySelector("#convoyState").textContent = state.joined ? `${state.room} · ${state.players.length} jugadores · ${state.ai.length} IA · ${state.mode === "online" ? `${state.ping} ms` : "LAN"}` : "Desconectado";
         if(releaseChannel.includes("alpha")){
