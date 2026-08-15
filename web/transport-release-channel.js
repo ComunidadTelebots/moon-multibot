@@ -3,7 +3,15 @@ export const RELEASE_STORAGE_KEY="moon.transport.release-channel.v1";
 export function normalizeReleaseChannel(value){const id=String(value||"").toLowerCase();return RELEASE_CHANNELS[id]?id:"stable"}
 export function resolveReleaseChannel({query="",storage=globalThis.localStorage}={}){const requested=new URLSearchParams(query).get("channel");if(requested&&RELEASE_CHANNELS[String(requested).toLowerCase()])return normalizeReleaseChannel(requested);try{return normalizeReleaseChannel(storage?.getItem(RELEASE_STORAGE_KEY))}catch{return"stable"}}
 export function channelIncludes(active,required="stable"){return RELEASE_CHANNELS[normalizeReleaseChannel(active)].rank>=RELEASE_CHANNELS[normalizeReleaseChannel(required)].rank}
-export function telegramInitData(){try{return window.Telegram?.WebApp?.initData||parent.Telegram?.WebApp?.initData||""}catch{return""}}
+export function telegramInitData(){
+ const frames=[];let current=globalThis;
+ for(let depth=0;depth<6&&current;depth++){
+  frames.push(current);
+  try{if(current===current.parent)break;current=current.parent}catch{break}
+ }
+ for(const frame of frames){try{const value=frame.Telegram?.WebApp?.initData;if(value)return value}catch{/* iframe de otro origen */}}
+ try{return new URLSearchParams(location.search).get("tgWebAppData")||""}catch{return""}
+}
 
 export function createReleaseChannelSystem({initData=telegramInitData(),fetchImpl=globalThis.fetch?.bind(globalThis),onChange=()=>{}}={}){
  let channel="stable",isMaster=false,verified=false,assignments=[];document.body.dataset.releaseChannel=channel;
