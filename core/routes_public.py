@@ -171,6 +171,87 @@ def admin_all_channels():
     return jsonify({"ok": True, "channels": _channel_stats.get_all_channels()})
 
 
+# ─────────────────────── Master Suite Endpoints ──────────────────────
+@bp.route("/api/public/master/stats", methods=["POST", "OPTIONS"])
+def master_stats_ep():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    
+    import psutil, os
+    mem = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=0.1) if psutil.cpu_percent() == 0 else psutil.cpu_percent()
+    ram_used = round(mem.used / (1024**3), 2)
+    ram_total = round(mem.total / (1024**3), 2)
+    
+    active_bots_list = _get_active_bots() if _get_active_bots else []
+    bots_info = [{"name": getattr(b, "bot_username", "bot"), "token_mask": f"{b.token[:4]}...{b.token[-4:]}" if getattr(b, "token", None) else "—"} for b in active_bots_list]
+    
+    settings = _db.get("GLOBAL_SETTINGS", {}) if _db else {}
+    bans = _db.get("GLOBAL_BANS", {"users": []}) if _db else {"users": []}
+    
+    plugins = []
+    if os.path.exists("plugins"):
+        for f in os.listdir("plugins"):
+            if f.endswith(".py"): plugins.append({"name": f.replace(".py", ""), "status": "enabled"})
+            elif f.endswith(".disabled"): plugins.append({"name": f.replace(".disabled", ""), "status": "disabled"})
+            
+    return jsonify({
+        "ok": True,
+        "cpu": cpu,
+        "ram": mem.percent,
+        "ram_used": ram_used,
+        "ram_total": ram_total,
+        "bots": bots_info,
+        "settings": settings,
+        "bans_count": len(bans.get("users", [])),
+        "plugins": plugins,
+        "total_channels": len(_channel_stats.get_all_channels()) if _channel_stats else 0,
+    })
+
+
+@bp.route("/api/public/master/setting", methods=["POST", "OPTIONS"])
+def master_set_setting():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    key, val = body.get("key"), body.get("value")
+    if not key or _db is None: return jsonify({"ok": False, "error": "datos inválidos"}), 400
+    st = _db.get("GLOBAL_SETTINGS", {})
+    st[key] = val
+    _db.set("GLOBAL_SETTINGS", st)
+    return jsonify({"ok": True, "key": key, "value": val})
+
+
+@bp.route("/api/public/master/broadcast", methods=["POST", "OPTIONS"])
+def master_broadcast():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    text = (body.get("text") or "").strip()
+    if not text: return jsonify({"ok": False, "error": "mensaje vacío"}), 400
+    
+    all_ch = _channel_stats.get_all_channels() if _channel_stats else []
+    sent = 0
+    bot = _hub_bot()
+    if bot:
+        for ch in all_ch:
+            cid = ch.get("chat_id")
+            if cid:
+                try:
+                    bot.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown"})
+                    sent += 1
+                except Exception:
+                    pass
+    return jsonify({"ok": True, "sent": sent, "total": len(all_ch)})
+
+
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
 def admin_set_listed():
     """Publicar/ocultar un canal en el directorio público. Master o dueño del chat."""
