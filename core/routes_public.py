@@ -247,19 +247,28 @@ def public_games_analytics():
     with _game_stats_lock:
         if action == "summary":
             if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
-            events = list(_game_stats["events"]); by_game = {}
+            events = list(_game_stats["events"]); by_game = {}; by_player = {}
             for row in events:
-                item = by_game.setdefault(row["game"], {"game": row["game"], "sessions": 0, "plays": 0, "players": set(), "last_at": 0})
+                item = by_game.setdefault(row["game"], {"game": row["game"], "sessions": 0, "plays": 0, "wins": 0, "losses": 0, "missions": 0, "score": 0, "progress": 0, "duration": 0, "players": set(), "last_at": 0})
                 item["sessions"] += row["event"] == "open"; item["plays"] += row["event"] == "play"
+                item["wins"] += row.get("result") == "win"; item["losses"] += row.get("result") == "loss"
+                item["missions"] += row["event"] == "mission"; item["score"] = max(item["score"], row.get("score", 0)); item["progress"] = max(item["progress"], row.get("progress", 0)); item["duration"] += row.get("duration", 0)
                 item["players"].add(row["user_id"]); item["last_at"] = max(item["last_at"], row["at"])
+                player = by_player.setdefault(row["user_id"], {"user_id": row["user_id"], "name": (_game_stats["players"].get(row["user_id"]) or {}).get("name", "Jugador"), "plays": 0, "wins": 0, "missions": 0, "score": 0, "progress": 0, "last_at": 0})
+                player["plays"] += row["event"] == "play"; player["wins"] += row.get("result") == "win"; player["missions"] += row["event"] == "mission"; player["score"] = max(player["score"], row.get("score", 0)); player["progress"] = max(player["progress"], row.get("progress", 0)); player["last_at"] = max(player["last_at"], row["at"])
             games = [{**item, "players": len(item["players"])} for item in by_game.values()]
             games.sort(key=lambda row: (-row["plays"], -row["sessions"], row["game"]))
             active_day = {row["user_id"] for row in events if now-row["at"] <= 86400}
-            return jsonify({"ok": True, "totals": {"players": len(_game_stats["players"]), "active_24h": len(active_day), "sessions": sum(row["event"] == "open" for row in events), "plays": sum(row["event"] == "play" for row in events)}, "games": games, "generated_at": round(now)})
+            players = sorted(by_player.values(), key=lambda row: (-row["wins"], -row["missions"], -row["score"]))[:100]
+            return jsonify({"ok": True, "totals": {"players": len(_game_stats["players"]), "active_24h": len(active_day), "sessions": sum(row["event"] == "open" for row in events), "plays": sum(row["event"] == "play" for row in events), "wins": sum(row.get("result") == "win" for row in events), "missions": sum(row["event"] == "mission" for row in events), "duration": round(sum(row.get("duration", 0) for row in events))}, "games": games, "players": players, "generated_at": round(now)})
         game = re.sub(r"[^a-z0-9_-]", "", str(body.get("game") or "unknown").lower())[:48] or "unknown"
-        event = str(body.get("event") or "open").lower(); event = event if event in {"open", "play", "finish"} else "open"
+        event = str(body.get("event") or "open").lower(); event = event if event in {"open", "play", "finish", "mission", "progress"} else "open"
+        result = str(body.get("result") or "").lower(); result = result if result in {"win", "loss", "draw", "abandoned"} else ""
+        def bounded_number(name, maximum):
+            try: return max(0, min(maximum, float(body.get(name) or 0)))
+            except (TypeError, ValueError): return 0
         _game_stats["players"][uid] = {"name": str(user.get("first_name") or "Jugador")[:80], "seen": now}
-        _game_stats["events"].append({"user_id": uid, "game": game, "event": event, "at": now})
+        _game_stats["events"].append({"user_id": uid, "game": game, "event": event, "result": result, "score": bounded_number("score", 100000000), "progress": bounded_number("progress", 100), "duration": bounded_number("duration", 86400), "mission": str(body.get("mission") or "")[:120], "at": now})
         _game_stats["events"] = _game_stats["events"][-25000:]
         _save_game_stats()
     return jsonify({"ok": True})
