@@ -1,8 +1,48 @@
 # Changelog - Moon Multibot
 
-## v18.25.14 - 2026-08-15 - Canales de publicación del simulador
+## v18.25.14 - 2026-08-15 - Evolución completa de Rutas del Continente
 
-### Cambios verificados
+### Interfaz y experiencia de usuario
+
+- Sustituye la interfaz heredada por el sistema visual de Canva: cabecera operativa, cuadro de conducción, centro principal y dock de Vehículo, Ruta, Trabajo y Servicios.
+- Elimina superposiciones antiguas que duplicaban telemetría, botones y estados sobre la escena.
+- Añade pantalla de carga de TodoSobreAllTech Studios con fases DOM, módulos, render y mundo, diagnóstico de error y reintento.
+- Incorpora ajustes de gráficos, audio, accesibilidad, contraste, movimiento y escala de interfaz.
+- Añade selector accesible de nueve cámaras, nombres adaptados a cada familia de vehículos y teclas directas 1–9.
+- Añade pantalla completa y resoluciones internas seleccionables.
+- Corrige errores de sintaxis del HUD, fallos de arranque y la conexión entre el panel regional y los controles.
+
+### Camiones, cabinas y materiales
+
+- Añade una malla estática de alta definición para Aster Viento y una cabina estática formada por componentes identificables.
+- Carga un modelo de camión diferente en Ultra, evitando que todos los perfiles conservaran la misma geometría.
+- Sustituye mapas procedurales del camión de calidad alta por materiales horneados basados en las referencias de Canva.
+- Separa pintura, metal, cristal, goma, llantas, luces, paneles y remolque en materiales y coordenadas UV independientes.
+- Corrige la aplicación accidental de atlas completos sobre remolque, puertas, ruedas y componentes incompatibles.
+- Añade materiales interiores y exteriores propios para autobuses y vehículos de emergencia.
+- Incorpora estados visuales para limpieza, suciedad, lluvia, nieve, movimiento, frenado e iluminación.
+- Mejora exterior, cabina digital, remolque frigorífico, ruedas, animaciones y composición de cámara del camión.
+
+### Mundo, ciudades, carrera y operaciones
+
+- Añade una malla poligonal de mundo transmitida por sectores y amplía los materiales de carretera, terreno, acera, piedra, edificios, vegetación, instalaciones y clima.
+- Incorpora ciudades vivas con negocios y actividad programada según horario.
+- Mejora carreteras, señales con destinos, estabilidad del remolque y cámara de persecución para evitar que la caja oculte la tractora.
+- Amplía campañas, prólogos, decisiones e introducciones cinematográficas persistentes.
+- Añade trabajos para camión, autobús, ambulancia, bomberos, grúa, avión de carga y portacontenedores.
+- Incorpora flota empresarial persistente, compra de vehículos, asignación de conductores, mantenimiento, mejoras, desgaste e ingresos.
+- Añade cadena logística con manifiesto, custodia, carretera, ferrocarril, aire, mar, transferencias y prueba de entrega.
+- Integra estaciones de pesaje, inspecciones, sanciones y misiones asociadas.
+
+### Gráficos, rendimiento y dispositivos
+
+- Expone dentro del juego los perfiles Legacy, Bajo, Equilibrado, Alto y Ultra.
+- Detecta capacidad del dispositivo, memoria, núcleos, pantalla y densidad de píxeles para elegir un perfil inicial seguro.
+- Añade resolución adaptativa guiada por FPS, persistencia del perfil y límites para Android, iOS, PC y dispositivos antiguos.
+- Separa el ritmo de simulación del render para evitar que una caída de fotogramas altere la velocidad del mundo.
+- Ajusta la escala Ultra y conserva alternativas ligeras para geometría, sombras y materiales.
+
+### Canales de publicación y Telegram
 
 - Añade los canales Estable, RC, Beta y Alfa para distribuir progresivamente las funciones de Rutas del Continente.
 - Vincula el canal efectivo al ID del usuario de Telegram validado mediante `Telegram.WebApp.initData`; un jugador normal no puede elevar su propio acceso.
@@ -12,9 +52,10 @@
 - Clasifica la simulación terrestre moderna como RC; empresa, carga, trabajos y rutas OSM como Beta; y convoyes, campañas, eventos regionales, aviación, navegación y logística mundial como Alfa.
 - Separa Estable en un recurso propio y aplica controles de disponibilidad a las interfaces modernas según la madurez del canal.
 
-### Verificación local
+### Verificación
 
-- Sintaxis Python, JavaScript y módulos HTML validada; pruebas de asignación, normalización, jerarquía y perfiles de publicación superadas.
+- Sintaxis de Python, JavaScript y scripts de módulo HTML validada.
+- Pruebas de asignación, canales, perfiles, mallas, materiales, cámaras, físicas, flota, trabajos, misiones, pesaje y telemetría superadas durante sus respectivos commits.
 
 ## v18.25.13 - 2026-08-14 - Interfaz Canva, aduanas y continuidad
 
