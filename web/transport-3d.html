@@ -278,6 +278,7 @@
       R.setSize(innerWidth, innerHeight);
       R.shadowMap.enabled = shadows;
       R.shadowMap.type = T.PCFSoftShadowMap;
+      R.shadowMap.autoUpdate = false;
       R.outputColorSpace = T.SRGBColorSpace;
       R.toneMapping = T.ACESFilmicToneMapping;
       R.toneMappingExposure = qualityLevel >= 2 ? 1.15 : 1;
@@ -600,6 +601,7 @@
           tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
         }
       let V, specialTransport, detailedTruckExterior = null, asterStaticModel = null, asterStaticCabin = null, vehicleAnimationRig = null,
+        vehicleWheels = [], vehicleBrakeLamps = [], vehicleTurnLamps = [], vehicleExteriorSkins = [], vehicleModeledCabins = [], lastInteriorCamera = null,
         kind = "truck",
         view = 0,
         cameraReady = false,
@@ -961,6 +963,8 @@
           }
         });
         V = g;
+        vehicleWheels=[];vehicleBrakeLamps=[];vehicleTurnLamps=[];vehicleExteriorSkins=[];vehicleModeledCabins=[];lastInteriorCamera=null;
+        V.traverse(object=>{if(object.userData.isWheel)vehicleWheels.push(object);if(object.material?.userData?.vehicleLamp==="brake")vehicleBrakeLamps.push(object);if(object.userData.turnSide)vehicleTurnLamps.push(object);if(object.userData.exteriorCabSkin)vehicleExteriorSkins.push(object);if(object.userData.isModeledCabin)vehicleModeledCabins.push(object)});
         vehicleSurfaceStates.ready.then(()=>vehicleSurfaceStates.setVehicle(V)).catch(error=>console.warn("No se cargaron los estados estaticos del vehiculo",error));
         vehicleAnimationRig = createVehicleAnimationRig(V);
         V.position.set(0, 0, 60);
@@ -1535,10 +1539,8 @@
         document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
         if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
         const indicatorPulse = Math.sin(now * .009) > 0;
-        V.traverse(object => {
-          if (object.material?.userData?.vehicleLamp === "brake") object.material.emissiveIntensity = braking ? 4.8 : 1.15;
-          if (object.userData.turnSide) object.visible = Boolean(hazardsOn || Math.abs(steer) > .22 && Math.sign(steer) === object.userData.turnSide) && indicatorPulse;
-        });
+        for(const object of vehicleBrakeLamps)object.material.emissiveIntensity=braking?4.8:1.15;
+        for(const object of vehicleTurnLamps)object.visible=Boolean(hazardsOn||Math.abs(steer)>.22&&Math.sign(steer)===object.userData.turnSide)&&indicatorPulse;
         detailedTruckExterior?.userData.updateExterior?.({time:now,wipersOn:manualWipers||isWetWeather()||currentWeather()==="snow",headlightsOn});
         if (!mapPanel.hidden) drawRouteMap();
         if (!europeMapPanel.hidden && now >= europeMapDrawAt) { europeMapDrawAt = now + 180; europeMap.setVehicleProgress(physicalDistance / 1000); }
@@ -1578,13 +1580,12 @@
         syncCockpitControls();
         vehicleAnimationRig?.update({dt,time:now,steering:steer,speed,suspension:physicalFrame?.suspension||0,parking:parkingBrake,siren:sirenOn});
         vehicleSurfaceStates.update({speed,weather:currentWeather(),surface:Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?"gravel":"asphalt",distanceKm:physicalDistance/1000});
-        V.traverse((part) => {
-          if (!part.userData.isWheel) return;
+        for(const part of vehicleWheels){
           const rollingParts = part.userData.rollingParts;
           if (rollingParts) rollingParts.rotation.x -= speed * dt * 0.045;
           else part.rotation.x -= speed * dt * 0.045;
           if (part.userData.frontWheel) part.rotation.y += (steer * 0.32 - part.rotation.y) * Math.min(1, dt * 9);
-        });
+        }
         if (onFoot) {
           const walking = accelerating || braking || left || right;
           worker.position.y = walking ? Math.abs(Math.sin(now * 0.012)) * 0.08 : 0;
@@ -1593,10 +1594,11 @@
         }
         camera(dt, now);
         const interiorCamera=!onFoot&&(view===1||view===2);
-        V.traverse(object=>{if(object.userData?.exteriorCabSkin)object.visible=!interiorCamera;if(object.userData?.isModeledCabin)object.visible=interiorCamera;});
+        if(interiorCamera!==lastInteriorCamera){for(const object of vehicleExteriorSkins)object.visible=!interiorCamera;for(const object of vehicleModeledCabins)object.visible=interiorCamera;lastInteriorCamera=interiorCamera}
         emergencyFleet.update(V, now, sirenOn);
         enhancements.update({ time: now, speed, steering: steer, weather: currentWeather(), dayPhase: currentWeather() === "night" ? 0.78 : 0.34, wipers: isWetWeather() || currentWeather() === "snow" || manualWipers, cameraPosition: C.position });
         V?.userData.updateMirrors?.(R, S, now, view === 1 || view === 2);
+        if(shadows&&now>=shadowRefreshAt){shadowRefreshAt=now+1000/Math.max(1,detectedGraphics.shadowHz);R.shadowMap.needsUpdate=true}
         R.render(S, C);
         requestAnimationFrame(loop);
       }
@@ -1746,9 +1748,12 @@
         applyWeatherVisuals();
       };
       document.querySelector(".controls").appendChild(weatherButton);
-      let lastTrafficFrame = performance.now();
+      let lastTrafficFrame = performance.now(), lastWorldUpdate = lastTrafficFrame, shadowRefreshAt = 0;
       function worldLoop(now = performance.now()) {
-        const trafficDt = Math.min(.05, Math.max(.001, (now - lastTrafficFrame) / 1000)); lastTrafficFrame = now; adaptiveResolution.sample(trafficDt);
+        const renderDt=Math.min(.05,Math.max(.001,(now-lastTrafficFrame)/1000));lastTrafficFrame=now;adaptiveResolution.sample(renderDt);
+        const worldInterval=1000/Math.max(1,detectedGraphics.worldHz);
+        if(now-lastWorldUpdate<worldInterval){requestAnimationFrame(worldLoop);return}
+        const trafficDt=Math.min(.1,Math.max(.001,(now-lastWorldUpdate)/1000));lastWorldUpdate=now;
         if (V) {
           ambientLife.update({ vehicle: V, camera: C, biome: document.querySelector("#city")?.textContent === "Valleverde" ? "alpine" : "rural", time: now, dt: trafficDt });
           const cityName=document.querySelector("#city")?.textContent||"";

@@ -1,10 +1,10 @@
 const STORAGE_KEY = "moon_transport_graphics_profile_v1";
 export const GRAPHICS_PROFILES = Object.freeze({
-  legacy:{label:"LEGACY",quality:"low",level:0,minScale:.48,maxScale:.72,targetFps:30,shadows:false,vehicleMesh:"Ligera",detail:"Malla ligera · sin sombras"},
-  low:{label:"BAJO",quality:"low",level:0,minScale:.58,maxScale:.9,targetFps:30,shadows:false,vehicleMesh:"Ligera",detail:"Malla ligera · resolución reducida"},
-  balanced:{label:"EQUILIBRADO",quality:"medium",level:1,minScale:.7,maxScale:1.15,targetFps:45,shadows:true,vehicleMesh:"Estándar",detail:"Malla estándar · sombras 1K"},
-  high:{label:"ALTO",quality:"high",level:2,minScale:.85,maxScale:1.6,targetFps:55,shadows:true,vehicleMesh:"HIGH · 2.040 tri",detail:"Malla HIGH · materiales PBR · sombras 2K"},
-  ultra:{label:"ULTRA",quality:"ultra",level:3,minScale:1,maxScale:2.2,targetFps:60,shadows:true,vehicleMesh:"ULTRA · 8.160 tri",detail:"Malla ULTRA exclusiva · PBR · sombras 4K"},
+  legacy:{label:"LEGACY",quality:"low",level:0,minScale:.48,maxScale:.72,targetFps:30,worldHz:10,shadowHz:0,shadows:false,vehicleMesh:"Ligera",detail:"Malla ligera · sin sombras"},
+  low:{label:"BAJO",quality:"low",level:0,minScale:.58,maxScale:.9,targetFps:30,worldHz:15,shadowHz:0,shadows:false,vehicleMesh:"Ligera",detail:"Malla ligera · resolución reducida"},
+  balanced:{label:"EQUILIBRADO",quality:"medium",level:1,minScale:.7,maxScale:1.15,targetFps:45,worldHz:20,shadowHz:8,shadows:true,vehicleMesh:"Estándar",detail:"Malla estándar · sombras 1K"},
+  high:{label:"ALTO",quality:"high",level:2,minScale:.85,maxScale:1.6,targetFps:55,worldHz:24,shadowHz:12,shadows:true,vehicleMesh:"HIGH · 2.040 tri",detail:"Malla HIGH · materiales PBR · sombras 2K"},
+  ultra:{label:"ULTRA",quality:"ultra",level:3,minScale:1,maxScale:2.2,targetFps:60,worldHz:30,shadowHz:15,shadows:true,vehicleMesh:"ULTRA · 8.160 tri",detail:"Malla ULTRA exclusiva · PBR · sombras 4K"},
 });
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export function detectGraphicsProfile(environment={}){const nav=environment.navigator||{},screen=environment.screen||{},memory=Number(nav.deviceMemory)||4,cores=Number(nav.hardwareConcurrency)||4,pixels=(Number(screen.width)||1280)*(Number(screen.height)||720),mobile=/Android|iPhone|iPad|iPod/i.test(String(nav.userAgent||""));if(memory<=2||cores<=2||(mobile&&memory<=3))return"legacy";if(memory<=4||cores<=4||pixels>6e6)return"low";if(memory>=12&&cores>=10&&!mobile)return"ultra";if(memory>=8&&cores>=8)return"high";return"balanced"}
