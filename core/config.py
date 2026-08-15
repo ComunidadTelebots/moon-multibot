@@ -1,10 +1,10 @@
-﻿import os
+import os
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-APP_VERSION = "v16.81.0"
+APP_VERSION = "v16.85.0-alpha"
 BOT_STORE_PATH = "data/bots.json"
 
 # --- Web / Auth ---

@@ -1,4 +1,30 @@
-﻿# Changelog - Moon Multibot
+# Changelog - Moon Multibot
+
+## [v16.85.0-alpha] - 2026-08-16
+### Feature - Ecosistema Alfa 3D Heavy Transport & Arcade Adaptativo iOS/Android
+- **Motor 3D Real en Three.js (`web/transport-3d.html`)**:
+  - Camión pesado europeo Aster Viento Scania 770 S V8 con cabina de perfil alto, bocinas cromadas, visera, faldones aerodinámicos y semirremolque Tridem corrugado *Euro Freight*.
+  - Cinemática de dirección real con manguetas delanteras pivotantes (`A`/`D`), giro de ruedas sincronizado y cámara de persecución orbital 360° libre.
+  - Cabina de 1ª persona (*Cockpit*) con volante giratorio texturizado, retrovisores laterales, cuadro digital VDO y pantalla táctil GPS.
+  - Texturado completo de entorno: asfalto con señalización vial, suelo forestal y manto vegetal bajo los árboles, estratos de acantilados y tráfico rodado con sedanes, furgones de reparto (*Express 24h*, *SAMUR 112*) y SUVs con llantas de aleación.
+  - Conexión de los 23 módulos de transporte del repositorio (Terminal Canva de 12 secciones, Tacógrafo Digital Inteligente UE 561/2006, Emisora Radio CB CH-19/9/1/11, Pórticos de Báscula Dinámica WIM en autopista y Campaña Caja 07-A).
+- **Arcade Adaptativo Multi-Plataforma (`web/games.html`)**:
+  - Adaptación nativa de 4 sistemas de diseño: **iOS Modo Día (Cupertino)**, **iOS Modo Noche (OLED Dark)**, **Android Modo Día (Material 3 Light)** y **Android Modo Noche (Material Dark)**.
+  - Barra selectora rápida para alternar plataforma y tema, con auto-detección según el dispositivo y `tg.colorScheme`.
+  - Minijuegos táctiles: Cyber Snake con D-Pad virtual y gestos swipe, 2048 Cyber, Tres en Raya con IA y Memoria Cuántica.
+
+## [v16.84.1] - 2026-07-24
+### Feature - Ecosistema de Canales, Mini App Hub y Backend PocketBase
+- **Telegram Mini App Hub (`web/hub.html`)**:
+  - Panel móvil optimizado para Telegram WebApp con autenticación criptográfica de `initData` frente a `@CintiaBot`.
+  - Pestañas de gestión: *Mis canales vinculados*, *Directorio comunitario*, *Administración de grupos* y monitor de proxies en tiempo real.
+- **Backend PocketBase & Estadísticas (`core/pb_client.py`, `core/channel_stats.py`)**:
+  - Registro automatizado de canales, verificación de roles de administrador y sincronización de snapshots de audiencia.
+- **Red de Anuncios Mutuos & Dispatcher (`moon_multibot.py`, `core/routes_public.py`)**:
+  - Motor de intercambio y difusión cruzada de anuncios entre canales comunitarios.
+  - Generador dinámico de imágenes promocionales con estadísticas (`core/image_gen.py`).
+- **Pasarela Pública de Acceso a Canales (`web/join.html`)**:
+  - Landing de redirección con validación anti-abuso para unión a canales y grupos comunitarios.
 
 ## [v16.84.0] - 2026-07-11
 ### Feature - Proxies MTProto en CintiaBot (pedir, recomendar, administrar)
@@ -6,12 +32,19 @@
 - **`/recomendar <enlace>`**: cualquier usuario recomienda un proxy MTProto; el bot lo valida (TCP-check), lo deja pendiente (`db["PENDING_PROXIES"]`) y avisa al **master** con botones ✅/❌. Al aprobar, se publica automáticamente en la web vía `POST /mtproto-proxies/community` de la API (autenticado por token compartido).
 - **`/pendientes`**: cola de proxies recomendados por revisar, con botones de aprobar/rechazar en cada uno.
 - **`/estado`** y **`/historico`**: usuarios activos por país y conexiones por hora/día de los proxies, consultados a la API.
-- Los datos de proxies vienen de la API `mtproto-proxies` (geoip-lite, `country`/`ll`, `connStats`).
+- **Los datos de proxies** vienen de la API `mtproto-proxies` (geoip-lite, `country`/`ll`, `connStats`).
 
 ### Fix - Separación de permisos (admin de grupo ≠ dueño del bot)
 - El rango `Admin` de `get_user_rank` proviene de `getChatAdministrators` (admin del **grupo** de Telegram), no del dueño del bot. Se han pasado a **solo Master** las acciones globales/sensibles que estaban expuestas a cualquier admin de grupo: `/gban` y `/ungban` (ban/indulto global), `/ia_programar` e `/ia_feed` (entrenan/alimentan la IA compartida) y los comandos de datos de proxies (`/estado`, `/historico`, `/pendientes`) más la aprobación de proxies.
 - La moderación **del propio grupo** (`/ban`, `/unban`, `/mute`, `/unmute`, `/warn`, `/resumen`) se mantiene para admins de grupo.
 - Verificado: `/listen`, `/backup_db` y `/resync` ya eran solo Master.
+
+## [v16.83.1] - 2026-06-06
+### Feature - Galería Visual de Versiones & Detección Multilingüe
+- **Historial visual en Landing (`web/landing.html`)**: Maquetas interactivas y capturas de evolución de interfaz incorporadas en la landing page.
+- **Detección de idioma multilingüe (`core/text_utils.py`)**: Clasificación automática de la lengua del interlocutor para adaptar respuestas de IA.
+- **Pipeline de saneamiento con `ftfy`**: Integración de librería especializada para reparar cualquier desalineación de codificación UTF-8.
+- **Panel de Historial Diario (`web/history.html`)**: Visor cronológico de mensajes y scripts de parsing de copias de seguridad (`scripts/parse_backups.py`).
 
 ## [v16.83.0] - 2026-05-24
 ### Feature - Landing page pública y panel en `/panel`
