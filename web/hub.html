@@ -861,23 +861,41 @@
         <p class="muted">Cargando plugins del sistema…</p>
       </div>
 
-      <!-- 5. Herramientas Rápidas del Ecosistema -->
-      <div class="sec">Herramientas del Ecosistema</div>
-      <div class="listitem" id="mItemTruck" style="margin-bottom:8px;"><span class="li-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
-        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Simulador 3D Aster Viento</b><span class="badge-status-hub alfa">ALFA</span></div><span>Heavy Freight 3D, tacógrafo UE y cabina cockpit</span></div>
-        <span class="chev">${svg('chevron')}</span></div>
-      <div class="listitem" id="mItemArcade" style="margin-bottom:8px;"><span class="li-ic">${svg('gamepad')}</span>
-        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Arcade Adaptativo</b><span class="badge-status-hub estable">ESTABLE</span></div><span>Minijuegos táctiles HTML5 (Snake, 2048, Tres en Raya, Memoria)</span></div>
-        <span class="chev">${svg('chevron')}</span></div>
+      <!-- 5. Bots & Red Multi-Bot -->
+      <div class="sec">Bots Conectados (Multi-Bot)</div>
+      <div class="card" style="padding:14px;margin-bottom:12px;" id="mBotsContainer">
+        <p class="muted">Cargando bots activos…</p>
+      </div>
+
+      <!-- 6. Proxies MTProto & Infraestructura -->
+      <div class="sec">Infraestructura & Proxies MTProto</div>
+      <div class="card" style="padding:14px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div><b>Túnel MTProto Anti-Bloqueo</b><span class="muted" style="display:block;font-size:12px;">Servicio de bypass de censura</span></div>
+          <span class="badge-status-hub estable">ONLINE</span>
+        </div>
+        <button class="btn ghost" id="mBtnTestProxy" style="width:100%;margin-top:6px;">Obtener Proxy MTProto Maestro</button>
+        <div id="mProxyOut" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- 7. Consola de Auditoría en Vivo -->
+      <div class="sec">Auditoría & Logs del Sistema</div>
       <div class="listitem" id="mItemLogs" style="margin-bottom:8px;"><span class="li-ic">${svg('shield')}</span>
-        <div class="li-t"><b>Consola de Seguridad y Auditoría en Vivo</b><span>Registro de eventos, accesos y errores</span></div>
+        <div class="li-t"><b>Consola de Seguridad y Auditoría en Vivo</b><span>Registro de eventos, accesos y errores del núcleo</span></div>
         <span class="chev">${svg('chevron')}</span></div>
       <div id="mLogsBox" style="display:none;margin-top:10px;" class="casbox"></div>
     `;
 
     document.getElementById("mBtnOpenPanel").onclick = () => openLink("https://cintiabot.todosobreall.tech/panel");
-    document.getElementById("mItemTruck").onclick = () => openLink("/alfa");
-    document.getElementById("mItemArcade").onclick = () => openLink("/juegos");
+    document.getElementById("mBtnTestProxy").onclick = function(){
+      const out = document.getElementById("mProxyOut");
+      out.innerHTML = `<p class="muted">Buscando proxy…</p>`;
+      apiGet("/proxy").then(d => {
+        if(!d||!d.ok||!d.proxies||!d.proxies.length){ out.innerHTML = `<p class="muted">No hay proxies disponibles.</p>`; return; }
+        out.innerHTML = d.proxies.slice(0,2).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
+        out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ ev("proxy_connect"); openTg(el.dataset.l); });
+      });
+    };
 
     document.getElementById("mBtnBackfill").onclick = async () => {
       showToast("Sincronizando canales...");
@@ -894,6 +912,19 @@
         document.getElementById("mStatChannels").textContent = fmt(d.total_channels || 0);
         document.getElementById("mStatBans").textContent = fmt(d.bans_count || 0);
         
+        // Render bots
+        const bc = document.getElementById("mBotsContainer");
+        if(bc && d.bots && d.bots.length){
+          bc.innerHTML = d.bots.map(b => `
+            <div class="proxy-item" style="margin-bottom:6px;">
+              <div class="pd"><b>@${escHtml(b.name)}</b><br><small style="color:var(--muted)">Token: ${b.token_mask}</small></div>
+              <span class="badge-status-hub estable">ACTIVO</span>
+            </div>
+          `).join("");
+        } else if(bc) {
+          bc.innerHTML = `<div class="proxy-item"><div class="pd"><b>@CintiaBot</b><br><small style="color:var(--muted)">Bot Principal</small></div><span class="badge-status-hub estable">ACTIVO</span></div>`;
+        }
+
         // Render plugins
         const pc = document.getElementById("mPluginsContainer");
         if(pc && d.plugins && d.plugins.length){
