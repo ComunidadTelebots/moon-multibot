@@ -862,6 +862,17 @@ def api_admin_queue():
 
 
 
+
+@app.route("/api/admin/feds", methods=["GET"])
+@require_auth
+def api_admin_feds():
+    from moon_multibot import db
+    try:
+        feds = db.get("GLOBAL_FEDS", {})
+        return jsonify({"ok": True, "feds": feds})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
 @app.route("/api/admin/economy", methods=["GET"])
 @require_auth
 def api_admin_economy():

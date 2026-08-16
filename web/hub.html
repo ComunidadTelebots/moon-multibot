@@ -1538,6 +1538,35 @@
         </div>
       </div>
 
+
+      <!-- SECCIÓN 14: Federaciones -->
+      <div class="master-section" id="msec-feds" ${curMasterTab!=='feds'?'hidden':''}>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <div>
+            <div class="sec">Red de Federaciones Globales 🌐</div>
+            <div class="vsub">Administra las coaliciones de baneos compartidos entre grupos.</div>
+          </div>
+          <button onclick="loadFedsTab()" class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;">${svg('refresh')} Actualizar</button>
+        </div>
+        
+        <div class="card" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+                <th style="padding:12px;">ID Fed</th>
+                <th style="padding:12px;">Nombre</th>
+                <th style="padding:12px;">Creador</th>
+                <th style="padding:12px;">Baneados</th>
+                <th style="padding:12px;">Chats Suscritos</th>
+              </tr>
+            </thead>
+            <tbody id="fedsListBody">
+              <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);">Cargando federaciones...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- SECCIÓN 12: Roadmap -->
       <!-- SECCIÓN 9: Plugins & Módulos -->
       <div class="master-section" id="msec-plugins" ${curMasterTab!=='plugins'?'hidden':''}>
@@ -1625,6 +1654,11 @@
       { id: "blacklist", name: "Filtro de Palabras (Blacklist)", cat: "Moderación", st: "rc", desc: "Eliminación instantánea de mensajes que contengan términos prohibidos.", act: null, actLabel: "En Desarrollo" },
       { id: "afk", name: "Sistema AFK (Ausente)", cat: "Social", st: "estable", desc: "Permite a los usuarios marcarse como ausentes y avisa automáticamente a quien los mencione.", act: null, actLabel: "En Desarrollo" },
       { id: "economy", name: "Sistema Económico (MoonCoins)", cat: "Comunidad & Engagement", st: "estable", desc: "Ver saldos globales e inventarios del sistema lúdico de MoonCoins.", act: () => { curMasterTab="economy"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="economy")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-economy"); loadEconomyTab(); }, actLabel: "Ver Economía" },
+      { id: "fedsui", name: "Gestor de Federaciones", cat: "Seguridad", st: "alfa", desc: "Interfaz centralizada para administrar redes de baneos compartidos.", act: () => { curMasterTab="feds"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="feds")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-feds"); loadFedsTab(); }, actLabel: "Ver Federaciones" },
+      { id: "feds", name: "Sistema de Federaciones Globales", cat: "Moderación", st: "alfa", desc: "Comparte listas de baneos entre múltiples grupos para evitar raids coordinados.", act: null, actLabel: "En Desarrollo" },
+      { id: "purge", name: "Limpieza Masiva (Purge & Nuke)", cat: "Herramientas Avanzadas", st: "rc", desc: "Comando para eliminar cientos de mensajes en 1 segundo.", act: null, actLabel: "En Desarrollo" },
+      { id: "whitelist", name: "Aprobaciones (Whitelist)", cat: "Gestión de Usuarios", st: "beta", desc: "Lista blanca para saltar Captchas y Anti-Flood.", act: null, actLabel: "En Desarrollo" },
+      { id: "rules", name: "Sistema de Reglas", cat: "Comunidad", st: "estable", desc: "Definición interactiva de normas del grupo.", act: null, actLabel: "En Desarrollo" },
       { id: "tdlib_sync", name: "Sincronizador MTProto TDLib", cat: "Infraestructura & Datos", st: "beta", desc: "Importación de historial de mensajes antiguos desde los servidores de Telegram hacia SQLite.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver TDLib" },
       { id: "voice_transcribe", name: "Transcripción de Voz (Speech-to-Text)", cat: "Inteligencia Artificial", st: "beta", desc: "Conversión automática de notas de voz a texto legible para los grupos.", act: () => showView("canales"), actLabel: "Configurar" }
     ];
@@ -2133,6 +2167,35 @@
     `).join("");
   };
 
+
+
+  // --- Vista: Federaciones ---
+  window.loadFedsTab = async function() {
+    const tbody = document.getElementById("fedsListBody");
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);"><div class="loader" style="margin:auto;"></div></td></tr>`;
+    
+    const d = await gp("/admin/feds");
+    if(!d || !d.ok || !d.feds) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--red);">Error al cargar las federaciones.</td></tr>`;
+      return;
+    }
+    
+    if(Object.keys(d.feds).length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:40px; text-align:center; color:var(--muted); font-size:14px;">📭 No hay Federaciones creadas.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = Object.entries(d.feds).map(([fed_id, fed]) => `
+      <tr style="border-bottom:1px solid var(--line); transition:background .2s;">
+        <td style="padding:12px; font-family:var(--mono); color:var(--primary); font-weight:600;">${fed_id}</td>
+        <td style="padding:12px; font-weight:600;">${fed.name}</td>
+        <td style="padding:12px; color:var(--muted); font-size:12px;">${fed.creator}</td>
+        <td style="padding:12px; color:var(--red); font-weight:600;">${fed.banned_users.length}</td>
+        <td style="padding:12px; color:var(--cyan); font-weight:600;">${fed.chats.length}</td>
+      </tr>
+    `).join("");
+  };
 
   // --- Vista: Economía ---
   window.loadEconomyTab = async function() {
