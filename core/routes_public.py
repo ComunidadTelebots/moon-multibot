@@ -63,7 +63,7 @@ _AUTH_DATE_SKEW = 300
 
 def _hub_bot():
     """La ÚNICA instancia de bot que sirve la Mini App del hub (por username).
-    Devuelve None si no está activa → fail-closed (se deniega la validación)."""
+    Devuelve None si no está activa -> fail-closed (se deniega la validación)."""
     if not _get_active_bots:
         return None
     want = (_hub_bot_username or "").lower()
