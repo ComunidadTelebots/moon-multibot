@@ -454,7 +454,8 @@ def _group_auth(body):
 _SETTING_KEYS = {
     "auto_mod", "welcome", "ia_learning", "security_shield",
     "captcha_enabled", "captcha_type", "captcha_timeout", "captcha_action",
-    "anti_link", "anti_flood", "anti_forward", "anti_stickers", "night_mode", "warn_limit"
+    "anti_link", "anti_flood", "anti_forward", "anti_stickers", "anti_caps",
+    "voice_transcribe", "sentiment_analysis", "night_mode", "warn_limit"
 }
 
 
