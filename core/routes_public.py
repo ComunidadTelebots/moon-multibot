@@ -1039,3 +1039,58 @@ def public_proxy():
     if not candidates:
         return jsonify({"ok": False, "error": "sin proxies activos configurados"}), 404
     return jsonify({"ok": True, "count": len(candidates), "proxies": candidates})
+
+
+# ─────────────────────────────── Social & Karma ─────────────────────────────────
+
+@bp.route("/api/public/social/leaderboard")
+def public_social_leaderboard():
+    """Devuelve el ranking social de usuarios más activos y con mayor Karma."""
+    results = []
+    if _db:
+        keys = _db.keys("USER_") if hasattr(_db, "keys") else []
+        for k in keys:
+            data = _db.get(k, {})
+            if isinstance(data, dict) and (data.get("karma") or data.get("level") or data.get("exp")):
+                uid = k.replace("USER_", "")
+                results.append({
+                    "user_id": uid,
+                    "karma": data.get("karma", 0),
+                    "level": data.get("level", 1),
+                    "exp": data.get("exp", 0),
+                    "titles": data.get("titles", []),
+                })
+    results.sort(key=lambda x: (x["karma"], x["level"], x["exp"]), reverse=True)
+    if not results:
+        # Datos iniciales ilustrativos si la base de datos es fresca
+        results = [
+            {"user_id": "MasterAdmin", "karma": 1540, "level": 15, "exp": 85, "titles": ["Founder", "VIP", "Legend"]},
+            {"user_id": "CintiaBot", "karma": 1200, "level": 12, "exp": 50, "titles": ["Core AI", "Guardian"]},
+            {"user_id": "TelebotHero", "karma": 780, "level": 8, "exp": 30, "titles": ["VIP"]},
+        ]
+    return jsonify({"ok": True, "leaderboard": results[:25]})
+
+
+# ─────────────────────────────── Seguridad Criptográfica ─────────────────────────
+
+@bp.route("/api/public/security/crypto_tool", methods=["POST", "OPTIONS"])
+def public_crypto_tool():
+    """Generador de hashes SHA-256 / MD5, contraseñas seguras y tokens criptográficos."""
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    text = str(body.get("text", ""))
+    action = body.get("action", "hash")
+    if action == "generate_password":
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+"
+        pwd = "".join(secrets.choice(chars) for _ in range(int(body.get("length", 16))))
+        return jsonify({"ok": True, "password": pwd})
+    if action == "generate_cipher_key":
+        from cryptography.fernet import Fernet
+        key = Fernet.generate_key().decode()
+        return jsonify({"ok": True, "cipher_key": key})
+    # Hash SHA-256 / MD5
+    sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    md5 = hashlib.md5(text.encode("utf-8")).hexdigest()
+    return jsonify({"ok": True, "sha256": sha256, "md5": md5, "length": len(text)})
+

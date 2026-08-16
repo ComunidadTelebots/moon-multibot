@@ -936,6 +936,18 @@
       <div class="listitem" id="arcadeItem" style="margin-bottom:8px;"><span class="li-ic">${svg('gamepad')}</span>
         <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Arcade & Minijuegos</b><span class="badge-status-hub estable">ESTABLE</span></div><span>Snake, 2048, Tres en Raya y Memoria</span></div>
         <span class="chev">${svg('chevron')}</span></div>
+      <div class="listitem" id="leaderboardItem" style="margin-bottom:8px;"><span class="li-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></span>
+        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Tabla de Líderes & Karma</b><span class="badge-status-hub estable">ESTABLE</span></div><span>Ranking de miembros más activos y títulos VIP</span></div>
+        <span class="chev">${svg('chevron')}</span></div>
+      <div id="leaderboardOut" style="display:none;margin-bottom:8px;"></div>
+      <div class="listitem" id="qrToolItem" style="margin-bottom:8px;"><span class="li-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Generador QR & Enlaces</b><span class="badge-status-hub estable">ESTABLE</span></div><span>Crea códigos QR instantáneos para tus canales o enlaces</span></div>
+        <span class="chev">${svg('chevron')}</span></div>
+      <div id="qrToolOut" style="display:none;margin-bottom:8px;" class="card" style="padding:14px;">
+        <input type="text" id="qrInputText" placeholder="https://t.me/TuCanal o texto…" style="width:100%;margin-bottom:8px;font-size:13px;">
+        <button class="btn cta" id="qrBtnGenerate" style="width:100%;">Generar Código QR</button>
+        <div id="qrImgContainer" style="text-align:center;margin-top:10px;display:none;"></div>
+      </div>
       <div class="listitem" id="proxyItem"><span class="li-ic">${svg('globe')}</span>
         <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Obtener proxy MTProto</b><span class="badge-status-hub beta">BETA</span></div><span>Salta bloqueos de Telegram</span></div>
         <span class="chev">${svg('chevron')}</span></div>
@@ -943,7 +955,50 @@
     el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>{ev("service_open",{service:SERVICES[x.dataset.i].n});openLink(SERVICES[x.dataset.i].url);});
     document.getElementById("truckItem").onclick=()=>openLink("/alfa");
     document.getElementById("arcadeItem").onclick=()=>openLink("/juegos");
+    document.getElementById("leaderboardItem").onclick=toggleLeaderboard;
+    document.getElementById("qrToolItem").onclick=toggleQrTool;
     document.getElementById("proxyItem").onclick=fetchProxy;
+  }
+  async function toggleLeaderboard(){
+    const out = document.getElementById("leaderboardOut");
+    if(out.style.display === "block"){ out.style.display = "none"; return; }
+    out.style.display = "block";
+    out.innerHTML = `<div class="card" style="padding:14px;"><span class="k">Cargando tabla de líderes…</span></div>`;
+    const res = await apiGet("/social/leaderboard");
+    if(res && res.ok && res.leaderboard){
+      const medals = ["🥇", "🥈", "🥉"];
+      out.innerHTML = `<div class="card" style="padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <b>🏆 Top Miembros & Karma</b>
+          <span class="badge-status-hub estable">EN VIVO</span>
+        </div>
+        ${res.leaderboard.map((u, i) => `
+          <div class="userchip" style="margin-bottom:6px;">
+            <div>
+              <b>${medals[i] || `#${i+1}`} ${escHtml(u.user_id)}</b>
+              <span style="font-size:11px;color:var(--muted);display:block;">Nivel ${u.level} · EXP ${u.exp}/100 ${(u.titles||[]).map(t=>`· <span style="color:var(--cyan)">${t}</span>`).join(" ")}</span>
+            </div>
+            <span class="badge-status-hub ${i<3?'rc':'estable'}" style="font-size:11px;">⭐ ${fmt(u.karma)}</span>
+          </div>
+        `).join("")}
+      </div>`;
+    } else {
+      out.innerHTML = `<div class="card" style="padding:14px;"><p class="muted">No se pudo cargar el ranking.</p></div>`;
+    }
+  }
+  function toggleQrTool(){
+    const out = document.getElementById("qrToolOut");
+    out.style.display = out.style.display === "block" ? "none" : "block";
+    if(out.style.display === "block"){
+      document.getElementById("qrBtnGenerate").onclick = () => {
+        const val = document.getElementById("qrInputText").value.trim();
+        if(!val){ showToast("Escribe un enlace o texto"); return; }
+        const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(val)}`;
+        const imgCont = document.getElementById("qrImgContainer");
+        imgCont.style.display = "block";
+        imgCont.innerHTML = `<img src="${url}" style="width:160px;height:160px;border-radius:12px;border:2px solid var(--line);background:#fff;padding:6px;"><br><a href="${url}" target="_blank" class="minibtn" style="display:inline-block;margin-top:8px;">Descargar QR 💾</a>`;
+      };
+    }
   }
   function fetchProxy(){
     const out=document.getElementById("proxyOut");
@@ -1264,13 +1319,25 @@
         </div>
 
         <div class="sec">Gestor de Baneos Globales (Blacklist)</div>
-        <div class="card" style="padding:14px;">
+        <div class="card" style="padding:14px;margin-bottom:12px;">
           <p class="muted" style="margin-bottom:8px;">Bloquea usuarios de todos los canales y bots de la red.</p>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
             <input type="text" id="mBanUid" placeholder="Telegram User ID..." style="flex:1;font-family:var(--mono);font-size:12px;">
             <button class="btn cta" id="mBtnBanUser" style="width:auto;padding:0 14px;background:var(--red);color:#fff;">Banear</button>
           </div>
           <div id="mBansListContainer" style="margin-top:6px;"></div>
+        </div>
+
+        <div class="sec">🔐 Caja de Herramientas Criptográficas & Hashes</div>
+        <div class="card" style="padding:14px;">
+          <p class="muted" style="margin-bottom:8px;">Genera contraseñas de alta seguridad, claves Fernet de cifrado o calcula firmas SHA-256 / MD5.</p>
+          <input type="text" id="mCryptoInput" placeholder="Texto o clave a procesar…" style="width:100%;margin-bottom:8px;font-size:13px;">
+          <div class="btnrow" style="gap:6px;margin-bottom:10px;">
+            <button class="btn ghost" id="mBtnCryptoHash" style="flex:1;font-size:11px;">Calcular SHA256 / MD5</button>
+            <button class="btn ghost" id="mBtnCryptoPass" style="flex:1;font-size:11px;">Password 16c</button>
+            <button class="btn ghost" id="mBtnCryptoFernet" style="flex:1;font-size:11px;">Clave Fernet</button>
+          </div>
+          <div id="mCryptoOut" style="display:none;" class="casbox"></div>
         </div>
       </div>
 
@@ -1374,7 +1441,10 @@
       { id: "welcome", name: "Welcome Pack de Grupo", cat: "Comunidad", st: "estable", desc: "Saludo configurable con variables dinámicas {name}, {chat}, {id}.", act: () => showView("canales"), actLabel: "Configurar" },
       { id: "broadcast", name: "Difusión Masiva (Broadcast)", cat: "Comunicación", st: "estable", desc: "Envío multidifusión en Markdown a todos los canales y grupos vinculados.", act: () => { curMasterTab="difusion"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="difusion")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-difusion"); }, actLabel: "Difundir" },
       { id: "logs", name: "Auditoría & Logs del Sistema", cat: "Monitoreo", st: "estable", desc: "Registro en vivo filtrable por nivel (Todos, Errores, Seguridad).", act: () => { curMasterTab="logs"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="logs")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-logs"); loadLiveLogs(); }, actLabel: "Ver Logs" },
-      { id: "directory", name: "Directorio Público de Canales", cat: "Difusión", st: "estable", desc: "Lista pública de comunidades clasificadas por número de miembros.", act: () => showView("directorio"), actLabel: "Ver Directorio" }
+      { id: "directory", name: "Directorio Público de Canales", cat: "Difusión", st: "estable", desc: "Lista pública de comunidades clasificadas por número de miembros.", act: () => showView("directorio"), actLabel: "Ver Directorio" },
+      { id: "leaderboard", name: "Tabla de Líderes & Karma Social", cat: "Comunidad & Gamificación", st: "estable", desc: "Ranking en vivo de miembros más activos, medallas de podio y títulos de rango.", act: () => { showView("red"); setTimeout(toggleLeaderboard, 300); }, actLabel: "Ver Ranking" },
+      { id: "crypto_tools", name: "Caja Criptográfica & Hashes", cat: "Seguridad & Utilidades", st: "rc", desc: "Generador de contraseñas de alta seguridad, claves Fernet y cálculo de firmas SHA-256 / MD5.", act: () => { curMasterTab="seguridad"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="seguridad")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-seguridad"); }, actLabel: "Abrir Herramientas" },
+      { id: "qr_tools", name: "Generador QR & Enlaces Seguros", cat: "Utilidades Web", st: "estable", desc: "Generador dinámico de códigos QR descargables y visualizador de enlaces de canales.", act: () => { showView("red"); setTimeout(toggleQrTool, 300); }, actLabel: "Generar QR" }
     ];
 
     let curRoadmapFilter = "all";
@@ -1703,6 +1773,39 @@
     // Semilla IA
     document.getElementById("mBtnSeedIa").onclick = () => {
       showToast("Inyectando semilla de conocimiento neural...");
+    };
+
+    // Utilidades Criptográficas
+    document.getElementById("mBtnCryptoHash").onclick = async () => {
+      const txt = document.getElementById("mCryptoInput").value;
+      if(!txt){ showToast("Escribe un texto o clave"); return; }
+      const res = await gp("/security/crypto_tool", { text: txt, action: "hash" });
+      const box = document.getElementById("mCryptoOut");
+      box.style.display = "block";
+      if(res && res.ok){
+        box.innerHTML = `<div><span class="k">SHA-256:</span> <code style="color:var(--cyan);word-break:break-all;">${res.sha256}</code></div>
+          <div style="margin-top:4px;"><span class="k">MD5:</span> <code style="color:var(--teal);">${res.md5}</code></div>`;
+      }
+    };
+    document.getElementById("mBtnCryptoPass").onclick = async () => {
+      const res = await gp("/security/crypto_tool", { action: "generate_password", length: 16 });
+      const box = document.getElementById("mCryptoOut");
+      box.style.display = "block";
+      if(res && res.ok){
+        document.getElementById("mCryptoInput").value = res.password;
+        box.innerHTML = `<div><span class="k">Contraseña Segura (16c):</span> <code style="color:var(--teal);font-weight:bold;">${res.password}</code></div>`;
+        showToast("Contraseña generada y copiada al campo");
+      }
+    };
+    document.getElementById("mBtnCryptoFernet").onclick = async () => {
+      const res = await gp("/security/crypto_tool", { action: "generate_cipher_key" });
+      const box = document.getElementById("mCryptoOut");
+      box.style.display = "block";
+      if(res && res.ok){
+        document.getElementById("mCryptoInput").value = res.cipher_key;
+        box.innerHTML = `<div><span class="k">Clave Fernet CIPHER_KEY:</span> <code style="color:var(--amber);word-break:break-all;">${res.cipher_key}</code></div>`;
+        showToast("Clave Fernet generada");
+      }
     };
 
     // Switches
