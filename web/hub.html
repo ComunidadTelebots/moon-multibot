@@ -50,7 +50,7 @@
   .gear:active{color:var(--ink);}
 
   /* ── Vistas ── */
-  main{padding:18px 16px calc(var(--tabh) + env(safe-area-inset-bottom) + 24px);width:100%;max-width:1400px;margin:0 auto;}
+  main{padding:18px 16px calc(var(--tabh) + env(safe-area-inset-bottom) + 24px);max-width:640px;margin:0 auto;}
   .view[hidden]{display:none;}
   .vtitle{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:-.02em;margin-bottom:3px;}
   .vsub{font-size:13px;color:var(--muted);margin-bottom:18px;}
@@ -295,7 +295,8 @@
   .backnew{margin-top:18px;}
 
   /* 💻 RESPONSIVE DESKTOP OVERHAUL */
-  @media (min-width: 850px) {
+  body.layout-desktop {
+  /* RESPONSIVE ACTIVADO MANUALMENTE */
     /* Layout principal */
     #app {
       display: flex;
@@ -391,6 +392,7 @@
       <div class="sub">ComunidadTelebots · <span class="hub-ver-label" style="color:var(--teal);font-weight:600;">v16.86.0-alpha</span></div>
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
+      <button class="gear" id="btnToggleDesktop" aria-label="Modo PC" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;font-family:var(--body);color:var(--cyan);">🖥️ PC</button>
       <button class="gear" id="btnToggleDesign" aria-label="Cambiar diseño" style="width:auto;padding:0 10px;font-size:11.5px;font-weight:700;font-family:var(--body);" title="Alternar entre diseño Nuevo y Clásico">📐 Clásico</button>
       <button class="gear" id="btnAjustes" aria-label="Ajustes" data-ic="settings"></button>
     </div>
@@ -2537,6 +2539,29 @@
     if(!newBound){
       document.querySelectorAll("#app .tab").forEach(t=>t.onclick=()=>showView(t.dataset.tab));
       document.getElementById("btnAjustes").onclick=()=>showView("ajustes");
+      
+      const btnDesk = document.getElementById("btnToggleDesktop");
+      if(btnDesk) {
+         // Load state
+         if(localStorage.getItem("layout_desktop") === "true") {
+            document.body.classList.add("layout-desktop");
+            btnDesk.style.background = "var(--teal)";
+            btnDesk.style.color = "#fff";
+         }
+         btnDesk.onclick = () => {
+            document.body.classList.toggle("layout-desktop");
+            const isActive = document.body.classList.contains("layout-desktop");
+            localStorage.setItem("layout_desktop", isActive);
+            if(isActive) {
+               btnDesk.style.background = "var(--teal)";
+               btnDesk.style.color = "#fff";
+            } else {
+               btnDesk.style.background = "";
+               btnDesk.style.color = "var(--cyan)";
+            }
+         };
+      }
+
       const btnTog = document.getElementById("btnToggleDesign");
       if(btnTog) btnTog.onclick=()=>setTheme("clasico");
       newBound=true;
