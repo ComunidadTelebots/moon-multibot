@@ -794,6 +794,73 @@ def web_system_processes():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
+
+@app.route("/api/admin/send_message", methods=["POST"])
+@require_auth
+def api_admin_send_message():
+    try:
+        data = request.json
+        if not data or "chat_id" not in data or "text" not in data:
+            return jsonify({"ok": False, "error": "Parámetros incompletos"}), 400
+            
+        chat_id = data["chat_id"]
+        text = data["text"]
+        parse_mode = data.get("parse_mode", "Markdown")
+        
+        # Enviar con el bot asignado a ese chat o con el primero
+        target_bot = get_bot_for_chat(chat_id) or active_bots[0]
+        
+        res = target_bot.send_msg(chat_id, text, parse_mode=parse_mode)
+        if res and res.get("ok"):
+            # Registrar explícitamente en el historial (se hace automático en send_msg, pero para forzar en web si no lo hace)
+            add_web_log("SUCCESS", f"Mensaje enviado desde Panel al chat {chat_id}")
+            return jsonify({"ok": True, "result": res.get("result")})
+        else:
+            err = res.get("description") if res else "Error desconocido"
+            return jsonify({"ok": False, "error": err}), 400
+            
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/admin/terminal", methods=["POST"])
+@require_auth
+def api_admin_terminal():
+    try:
+        data = request.json
+        if not data or "method" not in data:
+            return jsonify({"ok": False, "error": "Falta método"}), 400
+            
+        bot_idx = int(data.get("bot_idx", 0))
+        method = data["method"]
+        params = data.get("params", {})
+        
+        if bot_idx < 0 or bot_idx >= len(active_bots):
+            target_bot = active_bots[0]
+        else:
+            target_bot = active_bots[bot_idx]
+            
+        res = target_bot.api_call(method, params)
+        return jsonify(res)
+        
+    except Exception as e:
+        return jsonify({"ok": False, "description": str(e)}), 500
+
+@app.route("/api/admin/queue", methods=["GET"])
+@require_auth
+def api_admin_queue():
+    try:
+        # Extraemos la cola actual de la instancia global de TaskQueue
+        items = task_queue.get_all_tasks() if "task_queue" in globals() else []
+        
+        # Si no existe, simulamos
+        if not items:
+            return jsonify({"ok": True, "queue": []})
+            
+        return jsonify({"ok": True, "queue": items})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/system/kill", methods=['POST'])
 def web_system_kill():
     if not check_jwt(request): return jsonify({"ok": False}), 401
