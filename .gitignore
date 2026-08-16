@@ -52,3 +52,5 @@ ollama_data/
 # Backups temporales
 *.bak
 *.bak*
+
+scratch/

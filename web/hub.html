@@ -289,7 +289,7 @@
   .master-section[hidden]{display:none;}
 
   /* ── Tema clásico ── */
-  #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:1400px;margin:0 auto;}
+  #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:640px;margin:0 auto;}
   #app-classic .c-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--card);margin-bottom:12px;}
   #app-classic h2{font-family:var(--display);font-weight:600;font-size:16px;margin-bottom:4px;}
   .backnew{margin-top:18px;}
@@ -297,7 +297,7 @@
   /* 💻 RESPONSIVE DESKTOP OVERHAUL */
   @media (min-width: 850px) {
     /* Layout principal */
-    #app, #app-classic {
+    #app {
       display: flex;
       flex-direction: row;
       max-width: 100% !important;
@@ -2556,8 +2556,8 @@
     document.getElementById("c-services").innerHTML=SERVICES.map((s,i)=>`<div class="svc" data-i="${i}"><span class="si">${svg(s.ic)}</span>${s.n}</div>`).join("");
     if(classicBound)return; classicBound=true;
     document.getElementById("c-services").querySelectorAll(".svc").forEach(x=>x.onclick=()=>openLink(SERVICES[x.dataset.i].url));
-    document.getElementById("c-btnCanales").onclick=()=>openLink("https://canales.todosobreall.tech");
-    document.getElementById("c-btnMaster").onclick=()=>openLink("https://cintiabot.todosobreall.tech/panel");
+    document.getElementById("c-btnCanales").onclick=()=>{setTheme("nuevo"); setTimeout(()=>showView("canales"),100);};
+    document.getElementById("c-btnMaster").onclick=()=>{setTheme("nuevo"); setTimeout(()=>{curMasterTab="roadmap"; showView("master");},100);};
     document.getElementById("c-backNew").onclick=()=>setTheme("nuevo");
     document.getElementById("c-btnProxy").onclick=function(){
       const out=document.getElementById("c-proxyOut");out.innerHTML=`<p class="muted">Buscando…</p>`;
