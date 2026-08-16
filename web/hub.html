@@ -540,6 +540,7 @@
             <option value="ban" ${cfg.captcha_action==='ban'?'selected':''}>Banear Permanentemente (Ban)</option>
           </select>
         </div>
+        <button class="btn ghost" id="gBtnTestCaptchaWeb" style="width:100%;margin-top:10px;font-size:12.5px;">👁️ Probar Interfaz Web del Captcha (join.html)</button>
       </div>
 
       <div class="gsec">👋 Mensaje de Bienvenida del Grupo</div>
@@ -643,6 +644,9 @@
         };
       }
     });
+
+    const btnTestCap = document.getElementById("gBtnTestCaptchaWeb");
+    if(btnTestCap) btnTestCap.onclick = () => openLink("/join.html?demo=1&chat=" + (curChat||""));
 
     const SET=[
       ["auto_mod","Auto-moderación","Filtra spam y contenido malicioso"],
@@ -1063,6 +1067,7 @@
               </select>
             </div>
           </div>
+          <button class="btn ghost" id="mBtnPreviewJoinWeb" style="width:100%;margin-bottom:10px;font-size:12.5px;">👁️ Probar Interfaz Web del Captcha (join.html)</button>
           <button class="btn cta" id="mBtnSaveGlobalConfig" style="width:100%;">Guardar Configuraciones Globales</button>
         </div>
       </div>
@@ -1326,6 +1331,9 @@
       await gp("/master/setting", { key: "default_ia_learning", value: defIa });
       showToast("Configuraciones globales guardadas");
     };
+
+    const btnPrevJoin = document.getElementById("mBtnPreviewJoinWeb");
+    if(btnPrevJoin) btnPrevJoin.onclick = () => openLink("/join.html?demo=1");
 
     // Broadcast
     document.getElementById("mBtnBroadcast").onclick = async () => {

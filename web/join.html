@@ -89,10 +89,12 @@
     if(timerId){clearInterval(timerId);timerId=null;}
     app.innerHTML=`<div class="state"><div class="ic ${kind==='ok'?'ok':'bad'}">${kind==='ok'?svg('check'):'✕'}</div><h2>${title}</h2><p>${text}</p></div>`;
   }
+  let curChallenge = null;
   function renderChallenge(c){
+    curChallenge = c;
     selected=new Set();
     app.innerHTML=`
-      <div class="head"><div class="title">Verificación</div><div class="sub">Confirma que no eres un bot para entrar al grupo.</div></div>
+      <div class="head"><div class="title">Verificación ${c.demo?'<span style="font-size:12px;color:var(--teal);border:1px solid var(--teal);padding:2px 8px;border-radius:10px;vertical-align:middle;">DEMO</span>':''}</div><div class="sub">Confirma que no eres un bot para entrar al grupo.</div></div>
       <div class="toprow"><div class="target">${svg(c.target)}</div><div class="timer" id="timer">2:00</div></div>
       <div class="sub" style="text-align:center;margin-bottom:14px">Toca los <b style="color:var(--ink)">3</b> iconos iguales al de arriba.</div>
       <div class="grid" id="grid">${c.grid.map((n,i)=>`<div class="cell" data-i="${i}">${svg(n)}</div>`).join("")}</div>
@@ -111,6 +113,21 @@
   async function submit(){
     const go=document.getElementById("go"); if(go.disabled)return;
     go.disabled=true; go.classList.remove("active"); go.textContent="Comprobando…";
+    if(curChallenge && curChallenge.demo){
+      setTimeout(()=>{
+        const selArr=[...selected].sort((a,b)=>a-b);
+        const corArr=(curChallenge.correct||[]).sort((a,b)=>a-b);
+        if(selArr.join(",")===corArr.join(",")){
+          stateScreen('ok','¡Verificado en Modo Prueba!','Has completado con éxito la verificación del Captcha Web.');
+        } else {
+          go.disabled=false; go.classList.add("active"); go.textContent="Verificar";
+          const m=document.getElementById("msg"); if(m){m.className="msg err";m.textContent="Incorrecto en modo prueba. ¡Toca los 3 iconos indicados!";}
+          const grid=document.getElementById("grid"); if(grid)grid.classList.add("shake");
+          setTimeout(()=>grid&&grid.classList.remove("shake"),400);
+        }
+      },400);
+      return;
+    }
     const {data}=await post("/join/verify",{initData:tg&&tg.initData,chat,selected:[...selected]});
     if(data&&data.approved){if(window.gtag)gtag("event","captcha_passed");stateScreen('ok','¡Verificado!','Ya puedes entrar al grupo. Puedes cerrar esta ventana.');if(tg&&tg.close)setTimeout(()=>tg.close(),2200);return;}
     if(data&&data.declined){if(window.gtag)gtag("event","captcha_failed",{reason:"attempts"});stateScreen('bad','Verificación fallida','Has agotado los intentos. Vuelve a solicitar unirte más tarde.');return;}
@@ -121,7 +138,16 @@
     setTimeout(()=>loadChallenge(`Incorrecto. Te queda${left===1?'':'n'} ${left} intento${left===1?'':'s'}.`),850);
   }
   async function loadChallenge(errMsg){
-    if(!tg||!tg.initData){stateScreen('bad','Abre desde Telegram','Esta verificación solo funciona desde el botón del grupo en Telegram.');return;}
+    const urlParams = new URLSearchParams(location.search);
+    if(urlParams.get("demo")==="1" || !tg || !tg.initData){
+      const icons = ["star", "heart", "bolt", "moon", "cloud", "leaf"];
+      const target = icons[Math.floor(Math.random()*icons.length)];
+      const others = icons.filter(i=>i!==target);
+      const correct = [0, 4, 8].sort(()=>Math.random()-.5).slice(0,3).sort((a,b)=>a-b);
+      const grid = Array.from({length:9}, (_,i)=>correct.includes(i)?target:others[Math.floor(Math.random()*others.length)]);
+      renderChallenge({target, grid, demo: true, correct});
+      return;
+    }
     if(!errMsg)app.innerHTML=`<div class="head"><div class="title">Verificación</div><div class="sub">Cargando…</div></div>`;
     const {status,data}=await post("/join/challenge",{initData:tg.initData,chat});
     if(status===410){stateScreen('bad','Sin solicitud pendiente','No encontramos una solicitud de entrada tuya. Solicita unirte al grupo primero.');return;}
