@@ -453,6 +453,7 @@
 
   // ── Panel de grupo (gestión: mensajes, programados, baneados, avisos, ajustes) ──
   let curChat=null;
+  let groupOriginView="canales";
   function showToast(msg){
     let t=document.getElementById("toast");
     if(!t){t=document.createElement("div");t.id="toast";t.className="toast";document.body.appendChild(t);}
@@ -464,14 +465,15 @@
   function fromUTC(s){ if(!s)return""; const d=new Date(String(s).replace(" ","T")+"Z"); return isNaN(d)?s:d.toLocaleString(); }
   const gp=(p,b)=>apiPost(p,Object.assign({initData:tg&&tg.initData,chat_id:curChat},b));
 
-  function openGroup(chat_id,name){
+  function openGroup(chat_id,name,fromView){
     curChat=chat_id;
+    if(fromView) groupOriginView=fromView;
     if(window.gtag)gtag("event","page_view",{page_path:"/hub/grupo"});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!=="grupo");
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.remove("active"));
     const el=document.getElementById("v-grupo");
     el.innerHTML=`<button class="backbtn" id="gback">${svg('chevron')} Volver</button><div class="vtitle">${escHtml(name||'Grupo')}</div><div class="vsub">Cargando…</div>`;
-    document.getElementById("gback").onclick=()=>showView("canales");
+    document.getElementById("gback").onclick=()=>showView(groupOriginView);
     loadGroup();
   }
 
@@ -480,7 +482,7 @@
     const el=document.getElementById("v-grupo");
     if(!d||!d.ok){
       el.innerHTML=`<button class="backbtn" id="gb">${svg('chevron')} Volver</button><p class="muted">No se pudo cargar (sin permiso o error).</p>`;
-      document.getElementById("gb").onclick=()=>showView("canales"); return;
+      document.getElementById("gb").onclick=()=>showView(groupOriginView); return;
     }
     const m=d.meta||{}, t=m.ctype==="channel"?"Canal":"Grupo";
     const sched=d.scheduled||[], bans=d.bans||[], warns=d.warns||[], cfg=d.config||{};
@@ -520,7 +522,7 @@
       <div class="gsec">Notas de moderación</div>
       <textarea id="gnotes" rows="2" placeholder="Notas internas…">${escHtml(d.notes)}</textarea>
       <div class="btnrow"><button class="btn ghost" id="gnotesSave">Guardar notas</button></div>`;
-    document.getElementById("gback").onclick=()=>showView("canales");
+    document.getElementById("gback").onclick=()=>showView(groupOriginView);
 
     document.getElementById("gsend").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(); if(!txt){showToast("Escribe el mensaje");return;}
@@ -851,6 +853,8 @@
       <!-- Sub-Pestañas Horizontales del Master -->
       <div class="master-tabs" id="masterTabsBar">
         <button class="master-pill ${curMasterTab==='general'?'active':''}" data-mtab="general">📊 General</button>
+        <button class="master-pill ${curMasterTab==='grupos'?'active':''}" data-mtab="grupos">👥 Grupos & Canales</button>
+        <button class="master-pill ${curMasterTab==='config'?'active':''}" data-mtab="config">⚙️ Ajustes Globales</button>
         <button class="master-pill ${curMasterTab==='bots'?'active':''}" data-mtab="bots">🤖 Multi-Bot</button>
         <button class="master-pill ${curMasterTab==='ia'?'active':''}" data-mtab="ia">🧠 IA Neural</button>
         <button class="master-pill ${curMasterTab==='seguridad'?'active':''}" data-mtab="seguridad">🛡️ Seguridad & CAS</button>
@@ -892,7 +896,68 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 2: Multi-Bot & Conexiones -->
+      <!-- SECCIÓN 2: Grupos & Canales (Acceso a Edición) -->
+      <div class="master-section" id="msec-grupos" ${curMasterTab!=='grupos'?'hidden':''}>
+        <div class="sec">Todos los Grupos y Canales del Ecosistema</div>
+        <p class="muted" style="margin-bottom:10px;">Toca cualquier grupo o canal para abrir su panel de edición completa (mensajes, programados, avisos, baneados, CAS y notas).</p>
+        <div id="mAllChannelsContainer">
+          <p class="muted">Cargando grupos y canales…</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: Ajustes Globales -->
+      <div class="master-section" id="msec-config" ${curMasterTab!=='config'?'hidden':''}>
+        <div class="sec">Configuraciones Globales del Núcleo</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Mensaje de Bienvenida Global</label>
+            <textarea id="mGlobalWelcome" rows="3" placeholder="¡Hola {name}! Bienvenido a {chat}..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Filtro Global de Palabras Prohibidas (separadas por comas)</label>
+            <textarea id="mGlobalBadwords" rows="2" placeholder="spam, scammer, criptofake, insulto..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <div style="flex:1;">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Hora Reporte Diario</label>
+              <select id="mDailyHour">
+                ${Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join("")}
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Auto-Backup SQLite</label>
+              <select id="mBackupHours">
+                <option value="0">Desactivado</option>
+                <option value="6">Cada 6 horas</option>
+                <option value="12">Cada 12 horas</option>
+                <option value="24" selected>Cada 24 horas</option>
+                <option value="48">Cada 48 horas</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Auto-Limpieza Archivos Temporales</label>
+            <select id="mCleanupDays">
+              <option value="0">Desactivado</option>
+              <option value="1">Más de 1 día</option>
+              <option value="3">Más de 3 días</option>
+              <option value="7" selected>Más de 7 días</option>
+              <option value="30">Más de 30 días</option>
+            </select>
+          </div>
+          <div class="setrow" style="padding:6px 0;margin-bottom:8px;">
+            <div><b>Auto-Moderación por defecto</b><span>Filtro de spam activo al añadir el bot</span></div>
+            <div class="switch on" id="mSwDefAutoMod"><span></span></div>
+          </div>
+          <div class="setrow" style="padding:6px 0;margin-bottom:12px;">
+            <div><b>Aprendizaje IA por defecto</b><span>Aprende vocabulario en chats grupales</span></div>
+            <div class="switch on" id="mSwDefIa"><span></span></div>
+          </div>
+          <button class="btn cta" id="mBtnSaveGlobalConfig" style="width:100%;">Guardar Configuraciones Globales</button>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 4: Multi-Bot & Conexiones -->
       <div class="master-section" id="msec-bots" ${curMasterTab!=='bots'?'hidden':''}>
         <div class="sec">Bots Conectados en el Ecosistema</div>
         <div class="card" style="padding:14px;margin-bottom:12px;" id="mBotsContainer">
@@ -907,7 +972,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 3: IA Neural -->
+      <!-- SECCIÓN 5: IA Neural -->
       <div class="master-section" id="msec-ia" ${curMasterTab!=='ia'?'hidden':''}>
         <div class="sec">Configuración del Núcleo IA (Moon Core IA)</div>
         <div class="card" style="padding:14px;margin-bottom:12px;">
@@ -943,7 +1008,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 4: Seguridad & Moderación -->
+      <!-- SECCIÓN 6: Seguridad & Moderación -->
       <div class="master-section" id="msec-seguridad" ${curMasterTab!=='seguridad'?'hidden':''}>
         <div class="sec">Escudo & Ajustes Globales</div>
         <div class="card" style="padding:14px;margin-bottom:12px;" id="mSecurityBox">
@@ -963,7 +1028,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 5: Difusión Masiva (Broadcast) -->
+      <!-- SECCIÓN 7: Difusión Masiva (Broadcast) -->
       <div class="master-section" id="msec-difusion" ${curMasterTab!=='difusion'?'hidden':''}>
         <div class="sec">Emisión Masiva de Anuncios</div>
         <div class="card" style="padding:14px;margin-bottom:12px;">
@@ -973,7 +1038,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 6: Proxies & VPS -->
+      <!-- SECCIÓN 8: Proxies & VPS -->
       <div class="master-section" id="msec-proxies" ${curMasterTab!=='proxies'?'hidden':''}>
         <div class="sec">Infraestructura & Proxies MTProto</div>
         <div class="card" style="padding:14px;margin-bottom:12px;">
@@ -986,7 +1051,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 7: Plugins & Módulos -->
+      <!-- SECCIÓN 9: Plugins & Módulos -->
       <div class="master-section" id="msec-plugins" ${curMasterTab!=='plugins'?'hidden':''}>
         <div class="sec">Plugins y Extensiones Activas</div>
         <div class="card" style="padding:14px;margin-bottom:12px;" id="mPluginsContainer">
@@ -994,7 +1059,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 8: Logs & Consola en Vivo -->
+      <!-- SECCIÓN 10: Logs & Consola en Vivo -->
       <div class="master-section" id="msec-logs" ${curMasterTab!=='logs'?'hidden':''}>
         <div class="sec">Auditoría & Logs del Sistema en Vivo</div>
         <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;">
@@ -1015,8 +1080,27 @@
         el.querySelectorAll("[data-mtab]").forEach(b => b.classList.toggle("active", b.dataset.mtab === curMasterTab));
         el.querySelectorAll(".master-section").forEach(sec => sec.hidden = sec.id !== ("msec-" + curMasterTab));
         if(curMasterTab === "logs") loadLiveLogs();
+        if(curMasterTab === "grupos") loadMasterChannels();
       };
     });
+
+    // Cargar todos los canales en Master
+    async function loadMasterChannels(){
+      const container = document.getElementById("mAllChannelsContainer");
+      if(!container) return;
+      const res = await apiPost("/admin/channels", { initData: tg && tg.initData });
+      if(res && res.ok && res.channels && res.channels.length){
+        container.innerHTML = res.channels.map(c => channelRow(c, true)).join("");
+        container.querySelectorAll(".row.tappable").forEach(r => {
+          r.addEventListener("click", e => {
+            if(e.target.closest(".switch")) return;
+            openGroup(r.dataset.chat, r.dataset.name, "master");
+          });
+        });
+      } else {
+        container.innerHTML = `<p class="muted">No hay grupos o canales registrados todavía. Invita al bot a un grupo o canal para gestionarlo.</p>`;
+      }
+    }
 
     // Abrir panel web
     document.getElementById("mBtnOpenPanel").onclick = () => openLink("https://cintiabot.todosobreall.tech/panel");
@@ -1025,7 +1109,7 @@
     document.getElementById("mBtnBackfill").onclick = async () => {
       showToast("Sincronizando canales...");
       const r = await gp("/admin/channels/backfill", {});
-      if(r && r.ok) showToast("Canales sincronizados con éxito");
+      if(r && r.ok){ showToast("Canales sincronizados con éxito"); loadMasterChannels(); }
     };
 
     // Proxy
@@ -1039,7 +1123,7 @@
       });
     };
 
-    // Cargar estadísticas del master
+    // Cargar estadísticas y configuraciones del master
     gp("/master/stats", {}).then(d => {
       if(d && d.ok){
         document.getElementById("mStatCpu").textContent = (d.cpu != null ? d.cpu + "%" : "—");
@@ -1048,6 +1132,17 @@
         document.getElementById("mStatChannels").textContent = fmt(d.total_channels || 0);
         document.getElementById("mStatBans").textContent = fmt(d.bans_count || 0);
         
+        // Populate settings
+        const st = d.settings || {};
+        if(st.welcome_msg) document.getElementById("mGlobalWelcome").value = st.welcome_msg;
+        if(st.badwords) document.getElementById("mGlobalBadwords").value = Array.isArray(st.badwords)?st.badwords.join(", "):st.badwords;
+        if(st.daily_report_hour != null) document.getElementById("mDailyHour").value = st.daily_report_hour;
+        if(st.auto_backup_hours != null) document.getElementById("mBackupHours").value = st.auto_backup_hours;
+        if(st.auto_cleanup_days != null) document.getElementById("mCleanupDays").value = st.auto_cleanup_days;
+        if(st.ia_provider) document.getElementById("mIaProvider").value = st.ia_provider;
+        if(st.ia_mood) document.getElementById("mIaMood").value = st.ia_mood;
+        if(st.ia_mode) document.getElementById("mIaMode").value = st.ia_mode;
+
         // Render bots
         const bc = document.getElementById("mBotsContainer");
         if(bc && d.bots && d.bots.length){
@@ -1085,6 +1180,21 @@
         document.getElementById("mStatSubs").textContent = fmt(d.totalSubscribers);
       }
     });
+
+    // Guardar configuraciones globales
+    document.getElementById("mBtnSaveGlobalConfig").onclick = async () => {
+      const wel = document.getElementById("mGlobalWelcome").value.trim();
+      const bw = document.getElementById("mGlobalBadwords").value.split(/[,\n]/).map(w=>w.trim()).filter(Boolean);
+      const dh = parseInt(document.getElementById("mDailyHour").value);
+      const bh = parseInt(document.getElementById("mBackupHours").value);
+      const cd = parseInt(document.getElementById("mCleanupDays").value);
+      await gp("/master/setting", { key: "welcome_msg", value: wel });
+      await gp("/master/setting", { key: "badwords", value: bw });
+      await gp("/master/setting", { key: "daily_report_hour", value: dh });
+      await gp("/master/setting", { key: "auto_backup_hours", value: bh });
+      await gp("/master/setting", { key: "auto_cleanup_days", value: cd });
+      showToast("Configuraciones globales guardadas");
+    };
 
     // Broadcast
     document.getElementById("mBtnBroadcast").onclick = async () => {
@@ -1144,6 +1254,7 @@
     document.getElementById("mFilterErr").onclick = () => loadLiveLogs("ERROR");
     document.getElementById("mFilterSec").onclick = () => loadLiveLogs("SECURITY");
     if(curMasterTab === "logs") loadLiveLogs();
+    if(curMasterTab === "grupos") loadMasterChannels();
   }
 
   // ── Vista: Noticias & Novedades Web3 / Tech ──
