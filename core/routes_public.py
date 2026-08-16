@@ -287,7 +287,11 @@ def _group_auth(body):
     return (user, chat_id), None
 
 
-_SETTING_KEYS = {"auto_mod", "welcome", "ia_learning", "security_shield"}
+_SETTING_KEYS = {
+    "auto_mod", "welcome", "ia_learning", "security_shield",
+    "captcha_enabled", "captcha_type", "captcha_timeout", "captcha_action",
+    "anti_link", "anti_flood", "anti_forward", "anti_stickers", "night_mode", "warn_limit"
+}
 
 
 def _banned_hit(chat_id, text):
@@ -310,7 +314,7 @@ def group_get():
         return err
     user, chat_id = res
     meta = _channel_stats.get_channel_meta(chat_id) or {}
-    config = _db.get(f"CONFIG_{chat_id}", {"auto_mod": True, "welcome": False, "ia_learning": False, "security_shield": True})
+    config = _db.get(f"CONFIG_{chat_id}", {"auto_mod": True, "welcome": False, "ia_learning": False, "security_shield": True, "captcha_enabled": False, "captcha_type": "button", "captcha_timeout": 60, "captcha_action": "kick", "anti_link": False, "anti_flood": False, "anti_forward": False, "anti_stickers": False, "night_mode": False, "warn_limit": 3})
     warns = _db.get(f"WARNS_{chat_id}", {})
     bans = _ban_manager.get_local_bans(chat_id).get("users", []) if _ban_manager else []
     sched = [{"id": s["id"], "text": s.get("text"), "send_at": s.get("send_at")}
@@ -318,8 +322,10 @@ def group_get():
     bw = _db.get(f"BADWORDS_{chat_id}", {"words": [], "action": "delete"})
     if not isinstance(bw, dict):
         bw = {"words": [], "action": "delete"}
+    welcome_text = _db.get(f"PLUGIN_WELCOME_{chat_id}", "")
     return jsonify({"ok": True, "meta": meta, "role": ("creator" if _is_master(user) else None),
-                    "config": {k: bool(config.get(k)) for k in _SETTING_KEYS},
+                    "config": config,
+                    "welcome_msg": welcome_text,
                     "notes": _db.get(f"NOTES_{chat_id}", ""),
                     "warns": [{"user_id": k, "count": v} for k, v in warns.items()],
                     "bans": bans, "scheduled": sched,
@@ -374,9 +380,23 @@ def group_settings():
     if key not in _SETTING_KEYS:
         return jsonify({"ok": False, "error": "ajuste no permitido"}), 400
     config = _db.get(f"CONFIG_{chat_id}", {})
-    config[key] = bool(body.get("value"))
+    config[key] = body.get("value")
     _db.set(f"CONFIG_{chat_id}", config)
-    return jsonify({"ok": True, "config": {k: bool(config.get(k)) for k in _SETTING_KEYS}})
+    return jsonify({"ok": True, "config": config})
+
+
+@bp.route("/api/public/group/welcome", methods=["POST", "OPTIONS"])
+def group_welcome_set():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    msg = str(body.get("message", "")).strip()[:1000]
+    _db.set(f"PLUGIN_WELCOME_{chat_id}", msg)
+    return jsonify({"ok": True, "welcome_msg": msg})
 
 
 @bp.route("/api/public/group/notes", methods=["POST", "OPTIONS"])

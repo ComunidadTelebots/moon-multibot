@@ -507,7 +507,53 @@
       <div class="gsec">Moderación</div>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
-      <div class="gsec">Ajustes</div><div id="gsettings"></div>
+      <div class="gsec">🛡️ Verificación CAPTCHA Anti-Bot</div>
+      <div class="card" style="padding:14px;margin-bottom:12px;">
+        <div class="setrow" style="padding:4px 0 10px;">
+          <div><b>Activar Captcha para Nuevos Miembros</b><span>Exige resolver un reto antes de poder escribir</span></div>
+          <div class="switch ${cfg.captcha_enabled?'on':''}" data-set="captcha_enabled"><span></span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <div>
+            <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Tipo de Reto</label>
+            <select id="gCaptchaType">
+              <option value="button" ${cfg.captcha_type==='button'?'selected':''}>Botón "Soy Humano"</option>
+              <option value="math" ${cfg.captcha_type==='math'?'selected':''}>Pregunta Matemática</option>
+              <option value="emoji" ${cfg.captcha_type==='emoji'?'selected':''}>Botón con Emoji</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Tiempo Límite</label>
+            <select id="gCaptchaTimeout">
+              <option value="60" ${cfg.captcha_timeout==60?'selected':''}>60 segundos</option>
+              <option value="120" ${cfg.captcha_timeout==120?'selected':''}>2 minutos</option>
+              <option value="300" ${cfg.captcha_timeout==300?'selected':''}>5 minutos</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Penalización si Expira o Falla</label>
+          <select id="gCaptchaAction">
+            <option value="kick" ${cfg.captcha_action==='kick'?'selected':''}>Expulsar del Grupo (Kick)</option>
+            <option value="mute" ${cfg.captcha_action==='mute'?'selected':''}>Silenciar Indefinidamente (Mute)</option>
+            <option value="ban" ${cfg.captcha_action==='ban'?'selected':''}>Banear Permanentemente (Ban)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="gsec">👋 Mensaje de Bienvenida del Grupo</div>
+      <div class="card" style="padding:14px;margin-bottom:12px;">
+        <div class="setrow" style="padding:4px 0 10px;">
+          <div><b>Saludar a Nuevos Miembros</b><span>Envía un mensaje al unirse</span></div>
+          <div class="switch ${cfg.welcome?'on':''}" data-set="welcome"><span></span></div>
+        </div>
+        <textarea id="gWelcomeMsg" rows="3" placeholder="¡Hola {name}! Bienvenido al grupo {chat}..." style="width:100%;margin-bottom:8px;font-size:13px;">${escHtml(d.welcome_msg||'')}</textarea>
+        <button class="btn ghost" id="gWelcomeSave" style="width:100%;">Guardar Mensaje de Bienvenida</button>
+      </div>
+
+      <div class="gsec">🛡️ Restricciones & Moderación del Grupo</div>
+      <div id="gsettings"></div>
+
       <div class="gsec">Palabras prohibidas</div>
       <textarea id="gbadwords" rows="2" placeholder="palabra1, palabra2, …">${escHtml((d.badwords&&d.badwords.words||[]).join(", "))}</textarea>
       <div class="btnrow" style="align-items:center">
@@ -538,6 +584,7 @@
     const sl=document.getElementById("gschedlist");
     sl.innerHTML=sched.length?sched.map(s=>`<div class="userchip"><div><div class="uid">${escHtml((s.text||'').slice(0,42))}</div><div class="w">${fromUTC(s.send_at)}</div></div><span class="minibtn red" data-sid="${s.id}">Cancelar</span></div>`).join(""):`<p class="muted">Ninguno.</p>`;
     sl.querySelectorAll("[data-sid]").forEach(b=>b.onclick=async()=>{const r=await gp("/group/unschedule",{id:b.dataset.sid});if(r&&r.ok){showToast("Cancelado");loadGroup();}});
+    
     // fila de usuario con desplegable CAS (clic en la fila) + acción
     function userRow(uid, extra, actLabel, actAttr){
       return `<div class="userchip uexp" data-uid="${uid}">
@@ -575,10 +622,49 @@
     wl.innerHTML=warns.length?warns.map(w=>userRow(w.user_id,` <span class="w">${w.count} avisos</span>`,'Quitar',`data-unwarn="${w.user_id}"`)).join(""):`<p class="muted">Sin avisos.</p>`;
     wl.querySelectorAll("[data-unwarn]").forEach(b=>b.onclick=async(e)=>{e.stopPropagation();const r=await gp("/group/unwarn",{user_id:b.dataset.unwarn});if(r&&r.ok){showToast("Aviso quitado");loadGroup();}});
     bindCas(wl); bindDropdown("dd-warns");
-    const SET=[["auto_mod","Auto-moderación","Filtra spam y contenido"],["security_shield","Escudo de seguridad","Bloquea usuarios en listas negras"],["welcome","Bienvenida","Saluda a los nuevos"],["ia_learning","Aprendizaje IA","La IA aprende de este grupo"]];
+
+    // Guardar bienvenida
+    document.getElementById("gWelcomeSave").onclick = async () => {
+      const msg = document.getElementById("gWelcomeMsg").value.trim();
+      const r = await gp("/group/welcome", { message: msg });
+      if(r && r.ok) showToast("Mensaje de bienvenida guardado");
+      else showToast("Error al guardar bienvenida");
+    };
+
+    // Cambios de ajustes Captcha
+    ["gCaptchaType", "gCaptchaTimeout", "gCaptchaAction"].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){
+        el.onchange = async () => {
+          const key = id === "gCaptchaType" ? "captcha_type" : id === "gCaptchaTimeout" ? "captcha_timeout" : "captcha_action";
+          await gp("/group/settings", { key, value: el.value });
+          showToast("Ajuste de Captcha actualizado");
+        };
+      }
+    });
+
+    const SET=[
+      ["auto_mod","Auto-moderación","Filtra spam y contenido malicioso"],
+      ["security_shield","Escudo de seguridad","Bloquea usuarios en listas negras y CAS"],
+      ["anti_link","Bloqueo de Enlaces (Anti-Link)","Elimina mensajes con URLs externas"],
+      ["anti_flood","Protección Anti-Flood","Controla ráfagas continuas de mensajes"],
+      ["anti_forward","Bloqueo de Reenvíos","Elimina mensajes reenviados de otros canales"],
+      ["anti_stickers","Anti-Stickers / GIFs","Mantiene el chat limpio de spam visual"],
+      ["night_mode","Modo Silencio Nocturno","Restringe mensajes durante la noche"],
+      ["ia_learning","Aprendizaje IA","La IA aprende del vocabulario del grupo"]
+    ];
     const gs=document.getElementById("gsettings");
     gs.innerHTML=SET.map(([k,tt,de])=>`<div class="setrow"><div><b>${tt}</b><span>${de}</span></div><div class="switch ${cfg[k]?'on':''}" data-set="${k}"><span></span></div></div>`).join("");
-    gs.querySelectorAll("[data-set]").forEach(sw=>sw.onclick=async()=>{const on=!sw.classList.contains("on");sw.classList.toggle("on",on);const r=await gp("/group/settings",{key:sw.dataset.set,value:on});if(!r||!r.ok)sw.classList.toggle("on",!on);});
+    
+    // Bind all switches (including captcha and welcome)
+    document.querySelectorAll("#v-grupo .switch[data-set]").forEach(sw=>sw.onclick=async()=>{
+      const on=!sw.classList.contains("on");
+      sw.classList.toggle("on",on);
+      const r=await gp("/group/settings",{key:sw.dataset.set,value:on});
+      if(!r||!r.ok)sw.classList.toggle("on",!on);
+      else showToast("Ajuste guardado");
+    });
+    
     document.getElementById("gnotesSave").onclick=async()=>{const r=await gp("/group/notes",{notes:document.getElementById("gnotes").value});if(r&&r.ok)showToast("Notas guardadas");};
 
     // palabras prohibidas
@@ -949,9 +1035,31 @@
             <div><b>Auto-Moderación por defecto</b><span>Filtro de spam activo al añadir el bot</span></div>
             <div class="switch on" id="mSwDefAutoMod"><span></span></div>
           </div>
-          <div class="setrow" style="padding:6px 0;margin-bottom:12px;">
+          <div class="setrow" style="padding:6px 0;margin-bottom:8px;">
             <div><b>Aprendizaje IA por defecto</b><span>Aprende vocabulario en chats grupales</span></div>
             <div class="switch on" id="mSwDefIa"><span></span></div>
+          </div>
+          <div class="setrow" style="padding:6px 0;margin-bottom:8px;">
+            <div><b>🛡️ Captcha Global por defecto</b><span>Verificación anti-bot en nuevos grupos</span></div>
+            <div class="switch" id="mSwDefCaptcha"><span></span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+            <div>
+              <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Tipo Captcha por defecto</label>
+              <select id="mDefCaptchaType">
+                <option value="button">Botón "Soy Humano"</option>
+                <option value="math">Pregunta Matemática</option>
+                <option value="emoji">Botón con Emoji</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Acción si Falla</label>
+              <select id="mDefCaptchaAction">
+                <option value="kick">Expulsar (Kick)</option>
+                <option value="mute">Silenciar (Mute)</option>
+                <option value="ban">Banear (Ban)</option>
+              </select>
+            </div>
           </div>
           <button class="btn cta" id="mBtnSaveGlobalConfig" style="width:100%;">Guardar Configuraciones Globales</button>
         </div>
@@ -1142,6 +1250,17 @@
         if(st.ia_provider) document.getElementById("mIaProvider").value = st.ia_provider;
         if(st.ia_mood) document.getElementById("mIaMood").value = st.ia_mood;
         if(st.ia_mode) document.getElementById("mIaMode").value = st.ia_mode;
+        if(st.captcha_global != null) document.getElementById("mSwDefCaptcha").classList.toggle("on", Boolean(st.captcha_global));
+        if(st.default_captcha_type) document.getElementById("mDefCaptchaType").value = st.default_captcha_type;
+        if(st.default_captcha_action) document.getElementById("mDefCaptchaAction").value = st.default_captcha_action;
+        if(st.default_auto_mod != null) document.getElementById("mSwDefAutoMod").classList.toggle("on", Boolean(st.default_auto_mod));
+        if(st.default_ia_learning != null) document.getElementById("mSwDefIa").classList.toggle("on", Boolean(st.default_ia_learning));
+
+        // Switches in config tab
+        ["mSwDefAutoMod", "mSwDefIa", "mSwDefCaptcha"].forEach(swId => {
+          const sw = document.getElementById(swId);
+          if(sw) sw.onclick = () => sw.classList.toggle("on");
+        });
 
         // Render bots
         const bc = document.getElementById("mBotsContainer");
@@ -1188,11 +1307,21 @@
       const dh = parseInt(document.getElementById("mDailyHour").value);
       const bh = parseInt(document.getElementById("mBackupHours").value);
       const cd = parseInt(document.getElementById("mCleanupDays").value);
+      const capGlob = document.getElementById("mSwDefCaptcha").classList.contains("on");
+      const capType = document.getElementById("mDefCaptchaType").value;
+      const capAct = document.getElementById("mDefCaptchaAction").value;
+      const defAutoMod = document.getElementById("mSwDefAutoMod").classList.contains("on");
+      const defIa = document.getElementById("mSwDefIa").classList.contains("on");
       await gp("/master/setting", { key: "welcome_msg", value: wel });
       await gp("/master/setting", { key: "badwords", value: bw });
       await gp("/master/setting", { key: "daily_report_hour", value: dh });
       await gp("/master/setting", { key: "auto_backup_hours", value: bh });
       await gp("/master/setting", { key: "auto_cleanup_days", value: cd });
+      await gp("/master/setting", { key: "captcha_global", value: capGlob });
+      await gp("/master/setting", { key: "default_captcha_type", value: capType });
+      await gp("/master/setting", { key: "default_captcha_action", value: capAct });
+      await gp("/master/setting", { key: "default_auto_mod", value: defAutoMod });
+      await gp("/master/setting", { key: "default_ia_learning", value: defIa });
       showToast("Configuraciones globales guardadas");
     };
 
