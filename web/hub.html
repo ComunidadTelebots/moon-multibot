@@ -1428,6 +1428,76 @@
         </div>
       </div>
 
+
+      <!-- SECCIÓN 10: Terminal Web -->
+      <div class="master-section" id="msec-terminal" ${curMasterTab!=='terminal'?'hidden':''}>
+        <div class="sec">Telegram Universal Terminal ⚡</div>
+        <div class="vsub" style="margin-bottom:15px;">Ejecuta cualquier método de la Bot API de Telegram directamente sobre tus nodos activos.</div>
+        
+        <div class="grid-layout" style="display:grid; grid-template-columns: 1fr 2fr; gap:15px; margin-bottom:15px;">
+          <div class="card" style="padding:15px; background:rgba(0,0,0,0.1);">
+            <div style="margin-bottom:12px;">
+              <label style="font-size:11px; font-weight:600; color:var(--muted); display:block; margin-bottom:4px;">NODO EMISOR</label>
+              <select id="termBotIdx" class="input-style" style="width:100%;"></select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:600; color:var(--muted); display:block; margin-bottom:4px;">MÉTODO API</label>
+              <input type="text" id="termMethod" class="input-style" placeholder="ej: sendMessage" list="commonMethods" style="width:100%;">
+              <datalist id="commonMethods">
+                <option value="getMe">
+                <option value="getUpdates">
+                <option value="sendMessage">
+                <option value="sendPhoto">
+                <option value="getChat">
+                <option value="getChatAdministrators">
+                <option value="deleteMessage">
+                <option value="banChatMember">
+              </datalist>
+            </div>
+            <button onclick="runTelegramCommand()" class="btn" style="width:100%; margin-top:20px; justify-content:center;">EJECUTAR PETICIÓN</button>
+          </div>
+          
+          <div class="card" style="padding:15px; display:flex; flex-direction:column;">
+            <label style="font-size:11px; font-weight:600; color:var(--teal); margin-bottom:10px;">PARÁMETROS (JSON)</label>
+            <textarea id="termParams" class="input-style" placeholder='{ "chat_id": "-100...", "text": "Hola" }' style="flex:1; font-family:var(--mono); resize:none;"></textarea>
+          </div>
+        </div>
+        
+        <div class="card" style="padding:15px; background:#0f172a; border-color:#1e293b;">
+          <label style="font-size:11px; font-weight:600; color:var(--accent); margin-bottom:10px; display:block;">RESPUESTA DEL SERVIDOR</label>
+          <pre id="termResponse" style="max-height:250px; overflow-y:auto; font-family:var(--mono); font-size:12px; color:#4ade80; margin:0; white-space:pre-wrap;">Esperando comandos...</pre>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 11: Cola de Tareas -->
+      <div class="master-section" id="msec-queue" ${curMasterTab!=='queue'?'hidden':''}>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <div>
+            <div class="sec">Gestor de Cola de Tareas 📬</div>
+            <div class="vsub">Supervisa y controla las operaciones asíncronas del bot.</div>
+          </div>
+          <button onclick="loadQueueTab()" class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;">${svg('refresh')} Actualizar</button>
+        </div>
+        
+        <div class="card" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+                <th style="padding:12px;">ID</th>
+                <th style="padding:12px;">Tipo</th>
+                <th style="padding:12px;">Destino</th>
+                <th style="padding:12px;">Datos</th>
+                <th style="padding:12px;">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="queueListBody">
+              <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);">Cargando cola...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 12: Roadmap -->
       <!-- SECCIÓN 9: Plugins & Módulos -->
       <div class="master-section" id="msec-plugins" ${curMasterTab!=='plugins'?'hidden':''}>
         <div class="sec">Plugins y Extensiones Activas</div>
@@ -1501,6 +1571,8 @@
       { id: "leaderboard", name: "Tabla de Líderes & Karma Social", cat: "Comunidad & Gamificación", st: "estable", desc: "Ranking en vivo de miembros más activos, medallas de podio y títulos de rango.", act: () => { showView("red"); setTimeout(toggleLeaderboard, 300); }, actLabel: "Ver Ranking" },
       { id: "crypto_tools", name: "Caja Criptográfica & Hashes", cat: "Seguridad & Utilidades", st: "rc", desc: "Generador de contraseñas de alta seguridad, claves Fernet y cálculo de firmas SHA-256 / MD5.", act: () => { curMasterTab="seguridad"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="seguridad")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-seguridad"); }, actLabel: "Abrir Herramientas" },
       { id: "qr_tools", name: "Generador QR & Enlaces Seguros", cat: "Utilidades Web", st: "estable", desc: "Generador dinámico de códigos QR descargables y visualizador de enlaces de canales.", act: () => { showView("red"); setTimeout(toggleQrTool, 300); }, actLabel: "Generar QR" },
+            { id: "terminal", name: "Telegram Universal Terminal", cat: "Herramientas Avanzadas", st: "estable", desc: "Consola de comandos REST para ejecutar cualquier método de la API directamente.", act: () => { curMasterTab="terminal"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="terminal")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-terminal"); populateTerminalBots(); }, actLabel: "Abrir Terminal" },
+      { id: "queue", name: "Gestor de Cola de Tareas", cat: "Monitoreo", st: "estable", desc: "Supervisa las operaciones asíncronas pesadas como broadcasts o limpiezas.", act: () => { curMasterTab="queue"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="queue")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-queue"); loadQueueTab(); }, actLabel: "Ver Cola" },
       { id: "tdlib_sync", name: "Sincronizador MTProto TDLib", cat: "Infraestructura & Datos", st: "beta", desc: "Importación de historial de mensajes antiguos desde los servidores de Telegram hacia SQLite.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver TDLib" },
       { id: "voice_transcribe", name: "Transcripción de Voz (Speech-to-Text)", cat: "Inteligencia Artificial", st: "beta", desc: "Conversión automática de notas de voz a texto legible para los grupos.", act: () => showView("canales"), actLabel: "Configurar" }
     ];
@@ -1954,6 +2026,60 @@
   ];
 
   let currentNewsCat = "all";
+
+
+  // --- Vista: Terminal y Cola ---
+  window.populateTerminalBots = async function() {
+    const r = await gp("/bots");
+    const sel = document.getElementById("termBotIdx");
+    if(sel && r && r.bots) {
+      sel.innerHTML = r.bots.map((b,i) => `<option value="${i}">Nodo ${i+1}: @${b.name}</option>`).join("");
+    }
+  };
+  
+  window.runTelegramCommand = async function() {
+    const meth = document.getElementById("termMethod").value.trim();
+    const pStr = document.getElementById("termParams").value.trim() || "{}";
+    const idx = document.getElementById("termBotIdx").value;
+    const out = document.getElementById("termResponse");
+    if(!meth){ showToast("Escribe un método API"); return; }
+    
+    let pars = {};
+    try { pars = JSON.parse(pStr); } catch(e) { out.innerHTML = "<span style='color:var(--red)'>Error de JSON: " + e.message + "</span>"; return; }
+    
+    out.innerHTML = "Ejecutando petición...";
+    const r = await pp("/admin/terminal", { bot_idx: parseInt(idx), method: meth, params: pars });
+    out.innerHTML = JSON.stringify(r, null, 2);
+  };
+  
+  window.loadQueueTab = async function() {
+    const tbody = document.getElementById("queueListBody");
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);"><div class="loader" style="margin:auto;"></div></td></tr>`;
+    
+    const d = await gp("/admin/queue");
+    if(!d || !d.ok || !d.queue) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--red);">Error al cargar la cola de tareas.</td></tr>`;
+      return;
+    }
+    
+    if(d.queue.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:40px; text-align:center; color:var(--muted); font-size:14px;">📭 No hay tareas pendientes en la cola.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = d.queue.map(q => `
+      <tr style="border-bottom:1px solid var(--line); transition:background .2s;">
+        <td style="padding:12px; font-family:var(--mono); color:var(--primary);">${q.id.substring(0,8)}</td>
+        <td style="padding:12px; font-weight:600;">${escHtml(q.type)}</td>
+        <td style="padding:12px;">${q.target || '-'}</td>
+        <td style="padding:12px; font-family:var(--mono); font-size:11px; color:var(--muted); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${JSON.stringify(q.data)}</td>
+        <td style="padding:12px;">
+          <span class="badge-status-hub" style="background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.3); padding:4px 8px; font-size:10px;">${q.status.toUpperCase()}</span>
+        </td>
+      </tr>
+    `).join("");
+  };
 
   // --- Vista: Chat Remoto ---
   let activeChatId = null;
