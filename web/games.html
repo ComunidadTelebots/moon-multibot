@@ -821,16 +821,42 @@
     // Memory Game
     const memBoard = document.getElementById("memoryBoard");
     const icons = ["🚀","🛸","🛰️","⚡","👑","🚛","🎮","🎲"];
+    let memoryState = [];
+    let flipped = [];
+    
     function initMemory() {
       memBoard.innerHTML = "";
-      const deck = [...icons, ...icons].sort(() => Math.random() - 0.5);
-      deck.forEach(sym => {
+      memoryState = [...icons, ...icons].sort(() => Math.random() - 0.5);
+      flipped = [];
+      
+      memoryState.forEach((sym, idx) => {
         const box = document.createElement("div");
         box.className = "mem-box";
         box.textContent = "❓";
+        box.dataset.idx = idx;
+        
         box.onclick = () => {
+          // Ignorar si ya está revelada o si hay 2 cartas dadas la vuelta
+          if (box.textContent !== "❓" || flipped.length >= 2) return;
+          
           box.textContent = sym;
+          flipped.push({box, sym});
           triggerHaptic("light");
+          
+          if (flipped.length === 2) {
+            if (flipped[0].sym === flipped[1].sym) {
+              // Match
+              triggerHaptic("success");
+              flipped = [];
+            } else {
+              // No match, ocultar después de un tiempo
+              setTimeout(() => {
+                flipped[0].box.textContent = "❓";
+                flipped[1].box.textContent = "❓";
+                flipped = [];
+              }, 800);
+            }
+          }
         };
         memBoard.appendChild(box);
       });
