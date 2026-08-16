@@ -252,6 +252,74 @@ def master_broadcast():
     return jsonify({"ok": True, "sent": sent, "total": len(all_ch)})
 
 
+@bp.route("/api/public/master/backup_now", methods=["POST", "OPTIONS"])
+def master_backup_now():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    bot = _hub_bot()
+    if not bot: return jsonify({"ok": False, "error": "sin bot activo"}), 503
+    master_id = os.getenv("MASTER_ID")
+    if not master_id: return jsonify({"ok": False, "error": "MASTER_ID no configurado"}), 400
+    db_paths = ["data/moon_database.db", "data/multibot.db", "data/bots.json"]
+    sent = 0
+    for p in db_paths:
+        if os.path.exists(p):
+            try:
+                bot.send_document(master_id, p, f"📦 Backup Moonbot: {os.path.basename(p)}")
+                sent += 1
+            except Exception as e:
+                pass
+    return jsonify({"ok": True, "sent_files": sent})
+
+
+@bp.route("/api/public/master/diagnostics", methods=["POST", "OPTIONS"])
+def master_diagnostics():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    
+    # 1. Telegram check
+    bot = _hub_bot()
+    tg_ok = False
+    if bot:
+        me = bot.api_call("getMe", {})
+        tg_ok = bool(me.get("ok"))
+        
+    # 2. Ollama check
+    ollama_ok = False
+    try:
+        r = requests.get(f"{os.getenv('OLLAMA_HOST', 'http://localhost:11434')}/api/tags", timeout=3)
+        ollama_ok = (r.status_code == 200)
+    except:
+        pass
+
+    # 3. Gemini check
+    gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
+    
+    # 4. DB check
+    db_ok = _db is not None
+    db_size_mb = 0
+    for db_f in ["data/moon_database.db", "data/multibot.db"]:
+        if os.path.exists(db_f):
+            db_size_mb = round(os.path.getsize(db_f) / (1024 * 1024), 2)
+            break
+            
+    return jsonify({
+        "ok": True,
+        "checks": {
+            "telegram_api": {"status": "ok" if tg_ok else "error", "label": "Telegram Bot API"},
+            "ollama_local": {"status": "ok" if ollama_ok else "warning", "label": "Ollama LLM Local"},
+            "gemini_api": {"status": "ok" if gemini_configured else "warning", "label": "Google Gemini API"},
+            "database_sqlite": {"status": "ok" if db_ok else "error", "label": f"SQLite WAL ({db_size_mb} MB)"}
+        }
+    })
+
+
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
 def admin_set_listed():
     """Publicar/ocultar un canal en el directorio público. Master o dueño del chat."""

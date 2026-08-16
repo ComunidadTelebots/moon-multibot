@@ -421,9 +421,18 @@
       document.getElementById("ctaAdd").onclick=()=>{ev("add_channel",{from:"canales_empty"});openTg(ADD_LINK);};
       return;
     }
-    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>`
+    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
+      <div style="margin:10px 0;"><input type="search" id="searchCanales" placeholder="🔍 Buscar canal o grupo…" style="width:100%;"></div>
+      <div id="canalesList">`
       +chs.map(c=>channelRow(c,true)).join("")
-      +`<button class="btn cta" id="ctaAdd2" style="margin-top:6px;">${svg('plus')} Añadir otro canal</button>`;
+      +`</div><button class="btn cta" id="ctaAdd2" style="margin-top:6px;">${svg('plus')} Añadir otro canal</button>`;
+    
+    document.getElementById("searchCanales").oninput = (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll("#canalesList .row").forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? "flex" : "none";
+      });
+    };
     document.getElementById("ctaAdd2").onclick=()=>{ev("add_channel",{from:"canales_list"});openTg(ADD_LINK);};
     bindRowOpen(el);
   }
@@ -845,9 +854,18 @@
         <div class="stat"><div class="v">${fmt(gv.channels)}</div><div class="l">Canales</div></div>
         <div class="stat"><div class="v">${fmt(gv.totalSubscribers)}</div><div class="l">Suscriptores</div></div>
         <div class="stat"><div class="v">${gpct(gv.avgGrowth)}</div><div class="l">Crecim.</div></div>
-      </div>`
+      </div>
+      <div style="margin:10px 0;"><input type="search" id="searchDirectorio" placeholder="🔍 Buscar en el directorio público…" style="width:100%;"></div>
+      <div id="directorioList">`
       +chs.map(c=>channelRow(c)).join("")
-      +`<button class="btn ghost" id="dirFull" style="margin-top:6px;">${svg('ext')} Ver directorio completo</button>`;
+      +`</div><button class="btn ghost" id="dirFull" style="margin-top:6px;">${svg('ext')} Ver directorio completo</button>`;
+    
+    document.getElementById("searchDirectorio").oninput = (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll("#directorioList .row").forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? "flex" : "none";
+      });
+    };
     document.getElementById("dirFull").onclick=()=>openLink("https://canales.todosobreall.tech");
   }
 
@@ -967,6 +985,11 @@
             <button class="btn cta" id="mBtnOpenPanel" style="background:#facc15;color:#04121f;font-weight:800;flex:1;">Abrir Dashboard Web</button>
             <button class="btn ghost" id="mBtnBackfill" style="width:auto;">Sincronizar Canales</button>
           </div>
+          <div class="btnrow" style="gap:8px;margin-top:8px;">
+            <button class="btn ghost" id="mBtnDiag" style="flex:1;">🩺 Diagnóstico del Sistema</button>
+            <button class="btn ghost" id="mBtnBackupNow" style="flex:1;">📦 Backup a Telegram</button>
+          </div>
+          <div id="mDiagOut" style="display:none;margin-top:10px;" class="casbox"></div>
         </div>
 
         <div class="sec">Telemetría del Servidor en Vivo</div>
@@ -1225,6 +1248,36 @@
       showToast("Sincronizando canales...");
       const r = await gp("/admin/channels/backfill", {});
       if(r && r.ok){ showToast("Canales sincronizados con éxito"); loadMasterChannels(); }
+    };
+
+    // Diagnóstico en vivo
+    document.getElementById("mBtnDiag").onclick = async () => {
+      const box = document.getElementById("mDiagOut");
+      box.style.display = "block";
+      box.innerHTML = `<span class="k">Ejecutando pruebas de diagnóstico en el servidor…</span>`;
+      const res = await gp("/master/diagnostics", {});
+      if(res && res.ok && res.checks){
+        const ch = res.checks;
+        box.innerHTML = Object.keys(ch).map(k => {
+          const item = ch[k];
+          const colorClass = item.status === 'ok' ? 'clean' : item.status === 'warning' ? 'w' : 'banned';
+          const icon = item.status === 'ok' ? '🟢' : item.status === 'warning' ? '🟡' : '🔴';
+          return `<div style="margin-bottom:4px;"><span class="k">${icon} ${item.label}:</span> <span class="${colorClass}">${item.status.toUpperCase()}</span></div>`;
+        }).join("");
+      } else {
+        box.innerHTML = `<span class="k" style="color:var(--red)">No se pudo obtener el diagnóstico del servidor.</span>`;
+      }
+    };
+
+    // Backup a Telegram ahora
+    document.getElementById("mBtnBackupNow").onclick = async () => {
+      showToast("Generando y enviando backup a tu Telegram…");
+      const r = await gp("/master/backup_now", {});
+      if(r && r.ok){
+        showToast(`Backup enviado a Telegram (${r.sent_files} archivos)`);
+      } else {
+        showToast((r && r.error) || "Error al enviar backup");
+      }
     };
 
     // Proxy
