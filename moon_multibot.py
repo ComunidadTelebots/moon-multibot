@@ -878,6 +878,33 @@ def api_admin_fsub():
     else:
         return jsonify({"ok": True, "channels": settings.get("fsub_channels", ["@todosobealltech"])})
 
+
+@app.route("/api/admin/moderation", methods=["GET", "POST"])
+@require_auth
+def api_admin_moderation():
+    from moon_multibot import db
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if request.method == "POST":
+        data = request.json
+        if "char_filter_enabled" in data:
+            settings["char_filter_enabled"] = data["char_filter_enabled"]
+        db.set("GLOBAL_SETTINGS", settings)
+        return jsonify({"ok": True, "settings": settings})
+    return jsonify({"ok": True, "settings": settings})
+
+@app.route("/api/admin/utilities", methods=["GET", "POST"])
+@require_auth
+def api_admin_utilities():
+    from moon_multibot import db
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if request.method == "POST":
+        data = request.json
+        if "rss_master_url" in data:
+            settings["rss_master_url"] = data["rss_master_url"]
+        db.set("GLOBAL_SETTINGS", settings)
+        return jsonify({"ok": True, "settings": settings})
+    return jsonify({"ok": True, "settings": settings})
+
 @app.route("/api/admin/feds", methods=["GET"])
 @require_auth
 def api_admin_feds():

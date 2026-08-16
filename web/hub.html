@@ -1672,6 +1672,12 @@
       { id: "rules", name: "Sistema de Reglas", cat: "Comunidad", st: "estable", desc: "Definición interactiva de normas del grupo.", act: null, actLabel: "En Desarrollo" },
       { id: "tdlib_sync", name: "Sincronizador MTProto TDLib", cat: "Infraestructura & Datos", st: "beta", desc: "Importación de historial de mensajes antiguos desde los servidores de Telegram hacia SQLite.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver TDLib" },
 
+      { id: "tmute", name: "Muteo Temporal (TMute)", cat: "Moderación", st: "estable", desc: "Comandos /mute y /tmute 2h para castigos con levantamiento automático.", act: () => { document.querySelector('[data-mtab="moderacion"]').click(); }, actLabel: "Ver Módulo" },
+      { id: "antiraid", name: "Escudo Anti-Raid", cat: "Seguridad", st: "rc", desc: "Comando de pánico para frenar aluviones de spammers masivos al instante.", act: () => { document.querySelector('[data-mtab="moderacion"]').click(); }, actLabel: "Ver Módulo" },
+      { id: "charfilter", name: "Filtro de Alfabetos Extranjeros", cat: "Seguridad", st: "alfa", desc: "Elimina nombres y textos en cirílico, árabe o con fallos Zalgo.", act: () => { document.querySelector('[data-mtab="moderacion"]').click(); }, actLabel: "Configurar" },
+      { id: "inlinebtn", name: "Constructor Inline", cat: "Utilidades Web", st: "beta", desc: "Herramienta en chat para enviar anuncios con botones de enlace usando texto plano.", act: null, actLabel: "Activo" },
+
+
       { id: "analytics", name: "Analíticas de Contenido", cat: "Monitoreo", st: "alfa", desc: "Reportes generados por IA de actividad, usuarios top y palabras más usadas.", act: null, actLabel: "En Desarrollo" },
       { id: "rssreader", name: "Lector Automático RSS", cat: "Automatización", st: "beta", desc: "Publicación autónoma de noticias desde fuentes externas (Tech, Cripto).", act: null, actLabel: "En Desarrollo" },
       { id: "translator", name: "Traductor Integrado", cat: "Utilidades Web", st: "rc", desc: "Traducción en línea para mensajes de comunidades internacionales.", act: null, actLabel: "En Desarrollo" },
