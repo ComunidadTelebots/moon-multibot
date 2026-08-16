@@ -2735,7 +2735,7 @@ class MoonBot:
                 if tdlib_result.get("@type") == "message":
                     result = {"ok": True, "result": tdlib_result}
             except Exception as e:
-                add_web_log("ERROR", f"TDLib send_msg fallÃ³, usando Bot API: {e}")
+                add_web_log("ERROR", f"TDLib send_msg falló, usando Bot API: {e}")
 
         # Fallback a Bot API HTTP
         if result is None:
@@ -2897,10 +2897,12 @@ class MoonBot:
             reasons.append("CAS Global Blacklist")
             
         # -- IA Behavioral & Banned Words (30-50 pts)
-        banned_words = ["porno", "xxx", "terrorismo", "isis", "bomba", "gore", "cp ", "pedofilo"]
-        if any(w in cap_low for w in banned_words):
-            score += 50
-            reasons.append(f"Contenido Prohibido en Caption")
+        banned_words = ["porno", "xxx", "terrorismo", "isis", "bomba", "gore", "cp", "pedofilo", "infantil", "nazi"]
+        critical_match = any(w in cap_low or w in v_low for w in banned_words)
+        
+        if critical_match:
+            score += 100
+            reasons.append("Contenido Ilegal/Extremo Detectado")
             
         # DetecciÃ³n de Estafas DinÃ¡mica (solo si coinciden varios tÃ©rminos)
         scam_words = ["nequi", "paypal", "scam", "estafa", "pago", "premio", "gana"]
