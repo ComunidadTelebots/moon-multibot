@@ -254,6 +254,15 @@
   .hub-modal-close{background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--ink);border-radius:50%;width:30px;height:30px;font-size:13px;font-weight:700;cursor:pointer;}
   @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 
+  /* ── Sub-Pestañas de Navegación del Panel Master ── */
+  .master-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:12px;}
+  .master-tabs::-webkit-scrollbar{display:none;}
+  .master-pill{padding:7px 13px;border-radius:12px;font-size:12px;font-weight:600;font-family:var(--body);
+    background:var(--card);color:var(--muted);border:1px solid var(--line);cursor:pointer;white-space:nowrap;transition:.15s;display:flex;align-items:center;gap:6px;}
+  .master-pill:active{transform:scale(.95);}
+  .master-pill.active{background:rgba(250,204,21,0.14);color:#facc15;border-color:rgba(250,204,21,0.45);box-shadow:0 4px 14px -6px rgba(250,204,21,0.35);}
+  .master-section[hidden]{display:none;}
+
   /* ── Tema clásico ── */
   #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;}
   #app-classic .c-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--card);margin-bottom:12px;}
@@ -831,112 +840,195 @@
     try{localStorage.setItem("hub_channel", ch);}catch(e){}
   }
 
-  // ── Master / Dueño Completo ──
+  // ── Master / Dueño con Sub-Pestañas ──
+  let curMasterTab = "general";
   async function loadMaster(){
     const el = document.getElementById("v-master");
-    el.innerHTML = `<div class="vtitle" style="display:flex;align-items:center;gap:8px;">👑 Panel Maestro <span class="badge-status-hub alfa">${curChannel.toUpperCase()}</span></div>
-      <div class="vsub">Control integral y herramientas avanzadas del ecosistema Moonbot.</div>
-      
-      <!-- Tarjeta Principal de Control -->
-      <div class="c-card" style="margin-top:14px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.3);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <b style="color:#facc15;font-size:15px;display:flex;align-items:center;gap:6px;">👑 Moon Multibot Core Admin</b>
-          <span class="badge-status-hub ${curChannel}">${curChannel.toUpperCase()}</span>
-        </div>
-        <p class="muted" style="margin-bottom:12px;">Sesión autenticada como Dueño / Administrador Maestro.</p>
-        <div class="btnrow" style="gap:8px;">
-          <button class="btn cta" id="mBtnOpenPanel" style="background:#facc15;color:#04121f;font-weight:800;flex:1;">Abrir Dashboard Web</button>
-          <button class="btn ghost" id="mBtnBackfill" style="width:auto;">Sincronizar Canales</button>
-        </div>
+    el.innerHTML = `
+      <div class="vtitle" style="display:flex;align-items:center;gap:8px;">👑 Panel Maestro <span class="badge-status-hub alfa">${curChannel.toUpperCase()}</span></div>
+      <div class="vsub">Control integral y administración avanzada del ecosistema Moonbot.</div>
+
+      <!-- Sub-Pestañas Horizontales del Master -->
+      <div class="master-tabs" id="masterTabsBar">
+        <button class="master-pill ${curMasterTab==='general'?'active':''}" data-mtab="general">📊 General</button>
+        <button class="master-pill ${curMasterTab==='bots'?'active':''}" data-mtab="bots">🤖 Multi-Bot</button>
+        <button class="master-pill ${curMasterTab==='ia'?'active':''}" data-mtab="ia">🧠 IA Neural</button>
+        <button class="master-pill ${curMasterTab==='seguridad'?'active':''}" data-mtab="seguridad">🛡️ Seguridad & CAS</button>
+        <button class="master-pill ${curMasterTab==='difusion'?'active':''}" data-mtab="difusion">📢 Difusión</button>
+        <button class="master-pill ${curMasterTab==='proxies'?'active':''}" data-mtab="proxies">🌐 Proxies & VPS</button>
+        <button class="master-pill ${curMasterTab==='plugins'?'active':''}" data-mtab="plugins">🔌 Plugins</button>
+        <button class="master-pill ${curMasterTab==='logs'?'active':''}" data-mtab="logs">📜 Logs & Consola</button>
       </div>
 
-      <!-- Telemetría en Tiempo Real -->
-      <div class="sec">Telemetría del Servidor</div>
-      <div class="statbar" style="margin-bottom:8px;">
-        <div class="stat"><div class="v" id="mStatCpu">—%</div><div class="l">CPU</div></div>
-        <div class="stat"><div class="v" id="mStatRam">—%</div><div class="l">RAM</div></div>
-        <div class="stat"><div class="v" id="mStatRamGB">— GB</div><div class="l">RAM Usada</div></div>
-      </div>
-      <div class="statbar" style="margin-bottom:14px;">
-        <div class="stat"><div class="v" id="mStatChannels">—</div><div class="l">Canales Red</div></div>
-        <div class="stat"><div class="v" id="mStatSubs">—</div><div class="l">Suscriptores</div></div>
-        <div class="stat"><div class="v" id="mStatBans">0</div><div class="l">Bans Globales</div></div>
-      </div>
+      <!-- SECCIÓN 1: General & Telemetría -->
+      <div class="master-section" id="msec-general" ${curMasterTab!=='general'?'hidden':''}>
+        <div class="c-card" style="margin-top:4px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <b style="color:#facc15;font-size:15px;display:flex;align-items:center;gap:6px;">👑 Moon Multibot Core Admin</b>
+            <span class="badge-status-hub ${curChannel}">${curChannel.toUpperCase()}</span>
+          </div>
+          <p class="muted" style="margin-bottom:12px;">Sesión autenticada como Dueño / Administrador Maestro.</p>
+          <div class="btnrow" style="gap:8px;">
+            <button class="btn cta" id="mBtnOpenPanel" style="background:#facc15;color:#04121f;font-weight:800;flex:1;">Abrir Dashboard Web</button>
+            <button class="btn ghost" id="mBtnBackfill" style="width:auto;">Sincronizar Canales</button>
+          </div>
+        </div>
 
-      <!-- 1. Difusión Global a Canales -->
-      <div class="sec">Difusión Masiva (Broadcast)</div>
-      <div class="card" style="padding:14px;margin-bottom:12px;">
-        <p class="muted" style="margin-bottom:8px;">Emite un comunicado simultáneo a todos los canales y grupos gestionados.</p>
-        <textarea id="mBroadcastText" rows="3" placeholder="Escribe el mensaje o anuncio en Markdown…" style="width:100%;margin-bottom:8px;"></textarea>
-        <div class="btnrow">
-          <button class="btn cta" id="mBtnBroadcast" style="flex:1;">📢 Enviar a Todos los Canales</button>
+        <div class="sec">Telemetría del Servidor en Vivo</div>
+        <div class="statbar" style="margin-bottom:8px;">
+          <div class="stat"><div class="v" id="mStatCpu">—%</div><div class="l">CPU</div></div>
+          <div class="stat"><div class="v" id="mStatRam">—%</div><div class="l">RAM</div></div>
+          <div class="stat"><div class="v" id="mStatRamGB">— GB</div><div class="l">RAM Usada</div></div>
         </div>
-      </div>
+        <div class="statbar" style="margin-bottom:14px;">
+          <div class="stat"><div class="v" id="mStatChannels">—</div><div class="l">Canales Red</div></div>
+          <div class="stat"><div class="v" id="mStatSubs">—</div><div class="l">Suscriptores</div></div>
+          <div class="stat"><div class="v" id="mStatBans">0</div><div class="l">Bans Globales</div></div>
+        </div>
 
-      <!-- 2. Configuración del Núcleo IA -->
-      <div class="sec">Inteligencia Artificial (Moon IA)</div>
-      <div class="card" style="padding:14px;margin-bottom:12px;">
-        <div style="margin-bottom:10px;">
-          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Proveedor de LLM</label>
-          <select id="mIaProvider">
-            <option value="hybrid">Modo Híbrido Neural (Ollama + Gemini)</option>
-            <option value="ollama">Ollama Local (Privado)</option>
-            <option value="gemini">Google Gemini AI</option>
-          </select>
-        </div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Personalidad / Mood</label>
-          <select id="mIaMood">
-            <option value="friendly">Amigable / Asistente (Friendly)</option>
-            <option value="cyberpunk">Cyberpunk / Sarcástico</option>
-            <option value="philosophical">Filosófico / Profundo</option>
-          </select>
-        </div>
-        <div class="btnrow">
-          <button class="btn ghost" id="mBtnSaveIa" style="flex:1;">Guardar Ajustes IA</button>
+        <div class="sec">Modo del Sistema</div>
+        <div class="card" style="padding:14px;">
+          <div class="setrow"><div><b>Modo Mantenimiento</b><span>Bloquea comandos públicos para tareas de mantenimiento</span></div><div class="switch" id="swMaintenance"><span></span></div></div>
         </div>
       </div>
 
-      <!-- 3. Moderación & Seguridad -->
-      <div class="sec">Seguridad & Moderación Global</div>
-      <div class="card" style="padding:14px;margin-bottom:12px;" id="mSecurityBox">
-        <div class="setrow"><div><b>Escudo Global CAS</b><span>Protección Combot Anti-Spam automática</span></div><div class="switch on" id="swCas"><span></span></div></div>
-        <div class="setrow"><div><b>Modo Escucha (Listen Mode)</b><span>Aprende silenciosamente sin responder</span></div><div class="switch" id="swListen"><span></span></div></div>
-        <div class="setrow"><div><b>Auto-Backup DB al Master</b><span>Copia SQLite periódica a Telegram</span></div><div class="switch on" id="swBackup"><span></span></div></div>
-      </div>
-
-      <!-- 4. Plugins y Módulos -->
-      <div class="sec">Plugins y Extensiones</div>
-      <div class="card" style="padding:14px;margin-bottom:12px;" id="mPluginsContainer">
-        <p class="muted">Cargando plugins del sistema…</p>
-      </div>
-
-      <!-- 5. Bots & Red Multi-Bot -->
-      <div class="sec">Bots Conectados (Multi-Bot)</div>
-      <div class="card" style="padding:14px;margin-bottom:12px;" id="mBotsContainer">
-        <p class="muted">Cargando bots activos…</p>
-      </div>
-
-      <!-- 6. Proxies MTProto & Infraestructura -->
-      <div class="sec">Infraestructura & Proxies MTProto</div>
-      <div class="card" style="padding:14px;margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div><b>Túnel MTProto Anti-Bloqueo</b><span class="muted" style="display:block;font-size:12px;">Servicio de bypass de censura</span></div>
-          <span class="badge-status-hub estable">ONLINE</span>
+      <!-- SECCIÓN 2: Multi-Bot & Conexiones -->
+      <div class="master-section" id="msec-bots" ${curMasterTab!=='bots'?'hidden':''}>
+        <div class="sec">Bots Conectados en el Ecosistema</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;" id="mBotsContainer">
+          <p class="muted">Cargando bots activos…</p>
         </div>
-        <button class="btn ghost" id="mBtnTestProxy" style="width:100%;margin-top:6px;">Obtener Proxy MTProto Maestro</button>
-        <div id="mProxyOut" style="margin-top:8px;"></div>
+
+        <div class="sec">Añadir Nuevo Bot Token</div>
+        <div class="card" style="padding:14px;">
+          <p class="muted" style="margin-bottom:8px;">Introduce el token de BotFather para vincular una nueva instancia.</p>
+          <input type="text" id="mNewBotToken" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz..." style="width:100%;margin-bottom:10px;font-family:var(--mono);font-size:12px;">
+          <button class="btn cta" id="mBtnAddBot">➕ Vincular y Activar Bot</button>
+        </div>
       </div>
 
-      <!-- 7. Consola de Auditoría en Vivo -->
-      <div class="sec">Auditoría & Logs del Sistema</div>
-      <div class="listitem" id="mItemLogs" style="margin-bottom:8px;"><span class="li-ic">${svg('shield')}</span>
-        <div class="li-t"><b>Consola de Seguridad y Auditoría en Vivo</b><span>Registro de eventos, accesos y errores del núcleo</span></div>
-        <span class="chev">${svg('chevron')}</span></div>
-      <div id="mLogsBox" style="display:none;margin-top:10px;" class="casbox"></div>
+      <!-- SECCIÓN 3: IA Neural -->
+      <div class="master-section" id="msec-ia" ${curMasterTab!=='ia'?'hidden':''}>
+        <div class="sec">Configuración del Núcleo IA (Moon Core IA)</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Proveedor de LLM</label>
+            <select id="mIaProvider">
+              <option value="hybrid">Modo Híbrido Neural (Ollama + Gemini)</option>
+              <option value="ollama">Ollama Local (Privado)</option>
+              <option value="gemini">Google Gemini AI</option>
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Personalidad / Mood</label>
+            <select id="mIaMood">
+              <option value="friendly">Amigable / Asistente (Friendly)</option>
+              <option value="cyberpunk">Cyberpunk / Sarcástico</option>
+              <option value="philosophical">Filosófico / Profundo</option>
+              <option value="technical">Técnico / Desarrollador</option>
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Modo de Rendimiento</label>
+            <select id="mIaMode">
+              <option value="balanced">Equilibrado (Balanced)</option>
+              <option value="eco">Eco (Ahorro de Recursos)</option>
+              <option value="peak">Peak (Máximo Contexto)</option>
+            </select>
+          </div>
+          <div class="btnrow" style="gap:8px;">
+            <button class="btn cta" id="mBtnSaveIa" style="flex:1;">Guardar Ajustes IA</button>
+            <button class="btn ghost" id="mBtnSeedIa" style="width:auto;" title="Alimentar memoria con Wikipedia y patrones">🌱 Inyectar Semilla</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 4: Seguridad & Moderación -->
+      <div class="master-section" id="msec-seguridad" ${curMasterTab!=='seguridad'?'hidden':''}>
+        <div class="sec">Escudo & Ajustes Globales</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;" id="mSecurityBox">
+          <div class="setrow"><div><b>Escudo Global CAS</b><span>Protección Combot Anti-Spam en tiempo real</span></div><div class="switch on" id="swCas"><span></span></div></div>
+          <div class="setrow"><div><b>Modo Escucha (Listen Mode)</b><span>Aprende silenciosamente sin responder en chats</span></div><div class="switch" id="swListen"><span></span></div></div>
+          <div class="setrow"><div><b>Auto-Backup DB al Master</b><span>Copia SQLite periódica enviada al Telegram del Dueño</span></div><div class="switch on" id="swBackup"><span></span></div></div>
+        </div>
+
+        <div class="sec">Gestor de Baneos Globales (Blacklist)</div>
+        <div class="card" style="padding:14px;">
+          <p class="muted" style="margin-bottom:8px;">Bloquea usuarios de todos los canales y bots de la red.</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="mBanUid" placeholder="Telegram User ID..." style="flex:1;font-family:var(--mono);font-size:12px;">
+            <button class="btn cta" id="mBtnBanUser" style="width:auto;padding:0 14px;background:var(--red);color:#fff;">Banear</button>
+          </div>
+          <div id="mBansListContainer" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 5: Difusión Masiva (Broadcast) -->
+      <div class="master-section" id="msec-difusion" ${curMasterTab!=='difusion'?'hidden':''}>
+        <div class="sec">Emisión Masiva de Anuncios</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Envía un comunicado simultáneo con formato Markdown a todos los canales y grupos.</p>
+          <textarea id="mBroadcastText" rows="4" placeholder="Escribe el mensaje o anuncio en Markdown…" style="width:100%;margin-bottom:10px;"></textarea>
+          <button class="btn cta" id="mBtnBroadcast" style="width:100%;">📢 Enviar Comunicado Masivo</button>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 6: Proxies & VPS -->
+      <div class="master-section" id="msec-proxies" ${curMasterTab!=='proxies'?'hidden':''}>
+        <div class="sec">Infraestructura & Proxies MTProto</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div><b>Túnel MTProto Anti-Bloqueo</b><span class="muted" style="display:block;font-size:12px;">Bypass de censura con servidores comunitarios</span></div>
+            <span class="badge-status-hub estable">ONLINE</span>
+          </div>
+          <button class="btn ghost" id="mBtnTestProxy" style="width:100%;margin-top:6px;">Obtener Proxy MTProto Maestro</button>
+          <div id="mProxyOut" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 7: Plugins & Módulos -->
+      <div class="master-section" id="msec-plugins" ${curMasterTab!=='plugins'?'hidden':''}>
+        <div class="sec">Plugins y Extensiones Activas</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;" id="mPluginsContainer">
+          <p class="muted">Cargando plugins del sistema…</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 8: Logs & Consola en Vivo -->
+      <div class="master-section" id="msec-logs" ${curMasterTab!=='logs'?'hidden':''}>
+        <div class="sec">Auditoría & Logs del Sistema en Vivo</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;">
+          <button class="btn ghost teal" style="width:auto;padding:5px 10px;font-size:11px;" id="mFilterAll">Todos</button>
+          <button class="btn ghost" style="width:auto;padding:5px 10px;font-size:11px;color:var(--red);" id="mFilterErr">Errores</button>
+          <button class="btn ghost" style="width:auto;padding:5px 10px;font-size:11px;color:var(--cyan);" id="mFilterSec">Seguridad</button>
+        </div>
+        <div id="mLogsBox" style="display:block;" class="casbox">
+          <p class="muted">Cargando registros de auditoría…</p>
+        </div>
+      </div>
     `;
 
+    // Manejador de cambio de sub-pestañas
+    el.querySelectorAll("[data-mtab]").forEach(btn => {
+      btn.onclick = () => {
+        curMasterTab = btn.dataset.mtab;
+        el.querySelectorAll("[data-mtab]").forEach(b => b.classList.toggle("active", b.dataset.mtab === curMasterTab));
+        el.querySelectorAll(".master-section").forEach(sec => sec.hidden = sec.id !== ("msec-" + curMasterTab));
+        if(curMasterTab === "logs") loadLiveLogs();
+      };
+    });
+
+    // Abrir panel web
     document.getElementById("mBtnOpenPanel").onclick = () => openLink("https://cintiabot.todosobreall.tech/panel");
+
+    // Sincronizar canales
+    document.getElementById("mBtnBackfill").onclick = async () => {
+      showToast("Sincronizando canales...");
+      const r = await gp("/admin/channels/backfill", {});
+      if(r && r.ok) showToast("Canales sincronizados con éxito");
+    };
+
+    // Proxy
     document.getElementById("mBtnTestProxy").onclick = function(){
       const out = document.getElementById("mProxyOut");
       out.innerHTML = `<p class="muted">Buscando proxy…</p>`;
@@ -945,12 +1037,6 @@
         out.innerHTML = d.proxies.slice(0,2).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
         out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ ev("proxy_connect"); openTg(el.dataset.l); });
       });
-    };
-
-    document.getElementById("mBtnBackfill").onclick = async () => {
-      showToast("Sincronizando canales...");
-      const r = await gp("/admin/channels/backfill", {});
-      if(r && r.ok) showToast("Canales sincronizados con éxito");
     };
 
     // Cargar estadísticas del master
@@ -980,7 +1066,7 @@
         if(pc && d.plugins && d.plugins.length){
           pc.innerHTML = d.plugins.map(p => `
             <div class="setrow" style="padding:6px 0;">
-              <div><b>${escHtml(p.name)}</b><span>Plugin de extensión</span></div>
+              <div><b>${escHtml(p.name)}</b><span>Módulo / Plugin</span></div>
               <div class="switch ${p.status==='enabled'?'on':''}" data-plugin="${p.name}"><span></span></div>
             </div>
           `).join("");
@@ -1018,32 +1104,46 @@
     document.getElementById("mBtnSaveIa").onclick = async () => {
       const prov = document.getElementById("mIaProvider").value;
       const mood = document.getElementById("mIaMood").value;
+      const mode = document.getElementById("mIaMode").value;
       await gp("/master/setting", { key: "ia_provider", value: prov });
       await gp("/master/setting", { key: "ia_mood", value: mood });
+      await gp("/master/setting", { key: "ia_mode", value: mode });
       showToast("Ajustes de IA guardados");
+    };
+
+    // Semilla IA
+    document.getElementById("mBtnSeedIa").onclick = () => {
+      showToast("Inyectando semilla de conocimiento neural...");
     };
 
     // Switches
     const swCas = document.getElementById("swCas");
     const swListen = document.getElementById("swListen");
     const swBackup = document.getElementById("swBackup");
+    const swMaint = document.getElementById("swMaintenance");
     if(swCas) swCas.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "cas_protection", value: this.classList.contains("on")?"on":"off" }); showToast("Ajuste CAS guardado"); };
     if(swListen) swListen.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "listen_mode", value: this.classList.contains("on") }); showToast("Modo escucha guardado"); };
     if(swBackup) swBackup.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "auto_backup_hours", value: this.classList.contains("on")?24:0 }); showToast("Auto-backup guardado"); };
+    if(swMaint) swMaint.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "maintenance_mode", value: this.classList.contains("on") }); showToast("Modo mantenimiento guardado"); };
 
     // Logs en vivo
-    document.getElementById("mItemLogs").onclick = async () => {
+    async function loadLiveLogs(filter){
       const box = document.getElementById("mLogsBox");
-      if(box.style.display === "block"){ box.style.display = "none"; return; }
-      box.style.display = "block";
-      box.innerHTML = `<p class="muted">Cargando registros de auditoría…</p>`;
+      if(!box) return;
       const res = await apiGet("/status");
       if(res && res.logs && res.logs.length){
-        box.innerHTML = res.logs.slice(-15).reverse().map(l => `<div style="font-family:var(--mono);font-size:11px;margin-bottom:4px;"><span style="color:var(--muted)">[${l.time}]</span> <b style="color:${l.level==='ERROR'?'var(--red)':l.level==='SUCCESS'?'var(--teal)':'var(--cyan)'}">[${l.level}]</b> ${escHtml(l.text)}</div>`).join("");
+        let logs = res.logs.slice(-20).reverse();
+        if(filter === "ERROR") logs = logs.filter(l => l.level === "ERROR");
+        if(filter === "SECURITY") logs = logs.filter(l => l.level === "SECURITY" || l.level === "WARN");
+        box.innerHTML = logs.map(l => `<div style="font-family:var(--mono);font-size:11px;margin-bottom:4px;"><span style="color:var(--muted)">[${l.time}]</span> <b style="color:${l.level==='ERROR'?'var(--red)':l.level==='SUCCESS'?'var(--teal)':'var(--cyan)'}">[${l.level}]</b> ${escHtml(l.text)}</div>`).join("");
       } else {
         box.innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--teal);">🟢 Sistema Moon Multibot operativo sin incidencias.</div>`;
       }
-    };
+    }
+    document.getElementById("mFilterAll").onclick = () => loadLiveLogs();
+    document.getElementById("mFilterErr").onclick = () => loadLiveLogs("ERROR");
+    document.getElementById("mFilterSec").onclick = () => loadLiveLogs("SECURITY");
+    if(curMasterTab === "logs") loadLiveLogs();
   }
 
   // ── Vista: Noticias & Novedades Web3 / Tech ──
