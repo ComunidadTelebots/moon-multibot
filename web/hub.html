@@ -421,7 +421,7 @@
       document.getElementById("ctaAdd").onclick=()=>{ev("add_channel",{from:"canales_empty"});openTg(ADD_LINK);};
       return;
     }
-    el.innerHTML=`<div class="vtitle">Mis canales</div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
+    el.innerHTML=`<div class="vtitle" style="display:flex;align-items:center;gap:8px;">Mis canales <span class="badge-status-hub estable">ESTABLE</span></div><div class="vsub">${chs.length} canal${chs.length>1?'es':''} · toca uno para gestionarlo.</div>
       <div style="margin:10px 0;"><input type="search" id="searchCanales" placeholder="🔍 Buscar canal o grupo…" style="width:100%;"></div>
       <div id="canalesList">`
       +chs.map(c=>channelRow(c,true)).join("")
@@ -512,11 +512,11 @@
       <div class="btnrow" style="align-items:center"><input type="text" id="gimgprompt" placeholder="Describe la imagen…" style="flex:1"><button class="btn ghost" id="gimggen" style="width:auto;padding:13px 16px">Generar</button></div>
       <div id="gimgout"></div>
 
-      <div class="gsec">Programados (${sched.length})</div><div id="gschedlist"></div>
-      <div class="gsec">Moderación</div>
+      <div class="gsec" style="display:flex;align-items:center;justify-content:space-between;"><span>Programados (${sched.length})</span> <span class="badge-status-hub estable">ESTABLE</span></div><div id="gschedlist"></div>
+      <div class="gsec" style="display:flex;align-items:center;justify-content:space-between;"><span>Moderación</span> <span class="badge-status-hub estable">ESTABLE</span></div>
       <div class="dropdown" id="dd-bans"><div class="dhead">Baneados en Telegram (${bans.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gbans" hidden></div></div>
       <div class="dropdown" id="dd-warns"><div class="dhead">Con aviso (${warns.length}) <span class="chev">${svg('chevron')}</span></div><div class="dbody" id="gwarns" hidden></div></div>
-      <div class="gsec">🛡️ Verificación CAPTCHA Anti-Bot</div>
+      <div class="gsec" style="display:flex;align-items:center;justify-content:space-between;"><span>🛡️ Verificación CAPTCHA Anti-Bot</span> <span class="badge-status-hub beta">BETA</span></div>
       <div class="card" style="padding:14px;margin-bottom:12px;">
         <div class="setrow" style="padding:4px 0 10px;">
           <div><b>Activar Captcha para Nuevos Miembros</b><span>Exige resolver un reto antes de poder escribir</span></div>
@@ -552,7 +552,7 @@
         <button class="btn ghost" id="gBtnTestCaptchaWeb" style="width:100%;margin-top:10px;font-size:12.5px;">👁️ Probar Interfaz Web del Captcha (join.html)</button>
       </div>
 
-      <div class="gsec">👋 Mensaje de Bienvenida del Grupo</div>
+      <div class="gsec" style="display:flex;align-items:center;justify-content:space-between;"><span>👋 Mensaje de Bienvenida del Grupo</span> <span class="badge-status-hub estable">ESTABLE</span></div>
       <div class="card" style="padding:14px;margin-bottom:12px;">
         <div class="setrow" style="padding:4px 0 10px;">
           <div><b>Saludar a Nuevos Miembros</b><span>Envía un mensaje al unirse</span></div>
@@ -562,7 +562,7 @@
         <button class="btn ghost" id="gWelcomeSave" style="width:100%;">Guardar Mensaje de Bienvenida</button>
       </div>
 
-      <div class="gsec">🛡️ Restricciones & Moderación del Grupo</div>
+      <div class="gsec" style="display:flex;align-items:center;justify-content:space-between;"><span>🛡️ Restricciones & Moderación</span> <span class="badge-status-hub estable">ESTABLE</span></div>
       <div id="gsettings"></div>
 
       <div class="gsec">Palabras prohibidas</div>
@@ -849,7 +849,7 @@
       return;
     }
     const gv=g&&g.ok?g:{channels:chs.length,totalSubscribers:0,avgGrowth:0};
-    el.innerHTML=`<div class="vtitle">Directorio</div><div class="vsub">${gv.channels} canales en la red.</div>
+    el.innerHTML=`<div class="vtitle" style="display:flex;align-items:center;gap:8px;">Directorio <span class="badge-status-hub estable">ESTABLE</span></div><div class="vsub">${gv.channels} canales en la red.</div>
       <div class="statbar">
         <div class="stat"><div class="v">${fmt(gv.channels)}</div><div class="l">Canales</div></div>
         <div class="stat"><div class="v">${fmt(gv.totalSubscribers)}</div><div class="l">Suscriptores</div></div>
@@ -871,17 +871,17 @@
 
   // ── Red (servicios + proxy secundario) ──
   const SERVICES=[
-    {ic:"message",n:"Telegram Web",url:"https://chat.todosobreall.tech"},
-    {ic:"newspaper",n:"Noticias Web3",url:"https://noticiasweb3.todosobreall.tech"},
-    {ic:"shield",n:"Resistencia",url:"https://resistenciaalacensura.todosobreall.tech"},
-    {ic:"gamepad",n:"Gameplays",url:"https://todosobregameplays.todosobreall.tech"},
-    {ic:"globe",n:"Todo Sobre All",url:"https://todosobreall.tech"},
-    {ic:"users",n:"Comunidad",url:"https://comunidadtelebots.todosobreall.tech"},
+    {ic:"message",n:"Telegram Web",url:"https://chat.todosobreall.tech",st:"estable"},
+    {ic:"newspaper",n:"Noticias Web3",url:"https://noticiasweb3.todosobreall.tech",st:"beta"},
+    {ic:"shield",n:"Resistencia",url:"https://resistenciaalacensura.todosobreall.tech",st:"rc"},
+    {ic:"gamepad",n:"Gameplays",url:"https://todosobregameplays.todosobreall.tech",st:"estable"},
+    {ic:"globe",n:"Todo Sobre All",url:"https://todosobreall.tech",st:"estable"},
+    {ic:"users",n:"Comunidad",url:"https://comunidadtelebots.todosobreall.tech",st:"estable"},
   ];
   function loadRed(){
     const el=document.getElementById("v-red");
-    el.innerHTML=`<div class="vtitle">Red</div><div class="vsub">Servicios y herramientas de ComunidadTelebots.</div>
-      <div class="services">${SERVICES.map((s,i)=>`<div class="svc" data-i="${i}"><span class="si">${svg(s.ic)}</span>${s.n}</div>`).join("")}</div>
+    el.innerHTML=`<div class="vtitle" style="display:flex;align-items:center;gap:8px;">Red & Ecosistema <span class="badge-status-hub rc">RC</span></div><div class="vsub">Servicios y herramientas de ComunidadTelebots.</div>
+      <div class="services">${SERVICES.map((s,i)=>`<div class="svc" data-i="${i}"><span class="si">${svg(s.ic)}</span><div><b>${s.n}</b><br><span class="badge-status-hub ${s.st}" style="font-size:7.5px;padding:1px 4px;">${s.st.toUpperCase()}</span></div></div>`).join("")}</div>
       <div class="sec">Herramientas & Entretenimiento</div>
       <div class="listitem" id="truckItem" style="margin-bottom:8px;"><span class="li-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
         <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Simulador 3D de Camiones</b><span class="badge-status-hub alfa">ALFA</span></div><span>Aster 770 S V8, tacógrafo UE y cabina cockpit</span></div>
@@ -890,7 +890,7 @@
         <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Arcade & Minijuegos</b><span class="badge-status-hub estable">ESTABLE</span></div><span>Snake, 2048, Tres en Raya y Memoria</span></div>
         <span class="chev">${svg('chevron')}</span></div>
       <div class="listitem" id="proxyItem"><span class="li-ic">${svg('globe')}</span>
-        <div class="li-t"><b>Obtener proxy MTProto</b><span>Salta bloqueos de Telegram</span></div>
+        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Obtener proxy MTProto</b><span class="badge-status-hub beta">BETA</span></div><span>Salta bloqueos de Telegram</span></div>
         <span class="chev">${svg('chevron')}</span></div>
       <div class="proxy-out" id="proxyOut"></div>`;
     el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>{ev("service_open",{service:SERVICES[x.dataset.i].n});openLink(SERVICES[x.dataset.i].url);});
@@ -959,19 +959,19 @@
       <div class="vtitle" style="display:flex;align-items:center;gap:8px;">👑 Panel Maestro <span class="badge-status-hub alfa">${curChannel.toUpperCase()}</span></div>
       <div class="vsub">Control integral y administración avanzada del ecosistema Moonbot.</div>
 
-      <!-- Sub-Pestañas Horizontales del Master -->
+      <!-- Sub-Pestañas Horizontales del Master con Clasificación -->
       <div class="master-tabs" id="masterTabsBar">
-        <button class="master-pill ${curMasterTab==='general'?'active':''}" data-mtab="general">📊 General</button>
-        <button class="master-pill ${curMasterTab==='grupos'?'active':''}" data-mtab="grupos">👥 Grupos & Canales</button>
-        <button class="master-pill ${curMasterTab==='config'?'active':''}" data-mtab="config">⚙️ Ajustes Globales</button>
-        <button class="master-pill ${curMasterTab==='bots'?'active':''}" data-mtab="bots">🤖 Multi-Bot</button>
-        <button class="master-pill ${curMasterTab==='business'?'active':''}" data-mtab="business">💼 Telegram Business</button>
-        <button class="master-pill ${curMasterTab==='ia'?'active':''}" data-mtab="ia">🧠 IA Neural</button>
-        <button class="master-pill ${curMasterTab==='seguridad'?'active':''}" data-mtab="seguridad">🛡️ Seguridad & CAS</button>
-        <button class="master-pill ${curMasterTab==='difusion'?'active':''}" data-mtab="difusion">📢 Difusión</button>
-        <button class="master-pill ${curMasterTab==='proxies'?'active':''}" data-mtab="proxies">🌐 Proxies & VPS</button>
-        <button class="master-pill ${curMasterTab==='plugins'?'active':''}" data-mtab="plugins">🔌 Plugins</button>
-        <button class="master-pill ${curMasterTab==='logs'?'active':''}" data-mtab="logs">📜 Logs & Consola</button>
+        <button class="master-pill ${curMasterTab==='general'?'active':''}" data-mtab="general">📊 General <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='grupos'?'active':''}" data-mtab="grupos">👥 Grupos & Canales <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='config'?'active':''}" data-mtab="config">⚙️ Ajustes <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='bots'?'active':''}" data-mtab="bots">🤖 Multi-Bot <span class="badge-status-hub rc" style="font-size:7.5px;padding:1px 4px;">RC</span></button>
+        <button class="master-pill ${curMasterTab==='business'?'active':''}" data-mtab="business">💼 Business <span class="badge-status-hub beta" style="font-size:7.5px;padding:1px 4px;">BETA</span></button>
+        <button class="master-pill ${curMasterTab==='ia'?'active':''}" data-mtab="ia">🧠 IA Neural <span class="badge-status-hub alfa" style="font-size:7.5px;padding:1px 4px;">ALFA</span></button>
+        <button class="master-pill ${curMasterTab==='seguridad'?'active':''}" data-mtab="seguridad">🛡️ Seguridad <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='difusion'?'active':''}" data-mtab="difusion">📢 Difusión <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='proxies'?'active':''}" data-mtab="proxies">🌐 Proxies <span class="badge-status-hub beta" style="font-size:7.5px;padding:1px 4px;">BETA</span></button>
+        <button class="master-pill ${curMasterTab==='plugins'?'active':''}" data-mtab="plugins">🔌 Plugins <span class="badge-status-hub rc" style="font-size:7.5px;padding:1px 4px;">RC</span></button>
+        <button class="master-pill ${curMasterTab==='logs'?'active':''}" data-mtab="logs">📜 Logs <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
       </div>
 
       <!-- SECCIÓN 1: General & Telemetría -->
