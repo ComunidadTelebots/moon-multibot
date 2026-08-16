@@ -460,8 +460,13 @@ def index(): return send_from_directory("web", "landing.html")
 def panel(): return send_from_directory("web", "index.html")
 @app.route("/hub")
 @app.route("/app")
+@app.route("/webapp")
 @app.route("/miniapp")
 def hub_app(): return send_from_directory("web", "hub.html")
+
+@app.route("/join")
+@app.route("/captcha")
+def join_app(): return send_from_directory("web", "join.html")
 
 @app.route("/alfa")
 @app.route("/alpha")
