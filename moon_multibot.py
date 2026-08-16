@@ -2941,7 +2941,7 @@ class MoonBot:
         # Blacklist Manual (Legacy)
         banned_hashes = db.get("BANNED_HASHES", [])
         if file_hash in banned_hashes:
-            self.call_api("deleteMessage", {"chat_id": cid, "message_id": self.last_msg_id}, silent=True)
+            self.api_call("deleteMessage", {"chat_id": cid, "message_id": self.last_msg_id}, silent=True)
             self.send_msg(cid, "ðŸš« **ESCUDO:** Archivo bloqueado por lista negra manual.")
             return True
 
