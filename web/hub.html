@@ -246,6 +246,31 @@
   body.theme-android-dark .card, body.theme-android-dark .c-card { border-radius: 24px; }
   body.theme-android-dark .topbar, body.theme-android-dark .tabbar { background: #121316; border-color: #2a2b2f; }
 
+
+  /* Vista de Chat */
+  .chat-layout { display: flex; height: calc(100vh - 150px); overflow: hidden; background: var(--card2); border-radius: 16px; border: 1px solid var(--line); margin-top: 10px; }
+  .chat-sidebar { width: 280px; border-right: 1px solid var(--line); display: flex; flex-direction: column; background: var(--bg); }
+  .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--card); }
+  .chat-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
+  .chat-bubble { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+  .chat-bubble.bot { background: var(--cyan); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 2px 8px rgba(34,211,238,0.2); }
+  .chat-bubble.user { background: var(--line); color: var(--ink); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .chat-bubble.admin { background: rgba(10,132,255,0.12); color: var(--teal); border: 1px solid rgba(10,132,255,0.3); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .chat-input-bar { padding: 12px; border-top: 1px solid var(--line); display: flex; gap: 10px; background: var(--bg); align-items: center; }
+  .chat-input { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--line); background: var(--card2); color: var(--ink); outline: none; font-size: 14px; transition: border .2s; }
+  .chat-input:focus { border-color: var(--teal); }
+  .chat-send-btn { background: var(--grad); color: #fff; border: none; border-radius: 50%; width: 44px; height: 44px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: transform .2s; }
+  .chat-send-btn:active { transform: scale(0.9); }
+  .chat-ch-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--line); transition: background .2s; display: flex; justify-content: space-between; align-items: center; }
+  .chat-ch-item:hover, .chat-ch-item.active { background: var(--card); }
+  .chat-ch-name { font-weight: 600; font-size: 14px; color: var(--ink); }
+  .chat-ch-type { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  @media (max-width:768px) { 
+    .chat-layout { flex-direction: column; height: calc(100vh - 120px); border-radius: 0; border: none; margin-top: 0; }
+    .chat-sidebar { width: 100%; height: 160px; border-right: none; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .chat-ch-item { padding: 10px 14px; }
+  }
+
   /* Modal de Selección Rápida de Versión */
   .hub-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:999;display:none;align-items:flex-end;justify-content:center;}
   .hub-modal-backdrop.open{display:flex;}
@@ -293,6 +318,7 @@
     <section class="view" data-view="noticias" id="v-noticias" hidden></section>
     <section class="view" data-view="directorio" id="v-directorio" hidden></section>
     <section class="view" data-view="red" id="v-red" hidden></section>
+    <section class="view" data-view="chat" id="v-chat" hidden></section>
     <section class="view" data-view="master" id="v-master" hidden></section>
     <section class="view" data-view="ajustes" id="v-ajustes" hidden></section>
     <section class="view" data-view="grupo" id="v-grupo" hidden></section>
@@ -300,6 +326,7 @@
 
   <nav class="tabbar">
     <button class="tab active" data-tab="canales" data-ic="megaphone"><span>Canales</span></button>
+    <button class="tab" data-tab="chat" id="tabChat" style="display:none;" data-ic="chat"><span>Chat</span></button>
     <button class="tab" data-tab="admin" data-ic="shield"><span>Admin</span></button>
     <button class="tab" data-tab="noticias" data-ic="newspaper"><span>Noticias</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
@@ -1927,6 +1954,113 @@
   ];
 
   let currentNewsCat = "all";
+
+  // --- Vista: Chat Remoto ---
+  let activeChatId = null;
+  let chatPollTimer = null;
+  
+  function loadChat() {
+    const el = document.getElementById("v-chat");
+    el.innerHTML = `
+      <div class="vtitle">Consola de Chat Remoto</div>
+      <div class="vsub">Vigila la actividad de tus canales y responde en vivo como el Bot.</div>
+      
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div style="padding:14px; border-bottom:1px solid var(--line); font-weight:800; font-family:var(--display); color:var(--teal);">TUS NODOS</div>
+          <div id="chatSidebarList" style="overflow-y:auto; flex:1;"></div>
+        </div>
+        <div class="chat-main">
+          <div style="padding:14px; border-bottom:1px solid var(--line); background:var(--bg); display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:600; font-family:var(--display);" id="chatActiveTitle">Selecciona un chat</div>
+            <button class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;" onclick="refreshChatNow()">${svg('refresh')} Refrescar</button>
+          </div>
+          <div class="chat-msgs" id="chatMsgsBox">
+            <div style="margin:auto; color:var(--muted); font-size:13px;">Haz clic en un canal a la izquierda para conectar.</div>
+          </div>
+          <div class="chat-input-bar">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Escribe un mensaje como bot..." onkeydown="if(event.key==='Enter') sendChatMsg()">
+            <button class="chat-send-btn" onclick="sendChatMsg()">${svg('check')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const sb = document.getElementById("chatSidebarList");
+    if(masterChannels && masterChannels.length > 0) {
+      sb.innerHTML = masterChannels.map(c => `
+        <div class="chat-ch-item" onclick="openChatRoom('${c.id}', '${escHtml(c.name||'Chat')}')" id="chitem-${c.id}">
+          <div>
+            <div class="chat-ch-name">${escHtml(c.name||'Desconocido')}</div>
+            <div class="chat-ch-type">${c.ctype||'grupo'}</div>
+          </div>
+          <div style="color:var(--muted); opacity:0.5;">></div>
+        </div>
+      `).join("");
+    } else {
+      sb.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:13px; text-align:center;">No hay canales disponibles.</div>`;
+    }
+  }
+  
+  window.refreshChatNow = function() {
+    if(activeChatId) openChatRoom(activeChatId, document.getElementById("chatActiveTitle").innerText);
+  };
+  
+  window.openChatRoom = async function(cid, name) {
+    activeChatId = cid;
+    document.getElementById("chatActiveTitle").innerText = name;
+    document.querySelectorAll(".chat-ch-item").forEach(i => i.classList.remove("active"));
+    const it = document.getElementById("chitem-"+cid);
+    if(it) it.classList.add("active");
+    
+    const box = document.getElementById("chatMsgsBox");
+    if(box.innerHTML.includes("Haz clic en un canal")) box.innerHTML = `<div style="margin:auto;" class="loader"></div>`;
+    
+    const d = await gp("/history", {chat_id: cid});
+    if(d && d.ok && d.history) {
+      if(d.history.length === 0) {
+        box.innerHTML = `<div style="margin:auto; color:var(--muted); font-size:13px;">El historial está vacío.</div>`;
+        return;
+      }
+      box.innerHTML = d.history.map(m => {
+        let cls = "user";
+        if(m.sender === "Bot" || m.sender === "System") cls = "bot";
+        else if(m.role === "admin" || m.role === "creator") cls = "admin";
+        
+        let header = `<div style="font-size:10px; opacity:0.6; margin-bottom:2px; display:flex; justify-content:space-between;"><span>${escHtml(m.sender)}</span> <span style="margin-left:8px;">${m.time}</span></div>`;
+        return `<div class="chat-bubble ${cls}">${header}<div>${escHtml(m.text)}</div></div>`;
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    } else {
+      box.innerHTML = `<div style="margin:auto; color:var(--red); font-size:13px;">Error al cargar historial.</div>`;
+    }
+    
+    if(chatPollTimer) clearInterval(chatPollTimer);
+    chatPollTimer = setInterval(() => { 
+        const el = document.getElementById("v-chat");
+        if(activeChatId === cid && el && el.hidden === false) refreshChatNow(); 
+    }, 8000);
+  };
+  
+  window.sendChatMsg = async function() {
+    if(!activeChatId) return;
+    const inp = document.getElementById("chatInput");
+    const txt = inp.value.trim();
+    if(!txt) return;
+    
+    inp.disabled = true;
+    const r = await gp("/admin/send_message", {chat_id: activeChatId, text: txt, parse_mode: "Markdown"});
+    inp.disabled = false;
+    
+    if(r && r.ok) {
+      inp.value = "";
+      refreshChatNow();
+    } else {
+      showToast((r&&r.error) || "Error al enviar el mensaje");
+      inp.focus();
+    }
+  };
+
   function loadNoticias() {
     const el = document.getElementById("v-noticias");
     const cats = ["all", "Web3 & Cripto", "Censura & Proxies", "Tecnología & IA", "Comunidad Telebots"];
@@ -1977,7 +2111,7 @@
   }
 
   // ── Navegación ──
-  const LOADERS={canales:loadCanales,admin:loadAdmin,noticias:loadNoticias,directorio:loadDirectorio,red:loadRed,master:loadMaster,ajustes:loadAjustes};
+  const LOADERS={canales:loadCanales,admin:loadAdmin,noticias:loadNoticias,directorio:loadDirectorio,red:loadRed,master:loadMaster,ajustes:loadAjustes,chat:loadChat};
   function showView(name){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
@@ -2054,6 +2188,8 @@
     if(rb)rb.hidden=false;
     const tm=document.getElementById("tabMaster");
     if(tm)tm.style.display="flex";
+    const tc=document.getElementById("tabChat");
+    if(tc)tc.style.display="flex";
     const mc=document.getElementById("c-masterCard");
     if(mc)mc.style.display="block";
   }
