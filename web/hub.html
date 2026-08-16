@@ -517,6 +517,7 @@
           <div>
             <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Tipo de Reto</label>
             <select id="gCaptchaType">
+              <option value="webapp" ${cfg.captcha_type==='webapp'?'selected':''}>Mini App Visual 9 Celdas (join.html)</option>
               <option value="button" ${cfg.captcha_type==='button'?'selected':''}>Botón "Soy Humano"</option>
               <option value="math" ${cfg.captcha_type==='math'?'selected':''}>Pregunta Matemática</option>
               <option value="emoji" ${cfg.captcha_type==='emoji'?'selected':''}>Botón con Emoji</option>
@@ -1047,6 +1048,7 @@
             <div>
               <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Tipo Captcha por defecto</label>
               <select id="mDefCaptchaType">
+                <option value="webapp">Mini App Visual 9 Celdas (join.html)</option>
                 <option value="button">Botón "Soy Humano"</option>
                 <option value="math">Pregunta Matemática</option>
                 <option value="emoji">Botón con Emoji</option>
