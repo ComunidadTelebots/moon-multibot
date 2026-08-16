@@ -1,5 +1,34 @@
 # Changelog - Moon Multibot
 
+## [v16.87.0-alpha] - 2026-08-16
+### Feature - Suite Maestra Completa, Clasificación por Canales & Herramientas de Grupo
+- **Matriz de Clasificación por Canales en Hub (`web/hub.html`)**:
+  - Sub-pestaña interactiva **`🏷️ Canales & Roadmap`** en el Panel Maestro para consultar y filtrar el estado de desarrollo de todo el ecosistema (*Todas, ALFA, BETA, RC, ESTABLE*).
+  - Integración de badges visuales de estado en todas las sub-pestañas, vistas, servicios de red y herramientas de moderación.
+- **Canal 🟠 ALFA (Desarrollo Activo & Experimental)**:
+  - **Simulador 3D Aster 770 S V8 (`web/transport-3d.html`)**: Motor Three.js 3D en tiempo real, cabina cockpit interactiva, cinemática de dirección, tacógrafo UE y texturas Canva de alta resolución.
+  - **IA Neural Moon Core**: Telemetría de neuronas y conexiones semánticas en vivo, consola de consulta directa para probar respuestas del bot e inyección de semilla de conocimiento.
+- **Canal 🟣 BETA (Estabilización & Integración)**:
+  - **Telegram Business Automation**: Sub-pestaña completa para cuentas vinculadas, secretaria IA responder automática, mensajes de bienvenida (*Greeting*), mensajes de ausencia (*Away*) y gestor de respuestas rápidas (*Quick Replies*).
+  - **Verificación CAPTCHA Mini App 9 Celdas (`web/join.html`)**: Reto visual interactivo de matching de iconos para solicitudes de entrada a grupos, con modo demo integrado y 4 métodos alternativos (*Botón en chat, pregunta matemática, emoji*).
+  - **Gestor de Proxies MTProto & VPS**: Bypass de censura, comprobación de latencia y generador de enlaces de conexión inmediata.
+  - **Lector de Noticias Multicanal**: Visor temático con filtros (*Web3 & Cripto, Resistencia, IA y Comunidad Telebots*).
+- **Canal 🔵 RC - Release Candidate (Candidatas Finales)**:
+  - **Multi-Bot & Conexiones Multi-Token**: Monitor de bots conectados y vinculación dinámica de nuevos tokens cifrados mediante Fernet.
+  - **Gestor de Plugins en Caliente**: Activación y desactivación de módulos modulares en tiempo real.
+  - **Anuncios Mutuos (InsideAds)**: Sistema de intercambios publicitarios y programación recíproca entre canales socios.
+  - **Estadísticas TGStat & Gráfica SVG**: Métricas de crecimiento a 30 días, posts por día y trazado de evolución.
+- **Canal 🟢 ESTABLE (Producción Verificada)**:
+  - **Creador de Encuestas Interactivas (Polls)**: Creación y envío de encuestas nativas a grupos con modo anónimo y respuesta múltiple (`sendPoll`).
+  - **Fijar Mensajes (Pin) & Modo Silencioso**: Opciones de anclaje de mensajes y difusión sin notificaciones molestas en panel de grupo y emisión masiva Master.
+  - **Buscador Reactivo en Tiempo Real**: Filtrado instantáneo por nombre o `@alias` en *Mis Canales* y *Directorio Público*.
+  - **Diagnóstico del Servidor en Vivo & Backup a Telegram**: Comprobaciones de salud (*Telegram API, Ollama, Gemini, SQLite WAL*) y exportación inmediata de copias de seguridad de la base de datos al chat del Master.
+  - **Arcade & Minijuegos Clásicos**: Snake, 2048, Tres en Raya y Memoria adaptados a temas iOS Cupertino y Android Material 3.
+  - **Moderación Avanzada & Escudo CAS**: Bloqueo de enlaces (*Anti-Link*), control de inundación (*Anti-Flood*), bloqueo de reenvíos (*Anti-Forward*), filtro de multimedia (*Anti-Stickers/GIFs*), silencio nocturno (*Night Mode*), palabras prohibidas y desbaneo en 1 toque.
+  - **Welcome Pack de Grupo**: Saludo personalizable con variables `{name}`, `{chat}`, `{id}` persistido en SQLite.
+  - **Difusión Masiva (Broadcast)**: Envío simultáneo en Markdown a todos los canales y grupos.
+  - **Auditoría & Logs del Sistema**: Consola de registros en vivo con filtros por nivel de severidad.
+
 ## [v16.86.0-alpha] - 2026-08-16
 ### Feature - Suite de Control Maestro en Mini App Hub & Separación de Entretenimiento
 - **Pestaña y Suite Maestra (`web/hub.html`)**:
