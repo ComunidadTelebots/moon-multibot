@@ -972,6 +972,7 @@
         <button class="master-pill ${curMasterTab==='proxies'?'active':''}" data-mtab="proxies">🌐 Proxies <span class="badge-status-hub beta" style="font-size:7.5px;padding:1px 4px;">BETA</span></button>
         <button class="master-pill ${curMasterTab==='plugins'?'active':''}" data-mtab="plugins">🔌 Plugins <span class="badge-status-hub rc" style="font-size:7.5px;padding:1px 4px;">RC</span></button>
         <button class="master-pill ${curMasterTab==='logs'?'active':''}" data-mtab="logs">📜 Logs <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='roadmap'?'active':''}" data-mtab="roadmap">🏷️ Canales & Roadmap</button>
       </div>
 
       <!-- SECCIÓN 1: General & Telemetría -->
@@ -1269,6 +1270,22 @@
           <p class="muted">Cargando registros de auditoría…</p>
         </div>
       </div>
+
+      <!-- SECCIÓN 11: Canales & Roadmap Completo -->
+      <div class="master-section" id="msec-roadmap" ${curMasterTab!=='roadmap'?'hidden':''}>
+        <div class="sec">Matriz de Canales del Ecosistema Moonbot</div>
+        <p class="muted" style="margin-bottom:12px;">Clasificación exhaustiva de todos los módulos, herramientas y servicios según su canal de estabilidad.</p>
+        
+        <div class="noticias-cats" style="margin-bottom:12px;" id="mRoadmapFilterBar">
+          <button class="cat-pill active" data-rst="all">Todas</button>
+          <button class="cat-pill" data-rst="alfa">🟠 ALFA</button>
+          <button class="cat-pill" data-rst="beta">🟣 BETA</button>
+          <button class="cat-pill" data-rst="rc">🔵 RC</button>
+          <button class="cat-pill" data-rst="estable">🟢 ESTABLE</button>
+        </div>
+
+        <div id="mRoadmapItemsContainer"></div>
+      </div>
     `;
 
     // Manejador de cambio de sub-pestañas
@@ -1281,6 +1298,68 @@
         if(curMasterTab === "grupos") loadMasterChannels();
         if(curMasterTab === "ia") loadIaBrainStats();
         if(curMasterTab === "business") loadBusinessConfig();
+        if(curMasterTab === "roadmap") renderRoadmapList();
+      };
+    });
+
+    // Roadmap items data
+    const ROADMAP_DATA = [
+      { id: "truck", name: "Simulador 3D Aster 770 S V8", cat: "Entretenimiento & 3D", st: "alfa", desc: "Gráficos Three.js 3D en tiempo real, cabina cockpit interactiva, física y tacógrafo digital UE.", act: () => openLink("/alfa"), actLabel: "Abrir 3D" },
+      { id: "ia_brain", name: "IA Neural Auto-Aprendizaje", cat: "Inteligencia Artificial", st: "alfa", desc: "Auto-aprendizaje contextual de vocabulario en tiempo real e inyección de semilla neural.", act: () => { curMasterTab="ia"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="ia")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-ia"); loadIaBrainStats(); }, actLabel: "Ajustes IA" },
+      { id: "business", name: "Telegram Business Automation", cat: "Automatización", st: "beta", desc: "Agente IA secretaria de chats privados, saludos, modo ausente y respuestas rápidas.", act: () => { curMasterTab="business"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="business")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-business"); loadBusinessConfig(); }, actLabel: "Ver Business" },
+      { id: "captcha_web", name: "Captcha Mini App 9 Celdas", cat: "Seguridad & Anti-Bot", st: "beta", desc: "Verificación visual anti-bot interactiva en solicitudes de unión a grupos y canales.", act: () => openLink("/join.html?demo=1"), actLabel: "Probar Captcha" },
+      { id: "proxies", name: "Gestor de Proxies MTProto & VPS", cat: "Infraestructura", st: "beta", desc: "Testeo de ping/latencia y generación de enlaces de conexión tg://proxy.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver Proxies" },
+      { id: "news", name: "Lector de Noticias Multicanal", cat: "Contenido & Feeds", st: "beta", desc: "Agregador de noticias con filtros por temática (Web3, Resistencia, IA, Telebots).", act: () => showView("noticias"), actLabel: "Abrir Noticias" },
+      { id: "multibot", name: "Multi-Bot & Conexiones", cat: "Núcleo Multitoken", st: "rc", desc: "Gestión dinámica de tokens encriptados mediante Fernet y rotación de instancias.", act: () => { curMasterTab="bots"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="bots")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-bots"); }, actLabel: "Ver Bots" },
+      { id: "plugins", name: "Gestor de Plugins en Caliente", cat: "Arquitectura", st: "rc", desc: "Activación y desactivación de módulos modulares sin reiniciar el servicio.", act: () => { curMasterTab="plugins"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="plugins")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-plugins"); }, actLabel: "Ver Plugins" },
+      { id: "insideads", name: "Anuncios Mutuos (InsideAds)", cat: "Crecimiento", st: "rc", desc: "Sistema de intercambios publicitarios y programación recíproca entre canales socios.", act: () => showView("admin"), actLabel: "Ver Canales" },
+      { id: "tgstat", name: "Estadísticas TGStat & Gráficas", cat: "Métricas", st: "rc", desc: "Métricas de crecimiento a 30 días, posts por día y trazado de evolución en SVG.", act: () => showView("canales"), actLabel: "Ver Métricas" },
+      { id: "arcade", name: "Arcade & Minijuegos Clásicos", cat: "Entretenimiento", st: "estable", desc: "Snake, 2048, Tres en Raya y Memory.", act: () => openLink("/juegos"), actLabel: "Jugar" },
+      { id: "moderation", name: "Moderación & Escudo CAS", cat: "Seguridad", st: "estable", desc: "Anti-Spam, Anti-Link, Anti-Flood, Anti-Forward, Anti-Stickers, Modo Nocturno y Bans.", act: () => showView("canales"), actLabel: "Gestionar" },
+      { id: "welcome", name: "Welcome Pack de Grupo", cat: "Comunidad", st: "estable", desc: "Saludo configurable con variables dinámicas {name}, {chat}, {id}.", act: () => showView("canales"), actLabel: "Configurar" },
+      { id: "broadcast", name: "Difusión Masiva (Broadcast)", cat: "Comunicación", st: "estable", desc: "Envío multidifusión en Markdown a todos los canales y grupos vinculados.", act: () => { curMasterTab="difusion"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="difusion")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-difusion"); }, actLabel: "Difundir" },
+      { id: "logs", name: "Auditoría & Logs del Sistema", cat: "Monitoreo", st: "estable", desc: "Registro en vivo filtrable por nivel (Todos, Errores, Seguridad).", act: () => { curMasterTab="logs"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="logs")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-logs"); loadLiveLogs(); }, actLabel: "Ver Logs" },
+      { id: "directory", name: "Directorio Público de Canales", cat: "Difusión", st: "estable", desc: "Lista pública de comunidades clasificadas por número de miembros.", act: () => showView("directorio"), actLabel: "Ver Directorio" }
+    ];
+
+    let curRoadmapFilter = "all";
+    function renderRoadmapList(){
+      const container = document.getElementById("mRoadmapItemsContainer");
+      if(!container) return;
+      let items = ROADMAP_DATA;
+      if(curRoadmapFilter !== "all"){
+        items = items.filter(x => x.st === curRoadmapFilter);
+      }
+      container.innerHTML = items.map(it => `
+        <div class="c-card" style="margin-bottom:10px;padding:13px 15px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+            <div>
+              <b style="font-size:14px;">${escHtml(it.name)}</b>
+              <span style="font-size:11px;color:var(--muted);display:block;margin-top:2px;">${escHtml(it.cat)}</span>
+            </div>
+            <span class="badge-status-hub ${it.st}">${it.st.toUpperCase()}</span>
+          </div>
+          <p class="muted" style="margin:6px 0 10px;font-size:12px;line-height:1.45;">${escHtml(it.desc)}</p>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="minibtn" data-roadmap-act="${it.id}">${escHtml(it.actLabel)}</button>
+          </div>
+        </div>
+      `).join("");
+
+      container.querySelectorAll("[data-roadmap-act]").forEach(btn => {
+        btn.onclick = () => {
+          const item = ROADMAP_DATA.find(x => x.id === btn.dataset.roadmapAct);
+          if(item && item.act) item.act();
+        };
+      });
+    }
+
+    // Filter pills
+    el.querySelectorAll("#mRoadmapFilterBar [data-rst]").forEach(btn => {
+      btn.onclick = () => {
+        curRoadmapFilter = btn.dataset.rst;
+        el.querySelectorAll("#mRoadmapFilterBar [data-rst]").forEach(b => b.classList.toggle("active", b.dataset.rst === curRoadmapFilter));
+        renderRoadmapList();
       };
     });
 
