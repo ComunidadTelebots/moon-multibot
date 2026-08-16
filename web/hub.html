@@ -965,6 +965,7 @@
         <button class="master-pill ${curMasterTab==='grupos'?'active':''}" data-mtab="grupos">👥 Grupos & Canales</button>
         <button class="master-pill ${curMasterTab==='config'?'active':''}" data-mtab="config">⚙️ Ajustes Globales</button>
         <button class="master-pill ${curMasterTab==='bots'?'active':''}" data-mtab="bots">🤖 Multi-Bot</button>
+        <button class="master-pill ${curMasterTab==='business'?'active':''}" data-mtab="business">💼 Telegram Business</button>
         <button class="master-pill ${curMasterTab==='ia'?'active':''}" data-mtab="ia">🧠 IA Neural</button>
         <button class="master-pill ${curMasterTab==='seguridad'?'active':''}" data-mtab="seguridad">🛡️ Seguridad & CAS</button>
         <button class="master-pill ${curMasterTab==='difusion'?'active':''}" data-mtab="difusion">📢 Difusión</button>
@@ -1112,6 +1113,23 @@
 
       <!-- SECCIÓN 5: IA Neural -->
       <div class="master-section" id="msec-ia" ${curMasterTab!=='ia'?'hidden':''}>
+        <div class="sec">Telemetría del Cerebro Moon Core (En Vivo)</div>
+        <div class="statbar" style="margin-bottom:8px;">
+          <div class="stat"><div class="v" id="mIaBrainWords">0</div><div class="l">Neuronas</div></div>
+          <div class="stat"><div class="v" id="mIaBrainConns">0</div><div class="l">Conexiones</div></div>
+          <div class="stat"><div class="v" id="mIaBrainFeeders">0</div><div class="l">Grupos Feed</div></div>
+        </div>
+
+        <div class="sec">Consola de Consulta Interactiva a la IA</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Envía una consulta directa para probar la respuesta del Cerebro Moon Core:</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="mIaQueryPrompt" placeholder="Pregunta algo a CintiaBot..." style="flex:1;font-size:13px;">
+            <button class="btn cta" id="mIaQueryBtn" style="width:auto;padding:0 14px;">Consultar</button>
+          </div>
+          <div id="mIaQueryOut" style="display:none;margin-top:8px;" class="casbox"></div>
+        </div>
+
         <div class="sec">Configuración del Núcleo IA (Moon Core IA)</div>
         <div class="card" style="padding:14px;margin-bottom:12px;">
           <div style="margin-bottom:12px;">
@@ -1143,6 +1161,48 @@
             <button class="btn cta" id="mBtnSaveIa" style="flex:1;">Guardar Ajustes IA</button>
             <button class="btn ghost" id="mBtnSeedIa" style="width:auto;" title="Alimentar memoria con Wikipedia y patrones">🌱 Inyectar Semilla</button>
           </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 5.5: Telegram Business -->
+      <div class="master-section" id="msec-business" ${curMasterTab!=='business'?'hidden':''}>
+        <div class="sec">Automatización de Telegram Business</div>
+        <div class="c-card" style="margin-bottom:12px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b>Conexiones Vinculadas</b>
+            <span class="badge-status-hub estable" id="mBusConnBadge">0 CONECTADAS</span>
+          </div>
+          <p class="muted" style="font-size:12px;line-height:1.5;">Vincula tu cuenta personal en <b>Ajustes de Telegram > Telegram Business > Chatbots</b> y selecciona <code>@CintiaBot</code>.</p>
+        </div>
+
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div class="setrow" style="padding:4px 0 10px;">
+            <div><b>🤖 IA Business Agent (Secretaria)</b><span>La IA responderá consultas de clientes en tus chats privados</span></div>
+            <div class="switch" id="mBusSwIaAuto"><span></span></div>
+          </div>
+          
+          <div style="margin-top:10px;margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">👋 Mensaje de Bienvenida (Greeting Message)</label>
+            <textarea id="mBusGreeting" rows="2" placeholder="¡Hola! Gracias por contactarme. ¿En qué puedo ayudarte?..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+
+          <div class="setrow" style="padding:4px 0 10px;">
+            <div><b>🌙 Modo Ausente (Away Message)</b><span>Responde cuando no estés disponible</span></div>
+            <div class="switch" id="mBusSwAway"><span></span></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <textarea id="mBusAway" rows="2" placeholder="En este momento me encuentro ausente. Te responderé lo antes posible..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+
+          <div class="sec" style="font-size:12px;margin:10px 0 6px;">⚡ Respuestas Rápidas (Quick Replies)</div>
+          <div id="mBusQuickRepliesList" style="margin-bottom:10px;"></div>
+          <div style="display:flex;gap:6px;margin-bottom:14px;">
+            <input type="text" id="mBusNewCmd" placeholder="/precio" style="width:90px;font-size:12px;font-family:var(--mono);">
+            <input type="text" id="mBusNewText" placeholder="Texto de la respuesta..." style="flex:1;font-size:12px;">
+            <button class="btn ghost" id="mBusAddQuick" style="width:auto;padding:0 12px;">➕</button>
+          </div>
+
+          <button class="btn cta" id="mBusBtnSave" style="width:100%;">Guardar Automatizaciones Business</button>
         </div>
       </div>
 
@@ -1219,8 +1279,99 @@
         el.querySelectorAll(".master-section").forEach(sec => sec.hidden = sec.id !== ("msec-" + curMasterTab));
         if(curMasterTab === "logs") loadLiveLogs();
         if(curMasterTab === "grupos") loadMasterChannels();
+        if(curMasterTab === "ia") loadIaBrainStats();
+        if(curMasterTab === "business") loadBusinessConfig();
       };
     });
+
+    // Cargar estadísticas cerebrales IA
+    async function loadIaBrainStats(){
+      const res = await gp("/ia/brain_stats", {});
+      if(res && res.ok){
+        document.getElementById("mIaBrainWords").textContent = fmt(res.words || 0);
+        document.getElementById("mIaBrainConns").textContent = fmt(res.connections || 0);
+        document.getElementById("mIaBrainFeeders").textContent = fmt(res.feeders || 0);
+      }
+    }
+
+    // Consulta interactiva a la IA
+    document.getElementById("mIaQueryBtn").onclick = async () => {
+      const p = document.getElementById("mIaQueryPrompt").value.trim();
+      if(!p){ showToast("Escribe una consulta"); return; }
+      const out = document.getElementById("mIaQueryOut");
+      out.style.display = "block";
+      out.innerHTML = `<span class="k">Pensando respuesta neural…</span>`;
+      const res = await gp("/ia/query", { prompt: p });
+      if(res && res.ok && res.reply){
+        out.innerHTML = `<div><b style="color:var(--teal)">CintiaBot IA:</b><br><span style="color:var(--ink);">${escHtml(res.reply)}</span></div>`;
+      } else {
+        out.innerHTML = `<span style="color:var(--red);">${escHtml((res&&res.error)||"Error en consulta IA")}</span>`;
+      }
+    };
+
+    // Cargar Business
+    let curQuickReplies = [];
+    async function loadBusinessConfig(){
+      const res = await gp("/business/config", {});
+      if(res && res.ok && res.config){
+        const c = res.config;
+        document.getElementById("mBusGreeting").value = c.greeting_msg || "";
+        document.getElementById("mBusAway").value = c.away_msg || "";
+        document.getElementById("mBusSwAway").classList.toggle("on", Boolean(c.away_mode));
+        document.getElementById("mBusSwIaAuto").classList.toggle("on", Boolean(c.ia_auto));
+        document.getElementById("mBusConnBadge").textContent = (res.connections_count || 0) + " CONECTADAS";
+        curQuickReplies = c.quick_replies || [];
+        renderQuickReplies();
+      }
+    }
+
+    function renderQuickReplies(){
+      const list = document.getElementById("mBusQuickRepliesList");
+      if(!list) return;
+      if(!curQuickReplies.length){ list.innerHTML = `<p class="muted">Sin respuestas rápidas.</p>`; return; }
+      list.innerHTML = curQuickReplies.map((q,i)=>`
+        <div class="userchip" style="margin-bottom:4px;">
+          <div><code style="color:var(--cyan);font-weight:bold;">${escHtml(q.cmd)}</code> <span style="font-size:12px;">${escHtml((q.text||'').slice(0,35))}</span></div>
+          <span class="minibtn red" data-delquick="${i}">✕</span>
+        </div>
+      `).join("");
+      list.querySelectorAll("[data-delquick]").forEach(btn => {
+        btn.onclick = () => {
+          curQuickReplies.splice(parseInt(btn.dataset.delquick), 1);
+          renderQuickReplies();
+        };
+      });
+    }
+
+    document.getElementById("mBusAddQuick").onclick = () => {
+      const cmd = document.getElementById("mBusNewCmd").value.trim();
+      const txt = document.getElementById("mBusNewText").value.trim();
+      if(!cmd || !txt){ showToast("Introduce comando y texto"); return; }
+      curQuickReplies.push({ cmd: cmd.startsWith("/")?cmd:("/"+cmd), text: txt });
+      document.getElementById("mBusNewCmd").value = "";
+      document.getElementById("mBusNewText").value = "";
+      renderQuickReplies();
+    };
+
+    document.getElementById("mBusSwAway").onclick = function(){ this.classList.toggle("on"); };
+    document.getElementById("mBusSwIaAuto").onclick = function(){ this.classList.toggle("on"); };
+
+    document.getElementById("mBusBtnSave").onclick = async () => {
+      const gm = document.getElementById("mBusGreeting").value.trim();
+      const am = document.getElementById("mBusAway").value.trim();
+      const awayMode = document.getElementById("mBusSwAway").classList.contains("on");
+      const iaAuto = document.getElementById("mBusSwIaAuto").classList.contains("on");
+      const r = await gp("/business/config", {
+        save: true,
+        greeting_msg: gm,
+        away_msg: am,
+        away_mode: awayMode,
+        ia_auto: iaAuto,
+        quick_replies: curQuickReplies
+      });
+      if(r && r.ok) showToast("Ajustes de Telegram Business guardados");
+      else showToast("Error al guardar ajustes Business");
+    };
 
     // Cargar todos los canales en Master
     async function loadMasterChannels(){

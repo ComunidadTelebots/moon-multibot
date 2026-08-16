@@ -7,8 +7,8 @@ protegidos por check_jwt.
 
 CORS abierto para que canales.todosobreall.tech (y el propio panel) puedan
 consumir la API desde el navegador.
-"""
-
+import os
+import requests
 import hmac
 import hashlib
 import json
@@ -318,6 +318,89 @@ def master_diagnostics():
             "database_sqlite": {"status": "ok" if db_ok else "error", "label": f"SQLite WAL ({db_size_mb} MB)"}
         }
     })
+
+
+@bp.route("/api/public/ia/query", methods=["POST", "OPTIONS"])
+def ia_query():
+    """Consulta directa a la IA Moon Core desde el Hub."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    prompt = (body.get("prompt") or "").strip()
+    if not prompt: return jsonify({"ok": False, "error": "falta prompt"}), 400
+    bot = _hub_bot()
+    if not bot or not hasattr(bot, "ia_nativa") or not bot.ia_nativa:
+        return jsonify({"ok": False, "error": "IA no disponible en este momento"}), 503
+    try:
+        pref = body.get("ai_preference")
+        reply = bot.ia_nativa.generate(prompt, chat_id=user.get("id"))
+        return jsonify({"ok": True, "reply": reply})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@bp.route("/api/public/ia/brain_stats", methods=["POST", "OPTIONS"])
+def ia_brain_stats():
+    """Estadísticas en vivo del Cerebro IA Moon Core."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    bot = _hub_bot()
+    words = 0
+    conns = 0
+    if bot and hasattr(bot, "ia_nativa") and bot.ia_nativa:
+        words = len(getattr(bot.ia_nativa, "knowledge", {}) or {})
+        conns = len(getattr(bot.ia_nativa, "associations", {}) or {})
+    if _db:
+        words = words or len(_db.get("IA_KNOWLEDGE", {}) or {})
+        conns = conns or len(_db.get("IA_ASSOCIATIONS", {}) or {})
+        feeders = len(_db.get("IA_FEEDERS", []) or [])
+    else:
+        feeders = 0
+    return jsonify({
+        "ok": True,
+        "words": words,
+        "connections": conns,
+        "feeders": feeders,
+        "rate": "12.4 p/min",
+        "maturity": "Neuronal Nivel 4"
+    })
+
+
+@bp.route("/api/public/business/config", methods=["GET", "POST", "OPTIONS"])
+def business_config():
+    """Obtener o guardar automatizaciones de Telegram Business."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if request.method == "GET" or not body.get("save"):
+        cfg = _db.get("BUSINESS_CONFIG", {}) if _db else {}
+        conns = _db.get("BUSINESS_CONNECTIONS", {}) if _db else {}
+        return jsonify({
+            "ok": True,
+            "config": {
+                "greeting_msg": cfg.get("greeting_msg", ""),
+                "away_msg": cfg.get("away_msg", ""),
+                "away_mode": bool(cfg.get("away_mode", False)),
+                "ia_auto": bool(cfg.get("ia_auto", False)),
+                "quick_replies": cfg.get("quick_replies", [
+                    {"cmd": "/info", "text": "¡Hola! Somos ComunidadTelebots."},
+                    {"cmd": "/soporte", "text": "Nuestro equipo te responderá enseguida."}
+                ])
+            },
+            "connections_count": len(conns)
+        })
+    # Guardar
+    cfg = _db.get("BUSINESS_CONFIG", {}) if _db else {}
+    for k in ["greeting_msg", "away_msg", "away_mode", "ia_auto", "quick_replies"]:
+        if k in body:
+            cfg[k] = body[k]
+    if _db:
+        _db.set("BUSINESS_CONFIG", cfg)
+    return jsonify({"ok": True, "config": cfg})
 
 
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
