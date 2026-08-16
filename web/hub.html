@@ -1671,6 +1671,11 @@
       { id: "whitelist", name: "Aprobaciones (Whitelist)", cat: "Gestión de Usuarios", st: "beta", desc: "Lista blanca para saltar Captchas y Anti-Flood.", act: null, actLabel: "En Desarrollo" },
       { id: "rules", name: "Sistema de Reglas", cat: "Comunidad", st: "estable", desc: "Definición interactiva de normas del grupo.", act: null, actLabel: "En Desarrollo" },
       { id: "tdlib_sync", name: "Sincronizador MTProto TDLib", cat: "Infraestructura & Datos", st: "beta", desc: "Importación de historial de mensajes antiguos desde los servidores de Telegram hacia SQLite.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver TDLib" },
+
+      { id: "analytics", name: "Analíticas de Contenido", cat: "Monitoreo", st: "alfa", desc: "Reportes generados por IA de actividad, usuarios top y palabras más usadas.", act: null, actLabel: "En Desarrollo" },
+      { id: "rssreader", name: "Lector Automático RSS", cat: "Automatización", st: "beta", desc: "Publicación autónoma de noticias desde fuentes externas (Tech, Cripto).", act: null, actLabel: "En Desarrollo" },
+      { id: "translator", name: "Traductor Integrado", cat: "Utilidades Web", st: "rc", desc: "Traducción en línea para mensajes de comunidades internacionales.", act: null, actLabel: "En Desarrollo" },
+      { id: "houseads", name: "Anuncios Mutuos (Cross-Promo)", cat: "Comunidad & Engagement", st: "estable", desc: "Intercambio programado de publicidad efímera entre canales hermanos.", act: null, actLabel: "En Desarrollo" },
       { id: "voice_transcribe", name: "Transcripción de Voz (Speech-to-Text)", cat: "Inteligencia Artificial", st: "beta", desc: "Conversión automática de notas de voz a texto legible para los grupos.", act: () => showView("canales"), actLabel: "Configurar" }
     ];
 
