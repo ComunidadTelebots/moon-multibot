@@ -236,6 +236,16 @@ def check_jwt(req):
     try: jwt.decode(auth.split(" ")[1], JWT_SECRET, algorithms=["HS256"]); return True
     except: return False
 
+
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from flask import request, jsonify
+        if not check_jwt(request):
+            return jsonify({"ok": False, "error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 def bot_public_id(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
 
