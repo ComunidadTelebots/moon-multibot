@@ -240,12 +240,25 @@ def master_broadcast():
     all_ch = _channel_stats.get_all_channels() if _channel_stats else []
     sent = 0
     bot = _hub_bot()
+    is_pin = bool(body.get("pin", False))
+    is_silent = bool(body.get("silent", False))
     if bot:
         for ch in all_ch:
             cid = ch.get("chat_id")
             if cid:
                 try:
-                    bot.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown"})
+                    res = bot.api_call("sendMessage", {
+                        "chat_id": cid,
+                        "text": text,
+                        "parse_mode": "Markdown",
+                        "disable_notification": is_silent
+                    })
+                    if is_pin and res.get("ok") and res.get("result", {}).get("message_id"):
+                        bot.api_call("pinChatMessage", {
+                            "chat_id": cid,
+                            "message_id": res["result"]["message_id"],
+                            "disable_notification": is_silent
+                        })
                     sent += 1
                 except Exception:
                     pass
@@ -579,7 +592,38 @@ def group_send():
     if not bot:
         return jsonify({"ok": False, "error": "sin bot para este chat"}), 503
     r = bot.send_msg(chat_id, text)
+    if body.get("pin") and isinstance(r, dict) and r.get("result", {}).get("message_id"):
+        mid = r["result"]["message_id"]
+        bot.api_call("pinChatMessage", {"chat_id": chat_id, "message_id": mid, "disable_notification": bool(body.get("silent", False))})
     return jsonify({"ok": bool(r.get("ok")) if isinstance(r, dict) else True})
+
+
+@bp.route("/api/public/group/send_poll", methods=["POST", "OPTIONS"])
+def group_send_poll():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    question = (body.get("question") or "").strip()
+    options = [str(o).strip() for o in (body.get("options") or []) if str(o).strip()]
+    if not question or len(options) < 2:
+        return jsonify({"ok": False, "error": "Pregunta y al menos 2 opciones requeridas"}), 400
+    is_anonymous = bool(body.get("is_anonymous", True))
+    allows_multiple = bool(body.get("allows_multiple", False))
+    bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
+    if not bot:
+        return jsonify({"ok": False, "error": "sin bot para este chat"}), 503
+    r = bot.api_call("sendPoll", {
+        "chat_id": chat_id,
+        "question": question,
+        "options": json.dumps(options),
+        "is_anonymous": is_anonymous,
+        "allows_multiple_answers": allows_multiple
+    })
+    return jsonify({"ok": bool(r.get("ok")), "error": r.get("description") if not r.get("ok") else None})
 
 
 @bp.route("/api/public/group/schedule", methods=["POST", "OPTIONS"])

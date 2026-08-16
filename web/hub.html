@@ -505,8 +505,35 @@
 
       <div class="gsec">${svg('share')} Enviar mensaje</div>
       <textarea id="gmsg" rows="3" placeholder="Escribe un mensaje para el grupo…"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin:8px 0;">
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="gPinMsg"> 📌 Fijar mensaje (Pin)
+        </label>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="gSilentMsg"> 🔕 Silencioso
+        </label>
+      </div>
       <div class="btnrow"><button class="btn cta" id="gsend" style="flex:1">Enviar ahora</button></div>
       <div class="btnrow" style="align-items:center"><input type="datetime-local" id="gwhen" style="flex:1"><button class="btn ghost" id="gsched" style="width:auto;padding:13px 16px">Programar</button></div>
+
+      <!-- Creador de Encuestas -->
+      <div class="dropdown" id="dd-poll" style="margin-top:10px;">
+        <div class="dhead"><span>📊 Crear Encuesta (Poll)</span> <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span> <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" hidden>
+          <p class="muted" style="margin-bottom:8px;">Envía una encuesta interactiva con múltiples opciones.</p>
+          <input type="text" id="gPollQ" placeholder="¿Pregunta de la encuesta?..." style="width:100%;margin-bottom:8px;font-size:13px;">
+          <textarea id="gPollOpts" rows="3" placeholder="Opción 1&#10;Opción 2&#10;Opción 3..." style="width:100%;margin-bottom:8px;font-size:13px;"></textarea>
+          <div style="display:flex;gap:14px;margin-bottom:10px;">
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="gPollAnon" checked> Voto Anónimo
+            </label>
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="gPollMulti"> Respuesta Múltiple
+            </label>
+          </div>
+          <button class="btn cta" id="gPollSend" style="width:100%;">Enviar Encuesta al Grupo</button>
+        </div>
+      </div>
 
       <div class="gsec">Generar imagen</div>
       <div class="btnrow" style="align-items:center"><input type="text" id="gimgprompt" placeholder="Describe la imagen…" style="flex:1"><button class="btn ghost" id="gimggen" style="width:auto;padding:13px 16px">Generar</button></div>
@@ -580,11 +607,31 @@
       <textarea id="gnotes" rows="2" placeholder="Notas internas…">${escHtml(d.notes)}</textarea>
       <div class="btnrow"><button class="btn ghost" id="gnotesSave">Guardar notas</button></div>`;
     document.getElementById("gback").onclick=()=>showView(groupOriginView);
+    bindDropdown("dd-poll");
 
     document.getElementById("gsend").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(); if(!txt){showToast("Escribe el mensaje");return;}
-      const r=await gp("/group/send",{text:txt});
-      if(r&&r.ok){ev("group_message_sent");document.getElementById("gmsg").value="";showToast("Mensaje enviado");} else showToast("No se pudo enviar");
+      const isPin=document.getElementById("gPinMsg").checked;
+      const isSilent=document.getElementById("gSilentMsg").checked;
+      const r=await gp("/group/send",{text:txt,pin:isPin,silent:isSilent});
+      if(r&&r.ok){ev("group_message_sent");document.getElementById("gmsg").value="";showToast(isPin?"Mensaje enviado y fijado 📌":"Mensaje enviado");} else showToast("No se pudo enviar");
+    };
+
+    document.getElementById("gPollSend").onclick=async()=>{
+      const q=document.getElementById("gPollQ").value.trim();
+      const opts=document.getElementById("gPollOpts").value.split("\n").map(x=>x.trim()).filter(Boolean);
+      if(!q){showToast("Escribe la pregunta de la encuesta");return;}
+      if(opts.length<2){showToast("Escribe al menos 2 opciones");return;}
+      const anon=document.getElementById("gPollAnon").checked;
+      const multi=document.getElementById("gPollMulti").checked;
+      const r=await gp("/group/send_poll",{question:q,options:opts,is_anonymous:anon,allows_multiple:multi});
+      if(r&&r.ok){
+        showToast("Encuesta enviada al grupo 📊");
+        document.getElementById("gPollQ").value="";
+        document.getElementById("gPollOpts").value="";
+      } else {
+        showToast((r&&r.error)||"Error al enviar encuesta");
+      }
     };
     document.getElementById("gsched").onclick=async()=>{
       const txt=document.getElementById("gmsg").value.trim(), when=toUTC(document.getElementById("gwhen").value);
@@ -1232,7 +1279,15 @@
         <div class="sec">Emisión Masiva de Anuncios</div>
         <div class="card" style="padding:14px;margin-bottom:12px;">
           <p class="muted" style="margin-bottom:8px;">Envía un comunicado simultáneo con formato Markdown a todos los canales y grupos.</p>
-          <textarea id="mBroadcastText" rows="4" placeholder="Escribe el mensaje o anuncio en Markdown…" style="width:100%;margin-bottom:10px;"></textarea>
+          <textarea id="mBroadcastText" rows="4" placeholder="Escribe el mensaje o anuncio en Markdown…" style="width:100%;margin-bottom:8px;"></textarea>
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="mBroadcastPin"> 📌 Fijar en todos los canales (Pin)
+            </label>
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="mBroadcastSilent"> 🔕 Notificación silenciosa
+            </label>
+          </div>
           <button class="btn cta" id="mBtnBroadcast" style="width:100%;">📢 Enviar Comunicado Masivo</button>
         </div>
       </div>
@@ -1622,10 +1677,12 @@
     document.getElementById("mBtnBroadcast").onclick = async () => {
       const txt = document.getElementById("mBroadcastText").value.trim();
       if(!txt){ showToast("Escribe un mensaje para difundir"); return; }
+      const isPin = document.getElementById("mBroadcastPin").checked;
+      const isSilent = document.getElementById("mBroadcastSilent").checked;
       showToast("Enviando difusión masiva…");
-      const r = await gp("/master/broadcast", { text: txt });
+      const r = await gp("/master/broadcast", { text: txt, pin: isPin, silent: isSilent });
       if(r && r.ok){
-        showToast(`Difusión completada: enviado a ${r.sent} canales`);
+        showToast(`Difusión completada: enviado a ${r.sent} canales` + (isPin?" (fijado 📌)":""));
         document.getElementById("mBroadcastText").value = "";
       } else {
         showToast((r && r.error) || "Error al difundir");
