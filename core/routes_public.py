@@ -7,6 +7,7 @@ protegidos por check_jwt.
 
 CORS abierto para que canales.todosobreall.tech (y el propio panel) puedan
 consumir la API desde el navegador.
+"""
 import os
 import requests
 import hmac
@@ -75,10 +76,10 @@ def _hub_bot():
 
 def _verify_init_data(init_data, max_age=86400):
     """Valida el initData de la Mini App del hub. Endurecido:
-      1) auth_date obligatorio: rechaza firmas de más de `max_age` s (24h por
+      1) auth_date obligatorio: rechaza firmas de mas de `max_age` s (24h por
          defecto) o con reloj en el futuro (> _AUTH_DATE_SKEW).
       2) firma SOLO contra el token del bot del hub, no contra cualquier bot.
-    Devuelve el dict de usuario si la firma es válida y vigente, o None."""
+    Devuelve el dict de usuario si la firma es valida y vigente, o None."""
     try:
         pairs = dict(parse_qsl(init_data, keep_blank_values=True))
     except Exception:
