@@ -14,11 +14,14 @@
   - **Gestor de Proxies MTProto & VPS**: Bypass de censura, comprobación de latencia y generador de enlaces de conexión inmediata.
   - **Lector de Noticias Multicanal**: Visor temático con filtros (*Web3 & Cripto, Resistencia, IA y Comunidad Telebots*).
 - **Canal 🔵 RC - Release Candidate (Candidatas Finales)**:
+  - **Caja de Herramientas Criptográficas & Hashes**: Generador de contraseñas seguras de alta entropía (16c), generación de claves de cifrado Fernet (`CIPHER_KEY`) y cálculo de firmas SHA-256 / MD5 en tiempo real.
   - **Multi-Bot & Conexiones Multi-Token**: Monitor de bots conectados y vinculación dinámica de nuevos tokens cifrados mediante Fernet.
   - **Gestor de Plugins en Caliente**: Activación y desactivación de módulos modulares en tiempo real.
   - **Anuncios Mutuos (InsideAds)**: Sistema de intercambios publicitarios y programación recíproca entre canales socios.
   - **Estadísticas TGStat & Gráfica SVG**: Métricas de crecimiento a 30 días, posts por día y trazado de evolución.
 - **Canal 🟢 ESTABLE (Producción Verificada)**:
+  - **Tabla de Líderes & Karma Social (Leaderboard)**: Ranking en vivo de miembros más activos con medallas de podio (🥇, 🥈, 🥉), niveles de experiencia, puntuación de Karma y títulos de rango VIP/Legend.
+  - **Generador de Códigos QR & Enlaces Seguros**: Herramienta interactiva para crear y descargar códigos QR instantáneos de cualquier enlace o canal de la red.
   - **Creador de Encuestas Interactivas (Polls)**: Creación y envío de encuestas nativas a grupos con modo anónimo y respuesta múltiple (`sendPoll`).
   - **Fijar Mensajes (Pin) & Modo Silencioso**: Opciones de anclaje de mensajes y difusión sin notificaciones molestas en panel de grupo y emisión masiva Master.
   - **Buscador Reactivo en Tiempo Real**: Filtrado instantáneo por nombre o `@alias` en *Mis Canales* y *Directorio Público*.
