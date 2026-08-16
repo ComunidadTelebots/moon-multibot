@@ -397,6 +397,14 @@
   </div>
 
   <main>
+
+  <div class="hub-search-container" style="padding: 0 16px 12px; position: sticky; top: 0; background: var(--bg); z-index: 35; border-bottom: 1px solid var(--line); margin-bottom: 16px;">
+    <div style="position: relative; max-width: 1400px; margin: 0 auto;">
+      <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="globalHubSearch" placeholder="Buscar herramientas, ajustes, canales..." style="width: 100%; padding: 12px 16px 12px 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-family: var(--body); font-size: 14px; transition: all 0.2s;">
+    </div>
+  </div>
+
     <section class="view" data-view="canales" id="v-canales"></section>
     <section class="view" data-view="admin" id="v-admin" hidden></section>
     <section class="view" data-view="noticias" id="v-noticias" hidden></section>
@@ -2490,6 +2498,34 @@
 
   // ── Navegación ──
   const LOADERS={canales:loadCanales,admin:loadAdmin,noticias:loadNoticias,directorio:loadDirectorio,red:loadRed,master:loadMaster,ajustes:loadAjustes,chat:loadChat};
+  
+  // 🔍 BUSCADOR INTERNO DEL HUB
+  const globalSearchInput = document.getElementById("globalHubSearch");
+  if(globalSearchInput) {
+    globalSearchInput.addEventListener("input", function(e) {
+      const q = e.target.value.toLowerCase().trim();
+      
+      // Filtrar Tarjetas estáticas (.c-card) en la vista actual
+      const activeView = document.querySelector(".view:not([hidden])");
+      if(activeView) {
+        // En lugar de buscar en todo el DOM de la vista, buscaremos los contenedores de "Items" o "Tarjetas"
+        const cards = activeView.querySelectorAll(".c-card, .grid > div, .list-item");
+        cards.forEach(card => {
+          const text = card.textContent.toLowerCase();
+          if(q === "") {
+            card.style.display = ""; // Restaurar
+          } else {
+            if(text.includes(q)) {
+              card.style.display = "";
+            } else {
+              card.style.display = "none";
+            }
+          }
+        });
+      }
+    });
+  }
+
   function showView(name){
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!==name);
     document.querySelectorAll("#app .tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
