@@ -546,14 +546,14 @@
     const btnTruck = document.getElementById('launchTruckGameBtn');
     if (btnTruck) btnTruck.onclick = () => {
       triggerHaptic("medium");
-      if (tg && tg.openLink) tg.openLink(window.location.origin + '/alfa');
-      else window.location.href = '/alfa';
+      if (tg && tg.openLink) tg.openLink(window.location.origin + '/transport-3d.html');
+      else window.location.href = 'transport-3d.html';
     };
     const btnCockpit = document.getElementById('launchCockpitBtn');
     if (btnCockpit) btnCockpit.onclick = () => {
       triggerHaptic("medium");
-      if (tg && tg.openLink) tg.openLink(window.location.origin + '/alfa?view=cockpit');
-      else window.location.href = '/alfa?view=cockpit';
+      if (tg && tg.openLink) tg.openLink(window.location.origin + '/transport-3d.html?view=cockpit');
+      else window.location.href = 'transport-3d.html?view=cockpit';
     };
 
     // Helper de vibración háptica
