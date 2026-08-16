@@ -861,6 +861,37 @@ def api_admin_queue():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+
+@app.route("/api/admin/economy", methods=["GET"])
+@require_auth
+def api_admin_economy():
+    try:
+        # Extraer todas las llaves de la base de datos relacionadas a USER_ECON
+        econ_keys = db.keys("USER_ECON_") if hasattr(db, "keys") else []
+        
+        users_data = []
+        for key in econ_keys:
+            # key form: USER_ECON_{cid}_{uid}
+            parts = key.split("_")
+            if len(parts) >= 4:
+                cid = parts[2]
+                uid = parts[3]
+                data = db.get(key, {})
+                users_data.append({
+                    "chat_id": cid,
+                    "user_id": uid,
+                    "coins": data.get("coins", 0),
+                    "inventory": data.get("inventory", [])
+                })
+                
+        # Ordenar por monedas (mayor a menor)
+        users_data.sort(key=lambda x: x["coins"], reverse=True)
+            
+        return jsonify({"ok": True, "economy": users_data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/system/kill", methods=['POST'])
 def web_system_kill():
     if not check_jwt(request): return jsonify({"ok": False}), 401

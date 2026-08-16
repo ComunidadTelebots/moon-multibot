@@ -1497,6 +1497,47 @@
         </div>
       </div>
 
+
+      <!-- SECCIÓN 13: Economía MoonCoins -->
+      <div class="master-section" id="msec-economy" ${curMasterTab!=='economy'?'hidden':''}>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <div>
+            <div class="sec">Sistema Económico (MoonCoins) 💰</div>
+            <div class="vsub">Supervisa el balance global y el inventario de los usuarios.</div>
+          </div>
+          <button onclick="loadEconomyTab()" class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;">${svg('refresh')} Actualizar</button>
+        </div>
+        
+        <!-- Disclaimer importantísimo -->
+        <div class="card" style="margin-bottom:20px; padding:16px; background:rgba(234,179,8,0.1); border-left:4px solid var(--yellow);">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div style="font-size:24px;">⚠️</div>
+            <div>
+              <div style="font-weight:700; color:var(--yellow); font-size:14px; margin-bottom:4px;">AVISO IMPORTANTE</div>
+              <div style="color:var(--muted); font-size:13px; line-height:1.5;">
+                Este producto y sistema de economía (MoonCoins) ha sido diseñado <strong>puramente para la diversión y el entretenimiento</strong> de los usuarios en los grupos de Telegram. No tiene <strong>absolutamente nada que ver con ningún producto financiero real</strong>, y las monedas generadas no tienen valor monetario, no se pueden canjear por dinero fiat, ni representan una criptomoneda o token en la blockchain.
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+                <th style="padding:12px;">Chat ID</th>
+                <th style="padding:12px;">Usuario ID</th>
+                <th style="padding:12px; text-align:right;">Balance (MoonCoins)</th>
+                <th style="padding:12px;">Inventario</th>
+              </tr>
+            </thead>
+            <tbody id="economyListBody">
+              <tr><td colspan="4" style="padding:20px; text-align:center; color:var(--muted);">Cargando economía...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- SECCIÓN 12: Roadmap -->
       <!-- SECCIÓN 9: Plugins & Módulos -->
       <div class="master-section" id="msec-plugins" ${curMasterTab!=='plugins'?'hidden':''}>
@@ -1572,7 +1613,8 @@
       { id: "crypto_tools", name: "Caja Criptográfica & Hashes", cat: "Seguridad & Utilidades", st: "rc", desc: "Generador de contraseñas de alta seguridad, claves Fernet y cálculo de firmas SHA-256 / MD5.", act: () => { curMasterTab="seguridad"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="seguridad")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-seguridad"); }, actLabel: "Abrir Herramientas" },
       { id: "qr_tools", name: "Generador QR & Enlaces Seguros", cat: "Utilidades Web", st: "estable", desc: "Generador dinámico de códigos QR descargables y visualizador de enlaces de canales.", act: () => { showView("red"); setTimeout(toggleQrTool, 300); }, actLabel: "Generar QR" },
             { id: "terminal", name: "Telegram Universal Terminal", cat: "Herramientas Avanzadas", st: "estable", desc: "Consola de comandos REST para ejecutar cualquier método de la API directamente.", act: () => { curMasterTab="terminal"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="terminal")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-terminal"); populateTerminalBots(); }, actLabel: "Abrir Terminal" },
-      { id: "queue", name: "Gestor de Cola de Tareas", cat: "Monitoreo", st: "estable", desc: "Supervisa las operaciones asíncronas pesadas como broadcasts o limpiezas.", act: () => { curMasterTab="queue"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="queue")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-queue"); loadQueueTab(); }, actLabel: "Ver Cola" },
+            { id: "queue", name: "Gestor de Cola de Tareas", cat: "Monitoreo", st: "estable", desc: "Supervisa las operaciones asíncronas pesadas como broadcasts o limpiezas.", act: () => { curMasterTab="queue"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="queue")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-queue"); loadQueueTab(); }, actLabel: "Ver Cola" },
+      { id: "economy", name: "Sistema Económico (MoonCoins)", cat: "Comunidad & Engagement", st: "estable", desc: "Ver saldos globales e inventarios del sistema lúdico de MoonCoins.", act: () => { curMasterTab="economy"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="economy")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-economy"); loadEconomyTab(); }, actLabel: "Ver Economía" },
       { id: "tdlib_sync", name: "Sincronizador MTProto TDLib", cat: "Infraestructura & Datos", st: "beta", desc: "Importación de historial de mensajes antiguos desde los servidores de Telegram hacia SQLite.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver TDLib" },
       { id: "voice_transcribe", name: "Transcripción de Voz (Speech-to-Text)", cat: "Inteligencia Artificial", st: "beta", desc: "Conversión automática de notas de voz a texto legible para los grupos.", act: () => showView("canales"), actLabel: "Configurar" }
     ];
@@ -2077,6 +2119,34 @@
         <td style="padding:12px;">
           <span class="badge-status-hub" style="background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.3); padding:4px 8px; font-size:10px;">${q.status.toUpperCase()}</span>
         </td>
+      </tr>
+    `).join("");
+  };
+
+
+  // --- Vista: Economía ---
+  window.loadEconomyTab = async function() {
+    const tbody = document.getElementById("economyListBody");
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--muted);"><div class="loader" style="margin:auto;"></div></td></tr>`;
+    
+    const d = await gp("/admin/economy");
+    if(!d || !d.ok || !d.economy) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--red);">Error al cargar los datos económicos.</td></tr>`;
+      return;
+    }
+    
+    if(d.economy.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:40px; text-align:center; color:var(--muted); font-size:14px;">🪙 Ningún usuario tiene MoonCoins aún.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = d.economy.map(e => `
+      <tr style="border-bottom:1px solid var(--line); transition:background .2s;">
+        <td style="padding:12px; font-family:var(--mono); color:var(--muted);">${e.chat_id}</td>
+        <td style="padding:12px; font-family:var(--mono); color:var(--primary); font-weight:600;">${e.user_id}</td>
+        <td style="padding:12px; text-align:right; font-weight:800; font-family:var(--display); color:var(--yellow); font-size:15px;">${e.coins.toLocaleString()}</td>
+        <td style="padding:12px; color:var(--muted); font-size:12px;">${e.inventory.length > 0 ? e.inventory.join(", ") : '<em>Vacío</em>'}</td>
       </tr>
     `).join("");
   };
