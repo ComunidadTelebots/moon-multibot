@@ -1135,30 +1135,156 @@
   }
 
   // ── Ajustes ──
-  function loadAjustes(){
+function loadAjustes(){
     const el=document.getElementById("v-ajustes");
-    el.innerHTML=`<div class="vtitle">Ajustes</div><div class="vsub">Personaliza tu panel, tema móvil y canal de versión.</div>
-            <div class="sec">Tus Diseños Originales</div>
-      <div class="themeopt" data-theme-opt="nuevo"><div class="ra"></div><div class="to-t"><b>🌙 Moon Neón (Diseño Nuevo original)</b><span>Tu interfaz por defecto con acentos teal/cyan fluidos.</span></div></div>
-      <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>📻 Clásico Retro (Maqueta Original)</b><span>Tu primer diseño de tarjetas verticales apiladas.</span></div></div>
+    el.innerHTML=`<div class="vtitle" style="margin-bottom:4px;">Ajustes & Sistema</div><div class="vsub" style="margin-bottom:16px;">Personaliza tu panel y experiencia visual.</div>
       
-      <hr style="border:none; border-top:1px solid var(--line); margin: 20px 0;">
-      
-      <div class="sec">Diseños Nativos de Plataforma Móvil</div>
-      <div class="themeopt" data-theme-opt="ios-dark"><div class="ra"></div><div class="to-t"><b>🍎 iOS Cupertino Noche (OLED Dark)</b><span>Diseño nativo de Apple, negro puro y acentos azules.</span></div></div>
-      <div class="themeopt" data-theme-opt="ios-light"><div class="ra"></div><div class="to-t"><b>🍎 iOS Cupertino Día (Light)</b><span>Diseño nativo de Apple en fondo blanco suave y gris.</span></div></div>
-      <div class="themeopt" data-theme-opt="android-dark"><div class="ra"></div><div class="to-t"><b>🤖 Android Material 3 Noche</b><span>Material You Dark con esquinas de 24px y turquesa.</span></div></div>
-      <div class="themeopt" data-theme-opt="android-light"><div class="ra"></div><div class="to-t"><b>🤖 Android Material 3 Día</b><span>Material You Light tonal con tarjetas elevadas.</span></div></div>
-      
-      <div class="sec">Canal / Estado de Versión</div>
-      <div class="themeopt" data-channel-opt="alfa"><div class="ra"></div><div class="to-t"><b>🟠 ALFA</b><span>Canal de desarrollo activo (v16.86.0-alpha, Simulador 3D).</span></div></div>
-      <div class="themeopt" data-channel-opt="beta"><div class="ra"></div><div class="to-t"><b>🟣 BETA</b><span>Canal de estabilización previa.</span></div></div>
-      <div class="themeopt" data-channel-opt="rc"><div class="ra"></div><div class="to-t"><b>🔵 RC (Release Candidate)</b><span>Candidata final de lanzamiento.</span></div></div>
-      <div class="themeopt" data-channel-opt="estable"><div class="ra"></div><div class="to-t"><b>🟢 ESTABLE</b><span>Rama principal estable verificada.</span></div></div>`;
+      <style>
+        .folder { background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 12px; overflow: hidden; transition: all 0.2s ease; }
+        .folder summary { padding: 16px; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 10px; user-select: none; list-style: none; outline: none; }
+        .folder summary::-webkit-details-marker { display: none; }
+        .folder summary:hover { background: rgba(0,0,0,0.02); }
+        .folder[open] summary { border-bottom: 1px solid var(--line); }
+        .folder .folder-content { padding: 16px; background: var(--card2); }
+        .themeopt { margin: 8px 0; background: var(--card); border-color: var(--line); }
+        .themeopt:hover { border-color: var(--teal); }
+        
+        .pref-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .pref-row label { font-weight: 600; font-size: 14px; color: var(--ink); display: flex; flex-direction: column; }
+        .pref-row label span { font-size: 12px; color: var(--muted); font-weight: normal; margin-top: 2px; }
+        .pref-select { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-family: var(--body); font-size: 14px; outline: none; }
+        .pref-select:focus { border-color: var(--teal); }
+      </style>
+
+      <details class="folder" open>
+        <summary>👤 Perfil y Cuenta</summary>
+        <div class="folder-content">
+          <div class="pref-row">
+            <label>Nombre a mostrar<span>Cómo te llama el panel localmente</span></label>
+            <input type="text" class="pref-select" id="prefName" placeholder="Tu nombre..." style="width: 140px; text-align: right;">
+          </div>
+          <div class="pref-row">
+            <label>Cuenta vinculada<span>Proveedor de autenticación</span></label>
+            <span style="font-size:13px; color:var(--teal); font-weight:600; display:flex; align-items:center; gap:6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg> Telegram
+            </span>
+          </div>
+          <div class="pref-row">
+            <label>ID de Sesión<span>Identificador único de dispositivo</span></label>
+            <span id="prefSessionId" style="font-size:12px; font-family:monospace; color:var(--muted); background:var(--line); padding:4px 8px; border-radius:6px;">---</span>
+          </div>
+          <div class="pref-row" style="margin-bottom:0;">
+            <label>Almacenamiento Local<span>Borrar caché y restablecer app</span></label>
+            <button class="btn ghost" id="btnClearCache" style="color:var(--red); border:1px solid rgba(255,59,48,0.3); padding:6px 12px; font-size:12px; font-weight:600;">Borrar Datos</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="folder">
+        <summary>🌍 Idioma y Región</summary>
+        <div class="folder-content">
+          <div class="pref-row">
+            <label>Idioma del Panel<span>Selecciona tu idioma principal</span></label>
+            <select class="pref-select" id="prefLang">
+              <option value="es" selected>🇪🇸 Español</option>
+              <option value="en">🇬🇧 English</option>
+              <option value="pt">🇧🇷 Português</option>
+              <option value="fr">🇫🇷 Français</option>
+            </select>
+          </div>
+          <div class="pref-row">
+            <label>Formato de Hora<span>Reloj y eventos del sistema</span></label>
+            <select class="pref-select" id="prefTime">
+              <option value="24h" selected>24 Horas (14:30)</option>
+              <option value="12h">12 Horas (02:30 PM)</option>
+            </select>
+          </div>
+          <div class="pref-row" style="margin-bottom:0;">
+            <label>Notificaciones<span>Sonidos de sistema y alertas</span></label>
+            <div class="switch on" id="swSound"><span></span></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="folder">
+        <summary>🎨 Apariencia y Diseños</summary>
+        <div class="folder-content">
+          <div class="sec" style="margin-top:0;">Tus Diseños Originales</div>
+          <div class="themeopt" data-theme-opt="nuevo"><div class="ra"></div><div class="to-t"><b>🌙 Moon Neón (Diseño Nuevo original)</b><span>Tu interfaz por defecto con acentos teal/cyan fluidos.</span></div></div>
+          <div class="themeopt" data-theme-opt="clasico"><div class="ra"></div><div class="to-t"><b>📻 Clásico Retro (Maqueta Original)</b><span>Tu primer diseño de tarjetas verticales apiladas.</span></div></div>
+          <hr style="border:none; border-top:1px solid var(--line); margin: 20px 0;">
+          <div class="sec">Diseños Nativos de Plataforma Móvil</div>
+          <div class="themeopt" data-theme-opt="ios-dark"><div class="ra"></div><div class="to-t"><b>🍎 iOS Cupertino Noche (OLED Dark)</b><span>Diseño nativo de Apple, negro puro y acentos azules.</span></div></div>
+          <div class="themeopt" data-theme-opt="ios-light"><div class="ra"></div><div class="to-t"><b>🍎 iOS Cupertino Día (Light)</b><span>Diseño nativo de Apple en fondo blanco suave y gris.</span></div></div>
+          <div class="themeopt" data-theme-opt="android-dark"><div class="ra"></div><div class="to-t"><b>🤖 Android Material 3 Noche</b><span>Material You Dark con esquinas de 24px y turquesa.</span></div></div>
+          <div class="themeopt" data-theme-opt="android-light"><div class="ra"></div><div class="to-t"><b>🤖 Android Material 3 Día</b><span>Material You Light tonal con tarjetas elevadas.</span></div></div>
+        </div>
+      </details>
+
+      <details class="folder">
+        <summary>🔄 Canal de Actualizaciones</summary>
+        <div class="folder-content">
+          <div class="themeopt" style="margin-top:0;" data-channel-opt="alfa"><div class="ra"></div><div class="to-t"><b>🚀 ALFA</b><span>Canal de desarrollo activo (v16.86.0-alpha, Simulador 3D).</span></div></div>
+          <div class="themeopt" data-channel-opt="beta"><div class="ra"></div><div class="to-t"><b>🧪 BETA</b><span>Canal de estabilización previa.</span></div></div>
+          <div class="themeopt" data-channel-opt="rc"><div class="ra"></div><div class="to-t"><b>🎯 RC (Release Candidate)</b><span>Candidata final de lanzamiento.</span></div></div>
+          <div class="themeopt" data-channel-opt="estable"><div class="ra"></div><div class="to-t"><b>✅ ESTABLE</b><span>Rama principal estable verificada.</span></div></div>
+        </div>
+      </details>
+      `;
+    
     el.querySelectorAll("[data-theme-opt]").forEach(o=>o.onclick=()=>setTheme(o.dataset.themeOpt));
     el.querySelectorAll("[data-channel-opt]").forEach(o=>o.onclick=()=>setChannel(o.dataset.channelOpt));
     reflectTheme();
     reflectChannel();
+    
+    // Bind Preferences
+    const pName = document.getElementById("prefName");
+    if(pName) {
+       pName.value = localStorage.getItem("hub_custom_name") || window.uname || "invitado";
+       pName.onchange = function(){ 
+           localStorage.setItem("hub_custom_name", this.value); 
+           window.uname = this.value;
+           const uEl = document.getElementById("uname");
+           if(uEl) uEl.textContent = this.value;
+           showToast("Nombre actualizado"); 
+       };
+    }
+    const sessId = document.getElementById("prefSessionId");
+    if(sessId) {
+       let sid = localStorage.getItem("hub_session_id");
+       if(!sid) { sid = "SESS-" + Math.random().toString(36).substr(2, 6).toUpperCase(); localStorage.setItem("hub_session_id", sid); }
+       sessId.textContent = sid;
+    }
+    const btnClear = document.getElementById("btnClearCache");
+    if(btnClear) {
+       btnClear.onclick = function() {
+          if(confirm("¿Seguro que quieres borrar todos los datos locales y caché? Se perderán las preferencias visuales.")) {
+             localStorage.clear();
+             window.location.reload();
+          }
+       };
+    }
+    
+    const lang = document.getElementById("prefLang");
+    if(lang) {
+       lang.value = localStorage.getItem("hub_lang") || "es";
+       lang.onchange = function(){ localStorage.setItem("hub_lang", this.value); showToast("Idioma guardado (requiere recargar)"); };
+    }
+    const time = document.getElementById("prefTime");
+    if(time) {
+       time.value = localStorage.getItem("hub_time") || "24h";
+       time.onchange = function(){ localStorage.setItem("hub_time", this.value); showToast("Formato de hora guardado"); };
+    }
+    const swSound = document.getElementById("swSound");
+    if(swSound) {
+       const sOn = localStorage.getItem("hub_sound") !== "off";
+       swSound.classList.toggle("on", sOn);
+       swSound.onclick = function(){
+          const on = this.classList.toggle("on");
+          localStorage.setItem("hub_sound", on ? "on" : "off");
+          showToast(on ? "Sonido activado" : "Sonido desactivado");
+       };
+    }
   }
   function reflectTheme(){document.querySelectorAll("[data-theme-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.themeOpt===curTheme));}
   function reflectChannel(){document.querySelectorAll("[data-channel-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.channelOpt===curChannel));}
