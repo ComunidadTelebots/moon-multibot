@@ -50,7 +50,7 @@
   .gear:active{color:var(--ink);}
 
   /* ── Vistas ── */
-  main{padding:18px 16px calc(var(--tabh) + env(safe-area-inset-bottom) + 24px);max-width:640px;margin:0 auto;}
+  main{padding:18px 16px calc(var(--tabh) + env(safe-area-inset-bottom) + 24px);width:100%;max-width:1400px;margin:0 auto;}
   .view[hidden]{display:none;}
   .vtitle{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:-.02em;margin-bottom:3px;}
   .vsub{font-size:13px;color:var(--muted);margin-bottom:18px;}
@@ -289,10 +289,94 @@
   .master-section[hidden]{display:none;}
 
   /* ── Tema clásico ── */
-  #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;}
+  #app-classic{padding:16px 16px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:1400px;margin:0 auto;}
   #app-classic .c-card{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--card);margin-bottom:12px;}
   #app-classic h2{font-family:var(--display);font-weight:600;font-size:16px;margin-bottom:4px;}
   .backnew{margin-top:18px;}
+
+  /* 💻 RESPONSIVE DESKTOP OVERHAUL */
+  @media (min-width: 850px) {
+    /* Layout principal */
+    #app, #app-classic {
+      display: flex;
+      flex-direction: row;
+      max-width: 100% !important;
+      padding: 0 !important;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Topbar como cabecera interna */
+    .topbar {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      border-radius: 0;
+      margin: 0;
+      z-index: 40;
+    }
+
+    /* Transformar TabBar en Sidebar Izquierda */
+    .tabbar {
+      position: static;
+      flex-direction: column;
+      width: 260px;
+      height: 100vh;
+      background: var(--card2);
+      border-right: 1px solid var(--line);
+      border-top: none;
+      padding-top: 20px;
+      justify-content: flex-start;
+      gap: 12px;
+    }
+    
+    .tab {
+      flex-direction: row;
+      justify-content: flex-start;
+      padding: 14px 20px;
+      font-size: 15px;
+      gap: 16px;
+      border-radius: 12px;
+      margin: 0 12px;
+    }
+    
+    .tab:hover {
+      background: rgba(34,211,238,0.1);
+    }
+    
+    .tab svg {
+      font-size: 24px;
+    }
+    
+    .tab.active {
+      background: rgba(34,211,238,0.15);
+      color: var(--teal);
+    }
+    
+    /* Área principal de contenido */
+    main {
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 40px !important;
+      max-width: none !important;
+    }
+    
+    /* Grid dinámico para tarjetas */
+    #v-admin .grid, #v-utilidades .grid, #v-canales .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    
+    /* Modal adaptado a PC */
+    .hub-modal-sheet {
+      border-radius: 24px;
+      max-width: 500px;
+      margin: auto;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -1655,6 +1739,9 @@
             { id: "terminal", name: "Telegram Universal Terminal", cat: "Herramientas Avanzadas", st: "estable", desc: "Consola de comandos REST para ejecutar cualquier método de la API directamente.", act: () => { curMasterTab="terminal"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="terminal")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-terminal"); populateTerminalBots(); }, actLabel: "Abrir Terminal" },
             { id: "queue", name: "Gestor de Cola de Tareas", cat: "Monitoreo", st: "estable", desc: "Supervisa las operaciones asíncronas pesadas como broadcasts o limpiezas.", act: () => { curMasterTab="queue"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="queue")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-queue"); loadQueueTab(); }, actLabel: "Ver Cola" },
 
+      
+      { id: "smart_search", name: "Búsqueda Inteligente (IA)", cat: "Inteligencia Artificial", st: "estable", desc: "Consultas automáticas a Wikipedia y motores de búsqueda con respuestas nativas en chat.", act: null, actLabel: "Activo" },
+      { id: "webarchive", name: "WebArchive (Wayback Machine)", cat: "Utilidades Web", st: "estable", desc: "Integración completa con Internet Archive para buscar o guardar instantáneas históricas.", act: null, actLabel: "Activo" },
       { id: "warns", name: "Sistema de Advertencias (Warns)", cat: "Moderación", st: "planeado", desc: "Gestión de strikes con auto-expulsión al alcanzar el límite configurado.", act: null, actLabel: "En Desarrollo" },
       { id: "locks", name: "Media Locks (Bloqueos de Contenido)", cat: "Seguridad", st: "planeado", desc: "Control granular para bloquear stickers, enlaces, forwards o multimedia.", act: null, actLabel: "En Desarrollo" },
       { id: "captcha", name: "Verificación Captcha Anti-Bot", cat: "Seguridad", st: "planeado", desc: "Verificación obligatoria interactiva para los nuevos usuarios que se unen.", act: null, actLabel: "En Desarrollo" },
