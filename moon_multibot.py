@@ -863,6 +863,21 @@ def api_admin_queue():
 
 
 
+
+@app.route("/api/admin/fsub", methods=["GET", "POST"])
+@require_auth
+def api_admin_fsub():
+    from moon_multibot import db
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if request.method == "POST":
+        data = request.json
+        channels = data.get("channels", [])
+        settings["fsub_channels"] = channels
+        db.set("GLOBAL_SETTINGS", settings)
+        return jsonify({"ok": True, "channels": channels})
+    else:
+        return jsonify({"ok": True, "channels": settings.get("fsub_channels", ["@todosobealltech"])})
+
 @app.route("/api/admin/feds", methods=["GET"])
 @require_auth
 def api_admin_feds():

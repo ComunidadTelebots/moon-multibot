@@ -1364,6 +1364,17 @@
           <div class="setrow"><div><b>Auto-Backup DB al Master</b><span>Copia SQLite periódica enviada al Telegram del Dueño</span></div><div class="switch on" id="swBackup"><span></span></div></div>
         </div>
 
+        
+        <div class="sec">🛡️ Force Join (Suscripción Obligatoria)</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Exige a los usuarios que se unan a estos canales globales antes de permitirles hablar en cualquier grupo (Super Captcha).</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="mFsubChannel" placeholder="Ej: @todosobealltech" style="flex:1;font-family:var(--mono);font-size:12px;">
+            <button class="btn cta" id="mBtnAddFsub" style="width:auto;padding:0 14px;background:var(--cyan);color:#000;">Añadir Canal</button>
+          </div>
+          <div id="mFsubListContainer" style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;"></div>
+        </div>
+
         <div class="sec">Gestor de Baneos Globales (Blacklist)</div>
         <div class="card" style="padding:14px;margin-bottom:12px;">
           <p class="muted" style="margin-bottom:8px;">Bloquea usuarios de todos los canales y bots de la red.</p>
