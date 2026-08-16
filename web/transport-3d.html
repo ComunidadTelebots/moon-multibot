@@ -1536,7 +1536,7 @@
     }
 
     function cycleWeather() {
-      weatherIndex = (weatherIndex + 1) % 3;
+      weatherIndex = (weatherIndex + 1) % 4;
       if (weatherIndex === 0) { // Sunset
         scene.fog.color.setHex(0x131d2e);
         ambientLight.intensity = 0.9;
@@ -1550,6 +1550,13 @@
         sunLight.color.setHex(0x93c5fd);
         sunLight.intensity = 1.0;
         document.getElementById('btnTime').textContent = '🌧️ Clima / Lluvia';
+      } else if (weatherIndex === 2) { // Snow
+        scene.fog.color.setHex(0xd0d8e0);
+        skyMat.color.setHex(0xa0b0c0);
+        ambientLight.intensity = 0.8;
+        sunLight.color.setHex(0xffffff);
+        sunLight.intensity = 0.6;
+        document.getElementById('btnTime').textContent = '❄️ Clima / Nieve';
       } else { // Night
         scene.fog.color.setHex(0x030712);
         skyMat.color.setHex(0x050c18);

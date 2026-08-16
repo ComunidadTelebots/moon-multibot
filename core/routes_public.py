@@ -352,6 +352,29 @@ def ia_query():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+@bp.route("/api/public/ia/vision", methods=["POST", "OPTIONS"])
+def ia_vision():
+    """Análisis de imagen simulado (Visión IA)."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    url = (body.get("url") or "").strip()
+    if not url: return jsonify({"ok": False, "error": "falta url"}), 400
+    
+    # Simulate vision OCR & NSFW detection
+    import time
+    time.sleep(1.2) # Simulate processing time
+    
+    is_nsfw = "nsfw" in url.lower() or "adult" in url.lower()
+    ocr_result = "TEXTO DETECTADO:\n- 1.0 kg de azúcar\n- Lote 4509B" if "ticket" in url.lower() or "factura" in url.lower() else "TELEBOTS MOON CORE v16.85"
+    
+    return jsonify({
+        "ok": True,
+        "nsfw": is_nsfw,
+        "ocr_text": ocr_result
+    })
+
 
 @bp.route("/api/public/ia/brain_stats", methods=["POST", "OPTIONS"])
 def ia_brain_stats():
