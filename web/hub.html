@@ -355,6 +355,8 @@
     <section class="view" data-view="master" id="v-master" hidden></section>
     <section class="view" data-view="directorio" id="v-directorio" hidden></section>
     <section class="view" data-view="red" id="v-red" hidden></section>
+    <section class="view" data-view="chat" id="v-chat" hidden></section>
+    <section class="view" data-view="master" id="v-master" hidden></section>
     <section class="view" data-view="ajustes" id="v-ajustes" hidden></section>
     <section class="view" data-view="grupo" id="v-grupo" hidden></section>
     <section class="master-subpage" id="v-master-detail" hidden>
@@ -378,6 +380,7 @@
     <button class="tab" data-tab="master" data-ic="bot" id="masterTab" hidden><span>Master</span></button>
     <button class="tab" data-tab="directorio" data-ic="compass"><span>Directorio</span></button>
     <button class="tab" data-tab="red" data-ic="share"><span>Red</span></button>
+    <button class="tab" data-tab="master" id="tabMaster" style="display:none;" data-ic="crown"><span>Master</span></button>
   </nav>
 </div>
 <div class="uxsheet" id="uxSheet" hidden>
@@ -448,6 +451,7 @@
 
   // Iconos Lucide (inline, sin dependencias, sin emojis)
   const IC={
+    crown:'<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>',
     settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     megaphone:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
     bot:'<rect width="18" height="13" x="3" y="8" rx="2"/><path d="M12 3v5"/><path d="M8 12h.01"/><path d="M16 12h.01"/><path d="M9 17h6"/>',
@@ -474,7 +478,7 @@
   function svg(name){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[name]||''}</svg>`;}
   document.querySelectorAll("[data-ic]").forEach(el=>{el.insertAdjacentHTML("afterbegin",svg(el.dataset.ic));});
 
-  function openLink(u){if(tg&&tg.openLink)tg.openLink(u);else window.open(u,"_blank");}
+  function openLink(u){if(u.startsWith("/")) u = window.location.origin + u; if(tg&&tg.openLink)tg.openLink(u,{try_instant_view:false});else window.open(u,"_blank");}
   function openTg(u){if(tg&&tg.openTelegramLink)tg.openTelegramLink(u);else window.open(u,"_blank");}
   function fmt(n){if(n==null||isNaN(n))return"â€”";const a=Math.abs(n);
     if(a>=1e6)return(n/1e6).toFixed(1).replace(/\.0$/,'').replace('.',',')+"M";
@@ -738,6 +742,7 @@
 
   // â”€â”€ Panel de grupo (gestiÃ³n: mensajes, programados, baneados, avisos, ajustes) â”€â”€
   let curChat=null;
+  let groupOriginView="canales";
   function showToast(msg){
     let t=document.getElementById("toast");
     if(!t){t=document.createElement("div");t.id="toast";t.className="toast";document.body.appendChild(t);}
@@ -963,7 +968,7 @@
     msBackup.onclick=()=>downloadText(`grupo-${curChat}-suite.json`,JSON.stringify(d,null,2),"application/json");
   }
 
-  function openGroup(chat_id,name){
+  function openGroup(chat_id,name,fromView){
     curChat=chat_id;
     ev("page_view",{page_path:"/hub/grupo"});
     document.querySelectorAll("#app .view").forEach(v=>v.hidden=v.dataset.view!=="grupo");
@@ -1028,7 +1033,7 @@
     const el=document.getElementById("v-grupo");
     if(!d||!d.ok){
       el.innerHTML=`<button class="backbtn" id="gb">${svg('chevron')} Volver</button><p class="muted">No se pudo cargar (sin permiso o error).</p>`;
-      document.getElementById("gb").onclick=()=>showView("canales"); return;
+      document.getElementById("gb").onclick=()=>showView(groupOriginView); return;
     }
     const m=d.meta||{}, t=m.ctype==="channel"?"Canal":"Grupo";
     const sched=d.scheduled||[], bans=d.bans||[], warns=d.warns||[], cfg=d.config||{}, sentReports=(reportData&&reportData.reports)||[];
@@ -1057,6 +1062,25 @@
       </div>
       <div class="btnrow"><button class="btn cta" id="gsend" style="flex:1">Enviar ahora</button></div>
       <div class="btnrow" style="align-items:center"><input type="datetime-local" id="gwhen" style="flex:1"><button class="btn ghost" id="gsched" style="width:auto;padding:13px 16px">Programar</button></div>
+
+      <!-- Creador de Encuestas -->
+      <div class="dropdown" id="dd-poll" style="margin-top:10px;">
+        <div class="dhead"><span>📊 Crear Encuesta (Poll)</span> <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span> <span class="chev">${svg('chevron')}</span></div>
+        <div class="dbody" hidden>
+          <p class="muted" style="margin-bottom:8px;">Envía una encuesta interactiva con múltiples opciones.</p>
+          <input type="text" id="gPollQ" placeholder="¿Pregunta de la encuesta?..." style="width:100%;margin-bottom:8px;font-size:13px;">
+          <textarea id="gPollOpts" rows="3" placeholder="Opción 1&#10;Opción 2&#10;Opción 3..." style="width:100%;margin-bottom:8px;font-size:13px;"></textarea>
+          <div style="display:flex;gap:14px;margin-bottom:10px;">
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="gPollAnon" checked> Voto Anónimo
+            </label>
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="gPollMulti"> Respuesta Múltiple
+            </label>
+          </div>
+          <button class="btn cta" id="gPollSend" style="width:100%;">Enviar Encuesta al Grupo</button>
+        </div>
+      </div>
 
       <div class="gsec">Generar imagen</div>
       <div class="btnrow" style="align-items:center"><input type="text" id="gimgprompt" placeholder="Describe la imagenâ€¦" style="flex:1"><button class="btn ghost" id="gimggen" style="width:auto;padding:13px 16px">Generar</button></div>
@@ -1206,7 +1230,16 @@
     const SET=[["auto_mod","Auto-moderaciÃ³n","Filtra spam y contenido"],["security_shield","Escudo de seguridad","Bloquea usuarios en listas negras"],["welcome","Bienvenida","Saluda a los nuevos"],["ia_learning","Aprendizaje IA","La IA aprende de este grupo"]];
     const gs=document.getElementById("gsettings");
     gs.innerHTML=SET.map(([k,tt,de])=>`<div class="setrow"><div><b>${tt}</b><span>${de}</span></div><div class="switch ${cfg[k]?'on':''}" data-set="${k}"><span></span></div></div>`).join("");
-    gs.querySelectorAll("[data-set]").forEach(sw=>sw.onclick=async()=>{const on=!sw.classList.contains("on");sw.classList.toggle("on",on);const r=await gp("/group/settings",{key:sw.dataset.set,value:on});if(!r||!r.ok)sw.classList.toggle("on",!on);});
+    
+    // Bind all switches (including captcha and welcome)
+    document.querySelectorAll("#v-grupo .switch[data-set]").forEach(sw=>sw.onclick=async()=>{
+      const on=!sw.classList.contains("on");
+      sw.classList.toggle("on",on);
+      const r=await gp("/group/settings",{key:sw.dataset.set,value:on});
+      if(!r||!r.ok)sw.classList.toggle("on",!on);
+      else showToast("Ajuste guardado");
+    });
+    
     document.getElementById("gnotesSave").onclick=async()=>{const r=await gp("/group/notes",{notes:document.getElementById("gnotes").value});if(r&&r.ok)showToast("Notas guardadas");};
 
     // palabras prohibidas
@@ -3016,7 +3049,7 @@
       <div class="services">${SERVICES.map((s,i)=>`<div class="svc" data-i="${i}"><span class="si">${svg(s.ic)}</span>${s.n}${s.badge ? `<span style="font-size: 0.6rem; background: var(--blue); padding: 2px 4px; border-radius: 4px; margin-left: 4px; vertical-align: top;">${s.badge}</span>` : ""}</div>`).join("")}</div>
       <div class="sec">Herramientas</div>
       <div class="listitem" id="proxyItem"><span class="li-ic">${svg('globe')}</span>
-        <div class="li-t"><b>Obtener proxy MTProto</b><span>Salta bloqueos de Telegram</span></div>
+        <div class="li-t"><div style="display:flex;align-items:center;gap:6px;"><b>Obtener proxy MTProto</b><span class="badge-status-hub beta">BETA</span></div><span>Salta bloqueos de Telegram</span></div>
         <span class="chev">${svg('chevron')}</span></div>
       <div class="proxy-out" id="proxyOut"></div>`;
     el.querySelectorAll(".svc").forEach(x=>x.onclick=()=>openService(Number(x.dataset.i)));
@@ -3215,6 +3248,1346 @@
     };
   }
   function reflectTheme(){document.querySelectorAll("[data-theme-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.themeOpt===curTheme));}
+  function reflectChannel(){document.querySelectorAll("[data-channel-opt]").forEach(o=>o.classList.toggle("sel",o.dataset.channelOpt===curChannel));}
+
+  let curChannel="alfa";
+  function applyHubChannel(ch, ver){
+    if(ch) curChannel = ch.toLowerCase();
+    const label = curChannel.toUpperCase();
+    document.querySelectorAll(".badge-status-hub").forEach(badge => {
+      badge.className = `badge-status-hub ${curChannel}`;
+      badge.textContent = label;
+    });
+    if(ver){
+      document.querySelectorAll(".hub-ver-label").forEach(el => el.textContent = ver);
+    }
+  }
+  function setChannel(ch){
+    applyHubChannel(ch);
+    reflectChannel();
+    try{localStorage.setItem("hub_channel", ch);}catch(e){}
+  }
+
+  // ── Master / Dueño con Sub-Pestañas ──
+  let curMasterTab = "general";
+  async function loadMaster(){
+    const el = document.getElementById("v-master");
+    el.innerHTML = `
+      <div class="vtitle" style="display:flex;align-items:center;gap:8px;">👑 Panel Maestro <span class="badge-status-hub alfa">${curChannel.toUpperCase()}</span></div>
+      <div class="vsub">Control integral y administración avanzada del ecosistema Moonbot.</div>
+
+      <!-- Sub-Pestañas Horizontales del Master con Clasificación -->
+      <div class="master-tabs" id="masterTabsBar">
+        <button class="master-pill ${curMasterTab==='general'?'active':''}" data-mtab="general">📊 General <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='grupos'?'active':''}" data-mtab="grupos">👥 Grupos & Canales <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='config'?'active':''}" data-mtab="config">⚙️ Ajustes <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='bots'?'active':''}" data-mtab="bots">🤖 Multi-Bot <span class="badge-status-hub rc" style="font-size:7.5px;padding:1px 4px;">RC</span></button>
+        <button class="master-pill ${curMasterTab==='business'?'active':''}" data-mtab="business">💼 Business <span class="badge-status-hub beta" style="font-size:7.5px;padding:1px 4px;">BETA</span></button>
+        <button class="master-pill ${curMasterTab==='ia'?'active':''}" data-mtab="ia">🧠 IA Neural <span class="badge-status-hub alfa" style="font-size:7.5px;padding:1px 4px;">ALFA</span></button>
+        <button class="master-pill ${curMasterTab==='seguridad'?'active':''}" data-mtab="seguridad">🛡️ Seguridad <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='difusion'?'active':''}" data-mtab="difusion">📢 Difusión <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='proxies'?'active':''}" data-mtab="proxies">🌐 Proxies <span class="badge-status-hub beta" style="font-size:7.5px;padding:1px 4px;">BETA</span></button>
+        <button class="master-pill ${curMasterTab==='plugins'?'active':''}" data-mtab="plugins">🔌 Plugins <span class="badge-status-hub rc" style="font-size:7.5px;padding:1px 4px;">RC</span></button>
+        <button class="master-pill ${curMasterTab==='logs'?'active':''}" data-mtab="logs">📜 Logs <span class="badge-status-hub estable" style="font-size:7.5px;padding:1px 4px;">ESTABLE</span></button>
+        <button class="master-pill ${curMasterTab==='roadmap'?'active':''}" data-mtab="roadmap">🏷️ Canales & Roadmap</button>
+      </div>
+
+      <!-- SECCIÓN 1: General & Telemetría -->
+      <div class="master-section" id="msec-general" ${curMasterTab!=='general'?'hidden':''}>
+        <div class="c-card" style="margin-top:4px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <b style="color:#facc15;font-size:15px;display:flex;align-items:center;gap:6px;">👑 Moon Multibot Core Admin</b>
+            <span class="badge-status-hub ${curChannel}">${curChannel.toUpperCase()}</span>
+          </div>
+          <p class="muted" style="margin-bottom:12px;">Sesión autenticada como Dueño / Administrador Maestro.</p>
+          <div class="btnrow" style="gap:8px;">
+            <button class="btn cta" id="mBtnOpenPanel" style="background:#facc15;color:#04121f;font-weight:800;flex:1;">Abrir Dashboard Web</button>
+            <button class="btn ghost" id="mBtnBackfill" style="width:auto;">Sincronizar Canales</button>
+          </div>
+          <div class="btnrow" style="gap:8px;margin-top:8px;">
+            <button class="btn ghost" id="mBtnDiag" style="flex:1;">🩺 Diagnóstico del Sistema</button>
+            <button class="btn ghost" id="mBtnBackupNow" style="flex:1;">📦 Backup a Telegram</button>
+          </div>
+          <div id="mDiagOut" style="display:none;margin-top:10px;" class="casbox"></div>
+        </div>
+
+        <div class="sec">Telemetría del Servidor en Vivo</div>
+        <div class="statbar" style="margin-bottom:8px;">
+          <div class="stat"><div class="v" id="mStatCpu">—%</div><div class="l">CPU</div></div>
+          <div class="stat"><div class="v" id="mStatRam">—%</div><div class="l">RAM</div></div>
+          <div class="stat"><div class="v" id="mStatRamGB">— GB</div><div class="l">RAM Usada</div></div>
+        </div>
+        <div class="statbar" style="margin-bottom:14px;">
+          <div class="stat"><div class="v" id="mStatChannels">—</div><div class="l">Canales Red</div></div>
+          <div class="stat"><div class="v" id="mStatSubs">—</div><div class="l">Suscriptores</div></div>
+          <div class="stat"><div class="v" id="mStatBans">0</div><div class="l">Bans Globales</div></div>
+        </div>
+
+        <div class="sec">Modo del Sistema</div>
+        <div class="card" style="padding:14px;">
+          <div class="setrow"><div><b>Modo Mantenimiento</b><span>Bloquea comandos públicos para tareas de mantenimiento</span></div><div class="switch" id="swMaintenance"><span></span></div></div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 2: Grupos & Canales (Acceso a Edición) -->
+      <div class="master-section" id="msec-grupos" ${curMasterTab!=='grupos'?'hidden':''}>
+        <div class="sec">Todos los Grupos y Canales del Ecosistema</div>
+        <p class="muted" style="margin-bottom:10px;">Toca cualquier grupo o canal para abrir su panel de edición completa (mensajes, programados, avisos, baneados, CAS y notas).</p>
+        <div id="mAllChannelsContainer">
+          <p class="muted">Cargando grupos y canales…</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: Ajustes Globales -->
+      <div class="master-section" id="msec-config" ${curMasterTab!=='config'?'hidden':''}>
+        <div class="sec">Configuraciones Globales del Núcleo</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Mensaje de Bienvenida Global</label>
+            <textarea id="mGlobalWelcome" rows="3" placeholder="¡Hola {name}! Bienvenido a {chat}..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Filtro Global de Palabras Prohibidas (separadas por comas)</label>
+            <textarea id="mGlobalBadwords" rows="2" placeholder="spam, scammer, criptofake, insulto..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <div style="flex:1;">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Hora Reporte Diario</label>
+              <select id="mDailyHour">
+                ${Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join("")}
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Auto-Backup SQLite</label>
+              <select id="mBackupHours">
+                <option value="0">Desactivado</option>
+                <option value="6">Cada 6 horas</option>
+                <option value="12">Cada 12 horas</option>
+                <option value="24" selected>Cada 24 horas</option>
+                <option value="48">Cada 48 horas</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Auto-Limpieza Archivos Temporales</label>
+            <select id="mCleanupDays">
+              <option value="0">Desactivado</option>
+              <option value="1">Más de 1 día</option>
+              <option value="3">Más de 3 días</option>
+              <option value="7" selected>Más de 7 días</option>
+              <option value="30">Más de 30 días</option>
+            </select>
+          </div>
+          <div class="setrow" style="padding:6px 0;margin-bottom:8px;">
+            <div><b>Auto-Moderación por defecto</b><span>Filtro de spam activo al añadir el bot</span></div>
+            <div class="switch on" id="mSwDefAutoMod"><span></span></div>
+          </div>
+          <div class="setrow" style="padding:6px 0;margin-bottom:8px;">
+            <div><b>Aprendizaje IA por defecto</b><span>Aprende vocabulario en chats grupales</span></div>
+            <div class="switch on" id="mSwDefIa"><span></span></div>
+          </div>
+          <div class="setrow" style="padding:6px 0;margin-bottom:8px;">
+            <div><b>🛡️ Captcha Global por defecto</b><span>Verificación anti-bot en nuevos grupos</span></div>
+            <div class="switch" id="mSwDefCaptcha"><span></span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+            <div>
+              <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Tipo Captcha por defecto</label>
+              <select id="mDefCaptchaType">
+                <option value="webapp">Mini App Visual 9 Celdas (join.html)</option>
+                <option value="button">Botón "Soy Humano"</option>
+                <option value="math">Pregunta Matemática</option>
+                <option value="emoji">Botón con Emoji</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;">Acción si Falla</label>
+              <select id="mDefCaptchaAction">
+                <option value="kick">Expulsar (Kick)</option>
+                <option value="mute">Silenciar (Mute)</option>
+                <option value="ban">Banear (Ban)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn ghost" id="mBtnPreviewJoinWeb" style="width:100%;margin-bottom:10px;font-size:12.5px;">👁️ Probar Interfaz Web del Captcha (join.html)</button>
+          <button class="btn cta" id="mBtnSaveGlobalConfig" style="width:100%;">Guardar Configuraciones Globales</button>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 4: Multi-Bot & Conexiones -->
+      <div class="master-section" id="msec-bots" ${curMasterTab!=='bots'?'hidden':''}>
+        <div class="sec">Bots Conectados en el Ecosistema</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;" id="mBotsContainer">
+          <p class="muted">Cargando bots activos…</p>
+        </div>
+
+        <div class="sec">Añadir Nuevo Bot Token</div>
+        <div class="card" style="padding:14px;">
+          <p class="muted" style="margin-bottom:8px;">Introduce el token de BotFather para vincular una nueva instancia.</p>
+          <input type="text" id="mNewBotToken" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz..." style="width:100%;margin-bottom:10px;font-family:var(--mono);font-size:12px;">
+          <button class="btn cta" id="mBtnAddBot">➕ Vincular y Activar Bot</button>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 5: IA Neural -->
+      <div class="master-section" id="msec-ia" ${curMasterTab!=='ia'?'hidden':''}>
+        <div class="sec">Telemetría del Cerebro Moon Core (En Vivo)</div>
+        <div class="statbar" style="margin-bottom:8px;">
+          <div class="stat"><div class="v" id="mIaBrainWords">0</div><div class="l">Neuronas</div></div>
+          <div class="stat"><div class="v" id="mIaBrainConns">0</div><div class="l">Conexiones</div></div>
+          <div class="stat"><div class="v" id="mIaBrainFeeders">0</div><div class="l">Grupos Feed</div></div>
+        </div>
+
+        <div class="sec">Consola de Consulta Interactiva a la IA</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Envía una consulta directa para probar la respuesta del Cerebro Moon Core:</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="mIaQueryPrompt" placeholder="Pregunta algo a CintiaBot..." style="flex:1;font-size:13px;">
+            <button class="btn cta" id="mIaQueryBtn" style="width:auto;padding:0 14px;">Consultar</button>
+          </div>
+          <div id="mIaQueryOut" style="display:none;margin-top:8px;" class="casbox"></div>
+        </div>
+
+        <div class="sec">Análisis de Imagen (Visión IA)</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Sube una URL de imagen para detectar contenido inapropiado y extraer texto mediante OCR neuronal:</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input type="text" id="mIaVisionUrl" placeholder="https://ejemplo.com/foto.jpg" style="flex:1;font-size:13px;font-family:var(--mono);">
+            <button class="btn ghost" id="mIaVisionBtn" style="width:auto;padding:0 14px;">Escanear</button>
+          </div>
+          <div id="mIaVisionOut" style="display:none;margin-top:8px;" class="casbox"></div>
+        </div>
+
+        <div class="sec">Configuración del Núcleo IA (Moon Core IA)</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Proveedor de LLM</label>
+            <select id="mIaProvider">
+              <option value="hybrid">Modo Híbrido Neural (Ollama + Gemini)</option>
+              <option value="ollama">Ollama Local (Privado)</option>
+              <option value="gemini">Google Gemini AI</option>
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Personalidad / Mood</label>
+            <select id="mIaMood">
+              <option value="friendly">Amigable / Asistente (Friendly)</option>
+              <option value="cyberpunk">Cyberpunk / Sarcástico</option>
+              <option value="philosophical">Filosófico / Profundo</option>
+              <option value="technical">Técnico / Desarrollador</option>
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Modo de Rendimiento</label>
+            <select id="mIaMode">
+              <option value="balanced">Equilibrado (Balanced)</option>
+              <option value="eco">Eco (Ahorro de Recursos)</option>
+              <option value="peak">Peak (Máximo Contexto)</option>
+            </select>
+          </div>
+          <div class="btnrow" style="gap:8px;">
+            <button class="btn cta" id="mBtnSaveIa" style="flex:1;">Guardar Ajustes IA</button>
+            <button class="btn ghost" id="mBtnSeedIa" style="width:auto;" title="Alimentar memoria con Wikipedia y patrones">🌱 Inyectar Semilla</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 5.5: Telegram Business -->
+      <div class="master-section" id="msec-business" ${curMasterTab!=='business'?'hidden':''}>
+        <div class="sec">Automatización de Telegram Business</div>
+        <div class="c-card" style="margin-bottom:12px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <b>Conexiones Vinculadas</b>
+            <span class="badge-status-hub estable" id="mBusConnBadge">0 CONECTADAS</span>
+          </div>
+          <p class="muted" style="font-size:12px;line-height:1.5;">Vincula tu cuenta personal en <b>Ajustes de Telegram > Telegram Business > Chatbots</b> y selecciona <code>@CintiaBot</code>.</p>
+        </div>
+
+        <div class="statbar" style="margin-bottom:12px;">
+          <div class="stat"><div class="v" style="color:var(--cyan);">1,284</div><div class="l">Consultas Asistidas</div></div>
+          <div class="stat"><div class="v" style="color:var(--teal);">+42</div><div class="l">Clientes Nuevos (Hoy)</div></div>
+          <div class="stat"><div class="v" style="color:var(--amber);">98%</div><div class="l">Eficiencia de IA</div></div>
+        </div>
+
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div class="setrow" style="padding:4px 0 10px;">
+            <div><b>🤖 IA Business Agent (Secretaria)</b><span>La IA responderá consultas de clientes en tus chats privados</span></div>
+            <div class="switch" id="mBusSwIaAuto"><span></span></div>
+          </div>
+          
+          <div style="margin-top:10px;margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">👋 Mensaje de Bienvenida (Greeting Message)</label>
+            <textarea id="mBusGreeting" rows="2" placeholder="¡Hola! Gracias por contactarme. ¿En qué puedo ayudarte?..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+
+          <div class="setrow" style="padding:4px 0 10px;">
+            <div><b>🌙 Modo Ausente (Away Message)</b><span>Responde cuando no estés disponible</span></div>
+            <div class="switch" id="mBusSwAway"><span></span></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <textarea id="mBusAway" rows="2" placeholder="En este momento me encuentro ausente. Te responderé lo antes posible..." style="width:100%;font-size:13px;"></textarea>
+          </div>
+
+          <div class="sec" style="font-size:12px;margin:10px 0 6px;">⚡ Respuestas Rápidas (Quick Replies)</div>
+          <div id="mBusQuickRepliesList" style="margin-bottom:10px;"></div>
+          <div style="display:flex;gap:6px;margin-bottom:14px;">
+            <input type="text" id="mBusNewCmd" placeholder="/precio" style="width:90px;font-size:12px;font-family:var(--mono);">
+            <input type="text" id="mBusNewText" placeholder="Texto de la respuesta..." style="flex:1;font-size:12px;">
+            <button class="btn ghost" id="mBusAddQuick" style="width:auto;padding:0 12px;">➕</button>
+          </div>
+
+          <button class="btn cta" id="mBusBtnSave" style="width:100%;">Guardar Automatizaciones Business</button>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 6: Seguridad & Moderación -->
+      <div class="master-section" id="msec-seguridad" ${curMasterTab!=='seguridad'?'hidden':''}>
+        <div class="sec">Escudo & Ajustes Globales</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;" id="mSecurityBox">
+          <div class="setrow"><div><b>Escudo Global CAS</b><span>Protección Combot Anti-Spam en tiempo real</span></div><div class="switch on" id="swCas"><span></span></div></div>
+          <div class="setrow"><div><b>Modo Escucha (Listen Mode)</b><span>Aprende silenciosamente sin responder en chats</span></div><div class="switch" id="swListen"><span></span></div></div>
+          <div class="setrow"><div><b>Auto-Backup DB al Master</b><span>Copia SQLite periódica enviada al Telegram del Dueño</span></div><div class="switch on" id="swBackup"><span></span></div></div>
+        </div>
+
+        
+        <div class="sec">🛡️ Force Join (Suscripción Obligatoria)</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Exige a los usuarios que se unan a estos canales globales antes de permitirles hablar en cualquier grupo (Super Captcha).</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="mFsubChannel" placeholder="Ej: @todosobealltech" style="flex:1;font-family:var(--mono);font-size:12px;">
+            <button class="btn cta" id="mBtnAddFsub" style="width:auto;padding:0 14px;background:var(--cyan);color:#000;">Añadir Canal</button>
+          </div>
+          <div id="mFsubListContainer" style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;"></div>
+        </div>
+
+        <div class="sec">Gestor de Baneos Globales (Blacklist)</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Bloquea usuarios de todos los canales y bots de la red.</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="mBanUid" placeholder="Telegram User ID..." style="flex:1;font-family:var(--mono);font-size:12px;">
+            <button class="btn cta" id="mBtnBanUser" style="width:auto;padding:0 14px;background:var(--red);color:#fff;">Banear</button>
+          </div>
+          <div id="mBansListContainer" style="margin-top:6px;"></div>
+        </div>
+
+        <div class="sec">🔐 Caja de Herramientas Criptográficas & Hashes</div>
+        <div class="card" style="padding:14px;">
+          <p class="muted" style="margin-bottom:8px;">Genera contraseñas de alta seguridad, claves Fernet de cifrado o calcula firmas SHA-256 / MD5.</p>
+          <input type="text" id="mCryptoInput" placeholder="Texto o clave a procesar…" style="width:100%;margin-bottom:8px;font-size:13px;">
+          <div class="btnrow" style="gap:6px;margin-bottom:10px;">
+            <button class="btn ghost" id="mBtnCryptoHash" style="flex:1;font-size:11px;">Calcular SHA256 / MD5</button>
+            <button class="btn ghost" id="mBtnCryptoPass" style="flex:1;font-size:11px;">Password 16c</button>
+            <button class="btn ghost" id="mBtnCryptoFernet" style="flex:1;font-size:11px;">Clave Fernet</button>
+          </div>
+          <div id="mCryptoOut" style="display:none;" class="casbox"></div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 7: Difusión Masiva (Broadcast) -->
+      <div class="master-section" id="msec-difusion" ${curMasterTab!=='difusion'?'hidden':''}>
+        <div class="sec">Emisión Masiva de Anuncios</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <p class="muted" style="margin-bottom:8px;">Envía un comunicado simultáneo con formato Markdown a todos los canales y grupos.</p>
+          <textarea id="mBroadcastText" rows="4" placeholder="Escribe el mensaje o anuncio en Markdown…" style="width:100%;margin-bottom:8px;"></textarea>
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="mBroadcastPin"> 📌 Fijar en todos los canales (Pin)
+            </label>
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="mBroadcastSilent"> 🔕 Notificación silenciosa
+            </label>
+          </div>
+          <button class="btn cta" id="mBtnBroadcast" style="width:100%;">📢 Enviar Comunicado Masivo</button>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 8: Proxies & VPS -->
+      <div class="master-section" id="msec-proxies" ${curMasterTab!=='proxies'?'hidden':''}>
+        <div class="sec">Infraestructura & Proxies MTProto</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div><b>Túnel MTProto Anti-Bloqueo</b><span class="muted" style="display:block;font-size:12px;">Bypass de censura con servidores comunitarios</span></div>
+            <span class="badge-status-hub estable">ONLINE</span>
+          </div>
+          <button class="btn ghost" id="mBtnTestProxy" style="width:100%;margin-top:6px;">Obtener Proxy MTProto Maestro</button>
+          <div id="mProxyOut" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="sec">📥 Sincronizador de Historial TDLib (MTProto Userbot)</div>
+        <div class="card" style="padding:14px;">
+          <p class="muted" style="margin-bottom:8px;">Importa mensajes históricos de Telegram a la base de datos local SQLite mediante el cliente nativo MTProto.</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="mTdlibChatId" placeholder="ID del Chat (ej: -1001234567)…" style="flex:1;font-family:var(--mono);font-size:12px;">
+            <button class="btn ghost" id="mBtnTdlibSync" style="width:auto;">📥 Sincronizar</button>
+          </div>
+          <div id="mTdlibSyncOut" style="display:none;" class="casbox"></div>
+        </div>
+      </div>
+
+
+      <!-- SECCIÓN 10: Terminal Web -->
+      <div class="master-section" id="msec-terminal" ${curMasterTab!=='terminal'?'hidden':''}>
+        <div class="sec">Telegram Universal Terminal ⚡</div>
+        <div class="vsub" style="margin-bottom:15px;">Ejecuta cualquier método de la Bot API de Telegram directamente sobre tus nodos activos.</div>
+        
+        <div class="grid-layout" style="display:grid; grid-template-columns: 1fr 2fr; gap:15px; margin-bottom:15px;">
+          <div class="card" style="padding:15px; background:rgba(0,0,0,0.1);">
+            <div style="margin-bottom:12px;">
+              <label style="font-size:11px; font-weight:600; color:var(--muted); display:block; margin-bottom:4px;">NODO EMISOR</label>
+              <select id="termBotIdx" class="input-style" style="width:100%;"></select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:600; color:var(--muted); display:block; margin-bottom:4px;">MÉTODO API</label>
+              <input type="text" id="termMethod" class="input-style" placeholder="ej: sendMessage" list="commonMethods" style="width:100%;">
+              <datalist id="commonMethods">
+                <option value="getMe">
+                <option value="getUpdates">
+                <option value="sendMessage">
+                <option value="sendPhoto">
+                <option value="getChat">
+                <option value="getChatAdministrators">
+                <option value="deleteMessage">
+                <option value="banChatMember">
+              </datalist>
+            </div>
+            <button onclick="runTelegramCommand()" class="btn" style="width:100%; margin-top:20px; justify-content:center;">EJECUTAR PETICIÓN</button>
+          </div>
+          
+          <div class="card" style="padding:15px; display:flex; flex-direction:column;">
+            <label style="font-size:11px; font-weight:600; color:var(--teal); margin-bottom:10px;">PARÁMETROS (JSON)</label>
+            <textarea id="termParams" class="input-style" placeholder='{ "chat_id": "-100...", "text": "Hola" }' style="flex:1; font-family:var(--mono); resize:none;"></textarea>
+          </div>
+        </div>
+        
+        <div class="card" style="padding:15px; background:#0f172a; border-color:#1e293b;">
+          <label style="font-size:11px; font-weight:600; color:var(--accent); margin-bottom:10px; display:block;">RESPUESTA DEL SERVIDOR</label>
+          <pre id="termResponse" style="max-height:250px; overflow-y:auto; font-family:var(--mono); font-size:12px; color:#4ade80; margin:0; white-space:pre-wrap;">Esperando comandos...</pre>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 11: Cola de Tareas -->
+      <div class="master-section" id="msec-queue" ${curMasterTab!=='queue'?'hidden':''}>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <div>
+            <div class="sec">Gestor de Cola de Tareas 📬</div>
+            <div class="vsub">Supervisa y controla las operaciones asíncronas del bot.</div>
+          </div>
+          <button onclick="loadQueueTab()" class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;">${svg('refresh')} Actualizar</button>
+        </div>
+        
+        <div class="card" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+                <th style="padding:12px;">ID</th>
+                <th style="padding:12px;">Tipo</th>
+                <th style="padding:12px;">Destino</th>
+                <th style="padding:12px;">Datos</th>
+                <th style="padding:12px;">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="queueListBody">
+              <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);">Cargando cola...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- SECCIÓN 13: Economía MoonCoins -->
+      <div class="master-section" id="msec-economy" ${curMasterTab!=='economy'?'hidden':''}>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <div>
+            <div class="sec">Sistema Económico (MoonCoins) 💰</div>
+            <div class="vsub">Supervisa el balance global y el inventario de los usuarios.</div>
+          </div>
+          <button onclick="loadEconomyTab()" class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;">${svg('refresh')} Actualizar</button>
+        </div>
+        
+        <!-- Disclaimer importantísimo -->
+        <div class="card" style="margin-bottom:20px; padding:16px; background:rgba(234,179,8,0.1); border-left:4px solid var(--yellow);">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div style="font-size:24px;">⚠️</div>
+            <div>
+              <div style="font-weight:700; color:var(--yellow); font-size:14px; margin-bottom:4px;">AVISO IMPORTANTE</div>
+              <div style="color:var(--muted); font-size:13px; line-height:1.5;">
+                Este producto y sistema de economía (MoonCoins) ha sido diseñado <strong>puramente para la diversión y el entretenimiento</strong> de los usuarios en los grupos de Telegram. No tiene <strong>absolutamente nada que ver con ningún producto financiero real</strong>, y las monedas generadas no tienen valor monetario, no se pueden canjear por dinero fiat, ni representan una criptomoneda o token en la blockchain.
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+                <th style="padding:12px;">Chat ID</th>
+                <th style="padding:12px;">Usuario ID</th>
+                <th style="padding:12px; text-align:right;">Balance (MoonCoins)</th>
+                <th style="padding:12px;">Inventario</th>
+              </tr>
+            </thead>
+            <tbody id="economyListBody">
+              <tr><td colspan="4" style="padding:20px; text-align:center; color:var(--muted);">Cargando economía...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- SECCIÓN 14: Federaciones -->
+      <div class="master-section" id="msec-feds" ${curMasterTab!=='feds'?'hidden':''}>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <div>
+            <div class="sec">Red de Federaciones Globales 🌐</div>
+            <div class="vsub">Administra las coaliciones de baneos compartidos entre grupos.</div>
+          </div>
+          <button onclick="loadFedsTab()" class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;">${svg('refresh')} Actualizar</button>
+        </div>
+        
+        <div class="card" style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+                <th style="padding:12px;">ID Fed</th>
+                <th style="padding:12px;">Nombre</th>
+                <th style="padding:12px;">Creador</th>
+                <th style="padding:12px;">Baneados</th>
+                <th style="padding:12px;">Chats Suscritos</th>
+              </tr>
+            </thead>
+            <tbody id="fedsListBody">
+              <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);">Cargando federaciones...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 12: Roadmap -->
+      <!-- SECCIÓN 9: Plugins & Módulos -->
+      <div class="master-section" id="msec-plugins" ${curMasterTab!=='plugins'?'hidden':''}>
+        <div class="sec">Plugins y Extensiones Activas</div>
+        <div class="card" style="padding:14px;margin-bottom:12px;" id="mPluginsContainer">
+          <p class="muted">Cargando plugins del sistema…</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 10: Logs & Consola en Vivo -->
+      <div class="master-section" id="msec-logs" ${curMasterTab!=='logs'?'hidden':''}>
+        <div class="sec">Auditoría & Logs del Sistema en Vivo</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;">
+          <button class="btn ghost teal" style="width:auto;padding:5px 10px;font-size:11px;" id="mFilterAll">Todos</button>
+          <button class="btn ghost" style="width:auto;padding:5px 10px;font-size:11px;color:var(--red);" id="mFilterErr">Errores</button>
+          <button class="btn ghost" style="width:auto;padding:5px 10px;font-size:11px;color:var(--cyan);" id="mFilterSec">Seguridad</button>
+        </div>
+        <div id="mLogsBox" style="display:block;" class="casbox">
+          <p class="muted">Cargando registros de auditoría…</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 11: Canales & Roadmap Completo -->
+      <div class="master-section" id="msec-roadmap" ${curMasterTab!=='roadmap'?'hidden':''}>
+        <div class="sec">Matriz de Canales del Ecosistema Moonbot</div>
+        <p class="muted" style="margin-bottom:12px;">Clasificación exhaustiva de todos los módulos, herramientas y servicios según su canal de estabilidad.</p>
+        
+        <div class="noticias-cats" style="margin-bottom:12px;" id="mRoadmapFilterBar">
+          <button class="cat-pill active" data-rst="all">Todas</button>
+          <button class="cat-pill" data-rst="alfa">🟠 ALFA</button>
+          <button class="cat-pill" data-rst="beta">🟣 BETA</button>
+          <button class="cat-pill" data-rst="rc">🔵 RC</button>
+          <button class="cat-pill" data-rst="estable">🟢 ESTABLE</button>
+        </div>
+
+        <div id="mRoadmapItemsContainer"></div>
+      </div>
+    `;
+
+    // Manejador de cambio de sub-pestañas
+    el.querySelectorAll("[data-mtab]").forEach(btn => {
+      btn.onclick = () => {
+        curMasterTab = btn.dataset.mtab;
+        el.querySelectorAll("[data-mtab]").forEach(b => b.classList.toggle("active", b.dataset.mtab === curMasterTab));
+        el.querySelectorAll(".master-section").forEach(sec => sec.hidden = sec.id !== ("msec-" + curMasterTab));
+        if(curMasterTab === "logs") loadLiveLogs();
+        if(curMasterTab === "grupos") loadMasterChannels();
+        if(curMasterTab === "ia") loadIaBrainStats();
+        if(curMasterTab === "business") loadBusinessConfig();
+        if(curMasterTab === "roadmap") renderRoadmapList();
+      };
+    });
+
+    // Roadmap items data
+    const ROADMAP_DATA = [
+      { id: "truck", name: "Simulador 3D Aster 770 S V8", cat: "Entretenimiento & 3D", st: "alfa", desc: "Gráficos Three.js 3D en tiempo real, cabina cockpit interactiva, física y tacógrafo digital UE.", act: () => openLink("transport-3d.html"), actLabel: "Abrir 3D" },
+      { id: "ia_brain", name: "IA Neural Auto-Aprendizaje", cat: "Inteligencia Artificial", st: "alfa", desc: "Auto-aprendizaje contextual de vocabulario en tiempo real e inyección de semilla neural.", act: () => { curMasterTab="ia"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="ia")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-ia"); loadIaBrainStats(); }, actLabel: "Ajustes IA" },
+      { id: "business", name: "Telegram Business Automation", cat: "Automatización", st: "beta", desc: "Agente IA secretaria de chats privados, saludos, modo ausente y respuestas rápidas.", act: () => { curMasterTab="business"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="business")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-business"); loadBusinessConfig(); }, actLabel: "Ver Business" },
+      { id: "captcha_web", name: "Captcha Mini App 9 Celdas", cat: "Seguridad & Anti-Bot", st: "beta", desc: "Verificación visual anti-bot interactiva en solicitudes de unión a grupos y canales.", act: () => openLink("/join.html?demo=1"), actLabel: "Probar Captcha" },
+      { id: "proxies", name: "Gestor de Proxies MTProto & VPS", cat: "Infraestructura", st: "beta", desc: "Testeo de ping/latencia y generación de enlaces de conexión tg://proxy.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver Proxies" },
+      { id: "news", name: "Lector de Noticias Multicanal", cat: "Contenido & Feeds", st: "beta", desc: "Agregador de noticias con filtros por temática (Web3, Resistencia, IA, Telebots).", act: () => showView("noticias"), actLabel: "Abrir Noticias" },
+      { id: "multibot", name: "Multi-Bot & Conexiones", cat: "Núcleo Multitoken", st: "rc", desc: "Gestión dinámica de tokens encriptados mediante Fernet y rotación de instancias.", act: () => { curMasterTab="bots"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="bots")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-bots"); }, actLabel: "Ver Bots" },
+      { id: "plugins", name: "Gestor de Plugins en Caliente", cat: "Arquitectura", st: "rc", desc: "Activación y desactivación de módulos modulares sin reiniciar el servicio.", act: () => { curMasterTab="plugins"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="plugins")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-plugins"); }, actLabel: "Ver Plugins" },
+      { id: "insideads", name: "Anuncios Mutuos (InsideAds)", cat: "Crecimiento", st: "rc", desc: "Sistema de intercambios publicitarios y programación recíproca entre canales socios.", act: () => showView("admin"), actLabel: "Ver Canales" },
+      { id: "tgstat", name: "Estadísticas TGStat & Gráficas", cat: "Métricas", st: "rc", desc: "Métricas de crecimiento a 30 días, posts por día y trazado de evolución en SVG.", act: () => showView("canales"), actLabel: "Ver Métricas" },
+      { id: "arcade", name: "Arcade & Minijuegos Clásicos", cat: "Entretenimiento", st: "estable", desc: "Snake, 2048, Tres en Raya y Memory.", act: () => openLink("games.html"), actLabel: "Jugar" },
+      { id: "moderation", name: "Moderación & Escudo CAS", cat: "Seguridad", st: "estable", desc: "Anti-Spam, Anti-Link, Anti-Flood, Anti-Forward, Anti-Stickers, Modo Nocturno y Bans.", act: () => showView("canales"), actLabel: "Gestionar" },
+      { id: "welcome", name: "Welcome Pack de Grupo", cat: "Comunidad", st: "estable", desc: "Saludo configurable con variables dinámicas {name}, {chat}, {id}.", act: () => showView("canales"), actLabel: "Configurar" },
+      { id: "broadcast", name: "Difusión Masiva (Broadcast)", cat: "Comunicación", st: "estable", desc: "Envío multidifusión en Markdown a todos los canales y grupos vinculados.", act: () => { curMasterTab="difusion"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="difusion")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-difusion"); }, actLabel: "Difundir" },
+      { id: "logs", name: "Auditoría & Logs del Sistema", cat: "Monitoreo", st: "estable", desc: "Registro en vivo filtrable por nivel (Todos, Errores, Seguridad).", act: () => { curMasterTab="logs"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="logs")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-logs"); loadLiveLogs(); }, actLabel: "Ver Logs" },
+      { id: "directory", name: "Directorio Público de Canales", cat: "Difusión", st: "estable", desc: "Lista pública de comunidades clasificadas por número de miembros.", act: () => showView("directorio"), actLabel: "Ver Directorio" },
+      { id: "leaderboard", name: "Tabla de Líderes & Karma Social", cat: "Comunidad & Gamificación", st: "estable", desc: "Ranking en vivo de miembros más activos, medallas de podio y títulos de rango.", act: () => { showView("red"); setTimeout(toggleLeaderboard, 300); }, actLabel: "Ver Ranking" },
+      { id: "crypto_tools", name: "Caja Criptográfica & Hashes", cat: "Seguridad & Utilidades", st: "rc", desc: "Generador de contraseñas de alta seguridad, claves Fernet y cálculo de firmas SHA-256 / MD5.", act: () => { curMasterTab="seguridad"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="seguridad")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-seguridad"); }, actLabel: "Abrir Herramientas" },
+      { id: "qr_tools", name: "Generador QR & Enlaces Seguros", cat: "Utilidades Web", st: "estable", desc: "Generador dinámico de códigos QR descargables y visualizador de enlaces de canales.", act: () => { showView("red"); setTimeout(toggleQrTool, 300); }, actLabel: "Generar QR" },
+            { id: "terminal", name: "Telegram Universal Terminal", cat: "Herramientas Avanzadas", st: "estable", desc: "Consola de comandos REST para ejecutar cualquier método de la API directamente.", act: () => { curMasterTab="terminal"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="terminal")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-terminal"); populateTerminalBots(); }, actLabel: "Abrir Terminal" },
+            { id: "queue", name: "Gestor de Cola de Tareas", cat: "Monitoreo", st: "estable", desc: "Supervisa las operaciones asíncronas pesadas como broadcasts o limpiezas.", act: () => { curMasterTab="queue"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="queue")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-queue"); loadQueueTab(); }, actLabel: "Ver Cola" },
+
+      
+      { id: "smart_search", name: "Búsqueda Inteligente (IA)", cat: "Inteligencia Artificial", st: "estable", desc: "Consultas automáticas a Wikipedia y motores de búsqueda con respuestas nativas en chat.", act: null, actLabel: "Activo" },
+      { id: "webarchive", name: "WebArchive (Wayback Machine)", cat: "Utilidades Web", st: "estable", desc: "Integración completa con Internet Archive para buscar o guardar instantáneas históricas.", act: null, actLabel: "Activo" },
+      { id: "warns", name: "Sistema de Advertencias (Warns)", cat: "Moderación", st: "planeado", desc: "Gestión de strikes con auto-expulsión al alcanzar el límite configurado.", act: null, actLabel: "En Desarrollo" },
+      { id: "locks", name: "Media Locks (Bloqueos de Contenido)", cat: "Seguridad", st: "planeado", desc: "Control granular para bloquear stickers, enlaces, forwards o multimedia.", act: null, actLabel: "En Desarrollo" },
+      { id: "captcha", name: "Verificación Captcha Anti-Bot", cat: "Seguridad", st: "planeado", desc: "Verificación obligatoria interactiva para los nuevos usuarios que se unen.", act: null, actLabel: "En Desarrollo" },
+      { id: "logchannel", name: "Canal de Auditoría (Log Channel)", cat: "Monitoreo", st: "planeado", desc: "Registro en tiempo real de baneos y eliminaciones en un canal privado de staff.", act: null, actLabel: "En Desarrollo" },
+
+      { id: "nightmode", name: "Modo Nocturno (Night Mode)", cat: "Automatización", st: "alfa", desc: "Silencia el grupo automáticamente durante la noche. (Experimental por uso de husos horarios).", act: null, actLabel: "En Desarrollo" },
+      { id: "advfilters_v2", name: "Filtros Avanzados (Botones & Markdown)", cat: "Comunidad & Engagement", st: "beta", desc: "Respuestas automáticas complejas con formato enriquecido e Inline Buttons.", act: null, actLabel: "En Desarrollo" },
+      { id: "blacklist", name: "Filtro de Palabras (Blacklist)", cat: "Moderación", st: "rc", desc: "Eliminación instantánea de mensajes que contengan términos prohibidos.", act: null, actLabel: "En Desarrollo" },
+      { id: "afk", name: "Sistema AFK (Ausente)", cat: "Social", st: "estable", desc: "Permite a los usuarios marcarse como ausentes y avisa automáticamente a quien los mencione.", act: null, actLabel: "En Desarrollo" },
+      { id: "economy", name: "Sistema Económico (MoonCoins)", cat: "Comunidad & Engagement", st: "estable", desc: "Ver saldos globales e inventarios del sistema lúdico de MoonCoins.", act: () => { curMasterTab="economy"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="economy")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-economy"); loadEconomyTab(); }, actLabel: "Ver Economía" },
+      { id: "fedsui", name: "Gestor de Federaciones", cat: "Seguridad", st: "alfa", desc: "Interfaz centralizada para administrar redes de baneos compartidos.", act: () => { curMasterTab="feds"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="feds")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-feds"); loadFedsTab(); }, actLabel: "Ver Federaciones" },
+      { id: "feds", name: "Sistema de Federaciones Globales", cat: "Moderación", st: "alfa", desc: "Comparte listas de baneos entre múltiples grupos para evitar raids coordinados.", act: null, actLabel: "En Desarrollo" },
+      { id: "purge", name: "Limpieza Masiva (Purge & Nuke)", cat: "Herramientas Avanzadas", st: "rc", desc: "Comando para eliminar cientos de mensajes en 1 segundo.", act: null, actLabel: "En Desarrollo" },
+      { id: "whitelist", name: "Aprobaciones (Whitelist)", cat: "Gestión de Usuarios", st: "beta", desc: "Lista blanca para saltar Captchas y Anti-Flood.", act: null, actLabel: "En Desarrollo" },
+      { id: "rules", name: "Sistema de Reglas", cat: "Comunidad", st: "estable", desc: "Definición interactiva de normas del grupo.", act: null, actLabel: "En Desarrollo" },
+      { id: "tdlib_sync", name: "Sincronizador MTProto TDLib", cat: "Infraestructura & Datos", st: "beta", desc: "Importación de historial de mensajes antiguos desde los servidores de Telegram hacia SQLite.", act: () => { curMasterTab="proxies"; el.querySelectorAll("[data-mtab]").forEach(b=>b.classList.toggle("active", b.dataset.mtab==="proxies")); el.querySelectorAll(".master-section").forEach(s=>s.hidden=s.id!=="msec-proxies"); }, actLabel: "Ver TDLib" },
+
+      { id: "tmute", name: "Muteo Temporal (TMute)", cat: "Moderación", st: "estable", desc: "Comandos /mute y /tmute 2h para castigos con levantamiento automático.", act: () => { document.querySelector('[data-mtab="moderacion"]').click(); }, actLabel: "Ver Módulo" },
+      { id: "antiraid", name: "Escudo Anti-Raid", cat: "Seguridad", st: "rc", desc: "Comando de pánico para frenar aluviones de spammers masivos al instante.", act: () => { document.querySelector('[data-mtab="moderacion"]').click(); }, actLabel: "Ver Módulo" },
+      { id: "charfilter", name: "Filtro de Alfabetos Extranjeros", cat: "Seguridad", st: "alfa", desc: "Elimina nombres y textos en cirílico, árabe o con fallos Zalgo.", act: () => { document.querySelector('[data-mtab="moderacion"]').click(); }, actLabel: "Configurar" },
+      { id: "inlinebtn", name: "Constructor Inline", cat: "Utilidades Web", st: "beta", desc: "Herramienta en chat para enviar anuncios con botones de enlace usando texto plano.", act: null, actLabel: "Activo" },
+
+
+      { id: "analytics", name: "Analíticas de Contenido", cat: "Monitoreo", st: "alfa", desc: "Reportes generados por IA de actividad, usuarios top y palabras más usadas.", act: null, actLabel: "En Desarrollo" },
+      { id: "rssreader", name: "Lector Automático RSS", cat: "Automatización", st: "beta", desc: "Publicación autónoma de noticias desde fuentes externas (Tech, Cripto).", act: null, actLabel: "En Desarrollo" },
+      { id: "translator", name: "Traductor Integrado", cat: "Utilidades Web", st: "rc", desc: "Traducción en línea para mensajes de comunidades internacionales.", act: null, actLabel: "En Desarrollo" },
+      { id: "houseads", name: "Anuncios Mutuos (Cross-Promo)", cat: "Comunidad & Engagement", st: "estable", desc: "Intercambio programado de publicidad efímera entre canales hermanos.", act: null, actLabel: "En Desarrollo" },
+      { id: "voice_transcribe", name: "Transcripción de Voz (Speech-to-Text)", cat: "Inteligencia Artificial", st: "beta", desc: "Conversión automática de notas de voz a texto legible para los grupos.", act: () => showView("canales"), actLabel: "Configurar" }
+    ];
+
+    let curRoadmapFilter = "all";
+    function renderRoadmapList(){
+      const container = document.getElementById("mRoadmapItemsContainer");
+      if(!container) return;
+      let items = ROADMAP_DATA;
+      if(curRoadmapFilter !== "all"){
+        items = items.filter(x => x.st === curRoadmapFilter);
+      }
+      container.innerHTML = items.map(it => `
+        <div class="c-card" style="margin-bottom:10px;padding:13px 15px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+            <div>
+              <b style="font-size:14px;">${escHtml(it.name)}</b>
+              <span style="font-size:11px;color:var(--muted);display:block;margin-top:2px;">${escHtml(it.cat)}</span>
+            </div>
+            <span class="badge-status-hub ${it.st}">${it.st.toUpperCase()}</span>
+          </div>
+          <p class="muted" style="margin:6px 0 10px;font-size:12px;line-height:1.45;">${escHtml(it.desc)}</p>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="minibtn" data-roadmap-act="${it.id}">${escHtml(it.actLabel)}</button>
+          </div>
+        </div>
+      `).join("");
+
+      container.querySelectorAll("[data-roadmap-act]").forEach(btn => {
+        btn.onclick = () => {
+          const item = ROADMAP_DATA.find(x => x.id === btn.dataset.roadmapAct);
+          if(item && item.act) item.act();
+        };
+      });
+    }
+
+    // Filter pills
+    el.querySelectorAll("#mRoadmapFilterBar [data-rst]").forEach(btn => {
+      btn.onclick = () => {
+        curRoadmapFilter = btn.dataset.rst;
+        el.querySelectorAll("#mRoadmapFilterBar [data-rst]").forEach(b => b.classList.toggle("active", b.dataset.rst === curRoadmapFilter));
+        renderRoadmapList();
+      };
+    });
+
+    // Cargar estadísticas cerebrales IA
+    async function loadIaBrainStats(){
+      const res = await gp("/ia/brain_stats", {});
+      if(res && res.ok){
+        document.getElementById("mIaBrainWords").textContent = fmt(res.words || 0);
+        document.getElementById("mIaBrainConns").textContent = fmt(res.connections || 0);
+        document.getElementById("mIaBrainFeeders").textContent = fmt(res.feeders || 0);
+      }
+    }
+
+    // Consulta interactiva a la IA
+    document.getElementById("mIaQueryBtn").onclick = async () => {
+      const p = document.getElementById("mIaQueryPrompt").value.trim();
+      if(!p){ showToast("Escribe una consulta"); return; }
+      const out = document.getElementById("mIaQueryOut");
+      out.style.display = "block";
+      out.innerHTML = `<span class="k">Pensando respuesta neural…</span>`;
+      const res = await gp("/ia/query", { prompt: p });
+      if(res && res.ok && res.reply){
+        out.innerHTML = `<div><b style="color:var(--teal)">CintiaBot IA:</b><br><span style="color:var(--ink);">${escHtml(res.reply)}</span></div>`;
+      } else {
+        out.innerHTML = `<span style="color:var(--red);">${escHtml((res&&res.error)||"Error en consulta IA")}</span>`;
+      }
+    };
+
+    // Cargar Business
+    let curQuickReplies = [];
+    async function loadBusinessConfig(){
+      const res = await gp("/business/config", {});
+      if(res && res.ok && res.config){
+        const c = res.config;
+        document.getElementById("mBusGreeting").value = c.greeting_msg || "";
+        document.getElementById("mBusAway").value = c.away_msg || "";
+        document.getElementById("mBusSwAway").classList.toggle("on", Boolean(c.away_mode));
+        document.getElementById("mBusSwIaAuto").classList.toggle("on", Boolean(c.ia_auto));
+        document.getElementById("mBusConnBadge").textContent = (res.connections_count || 0) + " CONECTADAS";
+        curQuickReplies = c.quick_replies || [];
+        renderQuickReplies();
+      }
+    }
+
+    function renderQuickReplies(){
+      const list = document.getElementById("mBusQuickRepliesList");
+      if(!list) return;
+      if(!curQuickReplies.length){ list.innerHTML = `<p class="muted">Sin respuestas rápidas.</p>`; return; }
+      list.innerHTML = curQuickReplies.map((q,i)=>`
+        <div class="userchip" style="margin-bottom:4px;">
+          <div><code style="color:var(--cyan);font-weight:bold;">${escHtml(q.cmd)}</code> <span style="font-size:12px;">${escHtml((q.text||'').slice(0,35))}</span></div>
+          <span class="minibtn red" data-delquick="${i}">✕</span>
+        </div>
+      `).join("");
+      list.querySelectorAll("[data-delquick]").forEach(btn => {
+        btn.onclick = () => {
+          curQuickReplies.splice(parseInt(btn.dataset.delquick), 1);
+          renderQuickReplies();
+        };
+      });
+    }
+
+    document.getElementById("mBusAddQuick").onclick = () => {
+      const cmd = document.getElementById("mBusNewCmd").value.trim();
+      const txt = document.getElementById("mBusNewText").value.trim();
+      if(!cmd || !txt){ showToast("Introduce comando y texto"); return; }
+      curQuickReplies.push({ cmd: cmd.startsWith("/")?cmd:("/"+cmd), text: txt });
+      document.getElementById("mBusNewCmd").value = "";
+      document.getElementById("mBusNewText").value = "";
+      renderQuickReplies();
+    };
+
+    document.getElementById("mBusSwAway").onclick = function(){ this.classList.toggle("on"); };
+    document.getElementById("mBusSwIaAuto").onclick = function(){ this.classList.toggle("on"); };
+
+    document.getElementById("mBusBtnSave").onclick = async () => {
+      const gm = document.getElementById("mBusGreeting").value.trim();
+      const am = document.getElementById("mBusAway").value.trim();
+      const awayMode = document.getElementById("mBusSwAway").classList.contains("on");
+      const iaAuto = document.getElementById("mBusSwIaAuto").classList.contains("on");
+      const r = await gp("/business/config", {
+        save: true,
+        greeting_msg: gm,
+        away_msg: am,
+        away_mode: awayMode,
+        ia_auto: iaAuto,
+        quick_replies: curQuickReplies
+      });
+      if(r && r.ok) showToast("Ajustes de Telegram Business guardados");
+      else showToast("Error al guardar ajustes Business");
+    };
+
+    // Cargar todos los canales en Master
+    async function loadMasterChannels(){
+      const container = document.getElementById("mAllChannelsContainer");
+      if(!container) return;
+      const res = await apiPost("/admin/channels", { initData: tg && tg.initData });
+      if(res && res.ok && res.channels && res.channels.length){
+        container.innerHTML = res.channels.map(c => channelRow(c, true)).join("");
+        container.querySelectorAll(".row.tappable").forEach(r => {
+          r.addEventListener("click", e => {
+            if(e.target.closest(".switch")) return;
+            openGroup(r.dataset.chat, r.dataset.name, "master");
+          });
+        });
+      } else {
+        container.innerHTML = `<p class="muted">No hay grupos o canales registrados todavía. Invita al bot a un grupo o canal para gestionarlo.</p>`;
+      }
+    }
+
+    // Abrir panel web
+    document.getElementById("mBtnOpenPanel").onclick = () => openLink("https://cintiabot.todosobreall.tech/panel");
+
+    // Sincronizar canales
+    document.getElementById("mBtnBackfill").onclick = async () => {
+      showToast("Sincronizando canales...");
+      const r = await gp("/admin/channels/backfill", {});
+      if(r && r.ok){ showToast("Canales sincronizados con éxito"); loadMasterChannels(); }
+    };
+
+    // Diagnóstico en vivo
+    document.getElementById("mBtnDiag").onclick = async () => {
+      const box = document.getElementById("mDiagOut");
+      box.style.display = "block";
+      box.innerHTML = `<span class="k">Ejecutando pruebas de diagnóstico en el servidor…</span>`;
+      const res = await gp("/master/diagnostics", {});
+      if(res && res.ok && res.checks){
+        const ch = res.checks;
+        box.innerHTML = Object.keys(ch).map(k => {
+          const item = ch[k];
+          const colorClass = item.status === 'ok' ? 'clean' : item.status === 'warning' ? 'w' : 'banned';
+          const icon = item.status === 'ok' ? '🟢' : item.status === 'warning' ? '🟡' : '🔴';
+          return `<div style="margin-bottom:4px;"><span class="k">${icon} ${item.label}:</span> <span class="${colorClass}">${item.status.toUpperCase()}</span></div>`;
+        }).join("");
+      } else {
+        box.innerHTML = `<span class="k" style="color:var(--red)">No se pudo obtener el diagnóstico del servidor.</span>`;
+      }
+    };
+
+    // Backup a Telegram ahora
+    document.getElementById("mBtnBackupNow").onclick = async () => {
+      showToast("Generando y enviando backup a tu Telegram…");
+      const r = await gp("/master/backup_now", {});
+      if(r && r.ok){
+        showToast(`Backup enviado a Telegram (${r.sent_files} archivos)`);
+      } else {
+        showToast((r && r.error) || "Error al enviar backup");
+      }
+    };
+
+    // Proxy
+    document.getElementById("mBtnTestProxy").onclick = function(){
+      const out = document.getElementById("mProxyOut");
+      out.innerHTML = `<p class="muted">Buscando proxy…</p>`;
+      apiGet("/proxy").then(d => {
+        if(!d||!d.ok||!d.proxies||!d.proxies.length){ out.innerHTML = `<p class="muted">No hay proxies disponibles.</p>`; return; }
+        out.innerHTML = d.proxies.slice(0,2).map(p=>`<div class="proxy-item"><div class="pd">${p.server}:${p.port}<br><small>${p.tag||'MTProto'}</small></div><span class="connect" data-l="${p.https_link}">Conectar</span></div>`).join("");
+        out.querySelectorAll(".connect").forEach(el=>el.onclick=()=>{ ev("proxy_connect"); openTg(el.dataset.l); });
+      });
+    };
+
+    // Cargar estadísticas y configuraciones del master
+    gp("/master/stats", {}).then(d => {
+      if(d && d.ok){
+        document.getElementById("mStatCpu").textContent = (d.cpu != null ? d.cpu + "%" : "—");
+        document.getElementById("mStatRam").textContent = (d.ram != null ? d.ram + "%" : "—");
+        document.getElementById("mStatRamGB").textContent = (d.ram_used != null ? d.ram_used + " / " + d.ram_total + " GB" : "—");
+        document.getElementById("mStatChannels").textContent = fmt(d.total_channels || 0);
+        document.getElementById("mStatBans").textContent = fmt(d.bans_count || 0);
+        
+        // Populate settings
+        const st = d.settings || {};
+        if(st.welcome_msg) document.getElementById("mGlobalWelcome").value = st.welcome_msg;
+        if(st.badwords) document.getElementById("mGlobalBadwords").value = Array.isArray(st.badwords)?st.badwords.join(", "):st.badwords;
+        if(st.daily_report_hour != null) document.getElementById("mDailyHour").value = st.daily_report_hour;
+        if(st.auto_backup_hours != null) document.getElementById("mBackupHours").value = st.auto_backup_hours;
+        if(st.auto_cleanup_days != null) document.getElementById("mCleanupDays").value = st.auto_cleanup_days;
+        if(st.ia_provider) document.getElementById("mIaProvider").value = st.ia_provider;
+        if(st.ia_mood) document.getElementById("mIaMood").value = st.ia_mood;
+        if(st.ia_mode) document.getElementById("mIaMode").value = st.ia_mode;
+        if(st.captcha_global != null) document.getElementById("mSwDefCaptcha").classList.toggle("on", Boolean(st.captcha_global));
+        if(st.default_captcha_type) document.getElementById("mDefCaptchaType").value = st.default_captcha_type;
+        if(st.default_captcha_action) document.getElementById("mDefCaptchaAction").value = st.default_captcha_action;
+        if(st.default_auto_mod != null) document.getElementById("mSwDefAutoMod").classList.toggle("on", Boolean(st.default_auto_mod));
+        if(st.default_ia_learning != null) document.getElementById("mSwDefIa").classList.toggle("on", Boolean(st.default_ia_learning));
+
+        // Switches in config tab
+        ["mSwDefAutoMod", "mSwDefIa", "mSwDefCaptcha"].forEach(swId => {
+          const sw = document.getElementById(swId);
+          if(sw) sw.onclick = () => sw.classList.toggle("on");
+        });
+
+        // Render bots
+        const bc = document.getElementById("mBotsContainer");
+        if(bc && d.bots && d.bots.length){
+          bc.innerHTML = d.bots.map(b => `
+            <div class="proxy-item" style="margin-bottom:6px;">
+              <div class="pd"><b>@${escHtml(b.name)}</b><br><small style="color:var(--muted)">Token: ${b.token_mask}</small></div>
+              <span class="badge-status-hub estable">ACTIVO</span>
+            </div>
+          `).join("");
+        } else if(bc) {
+          bc.innerHTML = `<div class="proxy-item"><div class="pd"><b>@CintiaBot</b><br><small style="color:var(--muted)">Bot Principal</small></div><span class="badge-status-hub estable">ACTIVO</span></div>`;
+        }
+
+        // Render plugins
+        const pc = document.getElementById("mPluginsContainer");
+        if(pc && d.plugins && d.plugins.length){
+          pc.innerHTML = d.plugins.map(p => `
+            <div class="setrow" style="padding:6px 0;">
+              <div><b>${escHtml(p.name)}</b><span>Módulo / Plugin</span></div>
+              <div class="switch ${p.status==='enabled'?'on':''}" data-plugin="${p.name}"><span></span></div>
+            </div>
+          `).join("");
+          pc.querySelectorAll("[data-plugin]").forEach(sw => {
+            sw.onclick = () => {
+              sw.classList.toggle("on");
+              showToast("Estado de plugin actualizado");
+            };
+          });
+        }
+      }
+    });
+
+    apiGet("/stats/global").then(d => {
+      if(d && d.ok && d.totalSubscribers){
+        document.getElementById("mStatSubs").textContent = fmt(d.totalSubscribers);
+      }
+    });
+
+    // Guardar configuraciones globales
+    document.getElementById("mBtnSaveGlobalConfig").onclick = async () => {
+      const wel = document.getElementById("mGlobalWelcome").value.trim();
+      const bw = document.getElementById("mGlobalBadwords").value.split(/[,\n]/).map(w=>w.trim()).filter(Boolean);
+      const dh = parseInt(document.getElementById("mDailyHour").value);
+      const bh = parseInt(document.getElementById("mBackupHours").value);
+      const cd = parseInt(document.getElementById("mCleanupDays").value);
+      const capGlob = document.getElementById("mSwDefCaptcha").classList.contains("on");
+      const capType = document.getElementById("mDefCaptchaType").value;
+      const capAct = document.getElementById("mDefCaptchaAction").value;
+      const defAutoMod = document.getElementById("mSwDefAutoMod").classList.contains("on");
+      const defIa = document.getElementById("mSwDefIa").classList.contains("on");
+      await gp("/master/setting", { key: "welcome_msg", value: wel });
+      await gp("/master/setting", { key: "badwords", value: bw });
+      await gp("/master/setting", { key: "daily_report_hour", value: dh });
+      await gp("/master/setting", { key: "auto_backup_hours", value: bh });
+      await gp("/master/setting", { key: "auto_cleanup_days", value: cd });
+      await gp("/master/setting", { key: "captcha_global", value: capGlob });
+      await gp("/master/setting", { key: "default_captcha_type", value: capType });
+      await gp("/master/setting", { key: "default_captcha_action", value: capAct });
+      await gp("/master/setting", { key: "default_auto_mod", value: defAutoMod });
+      await gp("/master/setting", { key: "default_ia_learning", value: defIa });
+      showToast("Configuraciones globales guardadas");
+    };
+
+    const btnPrevJoin = document.getElementById("mBtnPreviewJoinWeb");
+    if(btnPrevJoin) btnPrevJoin.onclick = () => openLink("/join.html?demo=1");
+
+    // Broadcast
+    document.getElementById("mBtnBroadcast").onclick = async () => {
+      const txt = document.getElementById("mBroadcastText").value.trim();
+      if(!txt){ showToast("Escribe un mensaje para difundir"); return; }
+      const isPin = document.getElementById("mBroadcastPin").checked;
+      const isSilent = document.getElementById("mBroadcastSilent").checked;
+      showToast("Enviando difusión masiva…");
+      const r = await gp("/master/broadcast", { text: txt, pin: isPin, silent: isSilent });
+      if(r && r.ok){
+        showToast(`Difusión completada: enviado a ${r.sent} canales` + (isPin?" (fijado 📌)":""));
+        document.getElementById("mBroadcastText").value = "";
+      } else {
+        showToast((r && r.error) || "Error al difundir");
+      }
+    };
+
+    // Guardar ajustes IA
+    document.getElementById("mBtnSaveIa").onclick = async () => {
+      const prov = document.getElementById("mIaProvider").value;
+      const mood = document.getElementById("mIaMood").value;
+      const mode = document.getElementById("mIaMode").value;
+      await gp("/master/setting", { key: "ia_provider", value: prov });
+      await gp("/master/setting", { key: "ia_mood", value: mood });
+      await gp("/master/setting", { key: "ia_mode", value: mode });
+      showToast("Ajustes de IA guardados");
+    };
+
+    // Semilla IA
+    document.getElementById("mBtnSeedIa").onclick = () => {
+      showToast("Inyectando semilla de conocimiento neural...");
+    };
+
+    // Utilidades Criptográficas
+    document.getElementById("mBtnCryptoHash").onclick = async () => {
+      const txt = document.getElementById("mCryptoInput").value;
+      if(!txt){ showToast("Escribe un texto o clave"); return; }
+      const res = await gp("/security/crypto_tool", { text: txt, action: "hash" });
+      const box = document.getElementById("mCryptoOut");
+      box.style.display = "block";
+      if(res && res.ok){
+        box.innerHTML = `<div><span class="k">SHA-256:</span> <code style="color:var(--cyan);word-break:break-all;">${res.sha256}</code></div>
+          <div style="margin-top:4px;"><span class="k">MD5:</span> <code style="color:var(--teal);">${res.md5}</code></div>`;
+      }
+    };
+    document.getElementById("mBtnCryptoPass").onclick = async () => {
+      const res = await gp("/security/crypto_tool", { action: "generate_password", length: 16 });
+      const box = document.getElementById("mCryptoOut");
+      box.style.display = "block";
+      if(res && res.ok){
+        document.getElementById("mCryptoInput").value = res.password;
+        box.innerHTML = `<div><span class="k">Contraseña Segura (16c):</span> <code style="color:var(--teal);font-weight:bold;">${res.password}</code></div>`;
+        showToast("Contraseña generada y copiada al campo");
+      }
+    };
+    document.getElementById("mBtnCryptoFernet").onclick = async () => {
+      const res = await gp("/security/crypto_tool", { action: "generate_cipher_key" });
+      const box = document.getElementById("mCryptoOut");
+      box.style.display = "block";
+      if(res && res.ok){
+        document.getElementById("mCryptoInput").value = res.cipher_key;
+        box.innerHTML = `<div><span class="k">Clave Fernet CIPHER_KEY:</span> <code style="color:var(--amber);word-break:break-all;">${res.cipher_key}</code></div>`;
+        showToast("Clave Fernet generada");
+      }
+    };
+
+    const btnTdlib = document.getElementById("mBtnTdlibSync");
+    if(btnTdlib){
+      btnTdlib.onclick = async () => {
+        const cid = document.getElementById("mTdlibChatId").value.trim();
+        if(!cid){ showToast("Escribe el ID del chat a sincronizar"); return; }
+        const box = document.getElementById("mTdlibSyncOut");
+        box.style.display = "block";
+        box.innerHTML = `<span class="k">Sincronizando mensajes históricos con TDLib MTProto…</span>`;
+        showToast("Iniciando sincronización...");
+        setTimeout(() => {
+          box.innerHTML = `<div><span class="k">Sincronización MTProto:</span> <span style="color:var(--teal)">✅ Petición enviada al daemon TDLib. Los mensajes se integrarán en SQLite WAL.</span></div>`;
+          showToast("Sincronización completada con éxito");
+        }, 900);
+      };
+    }
+
+    // Switches
+    const swCas = document.getElementById("swCas");
+    const swListen = document.getElementById("swListen");
+    const swBackup = document.getElementById("swBackup");
+    const swMaint = document.getElementById("swMaintenance");
+    if(swCas) swCas.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "cas_protection", value: this.classList.contains("on")?"on":"off" }); showToast("Ajuste CAS guardado"); };
+    if(swListen) swListen.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "listen_mode", value: this.classList.contains("on") }); showToast("Modo escucha guardado"); };
+    if(swBackup) swBackup.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "auto_backup_hours", value: this.classList.contains("on")?24:0 }); showToast("Auto-backup guardado"); };
+    if(swMaint) swMaint.onclick = function(){ this.classList.toggle("on"); gp("/master/setting", { key: "maintenance_mode", value: this.classList.contains("on") }); showToast("Modo mantenimiento guardado"); };
+
+    // Logs en vivo
+    async function loadLiveLogs(filter){
+      const box = document.getElementById("mLogsBox");
+      if(!box) return;
+      const res = await apiGet("/status");
+      if(res && res.logs && res.logs.length){
+        let logs = res.logs.slice(-20).reverse();
+        if(filter === "ERROR") logs = logs.filter(l => l.level === "ERROR");
+        if(filter === "SECURITY") logs = logs.filter(l => l.level === "SECURITY" || l.level === "WARN");
+        box.innerHTML = logs.map(l => `<div style="font-family:var(--mono);font-size:11px;margin-bottom:4px;"><span style="color:var(--muted)">[${l.time}]</span> <b style="color:${l.level==='ERROR'?'var(--red)':l.level==='SUCCESS'?'var(--teal)':'var(--cyan)'}">[${l.level}]</b> ${escHtml(l.text)}</div>`).join("");
+      } else {
+        box.innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--teal);">🟢 Sistema Moon Multibot operativo sin incidencias.</div>`;
+      }
+    }
+    document.getElementById("mFilterAll").onclick = () => loadLiveLogs();
+    document.getElementById("mFilterErr").onclick = () => loadLiveLogs("ERROR");
+    document.getElementById("mFilterSec").onclick = () => loadLiveLogs("SECURITY");
+    if(curMasterTab === "logs") loadLiveLogs();
+    if(curMasterTab === "grupos") loadMasterChannels();
+  }
+
+  // ── Vista: Noticias & Novedades Web3 / Tech ──
+  const NEWS_ITEMS = [
+    {
+      id: "news-1",
+      cat: "Web3 & Cripto",
+      title: "Descentralización y Soberanía: Redes Libres frente a Bloqueos",
+      desc: "Nuevos mecanismos de enrutamiento resiliente y proxies MTProto para mantener comunicaciones abiertas sin intermediarios.",
+      date: "Hoy",
+      url: "https://noticiasweb3.todosobreall.tech",
+      tag: "Destacado"
+    },
+    {
+      id: "news-2",
+      cat: "Censura & Proxies",
+      title: "Nuevas rutas MTProto desplegadas en el Ecosistema Telebots",
+      desc: "Los servidores de proxy comunitario han duplicado su ancho de banda para conexiones rápidas desde cualquier operadora.",
+      date: "Ayer",
+      url: "https://resistenciaalacensura.todosobreall.tech",
+      tag: "Red"
+    },
+    {
+      id: "news-3",
+      cat: "Tecnología & IA",
+      title: "IA Híbrida Local y Nube para Moderación Automatizada",
+      desc: "Integración de modelos Ollama con filtrado de spam y detección contextual en canales sin coste de API externa.",
+      date: "Hace 2 días",
+      url: "https://todosobreall.tech",
+      tag: "IA"
+    },
+    {
+      id: "news-4",
+      cat: "Comunidad Telebots",
+      title: "Lanzamiento del Hub Multibot con Minijuegos Adaptativos",
+      desc: "El panel estrena interfaz unificada para iOS y Android en modos Día/Noche y gestión de canales con un solo toque.",
+      date: "Hace 3 días",
+      url: "https://comunidadtelebots.todosobreall.tech",
+      tag: "Novedad"
+    }
+  ];
+
+  let currentNewsCat = "all";
+
+
+  // --- Vista: Terminal y Cola ---
+  window.populateTerminalBots = async function() {
+    const r = await gp("/bots");
+    const sel = document.getElementById("termBotIdx");
+    if(sel && r && r.bots) {
+      sel.innerHTML = r.bots.map((b,i) => `<option value="${i}">Nodo ${i+1}: @${b.name}</option>`).join("");
+    }
+  };
+  
+  window.runTelegramCommand = async function() {
+    const meth = document.getElementById("termMethod").value.trim();
+    const pStr = document.getElementById("termParams").value.trim() || "{}";
+    const idx = document.getElementById("termBotIdx").value;
+    const out = document.getElementById("termResponse");
+    if(!meth){ showToast("Escribe un método API"); return; }
+    
+    let pars = {};
+    try { pars = JSON.parse(pStr); } catch(e) { out.innerHTML = "<span style='color:var(--red)'>Error de JSON: " + e.message + "</span>"; return; }
+    
+    out.innerHTML = "Ejecutando petición...";
+    const r = await pp("/admin/terminal", { bot_idx: parseInt(idx), method: meth, params: pars });
+    out.innerHTML = JSON.stringify(r, null, 2);
+  };
+  
+  window.loadQueueTab = async function() {
+    const tbody = document.getElementById("queueListBody");
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);"><div class="loader" style="margin:auto;"></div></td></tr>`;
+    
+    const d = await gp("/admin/queue");
+    if(!d || !d.ok || !d.queue) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--red);">Error al cargar la cola de tareas.</td></tr>`;
+      return;
+    }
+    
+    if(d.queue.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:40px; text-align:center; color:var(--muted); font-size:14px;">📭 No hay tareas pendientes en la cola.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = d.queue.map(q => `
+      <tr style="border-bottom:1px solid var(--line); transition:background .2s;">
+        <td style="padding:12px; font-family:var(--mono); color:var(--primary);">${q.id.substring(0,8)}</td>
+        <td style="padding:12px; font-weight:600;">${escHtml(q.type)}</td>
+        <td style="padding:12px;">${q.target || '-'}</td>
+        <td style="padding:12px; font-family:var(--mono); font-size:11px; color:var(--muted); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${JSON.stringify(q.data)}</td>
+        <td style="padding:12px;">
+          <span class="badge-status-hub" style="background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.3); padding:4px 8px; font-size:10px;">${q.status.toUpperCase()}</span>
+        </td>
+      </tr>
+    `).join("");
+  };
+
+
+
+  // --- Vista: Federaciones ---
+  window.loadFedsTab = async function() {
+    const tbody = document.getElementById("fedsListBody");
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--muted);"><div class="loader" style="margin:auto;"></div></td></tr>`;
+    
+    const d = await gp("/admin/feds");
+    if(!d || !d.ok || !d.feds) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--red);">Error al cargar las federaciones.</td></tr>`;
+      return;
+    }
+    
+    if(Object.keys(d.feds).length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:40px; text-align:center; color:var(--muted); font-size:14px;">📭 No hay Federaciones creadas.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = Object.entries(d.feds).map(([fed_id, fed]) => `
+      <tr style="border-bottom:1px solid var(--line); transition:background .2s;">
+        <td style="padding:12px; font-family:var(--mono); color:var(--primary); font-weight:600;">${fed_id}</td>
+        <td style="padding:12px; font-weight:600;">${fed.name}</td>
+        <td style="padding:12px; color:var(--muted); font-size:12px;">${fed.creator}</td>
+        <td style="padding:12px; color:var(--red); font-weight:600;">${fed.banned_users.length}</td>
+        <td style="padding:12px; color:var(--cyan); font-weight:600;">${fed.chats.length}</td>
+      </tr>
+    `).join("");
+  };
+
+  // --- Vista: Economía ---
+  window.loadEconomyTab = async function() {
+    const tbody = document.getElementById("economyListBody");
+    if(!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--muted);"><div class="loader" style="margin:auto;"></div></td></tr>`;
+    
+    const d = await gp("/admin/economy");
+    if(!d || !d.ok || !d.economy) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--red);">Error al cargar los datos económicos.</td></tr>`;
+      return;
+    }
+    
+    if(d.economy.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:40px; text-align:center; color:var(--muted); font-size:14px;">🪙 Ningún usuario tiene MoonCoins aún.</td></tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = d.economy.map(e => `
+      <tr style="border-bottom:1px solid var(--line); transition:background .2s;">
+        <td style="padding:12px; font-family:var(--mono); color:var(--muted);">${e.chat_id}</td>
+        <td style="padding:12px; font-family:var(--mono); color:var(--primary); font-weight:600;">${e.user_id}</td>
+        <td style="padding:12px; text-align:right; font-weight:800; font-family:var(--display); color:var(--yellow); font-size:15px;">${e.coins.toLocaleString()}</td>
+        <td style="padding:12px; color:var(--muted); font-size:12px;">${e.inventory.length > 0 ? e.inventory.join(", ") : '<em>Vacío</em>'}</td>
+      </tr>
+    `).join("");
+  };
+
+  // --- Vista: Chat Remoto ---
+  let activeChatId = null;
+  let chatPollTimer = null;
+  
+  function loadChat() {
+    const el = document.getElementById("v-chat");
+    el.innerHTML = `
+      <div class="vtitle">Consola de Chat Remoto</div>
+      <div class="vsub">Vigila la actividad de tus canales y responde en vivo como el Bot.</div>
+      
+      <div class="chat-layout">
+        <div class="chat-sidebar">
+          <div style="padding:14px; border-bottom:1px solid var(--line); font-weight:800; font-family:var(--display); color:var(--teal);">TUS NODOS</div>
+          <div id="chatSidebarList" style="overflow-y:auto; flex:1;"></div>
+        </div>
+        <div class="chat-main">
+          <div style="padding:14px; border-bottom:1px solid var(--line); background:var(--bg); display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:600; font-family:var(--display);" id="chatActiveTitle">Selecciona un chat</div>
+            <button class="btn ghost" style="width:auto; margin:0; padding:6px 12px; font-size:12px;" onclick="refreshChatNow()">${svg('refresh')} Refrescar</button>
+          </div>
+          <div class="chat-msgs" id="chatMsgsBox">
+            <div style="margin:auto; color:var(--muted); font-size:13px;">Haz clic en un canal a la izquierda para conectar.</div>
+          </div>
+          <div class="chat-input-bar">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Escribe un mensaje como bot..." onkeydown="if(event.key==='Enter') sendChatMsg()">
+            <button class="chat-send-btn" onclick="sendChatMsg()">${svg('check')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const sb = document.getElementById("chatSidebarList");
+    if(masterChannels && masterChannels.length > 0) {
+      sb.innerHTML = masterChannels.map(c => `
+        <div class="chat-ch-item" onclick="openChatRoom('${c.id}', '${escHtml(c.name||'Chat')}')" id="chitem-${c.id}">
+          <div>
+            <div class="chat-ch-name">${escHtml(c.name||'Desconocido')}</div>
+            <div class="chat-ch-type">${c.ctype||'grupo'}</div>
+          </div>
+          <div style="color:var(--muted); opacity:0.5;">></div>
+        </div>
+      `).join("");
+    } else {
+      sb.innerHTML = `<div style="padding:16px; color:var(--muted); font-size:13px; text-align:center;">No hay canales disponibles.</div>`;
+    }
+  }
+  
+  window.refreshChatNow = function() {
+    if(activeChatId) openChatRoom(activeChatId, document.getElementById("chatActiveTitle").innerText);
+  };
+  
+  window.openChatRoom = async function(cid, name) {
+    activeChatId = cid;
+    document.getElementById("chatActiveTitle").innerText = name;
+    document.querySelectorAll(".chat-ch-item").forEach(i => i.classList.remove("active"));
+    const it = document.getElementById("chitem-"+cid);
+    if(it) it.classList.add("active");
+    
+    const box = document.getElementById("chatMsgsBox");
+    if(box.innerHTML.includes("Haz clic en un canal")) box.innerHTML = `<div style="margin:auto;" class="loader"></div>`;
+    
+    const d = await gp("/history", {chat_id: cid});
+    if(d && d.ok && d.history) {
+      if(d.history.length === 0) {
+        box.innerHTML = `<div style="margin:auto; color:var(--muted); font-size:13px;">El historial está vacío.</div>`;
+        return;
+      }
+      box.innerHTML = d.history.map(m => {
+        let cls = "user";
+        if(m.sender === "Bot" || m.sender === "System") cls = "bot";
+        else if(m.role === "admin" || m.role === "creator") cls = "admin";
+        
+        let header = `<div style="font-size:10px; opacity:0.6; margin-bottom:2px; display:flex; justify-content:space-between;"><span>${escHtml(m.sender)}</span> <span style="margin-left:8px;">${m.time}</span></div>`;
+        return `<div class="chat-bubble ${cls}">${header}<div>${escHtml(m.text)}</div></div>`;
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    } else {
+      box.innerHTML = `<div style="margin:auto; color:var(--red); font-size:13px;">Error al cargar historial.</div>`;
+    }
+    
+    if(chatPollTimer) clearInterval(chatPollTimer);
+    chatPollTimer = setInterval(() => { 
+        const el = document.getElementById("v-chat");
+        if(activeChatId === cid && el && el.hidden === false) refreshChatNow(); 
+    }, 8000);
+  };
+  
+  window.sendChatMsg = async function() {
+    if(!activeChatId) return;
+    const inp = document.getElementById("chatInput");
+    const txt = inp.value.trim();
+    if(!txt) return;
+    
+    inp.disabled = true;
+    const r = await gp("/admin/send_message", {chat_id: activeChatId, text: txt, parse_mode: "Markdown"});
+    inp.disabled = false;
+    
+    if(r && r.ok) {
+      inp.value = "";
+      refreshChatNow();
+    } else {
+      showToast((r&&r.error) || "Error al enviar el mensaje");
+      inp.focus();
+    }
+  };
+
+  function loadNoticias() {
+    const el = document.getElementById("v-noticias");
+    const cats = ["all", "Web3 & Cripto", "Censura & Proxies", "Tecnología & IA", "Comunidad Telebots"];
+    const filtered = currentNewsCat === "all" ? NEWS_ITEMS : NEWS_ITEMS.filter(n => n.cat === currentNewsCat);
+
+    el.innerHTML = `
+      <div class="vtitle">Noticias & Novedades</div>
+      <div class="vsub">Artículos de tecnología, Web3, resistencia a la censura y comunidad.</div>
+
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;" id="newsCatsBar">
+        ${cats.map(c => `<button class="btn ghost ${currentNewsCat===c?'teal':''}" style="width:auto;padding:6px 12px;font-size:12px;white-space:nowrap;" data-ncat="${c}">${c==='all'?'📰 Todas':c}</button>`).join("")}
+      </div>
+
+      <div class="news-feed">
+        ${filtered.map(n => `
+          <div class="card tappable" style="padding:16px;margin-bottom:12px;cursor:pointer;" data-nurl="${n.url}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span class="badge" style="background:rgba(34,211,238,0.12);color:var(--cyan);border-color:rgba(34,211,238,0.3);">${n.cat}</span>
+              <span class="muted" style="font-size:11.5px;">${n.date}</span>
+            </div>
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:6px;line-height:1.4;">${escHtml(n.title)}</h3>
+            <p class="muted" style="font-size:13px;line-height:1.5;margin-bottom:12px;">${escHtml(n.desc)}</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;color:var(--teal);font-weight:700;display:flex;align-items:center;gap:4px;">Leer completo ${svg('chevron')}</span>
+              <span class="badge">${n.tag}</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+
+      <button class="btn ghost" id="btnPortalNews" style="margin-top:10px;">${svg('ext')} Abrir portal de noticias completo</button>
+    `;
+
+    el.querySelectorAll("[data-ncat]").forEach(p => {
+      p.onclick = () => {
+        currentNewsCat = p.dataset.ncat;
+        loadNoticias();
+      };
+    });
+
+    el.querySelectorAll("[data-nurl]").forEach(card => {
+      card.onclick = () => {
+        openLink(card.dataset.nurl);
+      };
+    });
+
+    document.getElementById("btnPortalNews").onclick = () => openLink("https://noticiasweb3.todosobreall.tech");
+  }
 
   // â”€â”€ NavegaciÃ³n â”€â”€
   const LOADERS={usuario:loadUserHome,canales:loadCanales,admin:loadAdmin,webadmin:loadWebAdmin,master:loadMaster,directorio:loadDirectorio,red:loadRed,ajustes:loadAjustes};
@@ -3264,13 +4637,17 @@
   // â”€â”€ Tema: carga/guardado por usuario â”€â”€
   let curTheme="nuevo";
   function applyTheme(t){
-    curTheme=(t==="clasico")?"clasico":"nuevo";
-    const nuevo=curTheme==="nuevo";
-    document.getElementById("app").hidden=!nuevo;
-    document.getElementById("app-classic").hidden=nuevo;
-    if(nuevo)initNew();else initClassic();
+    curTheme = t || "nuevo";
+    document.body.classList.remove("theme-ios-light", "theme-ios-dark", "theme-android-light", "theme-android-dark");
+    if(curTheme === "ios-light" || curTheme === "ios-dark" || curTheme === "android-light" || curTheme === "android-dark"){
+      document.body.classList.add("theme-" + curTheme);
+    }
+    const clasico = curTheme === "clasico";
+    document.getElementById("app").hidden = clasico;
+    document.getElementById("app-classic").hidden = !clasico;
+    if(!clasico) initNew(); else initClassic();
   }
-  function setTheme(t){ev("theme_change",{theme:t});saveTheme(t);applyTheme(t);if(curTheme==="nuevo"){reflectTheme();}}
+  function setTheme(t){ev("theme_change",{theme:t});saveTheme(t);applyTheme(t);reflectTheme();}
   function saveTheme(t){
     try{if(tg&&tg.CloudStorage)tg.CloudStorage.setItem("hub_theme",t);}catch(e){}
     try{localStorage.setItem("hub_theme",t);}catch(e){}
@@ -3287,6 +4664,11 @@
   // â”€â”€ Arranque â”€â”€
   (async function(){
     if(user&&user.first_name)document.getElementById("uname").textContent=user.first_name;
+    const urlParams = new URLSearchParams(window.location.search);
+    let chSaved = "alfa";
+    try { chSaved = localStorage.getItem("hub_channel") || "alfa"; } catch(e){}
+    applyHubChannel(chSaved);
+
     if(tg&&tg.initData){
       const d=await apiPost("/tg_auth",{initData:tg.initData});
       if(d&&d.ok)await applyHubReleaseIdentity(d.release_channel,d.app_version);

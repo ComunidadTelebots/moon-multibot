@@ -179,7 +179,16 @@
     document.getElementById("retrySubscriptions").onclick=async()=>{const {data}=await post("/join/verify",{initData:tg&&tg.initData,chat,resume:true});if(data&&data.approved){stateScreen('ok','¡Verificado!','Ya puedes entrar al grupo.');if(tg&&tg.close)setTimeout(()=>tg.close(),1800);}else if(data&&data.subscription_required)renderSubscriptions(data.missing_channels||[]);else if(data&&data.under_review)stateScreen('ok','En revisión','Los administradores revisarán tu solicitud.');else stateScreen('bad','No se pudo verificar','Inténtalo de nuevo en unos segundos.');};
   }
   async function loadChallenge(errMsg){
-    if(!tg||!tg.initData){stateScreen('bad','Abre desde Telegram','Esta verificación solo funciona desde el botón del grupo en Telegram.');return;}
+    const urlParams = new URLSearchParams(location.search);
+    if(urlParams.get("demo")==="1" || !tg || !tg.initData){
+      const icons = ["star", "heart", "bolt", "moon", "cloud", "leaf"];
+      const target = icons[Math.floor(Math.random()*icons.length)];
+      const others = icons.filter(i=>i!==target);
+      const correct = [0, 4, 8].sort(()=>Math.random()-.5).slice(0,3).sort((a,b)=>a-b);
+      const grid = Array.from({length:9}, (_,i)=>correct.includes(i)?target:others[Math.floor(Math.random()*others.length)]);
+      renderChallenge({target, grid, demo: true, correct});
+      return;
+    }
     if(!errMsg)app.innerHTML=`<div class="head"><div class="title">Verificación</div><div class="sub">Cargando…</div></div>`;
     const {status,data}=await post("/join/challenge",{initData:tg.initData,chat});
     if(status===410){stateScreen('bad','Sin solicitud pendiente','No encontramos una solicitud de entrada tuya. Solicita unirte al grupo primero.');return;}

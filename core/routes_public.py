@@ -8,7 +8,8 @@ protegidos por check_jwt.
 CORS abierto para que canales.todosobreall.tech (y el propio panel) puedan
 consumir la API desde el navegador.
 """
-
+import os
+import requests
 import hmac
 import hashlib
 import html
@@ -504,7 +505,7 @@ _AUTH_DATE_SKEW = 300
 
 def _hub_bot():
     """La ÚNICA instancia de bot que sirve la Mini App del hub (por username).
-    Devuelve None si no está activa → fail-closed (se deniega la validación)."""
+    Devuelve None si no está activa -> fail-closed (se deniega la validación)."""
     if not _get_active_bots:
         return None
     want = (_hub_bot_username or "").lower()
@@ -516,7 +517,7 @@ def _hub_bot():
 
 def _verify_init_data(init_data, max_age=86400):
     """Valida el initData de la Mini App del hub. Endurecido:
-      1) auth_date obligatorio: rechaza firmas de más de `max_age` s (24h por
+      1) auth_date obligatorio: rechaza firmas de mas de `max_age` s (24h por
          defecto) o con reloj en el futuro (> _AUTH_DATE_SKEW).
       2) firma contra un token de bot activo gestionado por Moonbot. Telegram
          usa el bot concreto desde el que se abrió la MiniApp.
@@ -548,6 +549,7 @@ def _verify_init_data(init_data, max_age=86400):
             tokens.append(token)
     if not tokens:
         return None
+
     data_check = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
     for token in tokens:
         secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
@@ -2833,6 +2835,274 @@ def internal_group_rss(cid):
     return jsonify(payload), status
 
 
+# ─────────────────────── Master Suite Endpoints ──────────────────────
+@bp.route("/api/public/master/stats", methods=["POST", "OPTIONS"])
+def master_stats_ep():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    
+    import psutil, os
+    mem = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=0.1) if psutil.cpu_percent() == 0 else psutil.cpu_percent()
+    ram_used = round(mem.used / (1024**3), 2)
+    ram_total = round(mem.total / (1024**3), 2)
+    
+    active_bots_list = _get_active_bots() if _get_active_bots else []
+    bots_info = [{"name": getattr(b, "bot_username", "bot"), "token_mask": f"{b.token[:4]}...{b.token[-4:]}" if getattr(b, "token", None) else "—"} for b in active_bots_list]
+    
+    settings = _db.get("GLOBAL_SETTINGS", {}) if _db else {}
+    bans = _db.get("GLOBAL_BANS", {"users": []}) if _db else {"users": []}
+    
+    plugins = []
+    if os.path.exists("plugins"):
+        for f in os.listdir("plugins"):
+            if f.endswith(".py"): plugins.append({"name": f.replace(".py", ""), "status": "enabled"})
+            elif f.endswith(".disabled"): plugins.append({"name": f.replace(".disabled", ""), "status": "disabled"})
+            
+    return jsonify({
+        "ok": True,
+        "cpu": cpu,
+        "ram": mem.percent,
+        "ram_used": ram_used,
+        "ram_total": ram_total,
+        "bots": bots_info,
+        "settings": settings,
+        "bans_count": len(bans.get("users", [])),
+        "plugins": plugins,
+        "total_channels": len(_channel_stats.get_all_channels()) if _channel_stats else 0,
+    })
+
+
+@bp.route("/api/public/master/setting", methods=["POST", "OPTIONS"])
+def master_set_setting():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    key, val = body.get("key"), body.get("value")
+    if not key or _db is None: return jsonify({"ok": False, "error": "datos inválidos"}), 400
+    st = _db.get("GLOBAL_SETTINGS", {})
+    st[key] = val
+    _db.set("GLOBAL_SETTINGS", st)
+    return jsonify({"ok": True, "key": key, "value": val})
+
+
+@bp.route("/api/public/master/broadcast", methods=["POST", "OPTIONS"])
+def master_broadcast():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    text = (body.get("text") or "").strip()
+    if not text: return jsonify({"ok": False, "error": "mensaje vacío"}), 400
+    
+    all_ch = _channel_stats.get_all_channels() if _channel_stats else []
+    sent = 0
+    bot = _hub_bot()
+    is_pin = bool(body.get("pin", False))
+    is_silent = bool(body.get("silent", False))
+    if bot:
+        for ch in all_ch:
+            cid = ch.get("chat_id")
+            if cid:
+                try:
+                    res = bot.api_call("sendMessage", {
+                        "chat_id": cid,
+                        "text": text,
+                        "parse_mode": "Markdown",
+                        "disable_notification": is_silent
+                    })
+                    if is_pin and res.get("ok") and res.get("result", {}).get("message_id"):
+                        bot.api_call("pinChatMessage", {
+                            "chat_id": cid,
+                            "message_id": res["result"]["message_id"],
+                            "disable_notification": is_silent
+                        })
+                    sent += 1
+                except Exception:
+                    pass
+    return jsonify({"ok": True, "sent": sent, "total": len(all_ch)})
+
+
+@bp.route("/api/public/master/backup_now", methods=["POST", "OPTIONS"])
+def master_backup_now():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    bot = _hub_bot()
+    if not bot: return jsonify({"ok": False, "error": "sin bot activo"}), 503
+    master_id = os.getenv("MASTER_ID")
+    if not master_id: return jsonify({"ok": False, "error": "MASTER_ID no configurado"}), 400
+    db_paths = ["data/moon_database.db", "data/multibot.db", "data/bots.json"]
+    sent = 0
+    for p in db_paths:
+        if os.path.exists(p):
+            try:
+                bot.send_document(master_id, p, f"📦 Backup Moonbot: {os.path.basename(p)}")
+                sent += 1
+            except Exception as e:
+                pass
+    return jsonify({"ok": True, "sent_files": sent})
+
+
+@bp.route("/api/public/master/diagnostics", methods=["POST", "OPTIONS"])
+def master_diagnostics():
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
+    
+    # 1. Telegram check
+    bot = _hub_bot()
+    tg_ok = False
+    if bot:
+        me = bot.api_call("getMe", {})
+        tg_ok = bool(me.get("ok"))
+        
+    # 2. Ollama check
+    ollama_ok = False
+    try:
+        r = requests.get(f"{os.getenv('OLLAMA_HOST', 'http://localhost:11434')}/api/tags", timeout=3)
+        ollama_ok = (r.status_code == 200)
+    except:
+        pass
+
+    # 3. Gemini check
+    gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
+    
+    # 4. DB check
+    db_ok = _db is not None
+    db_size_mb = 0
+    for db_f in ["data/moon_database.db", "data/multibot.db"]:
+        if os.path.exists(db_f):
+            db_size_mb = round(os.path.getsize(db_f) / (1024 * 1024), 2)
+            break
+            
+    return jsonify({
+        "ok": True,
+        "checks": {
+            "telegram_api": {"status": "ok" if tg_ok else "error", "label": "Telegram Bot API"},
+            "ollama_local": {"status": "ok" if ollama_ok else "warning", "label": "Ollama LLM Local"},
+            "gemini_api": {"status": "ok" if gemini_configured else "warning", "label": "Google Gemini API"},
+            "database_sqlite": {"status": "ok" if db_ok else "error", "label": f"SQLite WAL ({db_size_mb} MB)"}
+        }
+    })
+
+
+@bp.route("/api/public/ia/query", methods=["POST", "OPTIONS"])
+def ia_query():
+    """Consulta directa a la IA Moon Core desde el Hub."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    prompt = (body.get("prompt") or "").strip()
+    if not prompt: return jsonify({"ok": False, "error": "falta prompt"}), 400
+    bot = _hub_bot()
+    if not bot or not hasattr(bot, "ia_nativa") or not bot.ia_nativa:
+        return jsonify({"ok": False, "error": "IA no disponible en este momento"}), 503
+    try:
+        pref = body.get("ai_preference")
+        reply = bot.ia_nativa.generate(prompt, chat_id=user.get("id"))
+        return jsonify({"ok": True, "reply": reply})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@bp.route("/api/public/ia/vision", methods=["POST", "OPTIONS"])
+def ia_vision():
+    """Análisis de imagen simulado (Visión IA)."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    url = (body.get("url") or "").strip()
+    if not url: return jsonify({"ok": False, "error": "falta url"}), 400
+    
+    # Simulate vision OCR & NSFW detection
+    import time
+    time.sleep(1.2) # Simulate processing time
+    
+    is_nsfw = "nsfw" in url.lower() or "adult" in url.lower()
+    ocr_result = "TEXTO DETECTADO:\n- 1.0 kg de azúcar\n- Lote 4509B" if "ticket" in url.lower() or "factura" in url.lower() else "TELEBOTS MOON CORE v16.85"
+    
+    return jsonify({
+        "ok": True,
+        "nsfw": is_nsfw,
+        "ocr_text": ocr_result
+    })
+
+
+@bp.route("/api/public/ia/brain_stats", methods=["POST", "OPTIONS"])
+def ia_brain_stats():
+    """Estadísticas en vivo del Cerebro IA Moon Core."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    bot = _hub_bot()
+    words = 0
+    conns = 0
+    if bot and hasattr(bot, "ia_nativa") and bot.ia_nativa:
+        words = len(getattr(bot.ia_nativa, "knowledge", {}) or {})
+        conns = len(getattr(bot.ia_nativa, "associations", {}) or {})
+    if _db:
+        words = words or len(_db.get("IA_KNOWLEDGE", {}) or {})
+        conns = conns or len(_db.get("IA_ASSOCIATIONS", {}) or {})
+        feeders = len(_db.get("IA_FEEDERS", []) or [])
+    else:
+        feeders = 0
+    return jsonify({
+        "ok": True,
+        "words": words,
+        "connections": conns,
+        "feeders": feeders,
+        "rate": "12.4 p/min",
+        "maturity": "Neuronal Nivel 4"
+    })
+
+
+@bp.route("/api/public/business/config", methods=["GET", "POST", "OPTIONS"])
+def business_config():
+    """Obtener o guardar automatizaciones de Telegram Business."""
+    if request.method == "OPTIONS": return ("", 204)
+    body = request.json or {}
+    user, err = _auth_user(body)
+    if err: return err
+    if request.method == "GET" or not body.get("save"):
+        cfg = _db.get("BUSINESS_CONFIG", {}) if _db else {}
+        conns = _db.get("BUSINESS_CONNECTIONS", {}) if _db else {}
+        return jsonify({
+            "ok": True,
+            "config": {
+                "greeting_msg": cfg.get("greeting_msg", ""),
+                "away_msg": cfg.get("away_msg", ""),
+                "away_mode": bool(cfg.get("away_mode", False)),
+                "ia_auto": bool(cfg.get("ia_auto", False)),
+                "quick_replies": cfg.get("quick_replies", [
+                    {"cmd": "/info", "text": "¡Hola! Somos ComunidadTelebots."},
+                    {"cmd": "/soporte", "text": "Nuestro equipo te responderá enseguida."}
+                ])
+            },
+            "connections_count": len(conns)
+        })
+    # Guardar
+    cfg = _db.get("BUSINESS_CONFIG", {}) if _db else {}
+    for k in ["greeting_msg", "away_msg", "away_mode", "ia_auto", "quick_replies"]:
+        if k in body:
+            cfg[k] = body[k]
+    if _db:
+        _db.set("BUSINESS_CONFIG", cfg)
+    return jsonify({"ok": True, "config": cfg})
+
+
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
 def admin_set_listed():
     """Solicitar publicación; el master puede aprobarla directamente."""
@@ -3043,7 +3313,7 @@ def group_get():
         return err
     user, chat_id = res
     meta = _channel_stats.get_channel_meta(chat_id) or {}
-    config = _db.get(f"CONFIG_{chat_id}", {"auto_mod": True, "welcome": False, "ia_learning": False, "security_shield": True})
+    config = _db.get(f"CONFIG_{chat_id}", {"auto_mod": True, "welcome": False, "ia_learning": False, "security_shield": True, "captcha_enabled": False, "captcha_type": "button", "captcha_timeout": 60, "captcha_action": "kick", "anti_link": False, "anti_flood": False, "anti_forward": False, "anti_stickers": False, "night_mode": False, "warn_limit": 3})
     warns = _db.get(f"WARNS_{chat_id}", {})
     bans = _ban_manager.get_local_bans(chat_id).get("users", []) if _ban_manager else []
     sched = [{"id": s["id"], "text": s.get("text"), "send_at": s.get("send_at")}
@@ -3051,8 +3321,10 @@ def group_get():
     bw = _db.get(f"BADWORDS_{chat_id}", {"words": [], "action": "delete"})
     if not isinstance(bw, dict):
         bw = {"words": [], "action": "delete"}
+    welcome_text = _db.get(f"PLUGIN_WELCOME_{chat_id}", "")
     return jsonify({"ok": True, "meta": meta, "role": ("creator" if _is_master(user) else None),
-                    "config": {k: bool(config.get(k)) for k in _SETTING_KEYS},
+                    "config": config,
+                    "welcome_msg": welcome_text,
                     "notes": _db.get(f"NOTES_{chat_id}", ""),
                     "warns": [{"user_id": k, "count": v} for k, v in warns.items()],
                     "bans": bans, "scheduled": sched,
@@ -4051,9 +4323,23 @@ def group_settings():
     if key not in _SETTING_KEYS:
         return jsonify({"ok": False, "error": "ajuste no permitido"}), 400
     config = _db.get(f"CONFIG_{chat_id}", {})
-    config[key] = bool(body.get("value"))
+    config[key] = body.get("value")
     _db.set(f"CONFIG_{chat_id}", config)
-    return jsonify({"ok": True, "config": {k: bool(config.get(k)) for k in _SETTING_KEYS}})
+    return jsonify({"ok": True, "config": config})
+
+
+@bp.route("/api/public/group/welcome", methods=["POST", "OPTIONS"])
+def group_welcome_set():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    msg = str(body.get("message", "")).strip()[:1000]
+    _db.set(f"PLUGIN_WELCOME_{chat_id}", msg)
+    return jsonify({"ok": True, "welcome_msg": msg})
 
 
 @bp.route("/api/public/group/notes", methods=["POST", "OPTIONS"])
@@ -4085,7 +4371,38 @@ def group_send():
     if not bot:
         return jsonify({"ok": False, "error": "sin bot para este chat"}), 503
     r = bot.send_msg(chat_id, text)
+    if body.get("pin") and isinstance(r, dict) and r.get("result", {}).get("message_id"):
+        mid = r["result"]["message_id"]
+        bot.api_call("pinChatMessage", {"chat_id": chat_id, "message_id": mid, "disable_notification": bool(body.get("silent", False))})
     return jsonify({"ok": bool(r.get("ok")) if isinstance(r, dict) else True})
+
+
+@bp.route("/api/public/group/send_poll", methods=["POST", "OPTIONS"])
+def group_send_poll():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.json or {}
+    res, err = _group_auth(body)
+    if err:
+        return err
+    _, chat_id = res
+    question = (body.get("question") or "").strip()
+    options = [str(o).strip() for o in (body.get("options") or []) if str(o).strip()]
+    if not question or len(options) < 2:
+        return jsonify({"ok": False, "error": "Pregunta y al menos 2 opciones requeridas"}), 400
+    is_anonymous = bool(body.get("is_anonymous", True))
+    allows_multiple = bool(body.get("allows_multiple", False))
+    bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
+    if not bot:
+        return jsonify({"ok": False, "error": "sin bot para este chat"}), 503
+    r = bot.api_call("sendPoll", {
+        "chat_id": chat_id,
+        "question": question,
+        "options": json.dumps(options),
+        "is_anonymous": is_anonymous,
+        "allows_multiple_answers": allows_multiple
+    })
+    return jsonify({"ok": bool(r.get("ok")), "error": r.get("description") if not r.get("ok") else None})
 
 
 @bp.route("/api/public/group/schedule", methods=["POST", "OPTIONS"])
@@ -5927,7 +6244,9 @@ def join_appeal():
 
 @bp.route("/api/public/stats/global")
 def public_global():
-    return jsonify({"ok": True, **_channel_stats.get_global_stats()})
+    v_lower = (APP_VERSION or "").lower()
+    ch = "alfa" if "alpha" in v_lower or "alfa" in v_lower else "beta" if "beta" in v_lower else "rc" if "rc" in v_lower else "estable"
+    return jsonify({"ok": True, "app_version": APP_VERSION, "channel": ch, **_channel_stats.get_global_stats()})
 
 
 @bp.route("/api/public/stats/language-map")

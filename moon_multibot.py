@@ -443,6 +443,16 @@ def check_jwt(req):
     try: jwt.decode(auth.split(" ")[1], JWT_SECRET, algorithms=["HS256"]); return True
     except: return False
 
+
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from flask import request, jsonify
+        if not check_jwt(request):
+            return jsonify({"ok": False, "error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 def bot_public_id(token):
     return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
 
@@ -891,6 +901,29 @@ app.register_blueprint(_setup_ops(
 def index(): return send_from_directory("web", "landing.html")
 @app.route("/panel")
 def panel(): return send_from_directory("web", "index.html")
+@app.route("/hub")
+@app.route("/hub.html")
+@app.route("/app")
+@app.route("/webapp")
+@app.route("/miniapp")
+def hub_app(): return send_from_directory("web", "hub.html")
+
+@app.route("/join")
+@app.route("/join.html")
+@app.route("/captcha")
+def join_app(): return send_from_directory("web", "join.html")
+
+@app.route("/alfa")
+@app.route("/alpha")
+@app.route("/transport")
+@app.route("/trucks")
+@app.route("/camiones")
+def transport_app(): return send_from_directory("web", "transport-3d.html")
+
+@app.route("/juegos")
+@app.route("/games")
+def games_app(): return send_from_directory("web", "games.html")
+
 @app.route("/<path:path>")
 def static_proxy(path): return send_from_directory("web", path)
 
@@ -1294,6 +1327,157 @@ def web_system_processes():
         return jsonify({"ok": True, "processes": procs})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/api/admin/send_message", methods=["POST"])
+@require_auth
+def api_admin_send_message():
+    try:
+        data = request.json
+        if not data or "chat_id" not in data or "text" not in data:
+            return jsonify({"ok": False, "error": "Parámetros incompletos"}), 400
+            
+        chat_id = data["chat_id"]
+        text = data["text"]
+        parse_mode = data.get("parse_mode", "Markdown")
+        
+        # Enviar con el bot asignado a ese chat o con el primero
+        target_bot = get_bot_for_chat(chat_id) or active_bots[0]
+        
+        res = target_bot.send_msg(chat_id, text, parse_mode=parse_mode)
+        if res and res.get("ok"):
+            # Registrar explícitamente en el historial (se hace automático en send_msg, pero para forzar en web si no lo hace)
+            add_web_log("SUCCESS", f"Mensaje enviado desde Panel al chat {chat_id}")
+            return jsonify({"ok": True, "result": res.get("result")})
+        else:
+            err = res.get("description") if res else "Error desconocido"
+            return jsonify({"ok": False, "error": err}), 400
+            
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/admin/terminal", methods=["POST"])
+@require_auth
+def api_admin_terminal():
+    try:
+        data = request.json
+        if not data or "method" not in data:
+            return jsonify({"ok": False, "error": "Falta método"}), 400
+            
+        bot_idx = int(data.get("bot_idx", 0))
+        method = data["method"]
+        params = data.get("params", {})
+        
+        if bot_idx < 0 or bot_idx >= len(active_bots):
+            target_bot = active_bots[0]
+        else:
+            target_bot = active_bots[bot_idx]
+            
+        res = target_bot.api_call(method, params)
+        return jsonify(res)
+        
+    except Exception as e:
+        return jsonify({"ok": False, "description": str(e)}), 500
+
+@app.route("/api/admin/queue", methods=["GET"])
+@require_auth
+def api_admin_queue():
+    try:
+        # Extraemos la cola actual de la instancia global de TaskQueue
+        items = task_queue.get_all_tasks() if "task_queue" in globals() else []
+        
+        # Si no existe, simulamos
+        if not items:
+            return jsonify({"ok": True, "queue": []})
+            
+        return jsonify({"ok": True, "queue": items})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+
+
+
+@app.route("/api/admin/fsub", methods=["GET", "POST"])
+@require_auth
+def api_admin_fsub():
+    from moon_multibot import db
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if request.method == "POST":
+        data = request.json
+        channels = data.get("channels", [])
+        settings["fsub_channels"] = channels
+        db.set("GLOBAL_SETTINGS", settings)
+        return jsonify({"ok": True, "channels": channels})
+    else:
+        return jsonify({"ok": True, "channels": settings.get("fsub_channels", ["@todosobealltech"])})
+
+
+@app.route("/api/admin/moderation", methods=["GET", "POST"])
+@require_auth
+def api_admin_moderation():
+    from moon_multibot import db
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if request.method == "POST":
+        data = request.json
+        if "char_filter_enabled" in data:
+            settings["char_filter_enabled"] = data["char_filter_enabled"]
+        db.set("GLOBAL_SETTINGS", settings)
+        return jsonify({"ok": True, "settings": settings})
+    return jsonify({"ok": True, "settings": settings})
+
+@app.route("/api/admin/utilities", methods=["GET", "POST"])
+@require_auth
+def api_admin_utilities():
+    from moon_multibot import db
+    settings = db.get("GLOBAL_SETTINGS", {})
+    if request.method == "POST":
+        data = request.json
+        if "rss_master_url" in data:
+            settings["rss_master_url"] = data["rss_master_url"]
+        db.set("GLOBAL_SETTINGS", settings)
+        return jsonify({"ok": True, "settings": settings})
+    return jsonify({"ok": True, "settings": settings})
+
+@app.route("/api/admin/feds", methods=["GET"])
+@require_auth
+def api_admin_feds():
+    from moon_multibot import db
+    try:
+        feds = db.get("GLOBAL_FEDS", {})
+        return jsonify({"ok": True, "feds": feds})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+@app.route("/api/admin/economy", methods=["GET"])
+@require_auth
+def api_admin_economy():
+    try:
+        # Extraer todas las llaves de la base de datos relacionadas a USER_ECON
+        econ_keys = db.keys("USER_ECON_") if hasattr(db, "keys") else []
+        
+        users_data = []
+        for key in econ_keys:
+            # key form: USER_ECON_{cid}_{uid}
+            parts = key.split("_")
+            if len(parts) >= 4:
+                cid = parts[2]
+                uid = parts[3]
+                data = db.get(key, {})
+                users_data.append({
+                    "chat_id": cid,
+                    "user_id": uid,
+                    "coins": data.get("coins", 0),
+                    "inventory": data.get("inventory", [])
+                })
+                
+        # Ordenar por monedas (mayor a menor)
+        users_data.sort(key=lambda x: x["coins"], reverse=True)
+            
+        return jsonify({"ok": True, "economy": users_data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 
 @app.route("/api/system/kill", methods=['POST'])
 def web_system_kill():
@@ -3780,10 +3964,12 @@ class MoonBot:
             reasons.append("CAS Global Blacklist")
             
         # -- IA Behavioral & Banned Words (30-50 pts)
-        banned_words = ["porno", "xxx", "terrorismo", "isis", "bomba", "gore", "cp ", "pedofilo"]
-        if any(w in cap_low for w in banned_words):
-            score += 50
-            reasons.append(f"Contenido Prohibido en Caption")
+        banned_words = ["porno", "xxx", "terrorismo", "isis", "bomba", "gore", "cp", "pedofilo", "infantil", "nazi"]
+        critical_match = any(w in cap_low or w in v_low for w in banned_words)
+        
+        if critical_match:
+            score += 100
+            reasons.append("Contenido Ilegal/Extremo Detectado")
             
         # Detección de Estafas Dinámica (solo si coinciden varios términos)
         scam_words = ["nequi", "paypal", "scam", "estafa", "pago", "premio", "gana"]

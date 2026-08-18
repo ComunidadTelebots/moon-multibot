@@ -2917,12 +2917,19 @@
 - **`/recomendar <enlace>`**: cualquier usuario recomienda un proxy MTProto; el bot lo valida (TCP-check), lo deja pendiente (`db["PENDING_PROXIES"]`) y avisa al **master** con botones ✅/❌. Al aprobar, se publica automáticamente en la web vía `POST /mtproto-proxies/community` de la API (autenticado por token compartido).
 - **`/pendientes`**: cola de proxies recomendados por revisar, con botones de aprobar/rechazar en cada uno.
 - **`/estado`** y **`/historico`**: usuarios activos por país y conexiones por hora/día de los proxies, consultados a la API.
-- Los datos de proxies vienen de la API `mtproto-proxies` (geoip-lite, `country`/`ll`, `connStats`).
+- **Los datos de proxies** vienen de la API `mtproto-proxies` (geoip-lite, `country`/`ll`, `connStats`).
 
 ### Fix - Separación de permisos (admin de grupo ≠ dueño del bot)
 - El rango `Admin` de `get_user_rank` proviene de `getChatAdministrators` (admin del **grupo** de Telegram), no del dueño del bot. Se han pasado a **solo Master** las acciones globales/sensibles que estaban expuestas a cualquier admin de grupo: `/gban` y `/ungban` (ban/indulto global), `/ia_programar` e `/ia_feed` (entrenan/alimentan la IA compartida) y los comandos de datos de proxies (`/estado`, `/historico`, `/pendientes`) más la aprobación de proxies.
 - La moderación **del propio grupo** (`/ban`, `/unban`, `/mute`, `/unmute`, `/warn`, `/resumen`) se mantiene para admins de grupo.
 - Verificado: `/listen`, `/backup_db` y `/resync` ya eran solo Master.
+
+## [v16.83.1] - 2026-06-06
+### Feature - Galería Visual de Versiones & Detección Multilingüe
+- **Historial visual en Landing (`web/landing.html`)**: Maquetas interactivas y capturas de evolución de interfaz incorporadas en la landing page.
+- **Detección de idioma multilingüe (`core/text_utils.py`)**: Clasificación automática de la lengua del interlocutor para adaptar respuestas de IA.
+- **Pipeline de saneamiento con `ftfy`**: Integración de librería especializada para reparar cualquier desalineación de codificación UTF-8.
+- **Panel de Historial Diario (`web/history.html`)**: Visor cronológico de mensajes y scripts de parsing de copias de seguridad (`scripts/parse_backups.py`).
 
 ## [v16.83.0] - 2026-05-24
 ### Feature - Landing page pública y panel en `/panel`
