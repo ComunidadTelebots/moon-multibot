@@ -7370,7 +7370,8 @@ def patch_bot_instances():
             
         original_api_call = bot.api_call
         def patched_api_call(method, payload=None, files=None, timeout=None, silent=False):
-            # En Sub-Bots, interceptamos getUpdates para que se quede esperando a que el Stable le envíe mensajes por HTTP
+            print(f"[DEBUG API CALL] ENV={MOON_ENV} method={method} payload={payload}", flush=True)
+            # En Sub-Bots, interceptamos getUpdates... para que se quede esperando a que el Stable le envíe mensajes por HTTP
             if MOON_ENV != "stable" and method == "getUpdates":
                 try:
                     update = bot.router_queue.get(timeout=10)
