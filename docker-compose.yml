@@ -15,10 +15,6 @@ services:
   moonbot:
     build: .
     restart: unless-stopped
-    deploy:
-      replicas: 2
-      restart_policy:
-        condition: any
     env_file:
       - .env
     volumes:

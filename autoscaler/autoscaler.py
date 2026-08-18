@@ -10,7 +10,6 @@ CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30"))
 
 # Lista de servicios que pueden autoescalar
 TARGET_SERVICES = [
-    "moonbot",          # Estable
     "moonbot-rc",       # Release Candidate
     "moonbot-beta",     # Beta
     "moonbot-alfa",     # Alfa
