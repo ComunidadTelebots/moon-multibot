@@ -1,8 +1,24 @@
 services:
+  autoscaler:
+    build: ./autoscaler
+    container_name: moonbot_autoscaler
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app/compose:ro
+    environment:
+      - MIN_REPLICAS=2
+      - MAX_REPLICAS=5
+      - CPU_THRESHOLD_UP=70
+      - CPU_THRESHOLD_DOWN=20
+      - CHECK_INTERVAL=30
   moonbot:
     build: .
-    container_name: moonbot
     restart: unless-stopped
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
     env_file:
       - .env
     volumes:
@@ -26,6 +42,10 @@ services:
     image: ollama/ollama:latest
     container_name: moon_ollama
     restart: unless-stopped
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
     volumes:
       - ./ollama_data:/root/.ollama
     entrypoint: /bin/sh -c "/bin/ollama serve & sleep 10 && ollama pull qwen2:0.5b && wait"
