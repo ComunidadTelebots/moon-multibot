@@ -15,7 +15,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.moonbot-rc.rule=Host(c.cintiabot.todosobreall.tech)"
+      - "traefik.http.routers.moonbot-rc.rule=Host(`rc.cintiabot.todosobreall.tech`)"
       - "traefik.http.routers.moonbot-rc.entrypoints=websecure"
       - "traefik.http.routers.moonbot-rc.tls=true"
       - "traefik.http.routers.moonbot-rc.tls.certresolver=letsencrypt"
@@ -39,7 +39,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.moonbot-beta.rule=Host(eta.cintiabot.todosobreall.tech)"
+      - "traefik.http.routers.moonbot-beta.rule=Host(`beta.cintiabot.todosobreall.tech`)"
       - "traefik.http.routers.moonbot-beta.entrypoints=websecure"
       - "traefik.http.routers.moonbot-beta.tls=true"
       - "traefik.http.routers.moonbot-beta.tls.certresolver=letsencrypt"
@@ -63,7 +63,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.moonbot-alfa.rule=Host(lfa.cintiabot.todosobreall.tech)"
+      - "traefik.http.routers.moonbot-alfa.rule=Host(`alfa.cintiabot.todosobreall.tech`)"
       - "traefik.http.routers.moonbot-alfa.entrypoints=websecure"
       - "traefik.http.routers.moonbot-alfa.tls=true"
       - "traefik.http.routers.moonbot-alfa.tls.certresolver=letsencrypt"
@@ -87,7 +87,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.moonbot-prealfa.rule=Host(prealfa.cintiabot.todosobreall.tech)"
+      - "traefik.http.routers.moonbot-prealfa.rule=Host(`prealfa.cintiabot.todosobreall.tech`)"
       - "traefik.http.routers.moonbot-prealfa.entrypoints=websecure"
       - "traefik.http.routers.moonbot-prealfa.tls=true"
       - "traefik.http.routers.moonbot-prealfa.tls.certresolver=letsencrypt"
