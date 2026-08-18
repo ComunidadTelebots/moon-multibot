@@ -1,5 +1,5 @@
 from functools import wraps
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from core.plugin_security import validate_plugin_filename
 from core.auth_security import dashboard_password_matches
