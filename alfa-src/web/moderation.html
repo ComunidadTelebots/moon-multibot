@@ -1,0 +1,304 @@
+<!-- Pestaña Moderación -->
+<div class="glass-panel" style="margin-bottom: 25px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+        <h3 style="margin:0;">👮 Panel de Moderación</h3>
+        <select id="modGroupSelect" class="input-style" style="width: 250px;" onchange="loadModerationData()">
+            <option value="">— Seleccionar Grupo —</option>
+        </select>
+    </div>
+    <div id="modBotPermissions"></div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+        <!-- Warns -->
+        <div class="glass-panel" style="background: rgba(239,68,68,0.05); border-color: rgba(239,68,68,0.2);">
+            <h4 style="color: #f87171; margin-bottom: 15px;">⚠️ Advertencias Activas</h4>
+            <div id="modWarnsList" style="min-height: 100px; font-size: 12px;">
+                <div style="color: var(--text-muted); text-align: center; margin-top: 20px;">Selecciona un grupo</div>
+            </div>
+        </div>
+
+        <!-- Mutes -->
+        <div class="glass-panel" style="background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.2);">
+            <h4 style="color: var(--primary); margin-bottom: 15px;">🔇 Usuarios Silenciados</h4>
+            <div id="modMutesList" style="min-height: 100px; font-size: 12px;">
+                <div style="color: var(--text-muted); text-align: center; margin-top: 20px;">Selecciona un grupo</div>
+            </div>
+        </div>
+
+        <!-- Notas del Grupo -->
+        <div class="glass-panel" style="background: rgba(16,185,129,0.05); border-color: rgba(16,185,129,0.2);">
+            <h4 style="color: var(--accent); margin-bottom: 15px;">📝 Notas del Grupo</h4>
+            <textarea id="modGroupNotes" class="input-style" rows="4" placeholder="Notas sobre este grupo..." style="resize: none; width: 100%; margin-bottom: 10px;"></textarea>
+            <button class="btn-glow" style="margin: 0; padding: 8px; font-size: 12px;" onclick="saveGroupNotes()">💾 Guardar Nota</button>
+        </div>
+    </div>
+    <div class="glass-panel" style="margin-top:20px;border-left:3px solid #2dd4bf;">
+        <h3 style="margin-top:0;">🧰 Suite avanzada de grupos</h3>
+        <p style="color:var(--text-muted);font-size:12px;">Las mismas funciones disponibles en la Mini App, centralizadas para el master.</p>
+        <div id="modSuiteEmpty" style="color:var(--text-muted);">Selecciona un grupo para cargar sus herramientas.</div>
+        <div id="modSuite" hidden>
+            <div class="suite-grid">
+                <label><input type="checkbox" id="sqQuarantine"> Cuarentena de nuevos miembros</label>
+                <label><input type="checkbox" id="sqRaid"> Escudo anti-raid</label>
+                <label><input type="checkbox" id="sqWelcome"> Bienvenida automática</label>
+                <label><input type="checkbox" id="sqConsensus"> Moderación por consenso</label>
+                <input id="sqQHours" class="input-style" type="number" min="1" max="168" placeholder="Horas de cuarentena">
+                <input id="sqQMessages" class="input-style" type="number" min="1" max="50" placeholder="Mensajes para completar">
+                <input id="sqRaidJoins" class="input-style" type="number" min="3" max="100" placeholder="Entradas para activar raid">
+                <input id="sqVotes" class="input-style" type="number" min="1" max="10" placeholder="Votos requeridos">
+            </div>
+            <textarea id="sqWelcomeText" class="input-style" rows="2" placeholder="Bienvenida: usa {name}"></textarea>
+            <button class="btn-glow" onclick="saveGroupSuite()">Guardar protección y bienvenida</button>
+
+            <details><summary>Mensajes enviados como canal</summary>
+                <p style="color:var(--text-muted);font-size:12px;">No afecta al canal vinculado: solamente a otros canales usados para escribir manualmente en el grupo.</p>
+                <div class="suite-grid">
+                    <label data-help="Banea el canal remitente externo usando banChatSenderChat."><input type="checkbox" id="sqChannelBan"> Banear canales externos</label>
+                    <label><input type="checkbox" id="sqChannelDelete"> Eliminar sus mensajes</label>
+                    <label><input type="checkbox" id="sqChannelNotify"> Avisar en el grupo</label>
+                </div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar protección de canales</button>
+            </details>
+            <details><summary>Interacción con otros bots</summary>
+                <p style="color:var(--text-muted);font-size:12px;">Solo aprende de bots incluidos en la lista. No ejecuta sus comandos y limita las respuestas para evitar bucles.</p>
+                <div class="suite-grid">
+                    <label><input type="checkbox" id="sqBotEnabled"> Permitir bots autorizados</label>
+                    <label><input type="checkbox" id="sqBotLearn"> Aprender de sus mensajes</label>
+                    <label><input type="checkbox" id="sqBotReply"> Responder a menciones</label>
+                    <input id="sqBotLimit" class="input-style" type="number" min="1" max="30" placeholder="Respuestas máximas por hora">
+                </div>
+                <textarea id="sqBotAllowed" class="input-style" rows="2" placeholder="Usernames separados por comas"></textarea>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar interacción con bots</button>
+                <div id="sqBotInteractions"></div>
+            </details>
+            <details><summary>🛡️ Seguridad multimedia automática</summary>
+                <p style="color:var(--text-muted);font-size:12px;">Empieza en modo aviso. Los administradores nunca se expulsan automáticamente.</p>
+                <div class="suite-grid">
+                    <label><input type="checkbox" id="sqMediaEnabled"> Activar política</label>
+                    <label><input type="checkbox" id="sqMediaPhotos"> Analizar fotografías</label>
+                    <label><input type="checkbox" id="sqMediaLinks"> Analizar enlaces con VirusTotal</label>
+                    <label><input type="checkbox" id="sqMediaFiles"> Analizar archivos con VirusTotal</label>
+                    <label><input type="checkbox" id="sqMediaOcr"> OCR de texto</label>
+                    <label><input type="checkbox" id="sqMediaImpersonation"> Detectar suplantación</label>
+                    <label><input type="checkbox" id="sqMediaSensitive"> Señales sensibles</label>
+                    <select id="sqMediaAction" class="input-style"><option value="notify">Solo avisar</option><option value="delete">Eliminar contenido</option><option value="ban">Eliminar y banear</option></select>
+                    <input id="sqMediaThreshold" class="input-style" type="number" min="20" max="100" placeholder="Umbral visual">
+                    <input id="sqMediaVt" class="input-style" type="number" min="1" max="25" placeholder="Motores VT">
+                </div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar política multimedia</button>
+                <div id="sqMediaEvents"></div>
+            </details>
+            <details><summary>🎨 Tema visual del grupo</summary>
+                <div class="suite-grid"><select id="sqGroupAccent" class="input-style"><option value="teal">Verde azulado</option><option value="blue">Azul</option><option value="violet">Violeta</option><option value="amber">Ámbar</option><option value="rose">Rosa</option></select>
+                <label><input type="checkbox" id="sqGroupCompact"> Vista compacta</label></div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar tema</button>
+            </details>
+            <details><summary>⏱️ Moderación adaptativa y simulador</summary>
+                <div class="suite-grid">
+                    <label><input type="checkbox" id="sqSlowEnabled"> Modo lento adaptativo</label>
+                    <label><input type="checkbox" id="sqLimitsEnabled"> Límites de contenido</label>
+                    <input id="sqSlowBase" class="input-style" type="number" min="0" max="30" placeholder="Espera base">
+                    <input id="sqSlowMax" class="input-style" type="number" min="2" max="120" placeholder="Espera máxima">
+                    <input id="sqLimitMentions" class="input-style" type="number" min="1" max="50" placeholder="Máximo menciones">
+                    <input id="sqLimitEmojis" class="input-style" type="number" min="3" max="200" placeholder="Máximo emojis">
+                    <input id="sqLimitUppercase" class="input-style" type="number" min="20" max="100" placeholder="% mayúsculas">
+                    <select id="sqLimitAction" class="input-style"><option value="observe">Observar</option><option value="delete">Eliminar</option><option value="warn">Eliminar y avisar</option></select>
+                </div>
+                <button class="btn-glow" onclick="saveGroupSuite()">Guardar moderación</button>
+                <textarea id="sqSimulationText" class="input-style" rows="3" placeholder="Mensaje de prueba; no ejecutará ninguna acción"></textarea>
+                <button class="btn-glow" onclick="simulateSuiteMessage()">Simular reglas</button><pre id="sqSimulationOutput" class="suite-output"></pre>
+                <button class="btn-glow" onclick="reviewSuiteSanctions()">Revisar sanciones caducadas</button>
+                <div class="suite-grid"><input id="sqTempBanUid" class="input-style" placeholder="ID usuario"><input id="sqTempBanHours" class="input-style" type="number" value="24" min="1" max="720"></div>
+                <input id="sqTempBanReason" class="input-style" placeholder="Motivo de la sanción"><button class="btn-glow" onclick="createTemporaryBan()">Crear ban temporal</button>
+            </details>
+            <details><summary>⏰ Reglas programadas</summary>
+                <div class="suite-grid"><input id="sqRuleStart" class="input-style" type="time"><input id="sqRuleEnd" class="input-style" type="time"></div>
+                <button class="btn-glow" onclick="addSuiteRule()">Añadir tramo solo administradores</button>
+                <div id="sqRules"></div>
+            </details>
+            <details><summary>🚩 Reportes de miembros</summary><div id="sqReports"></div></details>
+            <details><summary>🗳️ Consenso administrativo</summary>
+                <div class="suite-grid"><input id="sqProposalUid" class="input-style" placeholder="ID usuario"><select id="sqProposalAction" class="input-style"><option value="warn">Avisar</option><option value="mute">Silenciar</option><option value="ban">Banear</option></select></div>
+                <input id="sqProposalReason" class="input-style" placeholder="Motivo">
+                <button class="btn-glow" onclick="createSuiteProposal()">Crear propuesta</button><div id="sqConsensusList"></div>
+            </details>
+            <details><summary>👤 Historial contextual y roles</summary>
+                <div class="suite-grid"><input id="sqUserUid" class="input-style" placeholder="ID usuario"><select id="sqUserRole" class="input-style"><option value="member">Miembro</option><option value="verified">Verificado</option><option value="collaborator">Colaborador</option><option value="moderator">Moderador</option><option value="watch">Vigilancia</option><option value="guest">Invitado</option></select></div>
+                <div class="btnrow"><button class="btn-glow" onclick="loadSuiteContext()">Ver contexto</button><button class="btn-glow" onclick="assignSuiteRole()">Asignar rol</button></div>
+                <pre id="sqContext" class="suite-output"></pre>
+            </details>
+            <details><summary>📝 Resumen inteligente</summary><button class="btn-glow" onclick="loadSuiteSummary()">Generar resumen</button><pre id="sqSummary" class="suite-output"></pre></details>
+            <details><summary>📦 Plantillas y copias de configuración</summary>
+                <input id="sqTemplateName" class="input-style" placeholder="Nombre de plantilla">
+                <button class="btn-glow" onclick="saveSuiteTemplate()">Guardar plantilla</button>
+                <div id="sqTemplates"></div>
+                <button class="btn-glow" onclick="exportSuiteBackup()">Descargar copia JSON</button>
+            </details>
+        </div>
+    </div>
+</div>
+
+<div class="glass-panel" style="margin-bottom:20px;border-left:3px solid #22d3ee;">
+    <h3>👥 Comunidad y niveles</h3>
+    <p style="color:var(--text-muted);font-size:12px;">Perfiles, experiencia y solicitudes de roles.</p>
+    <button class="btn-glow" onclick="runWeeklyRecognition()">Reconocer colaboradores semanales</button>
+    <div id="communityAdminPanel">Cargando…</div>
+</div>
+<div class="glass-panel" style="margin-bottom:20px;border-left:3px solid #a78bfa;">
+    <h3>📅 Eventos y participación</h3>
+    <div class="suite-grid"><input id="engEventTitle" class="input-style" placeholder="Título del evento"><input id="engEventAt" class="input-style" type="datetime-local"><input id="engEventCapacity" class="input-style" type="number" value="0" min="0" placeholder="Cupo"><select id="engEventKind" class="input-style"><option value="event">Evento</option><option value="contest">Concurso</option><option value="qa">Preguntas y respuestas</option></select></div>
+    <textarea id="engEventDescription" class="input-style" placeholder="Descripción"></textarea><button class="btn-glow" onclick="createEngagementEvent()">Crear evento</button>
+    <div class="suite-grid"><input id="engSurveyTitle" class="input-style" placeholder="Pregunta de encuesta"><input id="engSurveyOptions" class="input-style" placeholder="Opciones separadas por |"></div><button class="btn-glow" onclick="createEngagementSurvey()">Crear encuesta</button>
+    <div class="suite-grid"><input id="engChallengeTitle" class="input-style" placeholder="Nombre del reto"><input id="engChallengeTarget" class="input-style" type="number" value="10"><input id="engChallengeEnd" class="input-style" type="datetime-local"></div><button class="btn-glow" onclick="createEngagementChallenge()">Crear reto</button>
+    <div id="engagementAdminPanel">Cargando…</div>
+</div>
+<div class="glass-panel" style="margin-bottom:20px;border-left:3px solid #34d399;">
+    <h3>Administración avanzada de grupos</h3>
+    <p style="color:var(--text-muted);font-size:12px;">Asistente, comparación, sincronización, versiones, aprobaciones y delegaciones.</p>
+    <div class="suite-grid"><input id="gaGroup" class="input-style" placeholder="ID del grupo"><select id="gaType" class="input-style"><option value="community">Comunidad</option><option value="support">Soporte</option><option value="news">Noticias</option><option value="gaming">Gaming</option></select></div>
+    <button class="btn-glow" onclick="setupGroupAdmin()">Aplicar configuración inicial</button>
+    <div class="suite-grid"><input id="gaCompare" class="input-style" placeholder="IDs a comparar separados por comas"><input id="gaTargets" class="input-style" placeholder="Destinos de sincronización"><input id="gaFields" class="input-style" placeholder="Campos: slow_mode,links"></div>
+    <div class="btnrow"><button class="btn-glow" onclick="compareGroupAdmin()">Comparar</button><button class="btn-glow" onclick="syncGroupAdmin()">Sincronizar desde ID principal</button></div>
+    <div class="suite-grid"><input id="gaDelegateUser" class="input-style" placeholder="ID delegado"><input id="gaDelegatePerms" class="input-style" placeholder="Permisos separados por comas"><input id="gaDelegateEnd" class="input-style" type="datetime-local"></div>
+    <button class="btn-glow" onclick="delegateGroupAdmin()">Delegar temporalmente</button>
+    <pre id="groupAdministrationPanel" class="suite-output">Cargando…</pre>
+</div>
+<div class="glass-panel" style="margin-bottom:20px;border-left:3px solid #f59e0b;">
+    <h3>Centro avanzado del roadmap</h3>
+    <p style="color:var(--text-muted);font-size:12px;">Seguridad coordinada, contenido, IA, analítica, API y operaciones.</p>
+    <select id="roadmapAction" class="input-style">
+        <optgroup label="Seguridad"><option value="raid_signal">Analizar raid coordinado</option><option value="quarantine">Calcular cuarentena</option><option value="shared_recurrence">Consultar reincidencia compartida</option><option value="impersonation">Comprobar suplantación</option><option value="link_chain">Analizar redirecciones</option><option value="file_risk">Analizar archivo</option></optgroup>
+        <optgroup label="Contenido"><option value="content_create">Crear contenido</option><option value="content_schedule">Programar publicación</option><option value="editorial">Decisión editorial</option><option value="library">Guardar recurso</option><option value="translation">Traducir</option><option value="keyword">Respuesta por palabra</option><option value="form">Crear formulario</option><option value="webhook">Registrar webhook</option></optgroup>
+        <optgroup label="IA"><option value="ai_source">Fuente aprobada</option><option value="ai_summary">Resumen</option><option value="unanswered">Preguntas sin respuesta</option><option value="topics">Clasificar temas</option><option value="explain">Explicar moderación</option><option value="model_eval">Evaluar modelo</option><option value="tone">Analizar tono</option><option value="draft_rules">Redactar reglas</option></optgroup>
+        <optgroup label="Analítica"><option value="analytics">Analítica completa</option><option value="health">Salud comunitaria</option><option value="anomaly">Detectar anomalía</option><option value="goal">Crear objetivo</option><option value="bi">Exportar para BI</option><option value="report_schedule">Programar informe</option><option value="benchmark">Comparar grupos</option></optgroup>
+        <optgroup label="API y operaciones"><option value="module">Registrar módulo</option><option value="api_token">Crear token</option><option value="sandbox">Entorno aislado</option><option value="quota">Registrar cuota</option><option value="calendar_link">Vincular calendario</option><option value="incident">Vincular incidencia</option><option value="deployment">Despliegue gradual</option><option value="backup_policy">Política de backup</option><option value="restore_plan">Plan de restauración</option><option value="dependency">Estado de dependencia</option><option value="diagnose">Diagnóstico</option><option value="maintenance">Ventana de mantenimiento</option></optgroup>
+    </select>
+    <textarea id="roadmapPayload" class="input-style" rows="7" placeholder='Datos JSON, por ejemplo: {"group_id":"-100","joins":20,"messages":100,"unique_users":12}'></textarea>
+    <button class="btn-glow" onclick="runRoadmapAction()">Ejecutar función</button>
+    <pre id="roadmapAdminPanel" class="suite-output">Cargando…</pre>
+</div>
+
+<!-- Tabla de Leaderboard -->
+<div class="glass-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin:0;">🏆 Leaderboard Global</h3>
+        <button class="tab-btn" style="width: auto; padding: 6px 14px; margin:0; font-size: 12px;" onclick="refreshLeaderboard()">🔄 Actualizar</button>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <th style="text-align:left; padding: 8px; color: var(--text-muted);">#</th>
+                <th style="text-align:left; padding: 8px; color: var(--text-muted);">Usuario</th>
+                <th style="text-align:left; padding: 8px; color: var(--text-muted);">Mensajes</th>
+                <th style="text-align:left; padding: 8px; color: var(--text-muted);">Karma</th>
+                <th style="text-align:left; padding: 8px; color: var(--text-muted);">Insignia</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboardBody">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Cargando...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Acciones Rápidas de Moderación -->
+<div class="glass-panel" style="margin-top: 20px;">
+    <h3 style="margin-bottom: 15px;">⚡ Acciones Rápidas</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+            <label style="font-size: 12px; color: var(--text-muted);">Banear usuario (UID)</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <input type="text" id="modBanUid" class="input-style" placeholder="123456789" style="flex:1;">
+                <button class="btn-glow" style="margin:0; padding: 8px 16px; background: rgba(239,68,68,0.2); border-color: var(--danger);" onclick="modBanUser()">BAN</button>
+            </div>
+        </div>
+        <div>
+            <label style="font-size: 12px; color: var(--text-muted);">Broadcast al grupo seleccionado</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <input type="text" id="modBroadcastMsg" class="input-style" placeholder="Mensaje para el grupo..." style="flex:1;">
+                <button class="btn-glow" style="margin:0; padding: 8px 16px;" onclick="modSendToGroup()">📢</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTA GLOBAL DE BANEOS (SINCRONIZADA) -->
+    <div class="glass-panel" style="margin-top: 20px; border-left: 3px solid #ef4444; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin:0;">🌐 Lista Negra Global (Sincronizada)</h3>
+            <button class="tab-btn" style="width: auto; padding: 6px 14px; margin:0; font-size: 12px;" onclick="loadGlobalBans()">🔄 Actualizar</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 700;">ESTADÍSTICAS</label>
+                <div id="banStatsContainer" style="margin-top: 10px; font-size: 12px;">
+                    <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 10px;">
+                        <div>Total baneado: <strong id="totalBans">0</strong></div>
+                        <div>Últimas 24h: <strong id="recentBans">0</strong></div>
+                        <div style="margin-top: 5px; font-size: 10px; color: var(--text-muted);" id="banSourcesBreakdown"></div>
+                    </div>
+                </div>
+
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 15px;">DESBANEAR USUARIO</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <input type="text" id="unbanUid" class="input-style" placeholder="UID a desbanear..." style="flex:1;">
+                    <button class="btn-glow" style="margin:0; padding: 8px 15px; background: rgba(34,197,94,0.2); border-color: #22c55e;" onclick="unbanUser()">✓</button>
+                </div>
+            </div>
+
+            <div class="glass-panel" style="background: rgba(0,0,0,0.2); padding: 15px;">
+                <label style="font-size: 10px; color: #f87171; font-weight: 800; letter-spacing: 1px;">USUARIOS BANEADOS</label>
+                <div id="globalBansList" style="margin-top: 10px; font-family: monospace; font-size: 10px; color: var(--text-muted); max-height: 200px; overflow-y: auto;">
+                    Cargando...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seguridad Avanzada: Huellas Digitales -->
+    <div class="glass-panel" style="margin-top: 20px; border-left: 3px solid #f87171; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin:0;">🛡️ Lista Negra de Archivos (SHA-256)</h3>
+            <div class="help-hint" title="Baneo permanente de contenido prohibido mediante su huella digital única (SHA-256).">?</div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 700;">BLOQUEO MANUAL</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <input type="text" id="manualHashInput" class="input-style" placeholder="Pegar SHA-256..." style="font-family: monospace; font-size: 11px;">
+                    <button class="btn-glow" style="margin:0; padding: 8px 15px;" onclick="addManualHash()">🔒</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 700;">🌐 SINCRONIZACIÓN EXTERNA</label>
+                    <div class="help-hint" title="Importa listas de bloqueo desde URLs externas de forma automática.">?</div>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <input type="text" id="syncUrlInput" class="input-style" placeholder="https://..." style="font-size: 11px;">
+                        <button class="btn-glow" style="margin:0; padding: 8px 15px; background: rgba(59,130,246,0.2); border-color: #3b82f6;" onclick="addSyncUrl()">🔗</button>
+                    </div>
+                    <div id="syncUrlsList" style="margin-top: 10px; font-size: 10px; color: var(--accent);"></div>
+                </div>
+            </div>
+            
+            <div class="glass-panel" style="background: rgba(0,0,0,0.2); padding: 15px;">
+                <label style="font-size: 10px; color: var(--accent); font-weight: 800; letter-spacing: 1px;">HUELLAS EN LISTA NEGRA</label>
+                <div id="bannedHashesList" style="margin-top: 10px; font-family: monospace; font-size: 10px; color: var(--text-muted); max-height: 120px; overflow-y: auto;">
+                    Cargando base de datos...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.input-style { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 8px; font-size: 13px; }
+.mod-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.mod-item:last-child { border-bottom: none; }
+.btn-mod-mini { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+.btn-mod-mini:hover { background: rgba(239,68,68,0.2); }
+.suite-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0; }
+#modSuite details { margin-top:12px;padding:12px;border:1px solid var(--glass-border);border-radius:10px; }
+#modSuite summary { cursor:pointer;font-weight:700; }
+.suite-output { white-space:pre-wrap;max-height:240px;overflow:auto;background:rgba(0,0,0,.25);padding:10px;border-radius:8px; }
+@media(max-width:700px){.suite-grid{grid-template-columns:1fr}}
+</style>

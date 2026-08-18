@@ -1,0 +1,38 @@
+<div class="glass-panel bot-manager-panel" style="background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(15,23,42,0.8));">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0;">🤖 Gestión de Instancias Multibot</h2>
+            <p style="color: var(--text-muted); font-size: 14px;">Panel de control avanzado para tus clones en la red.</p>
+        </div>
+        <button onclick="switchTab('dashboard')" class="tab-btn" style="width: auto; margin: 0;">VOLVER</button>
+    </div>
+
+    <div id="fullBotList" class="grid-3">
+        <div class="loading-spinner">Escaneando red en busca de instancias...</div>
+    </div>
+</div>
+
+<div class="glass-panel mt-20" id="managedBotsPanel">
+    <h3>Bots administrados</h3>
+    <p class="subtitle">Crea y administra bots mediante la función oficial de Telegram, sin copiar sus tokens.</p>
+    <div id="managedBotsStatus" class="user-row">Comprobando permisos del bot gestor...</div>
+    <div class="input-group" style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-top:14px;">
+        <input type="text" id="managedBotUsername" placeholder="usuario_sugerido_bot">
+        <input type="text" id="managedBotName" placeholder="Nombre visible">
+        <button onclick="createManagedBot()" style="margin:0;">CREAR EN TELEGRAM</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:9px;margin-top:14px;">
+        <input type="checkbox" id="managedAutoConnect" onchange="setManagedAutoConnect(this.checked)">
+        Conectar automáticamente los bots nuevos
+    </label>
+    <div id="managedBotList" class="grid-3 mt-20"></div>
+</div>
+
+<div class="glass-panel mt-20">
+    <h3>➕ Vincular Nueva Unidad</h3>
+    <p class="subtitle">Introduce el API Token de BotFather para desplegar un nuevo nodo.</p>
+    <div class="input-group" style="display: flex; gap: 15px;">
+        <input type="text" id="botTokenInput" placeholder="Token de Telegram...">
+        <button onclick="addBot()" style="width: 200px; margin-top: 0;">DESPLEGAR BOT</button>
+    </div>
+</div>

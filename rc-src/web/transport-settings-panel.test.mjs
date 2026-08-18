@@ -1,0 +1,2 @@
+import assert from"node:assert/strict";import fs from"node:fs";import test from"node:test";const source=fs.readFileSync(new URL("./transport-settings-panel.js",import.meta.url),"utf8");
+test("settings panel exposes Canva system controls",()=>{for(const token of["transportQualitySelect","audioButton","accessibilityButton","data-volume","data-contrast","data-reduced","data-wheel"])assert.match(source,new RegExp(token))});
