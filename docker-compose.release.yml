@@ -1,6 +1,5 @@
 services:
   moonbot-rc:
-    profiles: ["rc"]
     build: .
     container_name: moonbot-rc
     restart: unless-stopped
@@ -25,7 +24,6 @@ services:
       - "traefik.http.middlewares.moonbot-rc-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/rc"
       
   moonbot-beta:
-    profiles: ["beta"]
     build: .
     container_name: moonbot-beta
     restart: unless-stopped
@@ -41,7 +39,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.moonbot-beta.rule=Host(eta.cintiabot.todosobreall.tech)"
+      - "traefik.http.routers.moonbot-beta.rule=Host(eta.cintiabot.todosobreall.tech)"
       - "traefik.http.routers.moonbot-beta.entrypoints=websecure"
       - "traefik.http.routers.moonbot-beta.tls=true"
       - "traefik.http.routers.moonbot-beta.tls.certresolver=letsencrypt"
@@ -50,7 +48,6 @@ services:
       - "traefik.http.middlewares.moonbot-beta-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/beta"
 
   moonbot-alfa:
-    profiles: ["alfa"]
     build: .
     container_name: moonbot-alfa
     restart: unless-stopped
@@ -66,7 +63,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.moonbot-alfa.rule=Host(lfa.cintiabot.todosobreall.tech)"
+      - "traefik.http.routers.moonbot-alfa.rule=Host(lfa.cintiabot.todosobreall.tech)"
       - "traefik.http.routers.moonbot-alfa.entrypoints=websecure"
       - "traefik.http.routers.moonbot-alfa.tls=true"
       - "traefik.http.routers.moonbot-alfa.tls.certresolver=letsencrypt"
@@ -74,9 +71,7 @@ services:
       - "traefik.http.routers.moonbot-alfa.middlewares=moonbot-alfa-auth"
       - "traefik.http.middlewares.moonbot-alfa-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/alfa"
 
-
   moonbot-prealfa:
-    profiles: ["prealfa"]
     build: .
     container_name: moonbot-prealfa
     restart: unless-stopped
