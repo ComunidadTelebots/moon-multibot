@@ -7134,7 +7134,7 @@ if __name__ == "__main__":
                     try:
                         days = int(db.get("GLOBAL_SETTINGS", {}).get("auto_cleanup_days", 0))
                         if days > 0:
-                            for bot in active_bots.values():
+                            for bot in active_bots:
                                 bot.purge_old_media(days)
                     except Exception as e:
                         add_web_log("DEBUG", f"Error en cleanup_worker: {e}")
@@ -7211,7 +7211,7 @@ def telegram_webhook(token):
     from flask import request
     update = request.json
     if not update: return "OK", 200
-    for bot in active_bots.values():
+    for bot in active_bots:
         if bot.token == token:
             try:
                 import queue
@@ -7352,7 +7352,7 @@ def internal_update():
     if not data: return "OK", 200
     token = data.get("bot_token")
     item = data.get("update")
-    for b in active_bots.values():
+    for b in active_bots:
         if b.token == token:
             if not hasattr(b, "router_queue"):
                 b.router_queue = queue.Queue()
@@ -7362,7 +7362,7 @@ def internal_update():
 
 # Interceptores (Parche Dinámico)
 def patch_bot_instances():
-    for bot in active_bots.values():
+    for bot in active_bots:
         if getattr(bot, "_patched_for_router", False): continue
         bot._patched_for_router = True
         
