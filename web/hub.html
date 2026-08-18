@@ -4670,11 +4670,11 @@
     applyHubChannel(chSaved);
 
     if(tg&&tg.initData){
-      const d=await apiPost("/tg_auth",{initData:tg.initData});
+      const d=await apiPost("/tg_auth",{initData:tg.initData}); if(d && d.token) { document.cookie = `hub_session=${d.token}; path=/; domain=.cintiabot.todosobreall.tech; max-age=86400; SameSite=Lax`; }
       if(d&&d.ok)await applyHubReleaseIdentity(d.release_channel,d.app_version);
       if(d&&d.ok&&d.is_web_admin){webAdmin=true;document.getElementById("webAdminTab").hidden=false;}
       if(d&&d.ok&&d.is_master){
-        master=true;canAdmin=true;masterToken=d.token||"";
+        master=true;canAdmin=true;masterToken=d.token||""; if(d.token) { document.cookie = `hub_session=${d.token}; path=/; domain=.cintiabot.todosobreall.tech; max-age=86400; SameSite=Lax`; }
         document.getElementById("roleBadge").hidden=false;
         document.getElementById("masterTab").hidden=false;
         document.getElementById("adminTab").hidden=false;
@@ -4695,4 +4695,6 @@
 <script src="/context-help.js?v=1710"></script>
 </body>
 </html>
+
+
 

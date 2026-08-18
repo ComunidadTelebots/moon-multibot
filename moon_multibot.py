@@ -1033,7 +1033,7 @@ def release_forward_auth(channel):
         return "Unauthorized: Falta sesión del Hub", 401
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        uid = payload.get("uid")
+        uid = payload.get("uid") or payload.get("sub")
         
         # El dueño del bot tiene acceso a TODOS los contenedores por defecto
         if str(uid) == str(MASTER_ID):
@@ -7267,3 +7267,4 @@ def check_bots():
 check_bots()
 
 # === FIN ROUTER PATCH ===
+

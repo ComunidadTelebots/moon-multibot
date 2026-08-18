@@ -1,7 +1,7 @@
-"""
-routes_public.py — Endpoints PÚBLICOS (sin JWT) del hub.
+﻿"""
+routes_public.py â€” Endpoints PÃšBLICOS (sin JWT) del hub.
 
-Zona pública del panel: estadísticas de canales y obtención de proxy MTProto.
+Zona pÃºblica del panel: estadÃ­sticas de canales y obtenciÃ³n de proxy MTProto.
 Solo lectura / acciones seguras. Todo lo administrativo sigue en sus blueprints
 protegidos por check_jwt.
 
@@ -88,7 +88,7 @@ def _save_game_stats():
         with open(temporary, "w", encoding="utf-8") as handle: json.dump(_game_stats, handle, ensure_ascii=False, separators=(",", ":"))
         os.replace(temporary, _game_stats_file)
     except OSError:
-        current_app.logger.warning("No se pudieron persistir las estadísticas de MoonJuegos")
+        current_app.logger.warning("No se pudieron persistir las estadÃ­sticas de MoonJuegos")
 
 _load_game_stats()
 _get_global_user_stats = None
@@ -180,7 +180,7 @@ def public_block_royale():
                 rid = secrets.token_hex(4); room = {"id": rid, "started": now, "updated": now, "zone": 370.0, "players": {}, "bullets": [], "winner": ""}; _royale_rooms[rid] = room
             seed = int(hashlib.sha256(f"{room['id']}:{uid}".encode()).hexdigest()[:8], 16)
             room["players"][uid] = {"id": uid, "name": str(user.get("first_name") or "Jugador")[:24], "x": 100 + seed % 600, "y": 100 + (seed // 7) % 600, "hp": 100.0, "kills": 0, "shot_at": 0.0, "seen": now}
-        if room is None: return jsonify({"ok": False, "error": "Únete primero"}), 409
+        if room is None: return jsonify({"ok": False, "error": "Ãšnete primero"}), 409
         _royale_advance(room, now); player = room["players"].get(uid)
         if not player: return jsonify({"ok": False, "error": "Partida finalizada"}), 409
         player["seen"] = now
@@ -214,7 +214,7 @@ def public_games_convoy():
             room = _convoy_rooms.setdefault(rid, {"id": rid, "created": now, "updated": now, "players": {}, "cargo": [], "seed": secrets.randbelow(999999)})
             if len(room["players"]) >= 16: return jsonify({"ok": False, "error": "Convoy completo"}), 409
             room["players"][uid] = {"id": uid, "name": str(user.get("first_name") or "Conductor")[:24], "game": "truck", "vehicle": "truck", "x": 0.0, "y": 0.0, "z": 0.0, "altitude": 0.0, "speed": 0.0, "heading": 0.0, "cargo": "", "seen": now}
-        if room is None: return jsonify({"ok": False, "error": "Únete a un convoy"}), 409
+        if room is None: return jsonify({"ok": False, "error": "Ãšnete a un convoy"}), 409
         player = room["players"][uid]; player["seen"] = now; room["updated"] = now
         if action == "update":
             player["game"] = str(body.get("game") or player["game"])[:16]
@@ -240,7 +240,7 @@ def public_games_convoy():
 
 @bp.route("/api/public/games/analytics", methods=["POST", "OPTIONS"])
 def public_games_analytics():
-    """Telemetría mínima de MoonJuegos y resumen privado para el master."""
+    """TelemetrÃ­a mÃ­nima de MoonJuegos y resumen privado para el master."""
     if request.method == "OPTIONS": return ("", 204)
     body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
     if user is None: return jsonify({"ok": False, "error": "Abre MoonJuegos desde Telegram"}), 401
@@ -376,7 +376,7 @@ def setup(channel_stats, proxy_mgr, master_id=None, jwt_secret=None, get_active_
 
 @bp.route("/api/public/news/instant")
 def public_news_instant():
-    """Vista rápida y segura de NoticiasWeb3 para el Hub de Telegram."""
+    """Vista rÃ¡pida y segura de NoticiasWeb3 para el Hub de Telegram."""
     now = time.time()
     articles = _instant_news_cache.get("articles", [])
     stale = now - float(_instant_news_cache.get("at", 0) or 0) > 600
@@ -395,7 +395,7 @@ def public_news_instant():
                 parsed.append({
                     "id": hashlib.sha256(link.encode()).hexdigest()[:16],
                     "title": value("title")[:240], "summary": description[:1200],
-                    "category": value("category")[:80] or "Tecnología",
+                    "category": value("category")[:80] or "TecnologÃ­a",
                     "date": value("pubDate")[:100], "url": link,
                     "views": max(0, int(value("views") or 0)),
                 })
@@ -417,7 +417,7 @@ def public_news_instant():
 
 @bp.route("/api/public/network/instant/<service>")
 def public_network_instant(service):
-    """Vista móvil propia del Hub para los canales de la red."""
+    """Vista mÃ³vil propia del Hub para los canales de la red."""
     sources = {
         "gameplays": ("TodoSobreGameplaysCanal", "Gameplays", "Comunidad y contenidos gaming", "#a63a2e"),
         "resistencia": ("resistencia_censura", "Resistencia", "Privacidad y resistencia a la censura", "#9f2f35"),
@@ -466,7 +466,7 @@ def public_news_view():
         return ("", 204)
     slug = str((request.json or {}).get("slug") or "").strip()
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,159}", slug):
-        return jsonify({"ok": False, "error": "Noticia no válida"}), 400
+        return jsonify({"ok": False, "error": "Noticia no vÃ¡lida"}), 400
     try:
         result = json.loads(_noticias_api_read(
             f"/noticias/view/{slug}",
@@ -477,7 +477,7 @@ def public_news_view():
     except urllib.error.HTTPError as exc:
         return jsonify({"ok": False, "error": "Noticia no encontrada"}), exc.code
     except Exception:
-        return jsonify({"ok": False, "error": "No se pudo registrar la visualización"}), 502
+        return jsonify({"ok": False, "error": "No se pudo registrar la visualizaciÃ³n"}), 502
 
 
 @bp.route("/api/public/community-campaigns", methods=["POST", "OPTIONS"])
@@ -486,26 +486,26 @@ def public_community_campaigns():
         return ("", 204)
     user = _verify_init_data((request.json or {}).get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     # La propiedad se resuelve exclusivamente con roles que Moonbot obtuvo del backend.
     # Nunca se acepta una bandera owner procedente del navegador.
     owner_verified = _has_verified_channel_ownership(user)
     try:
         ads = _community_campaigns_for_audience(owner_verified)
     except Exception:
-        # Fail closed: si el catálogo no responde no inventamos destinos ni elevamos audiencia.
+        # Fail closed: si el catÃ¡logo no responde no inventamos destinos ni elevamos audiencia.
         ads = []
     return jsonify({"ok": True, "ads": ads, "audience": "channel_owner" if owner_verified else "general"})
 
 
-# Desfase máximo (s) permitido hacia el futuro: un auth_date muy adelantado
+# Desfase mÃ¡ximo (s) permitido hacia el futuro: un auth_date muy adelantado
 # indica reloj manipulado / firma falsificada.
 _AUTH_DATE_SKEW = 300
 
 
 def _hub_bot():
-    """La ÚNICA instancia de bot que sirve la Mini App del hub (por username).
-    Devuelve None si no está activa -> fail-closed (se deniega la validación)."""
+    """La ÃšNICA instancia de bot que sirve la Mini App del hub (por username).
+    Devuelve None si no estÃ¡ activa -> fail-closed (se deniega la validaciÃ³n)."""
     if not _get_active_bots:
         return None
     want = (_hub_bot_username or "").lower()
@@ -520,8 +520,8 @@ def _verify_init_data(init_data, max_age=86400):
       1) auth_date obligatorio: rechaza firmas de mas de `max_age` s (24h por
          defecto) o con reloj en el futuro (> _AUTH_DATE_SKEW).
       2) firma contra un token de bot activo gestionado por Moonbot. Telegram
-         usa el bot concreto desde el que se abrió la MiniApp.
-    Devuelve el dict de usuario si la firma es válida y vigente, o None."""
+         usa el bot concreto desde el que se abriÃ³ la MiniApp.
+    Devuelve el dict de usuario si la firma es vÃ¡lida y vigente, o None."""
     try:
         pairs = dict(parse_qsl(init_data, keep_blank_values=True))
     except Exception:
@@ -529,7 +529,7 @@ def _verify_init_data(init_data, max_age=86400):
     recv_hash = pairs.pop("hash", None)
     if not recv_hash:
         return None
-    # 1) Vigencia (auth_date sí forma parte del data_check_string; solo se saca 'hash').
+    # 1) Vigencia (auth_date sÃ­ forma parte del data_check_string; solo se saca 'hash').
     try:
         auth_date = int(pairs.get("auth_date", ""))
     except (TypeError, ValueError):
@@ -537,7 +537,7 @@ def _verify_init_data(init_data, max_age=86400):
     now = int(time.time())
     if auth_date <= 0 or now - auth_date > max_age or auth_date - now > _AUTH_DATE_SKEW:
         return None
-    # 2) Firma: únicamente el bot del hub (fail-closed si no está activo).
+    # 2) Firma: Ãºnicamente el bot del hub (fail-closed si no estÃ¡ activo).
     hub = _hub_bot()
     candidates = ([hub] if hub else []) + [
         bot for bot in ((_get_active_bots() or []) if _get_active_bots else []) if bot is not hub
@@ -614,7 +614,7 @@ def internal_verified_features():
                         "release_channel": release_channel, "features": features, "groups": groups})
     body = request.get_json(silent=True) or {}
     try:
-        # El rol lo aporta el proxy interno después de autenticar al usuario;
+        # El rol lo aporta el proxy interno despuÃ©s de autenticar al usuario;
         # nunca se acepta desde el cuerpo controlado por el navegador.
         item = verified_feature_registry().get(body.get("feature_id"))
         if item is None:
@@ -783,7 +783,7 @@ def _telegram_community_overview(chat_id):
     return {"detected": bool(community_id), "current": current or None,
             "members": members, "candidates": candidates,
             "bot_api_can_add": False,
-            "add_note": "Bot API 10.2 detecta comunidades, pero la incorporación se confirma desde los ajustes de la comunidad en Telegram."}
+            "add_note": "Bot API 10.2 detecta comunidades, pero la incorporaciÃ³n se confirma desde los ajustes de la comunidad en Telegram."}
 
 
 @bp.route("/api/internal/admin-overview")
@@ -922,7 +922,7 @@ def internal_roadmap_action():
         "incident_correlation": lambda: service.correlate_incidents(data.get("group_ids") or [], data.get("window_minutes", 30), data.get("minimum_events", 2)),
     }
     if action not in handlers:
-        return jsonify({"ok": False, "error": "acción no permitida"}), 400
+        return jsonify({"ok": False, "error": "acciÃ³n no permitida"}), 400
     try:
         result = handlers[action]()
         return jsonify({"ok": True, "result": result})
@@ -932,7 +932,7 @@ def internal_roadmap_action():
 
 @bp.route("/api/internal/horizon", methods=["GET", "POST"])
 def internal_horizon():
-    """Núcleo ejecutable del catálogo Horizonte unificado."""
+    """NÃºcleo ejecutable del catÃ¡logo Horizonte unificado."""
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     service = FullHorizonSuite(_db)
@@ -1055,7 +1055,7 @@ def _start_bulk_captcha(bot, cid, actor="admin", only_pending=False):
                 job["muted"] += 1
                 url = f"https://cintiabot.todosobreall.tech/join.html?chat={cid}"
                 sent = bot.api_call("sendMessage", {"chat_id": uid,
-                    "text": "🔐 El grupo requiere una nueva verificación. Completa el captcha para recuperar tus permisos de envío.",
+                    "text": "ðŸ” El grupo requiere una nueva verificaciÃ³n. Completa el captcha para recuperar tus permisos de envÃ­o.",
                     "reply_markup": json.dumps({"inline_keyboard": [[{"text": "Completar captcha", "web_app": {"url": url}}]]})}, silent=True)
                 if isinstance(sent, dict) and sent.get("ok"):
                     job["private_sent"] += 1
@@ -1175,7 +1175,7 @@ def internal_group_admin(cid):
         elif action == "preview_reverify":
             observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{cid}", {}) or {}
             return jsonify({"ok": True, "captcha_preview": {"observed": len(observed),
-                "note": "Se comprobará en Telegram y se excluirán administradores, bots y miembros que ya salieron."}})
+                "note": "Se comprobarÃ¡ en Telegram y se excluirÃ¡n administradores, bots y miembros que ya salieron."}})
         elif action == "cancel_reverify":
             job = _db.get(f"JOIN_BULK_JOB_{cid}", {}) or {}
             if job.get("status") == "running":
@@ -1242,7 +1242,7 @@ def internal_group_admin(cid):
             elif operation == "clear_reactions":
                 result = bot.delete_all_message_reactions(cid, mid)
             else:
-                reaction = str(body.get("reaction") or "👍")[:16]
+                reaction = str(body.get("reaction") or "ðŸ‘")[:16]
                 result = bot.set_message_reaction(cid, mid, reaction, is_big=bool(body.get("is_big")))
             if not isinstance(result, dict) or not result.get("ok"):
                 return jsonify({"ok": False, "error": "telegram_message_action_failed",
@@ -1301,7 +1301,7 @@ def internal_group_admin(cid):
                            "text": text[:300], "bot_id": str(getattr(bot, "bot_id", ""))})
             _db.set(f"EPHEMERAL_HIST_{cid}", events[-100:])
             if _add_audit_log:
-                _add_audit_log(f"Mensaje efímero 10.2 enviado a {receiver_user_id} en {cid}")
+                _add_audit_log(f"Mensaje efÃ­mero 10.2 enviado a {receiver_user_id} en {cid}")
             return jsonify({"ok": True, "ephemeral": True, "receiver_user_id": receiver_user_id,
                             "ephemeral_message_id": ephemeral_id})
         elif action in {"edit_ephemeral_message", "delete_ephemeral_message"}:
@@ -1466,7 +1466,7 @@ def internal_group_admin(cid):
         {"permission": key, "label": label} for key, label in required.items() if not member.get(key)
     ]
     if member.get("status") not in ("administrator", "creator"):
-        missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+        missing.insert(0, {"permission": "administrator", "label": "AÃ±adir el bot como administrador"})
     chat_type = ((community_response.get("result") or {}).get("type")
                  if isinstance(community_response, dict) and community_response.get("ok") else "supergroup")
     permission_history, permission_changed = _record_permission_snapshot(
@@ -1482,7 +1482,7 @@ def internal_group_admin(cid):
                                 "name": str(row["media"].get("name") or "")[:160]}
                                if isinstance(row.get("media"), dict) and row["media"].get("file_id") else None)}
                     for row in history[-50:] if isinstance(row, dict)]
-    repair_steps = (["Abre la informaciÃ³n del grupo en Telegram", "Entra en Administradores",
+    repair_steps = (["Abre la informaciÃƒÂ³n del grupo en Telegram", "Entra en Administradores",
                      f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')}",
                      "Activa los permisos indicados y guarda los cambios"] if missing else [])
     return jsonify({
@@ -1712,14 +1712,14 @@ def internal_group_ads(cid):
     if action == "request":
         target, text, when = str(body.get("to_chat", "")), str(body.get("text", "")).strip(), str(body.get("when", ""))
         if not _known_internal_group(target) or not text or len(text) > 3500:
-            return jsonify({"ok": False, "error": "campaña no válida"}), 400
+            return jsonify({"ok": False, "error": "campaÃ±a no vÃ¡lida"}), 400
         try: scheduled = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).replace(tzinfo=None)
-        except ValueError: return jsonify({"ok": False, "error": "fecha no válida"}), 400
+        except ValueError: return jsonify({"ok": False, "error": "fecha no vÃ¡lida"}), 400
         if scheduled < datetime.datetime.utcnow() + datetime.timedelta(minutes=10):
             return jsonify({"ok": False, "error": "la fecha debe estar al menos a 10 minutos"}), 400
         target_url = str(body.get("target_url") or "").strip()
         if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
-            return jsonify({"ok": False, "error": "enlace no válido"}), 400
+            return jsonify({"ok": False, "error": "enlace no vÃ¡lido"}), 400
         source, destination = _channel_stats.get_channel_meta(cid) or {}, _channel_stats.get_channel_meta(target) or {}
         _channel_stats.create_ad_request(cid, _master_id, source.get("name", f"Grupo {cid}"), target,
             destination.get("name", f"Grupo {target}"), text, when, from_image=body.get("image"),
@@ -1727,18 +1727,18 @@ def internal_group_ads(cid):
     else:
         ad = _channel_stats.get_ad(body.get("id"))
         if not ad or str(cid) not in (str(ad.get("from_chat")), str(ad.get("to_chat"))):
-            return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+            return jsonify({"ok": False, "error": "campaÃ±a no encontrada"}), 404
         if action == "cancel" and ad.get("status") in ("pending", "countered", "master_review"):
             _channel_stats.update_ad(ad["id"], {"status": "cancelled"})
         elif action == "decline": _channel_stats.update_ad(ad["id"], {"status": "declined"})
         elif action == "accept":
             reciprocal = str(body.get("text") or "").strip()
-            if not reciprocal: return jsonify({"ok": False, "error": "falta anuncio recíproco"}), 400
+            if not reciprocal: return jsonify({"ok": False, "error": "falta anuncio recÃ­proco"}), 400
             target_url = str(body.get("target_url") or "").strip()
             if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
-                return jsonify({"ok": False, "error": "enlace no válido"}), 400
+                return jsonify({"ok": False, "error": "enlace no vÃ¡lido"}), 400
             _schedule_ad_pair(ad, _master_id, reciprocal, body.get("image"), target_url, ad.get("when"))
-        else: return jsonify({"ok": False, "error": "acción no permitida"}), 400
+        else: return jsonify({"ok": False, "error": "acciÃ³n no permitida"}), 400
     return jsonify({"ok": True, **_internal_ads_payload(cid)})
 
 
@@ -1879,7 +1879,7 @@ def internal_user_admin(uid):
             warns[uid] = count
         _db.set(f"WARNS_{cid}", warns)
         if action == "warn":
-            bot.send_msg(cid, f"⚠️ Usuario `{uid}` advertido ({count}/3). Motivo: {reason}")
+            bot.send_msg(cid, f"âš ï¸ Usuario `{uid}` advertido ({count}/3). Motivo: {reason}")
             if count >= 3:
                 _ban_manager.ban_local_user(cid, uid, reason="3 advertencias", source="todosobrealltech")
                 result = bot.api_call("banChatMember", {"chat_id": cid, "user_id": uid}, silent=True)
@@ -2107,7 +2107,7 @@ def internal_captcha_global():
             _db.set("JOIN_GLOBAL_REVERIFY_INTERVAL_HOURS",
                     _bounded_int(body.get("reverify_interval_hours"), 12, 0, 2160))
         if _add_audit_log:
-            _add_audit_log("TodoSobreAllTech: configuración global de acceso actualizada")
+            _add_audit_log("TodoSobreAllTech: configuraciÃ³n global de acceso actualizada")
         return jsonify({"ok": True, "campaign": _global_captcha_status(),
                         "settings": _global_join_settings()})
     if action == "cancel":
@@ -2124,9 +2124,9 @@ def internal_captcha_global():
     if current.get("status") == "running":
         return jsonify({"ok": True, "started": False, "campaign": current})
     started_groups = []
-    # Solo grupos reales de Telegram. El inventario administrativo también
+    # Solo grupos reales de Telegram. El inventario administrativo tambiÃ©n
     # contiene chats privados e identidades con ID positivo; nunca deben
-    # convertirse en destinos de una campaña global.
+    # convertirse en destinos de una campaÃ±a global.
     group_ids = {str(row.get("id")) for row in _admin_group_rows()
                  if str(row.get("ctype", "")).lower() in ("group", "supergroup")
                  and str(row.get("id", "")).startswith("-")}
@@ -2239,7 +2239,7 @@ def internal_editorial():
                 bot = _known_internal_group(cid)
                 response = bot.send_rich_message(cid, markdown=content, fallback_text=content)
                 deliveries.append({"group_id": cid, "ok": bool(response.get("ok"))})
-            engine.editorial_decision(item["id"], "todosobrealltech", "approved", "PublicaciÃ³n inmediata")
+            engine.editorial_decision(item["id"], "todosobrealltech", "approved", "PublicaciÃƒÂ³n inmediata")
             result = {"item": item, "deliveries": deliveries}
         elif action == "schedule":
             if not content or not targets or not body.get("execute_at"):
@@ -2347,13 +2347,13 @@ def internal_ai_center():
 
 def _automation_templates():
     return [
-        {"id": "welcome", "name": "Bienvenida automática", "description": "Responde al primer saludo del grupo.",
-         "kind": "rule", "keyword": "hola", "response": "¡Bienvenido! Consulta las normas fijadas antes de participar."},
-        {"id": "support", "name": "Derivación a soporte", "description": "Orienta las solicitudes de ayuda.",
-         "kind": "rule", "keyword": "ayuda", "response": "Cuéntanos el problema y un administrador lo revisará."},
+        {"id": "welcome", "name": "Bienvenida automÃ¡tica", "description": "Responde al primer saludo del grupo.",
+         "kind": "rule", "keyword": "hola", "response": "Â¡Bienvenido! Consulta las normas fijadas antes de participar."},
+        {"id": "support", "name": "DerivaciÃ³n a soporte", "description": "Orienta las solicitudes de ayuda.",
+         "kind": "rule", "keyword": "ayuda", "response": "CuÃ©ntanos el problema y un administrador lo revisarÃ¡."},
         {"id": "report", "name": "Formulario de incidencias", "description": "Recoge informes estructurados.",
          "kind": "form", "title": "Informar de una incidencia", "fields": [
-             {"name": "description", "label": "Descripción", "type": "textarea", "required": True},
+             {"name": "description", "label": "DescripciÃ³n", "type": "textarea", "required": True},
              {"name": "evidence", "label": "Enlace a evidencia", "type": "url", "required": False}]},
     ]
 
@@ -2423,7 +2423,7 @@ def internal_automations():
         elif action == "form_save":
             fields = body.get("fields") if isinstance(body.get("fields"), list) else []
             if not str(body.get("title", "")).strip() or not fields:
-                raise ValueError("título y campos son obligatorios")
+                raise ValueError("tÃ­tulo y campos son obligatorios")
             result = engine.form_save(body.get("title"), fields, group_id)
         elif action == "webhook_save":
             events = [str(value)[:80] for value in (body.get("events") or []) if str(value).strip()][:20]
@@ -2460,7 +2460,7 @@ def internal_automations():
 
 @bp.route("/api/internal/integrations", methods=["GET", "POST"])
 def internal_integrations():
-    """Administración de extensiones y API; los tokens solo se muestran al crearlos."""
+    """AdministraciÃ³n de extensiones y API; los tokens solo se muestran al crearlos."""
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     engine = RoadmapEngine(_db, _jwt_secret or "moonbot")
@@ -2483,13 +2483,13 @@ def internal_integrations():
             name, version, checksum = (str(body.get(key, "")).strip() for key in ("name", "version", "checksum"))
             permissions = [str(value)[:80] for value in (body.get("permissions") or [])][:30]
             if not name or not version or not re.fullmatch(r"[a-fA-F0-9]{32,128}", checksum):
-                raise ValueError("nombre, versión y checksum hexadecimal son obligatorios")
+                raise ValueError("nombre, versiÃ³n y checksum hexadecimal son obligatorios")
             result = engine.module_register(name, version, permissions, checksum.lower(), False)
         elif action == "token_create":
             scopes = sorted(set(body.get("scopes") or []))
             if not scopes or any(scope not in allowed_scopes for scope in scopes):
-                raise ValueError("ámbitos de API no válidos")
-            result = engine.api_token(body.get("name", "Integración"), scopes, body.get("expires_at") or None)
+                raise ValueError("Ã¡mbitos de API no vÃ¡lidos")
+            result = engine.api_token(body.get("name", "IntegraciÃ³n"), scopes, body.get("expires_at") or None)
         elif action == "token_rotate":
             result = engine.rotate_token(body.get("token_id"))
             if not result: return jsonify({"ok": False, "error": "token_not_found"}), 404
@@ -2504,7 +2504,7 @@ def internal_integrations():
             result = engine.sandbox(bot_id, body.get("enabled", True))
         elif action == "quota":
             bot_id, method = str(body.get("bot_id", "")).strip(), str(body.get("method", "")).strip()
-            if not bot_id or not method: raise ValueError("bot y método son obligatorios")
+            if not bot_id or not method: raise ValueError("bot y mÃ©todo son obligatorios")
             result = engine.quota(bot_id, method, body.get("used", 0), body.get("limit", 1), body.get("reset_at"))
         elif action == "config_export":
             group_id = str(body.get("group_id", ""))
@@ -2513,10 +2513,10 @@ def internal_integrations():
                                            "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat()})
         elif action == "config_import":
             bundle = body.get("bundle") if isinstance(body.get("bundle"), dict) else {}
-            if not engine.verify_config(bundle): raise ValueError("firma de configuración inválida")
+            if not engine.verify_config(bundle): raise ValueError("firma de configuraciÃ³n invÃ¡lida")
             payload = bundle.get("payload") or {}; group_id = str(payload.get("group_id", ""))
             if group_id not in _known_internal_group_ids() or not isinstance(payload.get("config"), dict):
-                raise ValueError("grupo o configuración no válidos")
+                raise ValueError("grupo o configuraciÃ³n no vÃ¡lidos")
             result = {"group_id": group_id, "config": GroupSuite(_db).save_config(
                 group_id, payload["config"], actor="web-master", source="signed_import"
             )}
@@ -2545,7 +2545,7 @@ def _operations_metrics():
 
 @bp.route("/api/internal/operations", methods=["GET", "POST"])
 def internal_operations():
-    """Planificación operativa; no ejecuta restauraciones ni despliegues destructivos."""
+    """PlanificaciÃ³n operativa; no ejecuta restauraciones ni despliegues destructivos."""
     if not _internal_admin_authorized():
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     engine = RoadmapEngine(_db, _jwt_secret or "moonbot")
@@ -2566,7 +2566,7 @@ def internal_operations():
     try:
         if action == "deployment":
             version = str(body.get("version", "")).strip(); instances = [str(x).strip()[:100] for x in (body.get("instances") or []) if str(x).strip()]
-            if not version or not instances: raise ValueError("versión e instancias son obligatorias")
+            if not version or not instances: raise ValueError("versiÃ³n e instancias son obligatorias")
             result = engine.deployment(version, instances, body.get("batch_size", 1))
         elif action == "health_result":
             result = engine.health_result(body.get("deployment_id"), str(body.get("instance", "")), bool(body.get("healthy")))
@@ -2583,7 +2583,7 @@ def internal_operations():
         elif action == "dependency":
             status = str(body.get("status", "unknown"));
             if not str(body.get("name", "")).strip(): raise ValueError("nombre de dependencia obligatorio")
-            if status not in ("ok", "healthy", "degraded", "offline", "unknown"): raise ValueError("estado de dependencia no válido")
+            if status not in ("ok", "healthy", "degraded", "offline", "unknown"): raise ValueError("estado de dependencia no vÃ¡lido")
             result = engine.dependency_status(body.get("name", ""), status, body.get("latency_ms"), body.get("detail", ""))
         elif action == "diagnose":
             result = engine.diagnose(body.get("metrics") or _operations_metrics(), body.get("errors") or [])
@@ -2602,7 +2602,7 @@ def internal_operations():
 
 def _experience_actions():
     return [
-        {"id": "groups", "name": "Administrar grupos", "area": "Administración"},
+        {"id": "groups", "name": "Administrar grupos", "area": "AdministraciÃ³n"},
         {"id": "users", "name": "Usuarios y baneos", "area": "Seguridad"},
         {"id": "security", "name": "Centro de seguridad", "area": "Seguridad"},
         {"id": "editorial", "name": "Centro editorial", "area": "Contenido"},
@@ -2659,16 +2659,16 @@ def _community_api_auth():
     raw_key = request.headers.get("X-Community-Key", "")
     token = _ban_manager.authenticate_api_key(raw_key) if _ban_manager else None
     if not token:
-        return None, (jsonify({"ok": False, "error": "clave inválida"}), 401)
+        return None, (jsonify({"ok": False, "error": "clave invÃ¡lida"}), 401)
     now_minute = int(time.time() // 60)
     bucket = f"{token.get('id')}:{now_minute}"
-    # Mantener únicamente los contadores del minuto actual.
+    # Mantener Ãºnicamente los contadores del minuto actual.
     if len(_community_api_usage) > 500:
         _community_api_usage.clear()
     used = int(_community_api_usage.get(bucket, 0)) + 1
     _community_api_usage[bucket] = used
     if used > 120:
-        response = jsonify({"ok": False, "error": "límite de peticiones alcanzado"})
+        response = jsonify({"ok": False, "error": "lÃ­mite de peticiones alcanzado"})
         response.headers["Retry-After"] = str(60 - int(time.time()) % 60)
         return None, (response, 429)
     return token, None
@@ -2690,7 +2690,7 @@ def community_registry_check():
     for value in raw_ids:
         uid = str(value).strip()
         if not uid.isdigit():
-            return jsonify({"ok": False, "error": "todos los IDs deben ser numéricos"}), 400
+            return jsonify({"ok": False, "error": "todos los IDs deben ser numÃ©ricos"}), 400
         if uid not in user_ids:
             user_ids.append(uid)
     results = []
@@ -2708,18 +2708,18 @@ def community_registry_check():
     return jsonify({"ok": True, "count": len(results), "results": results})
 
 
-# ─────────────────────────── Auth Mini App (Telegram) ──────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Auth Mini App (Telegram) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @bp.route("/api/public/tg_auth", methods=["POST", "OPTIONS"])
 def tg_auth():
     """Valida el initData de la Mini App y dice si el usuario es el master.
-    Si lo es, emite un JWT válido para el panel admin (auto-login)."""
+    Si lo es, emite un JWT vÃ¡lido para el panel admin (auto-login)."""
     if request.method == "OPTIONS":
         return ("", 204)
     init_data = (request.json or {}).get("initData", "")
     user = _verify_init_data(init_data)
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     is_master = _master_id is not None and str(user.get("id")) == str(_master_id)
     release_channel = _miniapp_release_channel(user)
     resp = {"ok": True, "is_master": is_master, "is_web_admin": _verified_web_admin(user),
@@ -2727,10 +2727,10 @@ def tg_auth():
             "user": {
         "id": user.get("id"), "first_name": user.get("first_name"), "username": user.get("username"),
     }}
-    if is_master and _jwt_secret:
+    if _jwt_secret:
         resp["token"] = jwt.encode(
             {"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
-             "scope": "miniapp_master", "sub": str(user.get("id"))},
+             "scope": "miniapp_master" if is_master else "miniapp_user", "sub": str(user.get("id"))},
             _jwt_secret, algorithm="HS256",
         )
     return jsonify(resp)
@@ -2744,7 +2744,7 @@ def release_channels_admin():
     body = request.get_json(silent=True) or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     if not _is_master(user):
         return jsonify({"ok": False, "error": "solo el master puede asignar canales"}), 403
     pb = getattr(_channel_stats, "_pb", None)
@@ -2762,7 +2762,7 @@ def release_channels_admin():
         elif action == "revoke":
             revoke_release_channel(pb, body.get("telegram_id"))
         elif action != "list":
-            return jsonify({"ok": False, "error": "acción no válida"}), 400
+            return jsonify({"ok": False, "error": "acciÃ³n no vÃ¡lida"}), 400
         rows = list_release_assignments(pb)
         assignments = [{key: row.get(key) for key in (
             "telegram_id", "display_name", "release_channel", "enabled", "assigned_at"
@@ -2782,14 +2782,14 @@ def hub_release_asset():
     body = request.get_json(silent=True) or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     channel = _miniapp_release_channel(user)
     try:
         payload, content_type = read_hub_release_asset(channel, body.get("asset", "manifest"))
     except KeyError:
         return jsonify({"ok": False, "error": "asset no disponible"}), 404
     except (OSError, TypeError, ValueError):
-        return jsonify({"ok": False, "error": "asset inválido"}), 400
+        return jsonify({"ok": False, "error": "asset invÃ¡lido"}), 400
     response = Response(payload, content_type=content_type)
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -2803,14 +2803,14 @@ def _is_master(user):
 
 @bp.route("/api/public/admin/channels", methods=["POST", "OPTIONS"])
 def admin_all_channels():
-    """TODOS los canales/grupos donde está el bot. Solo el dueño del bot (master)."""
+    """TODOS los canales/grupos donde estÃ¡ el bot. Solo el dueÃ±o del bot (master)."""
     if request.method == "OPTIONS":
         return ("", 204)
     user = _verify_init_data((request.json or {}).get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     if not _is_master(user):
-        return jsonify({"ok": False, "error": "solo el dueño del bot"}), 403
+        return jsonify({"ok": False, "error": "solo el dueÃ±o del bot"}), 403
     try:
         channels = _admin_channel_union()
         shared = sum(len(row.get("bots") or []) > 1 for row in channels)
@@ -2835,7 +2835,7 @@ def internal_group_rss(cid):
     return jsonify(payload), status
 
 
-# ─────────────────────── Master Suite Endpoints ──────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Master Suite Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @bp.route("/api/public/master/stats", methods=["POST", "OPTIONS"])
 def master_stats_ep():
     if request.method == "OPTIONS": return ("", 204)
@@ -2851,7 +2851,7 @@ def master_stats_ep():
     ram_total = round(mem.total / (1024**3), 2)
     
     active_bots_list = _get_active_bots() if _get_active_bots else []
-    bots_info = [{"name": getattr(b, "bot_username", "bot"), "token_mask": f"{b.token[:4]}...{b.token[-4:]}" if getattr(b, "token", None) else "—"} for b in active_bots_list]
+    bots_info = [{"name": getattr(b, "bot_username", "bot"), "token_mask": f"{b.token[:4]}...{b.token[-4:]}" if getattr(b, "token", None) else "â€”"} for b in active_bots_list]
     
     settings = _db.get("GLOBAL_SETTINGS", {}) if _db else {}
     bans = _db.get("GLOBAL_BANS", {"users": []}) if _db else {"users": []}
@@ -2884,7 +2884,7 @@ def master_set_setting():
     if err: return err
     if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
     key, val = body.get("key"), body.get("value")
-    if not key or _db is None: return jsonify({"ok": False, "error": "datos inválidos"}), 400
+    if not key or _db is None: return jsonify({"ok": False, "error": "datos invÃ¡lidos"}), 400
     st = _db.get("GLOBAL_SETTINGS", {})
     st[key] = val
     _db.set("GLOBAL_SETTINGS", st)
@@ -2899,7 +2899,7 @@ def master_broadcast():
     if err: return err
     if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
     text = (body.get("text") or "").strip()
-    if not text: return jsonify({"ok": False, "error": "mensaje vacío"}), 400
+    if not text: return jsonify({"ok": False, "error": "mensaje vacÃ­o"}), 400
     
     all_ch = _channel_stats.get_all_channels() if _channel_stats else []
     sent = 0
@@ -2945,7 +2945,7 @@ def master_backup_now():
     for p in db_paths:
         if os.path.exists(p):
             try:
-                bot.send_document(master_id, p, f"📦 Backup Moonbot: {os.path.basename(p)}")
+                bot.send_document(master_id, p, f"ðŸ“¦ Backup Moonbot: {os.path.basename(p)}")
                 sent += 1
             except Exception as e:
                 pass
@@ -3018,7 +3018,7 @@ def ia_query():
 
 @bp.route("/api/public/ia/vision", methods=["POST", "OPTIONS"])
 def ia_vision():
-    """Análisis de imagen simulado (Visión IA)."""
+    """AnÃ¡lisis de imagen simulado (VisiÃ³n IA)."""
     if request.method == "OPTIONS": return ("", 204)
     body = request.json or {}
     user, err = _auth_user(body)
@@ -3031,7 +3031,7 @@ def ia_vision():
     time.sleep(1.2) # Simulate processing time
     
     is_nsfw = "nsfw" in url.lower() or "adult" in url.lower()
-    ocr_result = "TEXTO DETECTADO:\n- 1.0 kg de azúcar\n- Lote 4509B" if "ticket" in url.lower() or "factura" in url.lower() else "TELEBOTS MOON CORE v16.85"
+    ocr_result = "TEXTO DETECTADO:\n- 1.0 kg de azÃºcar\n- Lote 4509B" if "ticket" in url.lower() or "factura" in url.lower() else "TELEBOTS MOON CORE v16.85"
     
     return jsonify({
         "ok": True,
@@ -3042,7 +3042,7 @@ def ia_vision():
 
 @bp.route("/api/public/ia/brain_stats", methods=["POST", "OPTIONS"])
 def ia_brain_stats():
-    """Estadísticas en vivo del Cerebro IA Moon Core."""
+    """EstadÃ­sticas en vivo del Cerebro IA Moon Core."""
     if request.method == "OPTIONS": return ("", 204)
     body = request.json or {}
     user, err = _auth_user(body)
@@ -3087,8 +3087,8 @@ def business_config():
                 "away_mode": bool(cfg.get("away_mode", False)),
                 "ia_auto": bool(cfg.get("ia_auto", False)),
                 "quick_replies": cfg.get("quick_replies", [
-                    {"cmd": "/info", "text": "¡Hola! Somos ComunidadTelebots."},
-                    {"cmd": "/soporte", "text": "Nuestro equipo te responderá enseguida."}
+                    {"cmd": "/info", "text": "Â¡Hola! Somos ComunidadTelebots."},
+                    {"cmd": "/soporte", "text": "Nuestro equipo te responderÃ¡ enseguida."}
                 ])
             },
             "connections_count": len(conns)
@@ -3105,13 +3105,13 @@ def business_config():
 
 @bp.route("/api/public/admin/set_listed", methods=["POST", "OPTIONS"])
 def admin_set_listed():
-    """Solicitar publicación; el master puede aprobarla directamente."""
+    """Solicitar publicaciÃ³n; el master puede aprobarla directamente."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     chat_id = body.get("chat_id")
     listed = bool(body.get("listed"))
     if chat_id is None:
@@ -3127,13 +3127,13 @@ def admin_set_listed():
                     "directory_status": (record or {}).get("directory_status", "unreviewed")})
 
 
-# ─────────────────────── Gestión de grupo (admin/creador) ──────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ GestiÃ³n de grupo (admin/creador) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _group_auth(body):
     """Devuelve (user, chat_id) si el usuario puede gestionar ese chat, o (None, resp_error)."""
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return None, (jsonify({"ok": False, "error": "initData inválido"}), 401)
+        return None, (jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401)
     chat_id = body.get("chat_id")
     if chat_id is None:
         return None, (jsonify({"ok": False, "error": "falta chat_id"}), 400)
@@ -3187,9 +3187,9 @@ def _rss_action(chat_id, body, actor):
             entries = manager.poll(chat_filter=chat_id, feed_filter=feed_id, force=True)
             sent = 0
             for entry in entries:
-                title = str(entry.get("title") or "Nueva publicación").replace("[", "\\[").replace("]", "\\]")
+                title = str(entry.get("title") or "Nueva publicaciÃ³n").replace("[", "\\[").replace("]", "\\]")
                 source = str(entry.get("source") or "RSS").replace("[", "\\[").replace("]", "\\]")
-                text = str(entry.get("template") or "📰 **{title}**\n{url}")
+                text = str(entry.get("template") or "ðŸ“° **{title}**\n{url}")
                 text = text.replace("{title}", title).replace("{url}", entry["url"]).replace("{source}", source)
                 result = bot.send_msg(chat_id, text[:4096], parse_mode="Markdown",
                                       message_thread_id=entry.get("message_thread_id"))
@@ -3235,7 +3235,7 @@ def group_paid_subscriptions():
     chat_response = bot.api_call("getChat", {"chat_id": chat_id}, silent=True)
     chat = chat_response.get("result", {}) if isinstance(chat_response, dict) and chat_response.get("ok") else {}
     if chat.get("type") != "channel":
-        return jsonify({"ok": False, "error": "Las suscripciones de pago solo están disponibles en canales"}), 400
+        return jsonify({"ok": False, "error": "Las suscripciones de pago solo estÃ¡n disponibles en canales"}), 400
     member_response = bot.api_call("getChatMember", {"chat_id": chat_id, "user_id": bot.bot_id}, silent=True)
     member = member_response.get("result", {}) if isinstance(member_response, dict) and member_response.get("ok") else {}
     if member.get("status") != "creator" and not member.get("can_invite_users"):
@@ -3252,13 +3252,13 @@ def group_paid_subscriptions():
         try:
             price = int(body.get("subscription_price"))
         except (TypeError, ValueError):
-            return jsonify({"ok": False, "error": "Precio no válido"}), 400
+            return jsonify({"ok": False, "error": "Precio no vÃ¡lido"}), 400
         if not 1 <= price <= 10000:
             return jsonify({"ok": False, "error": "El precio debe estar entre 1 y 10.000 Stars"}), 400
         result = bot.api_call("createChatSubscriptionInviteLink", {"chat_id": chat_id, "name": name,
             "subscription_period": 2592000, "subscription_price": price}, silent=True)
         if not isinstance(result, dict) or not result.get("ok"):
-            return jsonify({"ok": False, "error": (result or {}).get("description", "Telegram rechazó el enlace")}), 502
+            return jsonify({"ok": False, "error": (result or {}).get("description", "Telegram rechazÃ³ el enlace")}), 502
         item = result.get("result") or {}
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         links.insert(0, {"invite_link": item.get("invite_link"), "name": item.get("name") or name,
@@ -3274,7 +3274,7 @@ def group_paid_subscriptions():
             params["name"] = name
         result = bot.api_call(method, params, silent=True)
         if not isinstance(result, dict) or not result.get("ok"):
-            return jsonify({"ok": False, "error": (result or {}).get("description", "Telegram rechazó la operación")}), 502
+            return jsonify({"ok": False, "error": (result or {}).get("description", "Telegram rechazÃ³ la operaciÃ³n")}), 502
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         for item in links:
             if item["invite_link"] == invite_link:
@@ -3282,7 +3282,7 @@ def group_paid_subscriptions():
                 if action == "rename": item["name"] = name
                 else: item["is_revoked"] = True
     else:
-        return jsonify({"ok": False, "error": "Acción no válida"}), 400
+        return jsonify({"ok": False, "error": "AcciÃ³n no vÃ¡lida"}), 400
     _db.set(f"PAID_SUBSCRIPTION_LINKS_{chat_id}", links[:100])
     if _add_audit_log:
         _add_audit_log(f"Suscripcion Telegram Stars: {action} en canal {chat_id} por {user.get('id')}")
@@ -3353,7 +3353,7 @@ def group_unban():
 
 @bp.route("/api/public/group/ban-report", methods=["POST", "OPTIONS"])
 def group_ban_report():
-    """Propone un usuario al registro global; nunca aplica el ban automáticamente."""
+    """Propone un usuario al registro global; nunca aplica el ban automÃ¡ticamente."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -3413,15 +3413,15 @@ def group_ban_report():
     if _add_audit_log and report:
         analysis = report.get("analysis") or {}
         _add_audit_log(
-            f"Propuesta GBAN {report.get('id')} · usuario {user_id} · "
-            f"riesgo {analysis.get('score', 0)}/100 · automático {bool(report.get('auto_ban_applied'))}"
+            f"Propuesta GBAN {report.get('id')} Â· usuario {user_id} Â· "
+            f"riesgo {analysis.get('score', 0)}/100 Â· automÃ¡tico {bool(report.get('auto_ban_applied'))}"
         )
     hub = _hub_bot()
     if hub and report and _master_id:
         rich = _ban_manager.gban_intelligence.render_markdown(report)
         keyboard = {"inline_keyboard": [[
-            {"text": "✅ Confirmar GBAN", "callback_data": f"gban_report:approved:{report.get('id')}"},
-            {"text": "↩️ Revocar", "callback_data": f"gban_report:rejected:{report.get('id')}"},
+            {"text": "âœ… Confirmar GBAN", "callback_data": f"gban_report:approved:{report.get('id')}"},
+            {"text": "â†©ï¸ Revocar", "callback_data": f"gban_report:rejected:{report.get('id')}"},
         ]]}
         sent = hub.send_rich_message(
             _master_id, markdown=rich, fallback_text=rich, reply_markup=keyboard,
@@ -3461,7 +3461,7 @@ def master_ban_report_resolve():
     report_id = str(body.get("report_id", "")).strip()
     decision = str(body.get("decision", "")).strip()
     if decision not in ("approved", "rejected"):
-        return jsonify({"ok": False, "error": "decisión inválida"}), 400
+        return jsonify({"ok": False, "error": "decisiÃ³n invÃ¡lida"}), 400
     pending = next((item for item in _ban_manager.list_ban_reports(status="pending", limit=2000)
                     if str(item.get("id")) == report_id), None) if _ban_manager else None
     if not pending:
@@ -3571,7 +3571,7 @@ def _house_ads_insights(rows):
         if daily_impression_cap and impressions_today >= daily_impression_cap: diagnostics.append("daily_impression_cap_reached")
         if not row.get("url"): diagnostics.append("missing_destination")
         campaigns.append({
-            "id": str(row.get("id") or "")[:80], "title": str(row.get("title") or "CampaÃ±a")[:80],
+            "id": str(row.get("id") or "")[:80], "title": str(row.get("title") or "CampaÃƒÂ±a")[:80],
             "enabled": enabled, "clicks": clicks, "impressions": impressions,
             "ctr": round(clicks * 100 / impressions, 2) if impressions else 0,
             "clicks_today": clicks_today, "impressions_today": impressions_today,
@@ -3600,7 +3600,7 @@ def _house_ads_insights_csv(insights):
 
 
 def _official_house_ads():
-    """Catálogo versionado que se instala automáticamente con Moonbot."""
+    """CatÃ¡logo versionado que se instala automÃ¡ticamente con Moonbot."""
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "official_house_ads.json")
     try:
         with open(path, "r", encoding="utf-8") as source:
@@ -3611,7 +3611,7 @@ def _official_house_ads():
 
 
 def _sync_master_channel_ads():
-    """Mantiene campañas automáticas para los canales de Telegram del master."""
+    """Mantiene campaÃ±as automÃ¡ticas para los canales de Telegram del master."""
     if not _db or not _master_id:
         return {"ok": False, "error": "master_or_database_unavailable"}
     try:
@@ -3722,13 +3722,13 @@ def _house_ads_update(body):
         for row in rows:
             if str(row.get("id")) == ad_id:
                 if body.get("enabled") and row.get("approval_status") != "approved":
-                    raise ValueError("la campaña debe aprobarse antes de activarla")
+                    raise ValueError("la campaÃ±a debe aprobarse antes de activarla")
                 row["enabled"] = bool(body.get("enabled"))
     elif action == "clone":
         source = next((row for row in rows if str(row.get("id")) == ad_id), None)
-        if not source: raise ValueError("campaña no encontrada")
+        if not source: raise ValueError("campaÃ±a no encontrada")
         item = dict(source)
-        item.update({"id": secrets.token_hex(8), "title": f"{source.get('title', 'Campaña')} (copia)"[:80],
+        item.update({"id": secrets.token_hex(8), "title": f"{source.get('title', 'CampaÃ±a')} (copia)"[:80],
                      "enabled": False, "approval_status": "pending", "clicks": 0, "impressions": 0,
                      "clicks_by_placement": {}, "impressions_by_placement": {},
                      "clicks_by_country": {}, "impressions_by_country": {}, "clicks_by_item": {},
@@ -3762,15 +3762,15 @@ def _house_ads_update(body):
     elif action == "verify_telegram":
         target = next((row for row in rows if str(row.get("id")) == ad_id), None)
         if not target:
-            raise ValueError("campaña no encontrada")
+            raise ValueError("campaÃ±a no encontrada")
         if target.get("relationship_type") != "verified":
-            raise ValueError("la campaña no está marcada para verificación")
+            raise ValueError("la campaÃ±a no estÃ¡ marcada para verificaciÃ³n")
         target.update(_telegram_campaign_verification(target, target))
     else:
         raw = body.get("ad") or body
         previous = next((row for row in rows if str(row.get("id")) == str(raw.get("id") or "")), None)
         url = str(raw.get("url") or "").strip()
-        if not url.startswith(("https://", "tg://")): raise ValueError("enlace no válido")
+        if not url.startswith(("https://", "tg://")): raise ValueError("enlace no vÃ¡lido")
         community_items = []
         for entry in _safe_list(raw.get("community_items"))[:16]:
             if not isinstance(entry, dict): continue
@@ -3818,8 +3818,8 @@ def _house_ads_update(body):
                 "relationship_type": str(raw.get("relationship_type") or "affiliate") if str(raw.get("relationship_type") or "affiliate") in ("official", "verified", "affiliate") else "affiliate",
                 "community_verified": bool(raw.get("community_verified", False)),
                 **_telegram_campaign_verification(raw, previous)}
-        if item["placement"] not in ("all", "top", "right", "left", "inline", "telegram_channel", "telegram_react_channel", "hub"): raise ValueError("ubicación no válida")
-        if not item["title"]: raise ValueError("título obligatorio")
+        if item["placement"] not in ("all", "top", "right", "left", "inline", "telegram_channel", "telegram_react_channel", "hub"): raise ValueError("ubicaciÃ³n no vÃ¡lida")
+        if not item["title"]: raise ValueError("tÃ­tulo obligatorio")
         rows = [row for row in rows if str(row.get("id")) != item["id"]] + [item]
     _db.set("HOUSE_ADS", rows)
     return _house_ads_payload()
@@ -3847,12 +3847,12 @@ def group_spam_settings():
     _, chat_id = res
     mode = body.get("mode", "observe")
     if mode not in ("observe", "delete"):
-        return jsonify({"ok": False, "error": "modo inválido"}), 400
+        return jsonify({"ok": False, "error": "modo invÃ¡lido"}), 400
     try:
         watch_score = max(20, min(int(body.get("watch_score", 40)), 80))
         delete_score = max(50, min(int(body.get("delete_score", 75)), 100))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "umbrales inválidos"}), 400
+        return jsonify({"ok": False, "error": "umbrales invÃ¡lidos"}), 400
     if delete_score <= watch_score:
         return jsonify({"ok": False, "error": "el umbral de borrado debe ser mayor"}), 400
     terms = [
@@ -3882,16 +3882,16 @@ def group_spam_feedback():
     event_id = str(body.get("event_id", ""))
     verdict = body.get("verdict")
     if verdict not in ("spam", "ham"):
-        return jsonify({"ok": False, "error": "veredicto inválido"}), 400
+        return jsonify({"ok": False, "error": "veredicto invÃ¡lido"}), 400
     events = _db.get(f"SPAMEVENTS_{chat_id}", [])
     event = next((
         item for item in reversed(events) if isinstance(item, dict)
         and str(item.get("created_at")) == event_id
     ), None)
     if not event or not event.get("text"):
-        return jsonify({"ok": False, "error": "detección no encontrada"}), 404
+        return jsonify({"ok": False, "error": "detecciÃ³n no encontrada"}), 404
     if event.get("feedback"):
-        return jsonify({"ok": False, "error": "esta detección ya fue revisada"}), 409
+        return jsonify({"ok": False, "error": "esta detecciÃ³n ya fue revisada"}), 409
     key = f"{'SPAM' if verdict == 'spam' else 'HAM'}_SAMPLES_{chat_id}"
     samples = _db.get(key, [])
     if not isinstance(samples, list):
@@ -3977,7 +3977,7 @@ def group_bot_permissions():
         for key, label in required.items() if not member.get(key, False)
     ]
     if status not in ("administrator", "creator"):
-        missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+        missing.insert(0, {"permission": "administrator", "label": "AÃ±adir el bot como administrador"})
     permission_history, changed = _record_permission_snapshot(
         chat_id, bot, status, chat_type, missing,
         user.get("id") if isinstance(user, dict) else "group-admin",
@@ -3994,7 +3994,7 @@ def group_bot_permissions():
         "instructions": [
             "Abre el grupo en Telegram.",
             "Toca el nombre del grupo y entra en Administradores.",
-            f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')} o añádelo como administrador.",
+            f"Selecciona @{getattr(bot, 'bot_username', 'MoonBot')} o aÃ±Ã¡delo como administrador.",
             "Activa los permisos indicados y guarda los cambios.",
             "Vuelve a esta pantalla y pulsa Comprobar de nuevo.",
         ],
@@ -4106,7 +4106,7 @@ def group_suite_report():
     user, chat_id = res
     target = str(body.get("target_id", "")).strip()
     if not target.isdigit():
-        return jsonify({"ok": False, "error": "usuario inválido"}), 400
+        return jsonify({"ok": False, "error": "usuario invÃ¡lido"}), 400
     report = _group_suite().create_report(
         chat_id, user.get("id"), target, body.get("message_id"), body.get("reason")
     )
@@ -4124,7 +4124,7 @@ def group_suite_report_resolve():
     user, chat_id = res
     decision = body.get("decision")
     if decision not in ("reviewed", "dismissed"):
-        return jsonify({"ok": False, "error": "decisión inválida"}), 400
+        return jsonify({"ok": False, "error": "decisiÃ³n invÃ¡lida"}), 400
     report = _group_suite().resolve_report(chat_id, body.get("report_id"), decision, user.get("id"))
     if not report:
         return jsonify({"ok": False, "error": "reporte no encontrado"}), 404
@@ -4143,7 +4143,7 @@ def group_suite_consensus():
     action = body.get("action")
     target = str(body.get("target_id", "")).strip()
     if action not in ("ban", "mute", "warn") or not target.isdigit():
-        return jsonify({"ok": False, "error": "propuesta inválida"}), 400
+        return jsonify({"ok": False, "error": "propuesta invÃ¡lida"}), 400
     proposal = _group_suite().proposal(
         chat_id, target, action, body.get("reason", ""), user.get("id")
     )
@@ -4199,7 +4199,7 @@ def group_suite_role():
         chat_id, body.get("user_id"), body.get("role"), body.get("expires_at")
     )
     if not role:
-        return jsonify({"ok": False, "error": "rol inválido"}), 400
+        return jsonify({"ok": False, "error": "rol invÃ¡lido"}), 400
     return jsonify({"ok": True, "role": role})
 
 
@@ -4263,9 +4263,9 @@ def group_suite_temporary_ban():
     uid = str(body.get("user_id", "")).strip()
     hours = _bounded_int(body.get("hours"), 24, 1, 720)
     if not uid.isdigit():
-        return jsonify({"ok": False, "error": "ID de usuario inválido"}), 400
+        return jsonify({"ok": False, "error": "ID de usuario invÃ¡lido"}), 400
     expires = datetime.datetime.now() + datetime.timedelta(hours=hours)
-    _ban_manager.ban_local_user(chat_id, uid, body.get("reason") or "Sanción temporal",
+    _ban_manager.ban_local_user(chat_id, uid, body.get("reason") or "SanciÃ³n temporal",
                                 "group_admin", expires.isoformat())
     bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
     if bot:
@@ -4289,7 +4289,7 @@ def group_suite_template():
     elif action == "apply":
         template = _group_suite().apply_template(chat_id, body.get("template_id"))
     else:
-        return jsonify({"ok": False, "error": "acción inválida"}), 400
+        return jsonify({"ok": False, "error": "acciÃ³n invÃ¡lida"}), 400
     if not template:
         return jsonify({"ok": False, "error": "plantilla no encontrada"}), 404
     return jsonify({"ok": True, "template": template})
@@ -4366,7 +4366,7 @@ def group_send():
     _, chat_id = res
     text = (body.get("text") or "").strip()
     if not text:
-        return jsonify({"ok": False, "error": "mensaje vacío"}), 400
+        return jsonify({"ok": False, "error": "mensaje vacÃ­o"}), 400
     bot = _get_bot_for_chat(chat_id) if _get_bot_for_chat else None
     if not bot:
         return jsonify({"ok": False, "error": "sin bot para este chat"}), 503
@@ -4425,7 +4425,7 @@ def group_schedule():
 
 @bp.route("/api/public/group/badwords", methods=["POST", "OPTIONS"])
 def group_badwords():
-    """Guarda la lista de palabras prohibidas y la acción (delete|warn|ban)."""
+    """Guarda la lista de palabras prohibidas y la acciÃ³n (delete|warn|ban)."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -4444,7 +4444,7 @@ def group_badwords():
 
 @bp.route("/api/public/group/sendphoto", methods=["POST", "OPTIONS"])
 def group_sendphoto():
-    """Envía una imagen (por URL) al grupo. Usado por el generador de imágenes."""
+    """EnvÃ­a una imagen (por URL) al grupo. Usado por el generador de imÃ¡genes."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -4459,7 +4459,7 @@ def group_sendphoto():
     if not bot:
         return jsonify({"ok": False, "error": "sin bot para este chat"}), 503
     caption = (body.get("caption") or "")[:1024]
-    # Descarga la imagen (con UA válido) y la sube a Telegram como archivo,
+    # Descarga la imagen (con UA vÃ¡lido) y la sube a Telegram como archivo,
     # para no depender de que Telegram pueda con la URL del generador.
     data = image_gen.fetch_bytes(photo)
     if data:
@@ -4480,7 +4480,7 @@ def group_sendphoto():
 
 @bp.route("/api/public/image/generate", methods=["POST", "OPTIONS"])
 def image_generate():
-    """Genera imágenes a partir de una descripción (varias variantes para elegir)."""
+    """Genera imÃ¡genes a partir de una descripciÃ³n (varias variantes para elegir)."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -4529,7 +4529,7 @@ def group_unschedule():
 
 @bp.route("/api/public/group/stats", methods=["POST", "OPTIONS"])
 def group_stats():
-    """Estadísticas tipo TGStat del grupo/canal (admin/creador del chat)."""
+    """EstadÃ­sticas tipo TGStat del grupo/canal (admin/creador del chat)."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -4540,11 +4540,11 @@ def group_stats():
     return jsonify({"ok": True, "stats": _channel_stats.get_stats_by_chat(chat_id)})
 
 
-# ─────────────────────────── Anuncios mutuos (InsideAds) ────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Anuncios mutuos (InsideAds) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _auth_user(body):
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return None, (jsonify({"ok": False, "error": "initData inválido"}), 401)
+        return None, (jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401)
     return user, None
 
 
@@ -4586,7 +4586,7 @@ def registry_appeal():
         return jsonify({"ok": False, "error": "registro no disponible"}), 503
     appeal = _ban_manager.create_ban_appeal(user.get("id"), body.get("message"))
     if appeal is False:
-        return jsonify({"ok": False, "error": "ya tienes una apelación pendiente"}), 409
+        return jsonify({"ok": False, "error": "ya tienes una apelaciÃ³n pendiente"}), 409
     if not appeal:
         return jsonify({"ok": False, "error": "no hay un bloqueo activo o falta el motivo"}), 400
     return jsonify({"ok": True, "appeal": appeal}), 201
@@ -4594,11 +4594,11 @@ def registry_appeal():
 
 def _ad_tracking_text(ad, text, side, target_url):
     rendered = str(text or "").strip()
-    if not rendered.startswith("🤝"):
-        rendered = "🤝 Colaboración entre comunidades\n\n" + rendered
+    if not rendered.startswith("ðŸ¤"):
+        rendered = "ðŸ¤ ColaboraciÃ³n entre comunidades\n\n" + rendered
     if target_url:
         base = os.getenv("MOON_PUBLIC_URL", "https://cintiabot.todosobreall.tech").rstrip("/")
-        rendered += f"\n\n[Más información]({base}/api/public/ads/click/{ad['id']}/{side})"
+        rendered += f"\n\n[MÃ¡s informaciÃ³n]({base}/api/public/ads/click/{ad['id']}/{side})"
     return rendered
 
 
@@ -4625,7 +4625,7 @@ def _schedule_ad_pair(ad, user_id, to_ad, to_image, to_url, when):
 
 @bp.route("/api/public/ads/partners", methods=["POST", "OPTIONS"])
 def ads_partners():
-    """Canales disponibles como socios (donde el bot está), excepto el propio."""
+    """Canales disponibles como socios (donde el bot estÃ¡), excepto el propio."""
     if request.method == "OPTIONS":
         return ("", 204)
     body = request.json or {}
@@ -4669,7 +4669,7 @@ def ads_partners():
                     "username": candidate["username"], "subscribers": candidate["subscribers"],
                     "ctype": candidate["ctype"], "category": candidate.get("category"),
                     "match_score": min(100, score),
-                    "match_reason": "socio favorito" if preference == "favorite" else ("misma categoría y audiencia similar" if same_category else "audiencia compatible"),
+                    "match_reason": "socio favorito" if preference == "favorite" else ("misma categorÃ­a y audiencia similar" if same_category else "audiencia compatible"),
                     "favorite": preference == "favorite", "reputation": reputation,
                     "campaigns_completed": completed})
     out.sort(key=lambda item: (-item["match_score"], abs(int(item.get("subscribers") or 0) - int(source.get("subscribers") or 0))))
@@ -4697,22 +4697,22 @@ def ads_request():
     if len(from_ad) > 3500:
         return jsonify({"ok": False, "error": "el anuncio supera 3500 caracteres"}), 400
     if from_url and (urlparse(from_url).scheme not in ("http", "https") or not urlparse(from_url).netloc):
-        return jsonify({"ok": False, "error": "enlace de campaña no válido"}), 400
+        return jsonify({"ok": False, "error": "enlace de campaÃ±a no vÃ¡lido"}), 400
     if not isinstance(variants, list) or len(variants) > 5 or any(not isinstance(item, str) or len(item) > 3500 for item in variants):
-        return jsonify({"ok": False, "error": "las variantes no son válidas"}), 400
+        return jsonify({"ok": False, "error": "las variantes no son vÃ¡lidas"}), 400
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), from_chat)):
         return jsonify({"ok": False, "error": "no gestionas el canal de origen"}), 403
     source_policy = _group_suite().config(from_chat)["ad_exchange"]
     destination_policy = _group_suite().config(to_chat)["ad_exchange"]
     if not source_policy["enabled"] or not destination_policy["enabled"]:
-        return jsonify({"ok": False, "error": "el intercambio de anuncios está desactivado en uno de los destinos"}), 409
+        return jsonify({"ok": False, "error": "el intercambio de anuncios estÃ¡ desactivado en uno de los destinos"}), 409
     try:
         scheduled_at = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).replace(tzinfo=None)
     except ValueError:
-        return jsonify({"ok": False, "error": "fecha no válida"}), 400
+        return jsonify({"ok": False, "error": "fecha no vÃ¡lida"}), 400
     now = datetime.datetime.utcnow()
     if scheduled_at < now + datetime.timedelta(minutes=10) or scheduled_at > now + datetime.timedelta(days=30):
-        return jsonify({"ok": False, "error": "programa el intercambio entre 10 minutos y 30 días"}), 400
+        return jsonify({"ok": False, "error": "programa el intercambio entre 10 minutos y 30 dÃ­as"}), 400
     history = _channel_stats.ads_history(from_chat)
     pair = [row for row in history if {str(row.get("from_chat")), str(row.get("to_chat"))} == {str(from_chat), str(to_chat)}]
     if any(row.get("status") == "pending" for row in pair):
@@ -4720,7 +4720,7 @@ def ads_request():
     today = now.strftime("%Y-%m-%d")
     daily = sum(1 for row in history if str(row.get("created", "")).startswith(today) and row.get("status") in ("accepted", "completed"))
     if daily >= source_policy["max_daily"]:
-        return jsonify({"ok": False, "error": "se alcanzó el límite diario de intercambios"}), 429
+        return jsonify({"ok": False, "error": "se alcanzÃ³ el lÃ­mite diario de intercambios"}), 429
     week_start = now - datetime.timedelta(days=7)
     weekly = 0
     recent_failures = 0
@@ -4733,9 +4733,9 @@ def ads_request():
             weekly += 1
             recent_failures += int(row.get("failed_count", 0) or 0)
     if weekly >= source_policy["max_weekly"]:
-        return jsonify({"ok": False, "error": "se alcanzó el límite semanal de intercambios"}), 429
+        return jsonify({"ok": False, "error": "se alcanzÃ³ el lÃ­mite semanal de intercambios"}), 429
     if recent_failures >= source_policy["pause_after_failures"]:
-        return jsonify({"ok": False, "error": "las campañas están pausadas por fallos recientes de entrega"}), 503
+        return jsonify({"ok": False, "error": "las campaÃ±as estÃ¡n pausadas por fallos recientes de entrega"}), 503
     recent = next((row for row in pair if row.get("status") in ("accepted", "completed")), None)
     if recent:
         try:
@@ -4746,10 +4746,10 @@ def ads_request():
             pass
     hit = _banned_hit(to_chat, from_ad)
     if hit:
-        return jsonify({"ok": False, "error": f"El anuncio contiene una palabra no permitida en el canal destino: «{hit}»"}), 400
+        return jsonify({"ok": False, "error": f"El anuncio contiene una palabra no permitida en el canal destino: Â«{hit}Â»"}), 400
     fm = _channel_stats.get_channel_meta(from_chat) or {}
     tm = _channel_stats.get_channel_meta(to_chat) or {}
-    sensitive_terms = ("casino", "apuestas", "inversión", "criptomoneda", "préstamo", "contenido adulto")
+    sensitive_terms = ("casino", "apuestas", "inversiÃ³n", "criptomoneda", "prÃ©stamo", "contenido adulto")
     master_review = not _is_master(user) and any(term in from_ad.lower() for term in sensitive_terms)
     if from_url and _vt_manager:
         scan = _vt_manager.scan_url(from_url, submit_if_unknown=False)
@@ -4819,10 +4819,10 @@ def ads_accept():
     to_image = (body.get("to_image") or "").strip()
     to_url = (body.get("to_url") or "").strip()
     if to_url and (urlparse(to_url).scheme not in ("http", "https") or not urlparse(to_url).netloc):
-        return jsonify({"ok": False, "error": "enlace recíproco no válido"}), 400
+        return jsonify({"ok": False, "error": "enlace recÃ­proco no vÃ¡lido"}), 400
     hit = _banned_hit(ad.get("from_chat"), to_ad)
     if hit:
-        return jsonify({"ok": False, "error": f"Tu anuncio contiene una palabra no permitida en el canal destino: «{hit}»"}), 400
+        return jsonify({"ok": False, "error": f"Tu anuncio contiene una palabra no permitida en el canal destino: Â«{hit}Â»"}), 400
     when = ad.get("when")
     _schedule_ad_pair(ad, user.get("id"), to_ad, to_image, to_url, when)
     return jsonify({"ok": True})
@@ -4853,11 +4853,11 @@ def ads_preview():
     if err: return err
     text = str(body.get("text") or "").strip()
     if not text or len(text) > 3500:
-        return jsonify({"ok": False, "error": "texto no válido"}), 400
+        return jsonify({"ok": False, "error": "texto no vÃ¡lido"}), 400
     fake = {"id": "preview"}
     return jsonify({"ok": True, "rendered": _ad_tracking_text(fake, text, "preview", body.get("target_url")),
                     "characters": len(text), "has_image": bool(body.get("image")),
-                    "label_added": not text.startswith("🤝")})
+                    "label_added": not text.startswith("ðŸ¤")})
 
 
 @bp.route("/api/public/ads/cancel", methods=["POST", "OPTIONS"])
@@ -4866,11 +4866,11 @@ def ads_cancel():
     body = request.json or {}; user, err = _auth_user(body)
     if err: return err
     ad = _channel_stats.get_ad(body.get("id"))
-    if not ad: return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+    if not ad: return jsonify({"ok": False, "error": "campaÃ±a no encontrada"}), 404
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("from_chat"))):
         return jsonify({"ok": False, "error": "sin permiso"}), 403
     if ad.get("status") not in ("pending", "countered", "master_review"):
-        return jsonify({"ok": False, "error": "la campaña ya no se puede cancelar"}), 409
+        return jsonify({"ok": False, "error": "la campaÃ±a ya no se puede cancelar"}), 409
     _channel_stats.update_ad(ad["id"], {"status": "cancelled"})
     return jsonify({"ok": True})
 
@@ -4881,7 +4881,7 @@ def ads_counter():
     body = request.json or {}; user, err = _auth_user(body)
     if err: return err
     ad = _channel_stats.get_ad(body.get("id"))
-    if not ad: return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+    if not ad: return jsonify({"ok": False, "error": "campaÃ±a no encontrada"}), 404
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("to_chat"))):
         return jsonify({"ok": False, "error": "sin permiso"}), 403
     counter_ad = str(body.get("to_ad") or "").strip()
@@ -4890,13 +4890,13 @@ def ads_counter():
     if not counter_ad or not counter_when:
         return jsonify({"ok": False, "error": "faltan contrapropuesta y fecha"}), 400
     if len(counter_ad) > 3500 or _banned_hit(ad.get("from_chat"), counter_ad):
-        return jsonify({"ok": False, "error": "el texto de la contrapropuesta no está permitido"}), 400
+        return jsonify({"ok": False, "error": "el texto de la contrapropuesta no estÃ¡ permitido"}), 400
     if counter_url and (urlparse(counter_url).scheme not in ("http", "https") or not urlparse(counter_url).netloc):
-        return jsonify({"ok": False, "error": "enlace no válido"}), 400
+        return jsonify({"ok": False, "error": "enlace no vÃ¡lido"}), 400
     try:
         proposed_at = datetime.datetime.fromisoformat(counter_when.replace("Z", "+00:00")).replace(tzinfo=None)
     except ValueError:
-        return jsonify({"ok": False, "error": "fecha no válida"}), 400
+        return jsonify({"ok": False, "error": "fecha no vÃ¡lida"}), 400
     if proposed_at < datetime.datetime.utcnow() + datetime.timedelta(minutes=10) or proposed_at > datetime.datetime.utcnow() + datetime.timedelta(days=30):
         return jsonify({"ok": False, "error": "fecha fuera del intervalo permitido"}), 400
     _channel_stats.update_ad(ad["id"], {"status": "countered", "counter_ad": counter_ad,
@@ -4927,7 +4927,7 @@ def ads_master_approve():
     if err: return err
     if not _is_master(user): return jsonify({"ok": False, "error": "solo master"}), 403
     ad = _channel_stats.get_ad(body.get("id"))
-    if not ad or ad.get("status") != "master_review": return jsonify({"ok": False, "error": "revisión no disponible"}), 404
+    if not ad or ad.get("status") != "master_review": return jsonify({"ok": False, "error": "revisiÃ³n no disponible"}), 404
     _channel_stats.update_ad(ad["id"], {"status": "pending", "approved_by_master": True})
     return jsonify({"ok": True})
 
@@ -4952,7 +4952,7 @@ def ads_partner_preference():
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), chat_id)):
         return jsonify({"ok": False, "error": "sin permiso"}), 403
     if not _channel_stats.set_partner_preference(chat_id, partner, body.get("status"), user.get("id")):
-        return jsonify({"ok": False, "error": "preferencia no válida"}), 400
+        return jsonify({"ok": False, "error": "preferencia no vÃ¡lida"}), 400
     return jsonify({"ok": True})
 
 
@@ -4969,7 +4969,7 @@ def ads_templates():
         if not text or not name: return jsonify({"ok": False, "error": "nombre y texto requeridos"}), 400
         target_url = str(body.get("target_url") or "").strip()
         if target_url and (urlparse(target_url).scheme not in ("http", "https") or not urlparse(target_url).netloc):
-            return jsonify({"ok": False, "error": "enlace no válido"}), 400
+            return jsonify({"ok": False, "error": "enlace no vÃ¡lido"}), 400
         _channel_stats.save_ad_template(chat_id, name[:80], text[:3500], body.get("image"), target_url, user.get("id"))
     try:
         rows = _channel_stats.ad_templates(chat_id)
@@ -5000,7 +5000,7 @@ def ads_report(ad_id):
     body = request.json or {}; user, err = _auth_user(body)
     if err: return err
     ad = _channel_stats.get_ad(ad_id)
-    if not ad: return jsonify({"ok": False, "error": "campaña no encontrada"}), 404
+    if not ad: return jsonify({"ok": False, "error": "campaÃ±a no encontrada"}), 404
     if not (_is_master(user) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("from_chat")) or _channel_stats.is_user_admin_of(user.get("id"), ad.get("to_chat"))):
         return jsonify({"ok": False, "error": "sin permiso"}), 403
     return jsonify({"ok": True, "report": {"status": ad.get("status"), "deliveries": int(ad.get("delivered_count", 0) or 0),
@@ -5027,7 +5027,7 @@ def public_mine():
     init_data = (request.json or {}).get("initData", "")
     user = _verify_init_data(init_data)
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     try:
         return jsonify({"ok": True, "channels": _channel_stats.get_user_channels(user.get("id"))})
     except Exception as error:
@@ -5066,7 +5066,7 @@ def _miniapp_feature_context(user, requested_group_id=None):
 def public_personal_tasks():
     if request.method == "OPTIONS": return ("", 204)
     body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
-    if user is None: return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
+    if user is None: return jsonify({"ok": False, "error": "initData invÃƒÂ¡lido"}), 401
     try:
         _, groups, selected = _miniapp_feature_context(user, body.get("chat_id"))
     except PermissionError:
@@ -5078,7 +5078,7 @@ def public_personal_tasks():
         elif action == "complete": rows = update_task(_db, user_id, chat_id, body.get("id"), done=body.get("done", True))
         elif action == "delete": rows = update_task(_db, user_id, chat_id, body.get("id"), delete=True)
         elif action == "list": rows = list_tasks(_db, user_id, chat_id)
-        else: return jsonify({"ok": False, "error": "acciÃ³n no vÃ¡lida"}), 400
+        else: return jsonify({"ok": False, "error": "acciÃƒÂ³n no vÃƒÂ¡lida"}), 400
     except ValueError as error:
         return jsonify({"ok": False, "error": str(error)}), 400
     return jsonify({"ok": True, "tasks": rows, "selected_chat_id": chat_id,
@@ -5209,7 +5209,7 @@ def public_role_features():
     body = request.get_json(silent=True) or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     try:
         actor_role, available_groups, selected_group = _miniapp_feature_context(user, body.get("group_id"))
     except PermissionError as error:
@@ -5221,7 +5221,7 @@ def public_role_features():
                         "release_channel": release_channel, "available_groups": available_groups,
                         "total": len(features), "features": features})
     if body.get("action") != "execute":
-        return jsonify({"ok": False, "error": "acción no compatible"}), 400
+        return jsonify({"ok": False, "error": "acciÃ³n no compatible"}), 400
     try:
         item = verified_feature_registry().get(body.get("feature_id"))
         if item is None:
@@ -5251,7 +5251,7 @@ def public_notifications():
         return ("", 204)
     user = _verify_init_data((request.json or {}).get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     preferences = CommunityMembers(_db).preferences(user.get("id"))
     channels = (
         _channel_stats.get_all_channels() if _is_master(user)
@@ -5265,7 +5265,7 @@ def public_notifications():
             if report.get("status") == "pending":
                 rows.append({
                     "id": f"report:{cid}:{report.get('id')}",
-                    "type": "report", "title": f"Reporte pendiente · {name}",
+                    "type": "report", "title": f"Reporte pendiente Â· {name}",
                     "body": f"Usuario {report.get('target_id')}: {report.get('reason') or 'Sin motivo'}",
                     "created_at": report.get("created_at"), "chat_id": cid,
                 })
@@ -5274,7 +5274,7 @@ def public_notifications():
             if event.get("matched"):
                 rows.append({
                     "id": f"media:{cid}:{event.get('message_id')}:{event.get('created_at')}",
-                    "type": "security", "title": f"Alerta multimedia · {name}",
+                    "type": "security", "title": f"Alerta multimedia Â· {name}",
                     "body": f"{event.get('user') or event.get('user_id')}: {event.get('reason')}",
                     "created_at": event.get("created_at"), "chat_id": cid,
                 })
@@ -5285,9 +5285,9 @@ def public_notifications():
             automatic = bool(report.get("auto_ban_applied"))
             rows.append({
                 "id": f"gban-report:{report.get('id')}", "type": "gban_report",
-                "title": "GBAN automático pendiente" if automatic else "Propuesta de GBAN pendiente",
+                "title": "GBAN automÃ¡tico pendiente" if automatic else "Propuesta de GBAN pendiente",
                 "body": (
-                    f"Usuario {report.get('user_id')} · riesgo {analysis.get('score', 0)}/100 · "
+                    f"Usuario {report.get('user_id')} Â· riesgo {analysis.get('score', 0)}/100 Â· "
                     f"{report.get('reason') or 'Sin motivo'}"
                 ),
                 "created_at": report.get("created_at"),
@@ -5300,8 +5300,8 @@ def public_notifications():
             if appeal.get("status") == "pending":
                 rows.append({
                     "id": f"appeal:{appeal.get('id')}", "type": "appeal",
-                    "title": "Apelación pendiente",
-                    "body": f"Usuario {appeal.get('user_id')}: {appeal.get('message') or 'Revisión solicitada'}",
+                    "title": "ApelaciÃ³n pendiente",
+                    "body": f"Usuario {appeal.get('user_id')}: {appeal.get('message') or 'RevisiÃ³n solicitada'}",
                     "created_at": appeal.get("created_at"),
                 })
     rows = [row for row in rows if (
@@ -5324,7 +5324,7 @@ def community_me():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     manager = _community_members()
     if body.get("profile") and isinstance(body["profile"], dict):
         profile = manager.update_profile(user.get("id"), {**body["profile"], "name": user.get("first_name")})
@@ -5342,7 +5342,7 @@ def community_role_request():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     item = _community_members().request_role(user.get("id"), body.get("role"), body.get("reason"))
     return jsonify({"ok": bool(item), "request": item}), 200 if item else 400
 
@@ -5354,7 +5354,7 @@ def community_reminder():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     try:
         if body.get("local_time"):
             item = _community_members().persistent_reminder(
@@ -5376,7 +5376,7 @@ def community_reminder_action():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     action = str(body.get("action") or "")
     manager = _community_members()
     try:
@@ -5385,7 +5385,7 @@ def community_reminder_action():
         elif action == "cancel":
             item = manager.cancel_persistent_reminder(user.get("id"), body.get("reminder_id"))
         else:
-            return jsonify({"ok": False, "error": "acción no compatible"}), 400
+            return jsonify({"ok": False, "error": "acciÃ³n no compatible"}), 400
         return jsonify({"ok": bool(item), "reminder": item}), 200 if item else 404
     except (TypeError, ValueError) as error:
         return jsonify({"ok": False, "error": str(error)}), 400
@@ -5398,7 +5398,7 @@ def community_preferences():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     return jsonify({"ok": True, "preferences": _community_members().preferences(user.get("id"), body.get("preferences") or {})})
 
 
@@ -5408,7 +5408,7 @@ def community_directory():
         return ("", 204)
     user = _verify_init_data((request.json or {}).get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     return jsonify({"ok": True, "members": _community_members().directory()})
 
 
@@ -5416,7 +5416,7 @@ def community_directory():
 def community_engagement_snapshot():
     if request.method == "OPTIONS": return ("", 204)
     body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
-    if user is None: return jsonify({"ok": False, "error": "initData inválido"}), 401
+    if user is None: return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     service = CommunityEngagement(_db)
     return jsonify({"ok": True, "surveys": service.surveys(), "events": service.events(),
                     "challenges": list(reversed(service._rows(_db, "COMMUNITY_CHALLENGES")))})
@@ -5426,7 +5426,7 @@ def community_engagement_snapshot():
 def community_engagement_action():
     if request.method == "OPTIONS": return ("", 204)
     body = request.json or {}; user = _verify_init_data(body.get("initData", ""))
-    if user is None: return jsonify({"ok": False, "error": "initData inválido"}), 401
+    if user is None: return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     service, uid, action = CommunityEngagement(_db), user.get("id"), body.get("action")
     try:
         if action == "survey_vote": result = service.vote_survey(body.get("survey_id"), uid, body.get("option_id"))
@@ -5442,7 +5442,7 @@ def community_engagement_action():
         elif action == "contest_vote": result = service.vote_contest(body.get("event_id"), body.get("submission_id"), uid)
         elif action == "qa_question": result = service.qa_question(body.get("event_id"), uid, body.get("text"))
         elif action == "agenda": result = service.agenda_ics()
-        else: return jsonify({"ok": False, "error": "acción inválida"}), 400
+        else: return jsonify({"ok": False, "error": "acciÃ³n invÃ¡lida"}), 400
         return jsonify({"ok": bool(result), "result": result}), 200 if result else 404
     except (TypeError, ValueError) as error:
         return jsonify({"ok": False, "error": str(error)}), 400
@@ -5455,12 +5455,12 @@ def community_form_submit():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     result = RoadmapEngine(_db).form_submit(body.get("form_id"), user.get("id"), body.get("answers") or {})
     return jsonify({"ok": bool(result), "result": result}), 200 if result else 404
 
 
-# ─────────────────────────── Captcha de entrada (Join Request Queries) ──────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Captcha de entrada (Join Request Queries) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Pool de iconos del captcha (los mismos nombres que join.html mapea a SVG).
 _JOIN_ICONS = ["star", "heart", "bolt", "moon", "cloud", "leaf"]
 _JOIN_SHAPES = ["circle", "square", "triangle", "diamond", "hexagon", "ring"]
@@ -5583,7 +5583,7 @@ def _required_channel_suggestions(chat_id=None):
 
 
 def _channel_candidate_review(row):
-    """Revisión explicable del contenido observado; excluye solo señales de alto riesgo."""
+    """RevisiÃ³n explicable del contenido observado; excluye solo seÃ±ales de alto riesgo."""
     cid = str(row.get("id") or row.get("chat_id") or "")
     history = [item for item in _safe_list(_db.get(f"CHAT_HIST_{cid}", []) if _db else [])
                if isinstance(item, dict) and str(item.get("text") or "").strip()][-100:]
@@ -5602,8 +5602,8 @@ def _channel_candidate_review(row):
     severe_groups = {
         "phishing o robo de credenciales": (("seed phrase", "frase semilla", "verify wallet", "verifica tu wallet", "robar cuenta"), 25),
         "malware o archivos peligrosos": (("stealer download", "ransomware builder", "cryptominer oculto", "descarga el crack"), 25),
-        "explotación sexual infantil": (("child sexual abuse", "csam", "pornografía infantil"), 70),
-        "captación terrorista": (("únete a la yihad", "join the jihad", "manual de explosivos", "bomb making manual"), 70),
+        "explotaciÃ³n sexual infantil": (("child sexual abuse", "csam", "pornografÃ­a infantil"), 70),
+        "captaciÃ³n terrorista": (("Ãºnete a la yihad", "join the jihad", "manual de explosivos", "bomb making manual"), 70),
     }
     for label, (terms, weight) in severe_groups.items():
         hits = sum(corpus.count(term) for term in terms)
@@ -5614,7 +5614,7 @@ def _channel_candidate_review(row):
     url_count = sum(len(re.findall(r"https?://|t\.me/", text.casefold())) for text in texts)
     if len(texts) >= 10 and url_count >= max(12, len(texts) * 2):
         score += 25
-        reasons.append({"signal": "densidad anómala de enlaces", "hits": url_count, "points": 25})
+        reasons.append({"signal": "densidad anÃ³mala de enlaces", "hits": url_count, "points": 25})
     repeated = len(texts) - len({re.sub(r"\s+", " ", text.casefold()).strip() for text in texts})
     if len(texts) >= 10 and repeated >= max(6, len(texts) // 2):
         score += 25
@@ -5643,7 +5643,7 @@ def _global_join_channels():
 
 
 def _global_join_channel():
-    """Compatibilidad con clientes antiguos que esperan un único canal."""
+    """Compatibilidad con clientes antiguos que esperan un Ãºnico canal."""
     channels = _global_join_channels()
     return channels[0] if channels else ""
 
@@ -5665,7 +5665,7 @@ def _global_join_settings():
 
 
 def _global_join_update_candidate(body):
-    """Valida canales y activación juntos para evitar escrituras parciales."""
+    """Valida canales y activaciÃ³n juntos para evitar escrituras parciales."""
     current_channels = _normalize_required_channels(
         _db.get("JOIN_GLOBAL_REQUIRED_CHANNELS", []) if _db else []
     )
@@ -5719,7 +5719,7 @@ def admin_join_global():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     if not _is_master(user):
         return jsonify({"ok": False, "error": "solo el master puede cambiar el acceso global"}), 403
     channels, enabled, validation_error = _global_join_update_candidate(body)
@@ -5794,16 +5794,16 @@ def _notify_join_review(bot, chat_id, pending, source, details=None):
         else f"Ofensas CAS: {result.get('offenses', 'desconocidas')}"
     )
     text = (
-        f"⚠️ Solicitud retenida por {source_label}\n\n"
+        f"âš ï¸ Solicitud retenida por {source_label}\n\n"
         f"Usuario: {full_name or 'Sin nombre'} ({username})\n"
         f"ID: {user_id}\n"
         f"Grupo: {pending.get('chat_title') or chat_id}\n"
         f"{detail_line}\n\n"
-        "El usuario completó correctamente el captcha. Revisa el caso antes de permitir su entrada."
+        "El usuario completÃ³ correctamente el captcha. Revisa el caso antes de permitir su entrada."
     )
     keyboard = {"inline_keyboard": [[
-        {"text": "✅ Aprobar igualmente", "callback_data": f"casjoin:a:{chat_id}:{user_id}"},
-        {"text": "🚫 Banear y rechazar", "callback_data": f"casjoin:b:{chat_id}:{user_id}"},
+        {"text": "âœ… Aprobar igualmente", "callback_data": f"casjoin:a:{chat_id}:{user_id}"},
+        {"text": "ðŸš« Banear y rechazar", "callback_data": f"casjoin:b:{chat_id}:{user_id}"},
     ]]}
     delivered = 0
     for recipient in recipients:
@@ -5895,14 +5895,14 @@ def group_join_reverify_control():
     if action == "preview":
         observed = _db.get(f"TELEGRAM_GROUP_LANGUAGES_{chat_id}", {}) or {}
         return jsonify({"ok": True, "preview": {"observed": len(observed),
-            "note": "Antes de silenciar se excluirán administradores, bots y usuarios que ya no pertenezcan al grupo."}})
+            "note": "Antes de silenciar se excluirÃ¡n administradores, bots y usuarios que ya no pertenezcan al grupo."}})
     if action == "cancel":
         job = _db.get(job_key, {}) or {}
         if job.get("status") == "running":
             job["status"] = "cancel_requested"
             _db.set(job_key, job)
         return jsonify({"ok": True, "job": job})
-    return jsonify({"ok": False, "error": "acción no válida"}), 400
+    return jsonify({"ok": False, "error": "acciÃ³n no vÃ¡lida"}), 400
 
 
 @bp.route("/api/public/group/join/settings", methods=["POST", "OPTIONS"])
@@ -5965,10 +5965,10 @@ def group_join_decide():
     try:
         user_id = int(body.get("user_id"))
     except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "user_id inválido"}), 400
+        return jsonify({"ok": False, "error": "user_id invÃ¡lido"}), 400
     action = body.get("action")
     if action not in ("approve", "decline"):
-        return jsonify({"ok": False, "error": "acción inválida"}), 400
+        return jsonify({"ok": False, "error": "acciÃ³n invÃ¡lida"}), 400
     key = f"JOINQ_{chat_id}_{user_id}"
     pending = _db.get(key) if _db else None
     if not pending:
@@ -5981,7 +5981,7 @@ def group_join_decide():
         if missing:
             return jsonify({
                 "ok": False,
-                "error": "El usuario aún no está suscrito a todos los canales obligatorios",
+                "error": "El usuario aÃºn no estÃ¡ suscrito a todos los canales obligatorios",
                 "code": "subscription_required",
                 "missing_channels": missing,
             }), 409
@@ -5993,7 +5993,7 @@ def group_join_decide():
                   else bot.api_call("declineChatJoinRequest", {"chat_id": chat_id, "user_id": user_id}))
         stat = "declined"
     if isinstance(result, dict) and not result.get("ok", False):
-        return jsonify({"ok": False, "error": result.get("description", "Telegram rechazó la acción")}), 502
+        return jsonify({"ok": False, "error": result.get("description", "Telegram rechazÃ³ la acciÃ³n")}), 502
     if action == "approve" and pending.get("community_flagged") and _ban_manager:
         _ban_manager.unban_user(user_id)
     _db.delete(key)
@@ -6003,7 +6003,7 @@ def group_join_decide():
 
 
 def _challenge_digest(chat_id, user_id, challenge_id, salt, answer):
-    """Firma la solución vinculándola al usuario, grupo y reto sin guardarla en claro."""
+    """Firma la soluciÃ³n vinculÃ¡ndola al usuario, grupo y reto sin guardarla en claro."""
     canonical = json.dumps(answer, separators=(",", ":"), ensure_ascii=True)
     secret = str(_jwt_secret or current_app.config.get("SECRET_KEY") or "moonbot-captcha")
     payload = f"{chat_id}|{user_id}|{challenge_id}|{salt}|{canonical}".encode()
@@ -6011,7 +6011,7 @@ def _challenge_digest(chat_id, user_id, challenge_id, salt, answer):
 
 
 def _new_join_challenge(challenge_type=None, difficulty=1):
-    """Genera un reto accesible. Devuelve únicamente datos públicos y la solución."""
+    """Genera un reto accesible. Devuelve Ãºnicamente datos pÃºblicos y la soluciÃ³n."""
     rnd = secrets.SystemRandom()
     kind = challenge_type if challenge_type in _JOIN_CHALLENGE_TYPES else rnd.choice(_JOIN_CHALLENGE_TYPES)
     difficulty = max(1, min(int(difficulty or 1), 3))
@@ -6068,7 +6068,7 @@ def join_challenge():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     cid, uid = body.get("chat"), user.get("id")
     if cid is None:
         return jsonify({"ok": False, "error": "falta chat"}), 400
@@ -6077,7 +6077,7 @@ def join_challenge():
         return jsonify({"ok": False, "error": "sin solicitud pendiente"}), 410
     if pend.get("captcha_passed") and (pend.get("cas_flagged") or pend.get("community_flagged")):
         return jsonify({"ok": False, "under_review": True,
-                        "error": "solicitud en revisión administrativa"}), 423
+                        "error": "solicitud en revisiÃ³n administrativa"}), 423
     config = _join_config(cid)
     if not config["enabled"]:
         return jsonify({"ok": False, "error": "captcha desactivado"}), 403
@@ -6123,7 +6123,7 @@ def join_verify():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     cid, uid = body.get("chat"), user.get("id")
     pend = _db.get(f"JOINQ_{cid}_{uid}") if _db else None
     if not pend or pend.get("exp", 0) < time.time():
@@ -6139,7 +6139,7 @@ def join_verify():
     if not bot:
         return jsonify({"ok": False, "error": "bot no disponible"}), 503
     config = _join_config(cid)
-    # ── ÉXITO ──
+    # â”€â”€ Ã‰XITO â”€â”€
     resumed = bool(body.get("resume") and pend.get("captcha_passed"))
     challenge_matches = False
     if not resumed and chal:
@@ -6149,7 +6149,7 @@ def join_verify():
             expected = str(chal.get("answer_digest") or "")
             actual = _challenge_digest(cid, uid, stored_id, chal.get("salt", ""), sel)
             challenge_matches = bool(expected) and hmac.compare_digest(actual, expected)
-        # El reto se consume incluso si la respuesta es errónea: impide repetición.
+        # El reto se consume incluso si la respuesta es errÃ³nea: impide repeticiÃ³n.
         _db.delete(f"JOINC_{cid}_{uid}")
     if resumed or challenge_matches:
         missing = _missing_required_channels(bot, cid, uid)
@@ -6186,14 +6186,14 @@ def join_verify():
             result = (_set_join_member_muted(bot, cid, uid, False) if pend.get("admitted")
                       else bot.api_call("answerChatJoinRequestQuery", {"query_id": pend.get("query_id")}))
             if isinstance(result, dict) and not result.get("ok", False):
-                pend["permission_restore_error"] = result.get("description", "Telegram rechazó la restauración")
+                pend["permission_restore_error"] = result.get("description", "Telegram rechazÃ³ la restauraciÃ³n")
                 _db.set(f"JOINQ_{cid}_{uid}", pend)
                 return jsonify({"ok": False, "error": "captcha superado, pero no se pudieron restaurar los permisos"}), 502
         _db.set(f"CAPTCHA_STATUS_{cid}_{uid}", {"status": "passed", "at": int(time.time()), "reason": pend.get("reason", "")})
         _db.delete(f"JOINC_{cid}_{uid}"); _db.delete(f"JOINQ_{cid}_{uid}")  # query_id de un solo uso
         _bump_join_stat(cid, "approved")
         return jsonify({"ok": True, "approved": True})
-    # ── FALLO ──
+    # â”€â”€ FALLO â”€â”€
     attempts = int(pend.get("attempts", 0)) + 1
     _db.delete(f"JOINC_{cid}_{uid}")  # fuerza reto nuevo (no resetea intentos)
     if attempts >= config["max_attempts"]:
@@ -6224,23 +6224,23 @@ def join_appeal():
     body = request.json or {}
     user = _verify_init_data(body.get("initData", ""))
     if user is None:
-        return jsonify({"ok": False, "error": "initData inválido"}), 401
+        return jsonify({"ok": False, "error": "initData invÃ¡lido"}), 401
     cid, uid = body.get("chat"), user.get("id")
     appeal = _db.get(f"CAPTCHA_APPEAL_{cid}_{uid}") if _db else None
     if not appeal or appeal.get("status") != "available":
-        return jsonify({"ok": False, "error": "sin apelación disponible"}), 404
+        return jsonify({"ok": False, "error": "sin apelaciÃ³n disponible"}), 404
     text = str(body.get("text") or "").strip()[:1000]
     if len(text) < 10:
-        return jsonify({"ok": False, "error": "explica el motivo con más detalle"}), 400
+        return jsonify({"ok": False, "error": "explica el motivo con mÃ¡s detalle"}), 400
     appeal.update({"status": "pending", "text": text, "submitted_at": int(time.time())})
     _db.set(f"CAPTCHA_APPEAL_{cid}_{uid}", appeal)
     bot = _hub_bot()
     if bot and _master_id:
-        bot.send_msg(_master_id, f"📨 Apelación de captcha\nUsuario: {uid}\nGrupo: {cid}\nMotivo original: {appeal.get('reason')}\n\n{text}")
+        bot.send_msg(_master_id, f"ðŸ“¨ ApelaciÃ³n de captcha\nUsuario: {uid}\nGrupo: {cid}\nMotivo original: {appeal.get('reason')}\n\n{text}")
     return jsonify({"ok": True, "submitted": True})
 
 
-# ─────────────────────────────── Canales ───────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Canales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @bp.route("/api/public/stats/global")
 def public_global():
@@ -6315,11 +6315,11 @@ def public_ranking():
     return jsonify({"ok": True, "ranking": _channel_stats.get_ranking(cat)})
 
 
-# ─────────────────────────────── Proxy ──────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Proxy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @bp.route("/api/public/proxy")
 def public_proxy():
-    """Devuelve proxies MTProto activos, usando el catálogo de red como respaldo."""
+    """Devuelve proxies MTProto activos, usando el catÃ¡logo de red como respaldo."""
     limit = max(1, min(10, request.args.get("limit", 5, type=int)))
     try:
         vps = _proxy_mgr.get_vps_config(include_secret=True) or {} if _proxy_mgr else {}
@@ -6364,7 +6364,7 @@ def public_proxy():
                 if len(candidates) >= limit:
                     break
         except (OSError, ValueError, urllib.error.URLError) as exc:
-            return jsonify({"ok": False, "error": "catálogo de proxies no disponible", "detail": str(exc)[:160]}), 502
+            return jsonify({"ok": False, "error": "catÃ¡logo de proxies no disponible", "detail": str(exc)[:160]}), 502
     if not candidates:
         return jsonify({"ok": False, "error": "sin proxies activos configurados"}), 404
     return jsonify({"ok": True, "count": len(candidates[:limit]), "proxies": candidates[:limit]})
@@ -6400,3 +6400,4 @@ def public_house_ads_manage():
         communities = [{**community, "items": community["items"][:16]} for community in grouped.values() if community["items"]]
         return jsonify({"ok": True, "ads": _house_ads_payload(), "communities": communities})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
+
