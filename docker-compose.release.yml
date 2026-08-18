@@ -1,4 +1,4 @@
-﻿services:
+services:
   moonbot-rc:
     profiles: ["rc"]
     build: .
