@@ -99,3 +99,7 @@ services:
       - "traefik.http.services.moonbot-prealfa.loadbalancer.server.port=5000"
       - "traefik.http.routers.moonbot-prealfa.middlewares=moonbot-prealfa-auth"
       - "traefik.http.middlewares.moonbot-prealfa-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/prealfa"
+
+networks:
+  traefik:
+    external: true
