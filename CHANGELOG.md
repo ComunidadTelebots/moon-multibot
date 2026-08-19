@@ -13,6 +13,12 @@
 * **Sincronización Multi-Rama:** Se absorbieron todos los arreglos crudos y parches estabilizados de la rama `master` (arreglos en el simulador 3D, bugs de WebApp y enrutador inteligente) directamente en la rama `alfa`.
 * **Corrección de Codificación (Encoding):** Reparación quirúrgica de tildes y eñes perdidas (`Diseño`, `Añadir`, `Clásico`) usando diccionarios directos, garantizando que el DOM y el motor Javascript permanecen intactos sin generar caracteres nulos (UTF-16).
 
+**Optimizaciones de Backend y Estabilidad (Silent Fixes)**
+* **Crash Crítico del Router Resuelto:** Reparado un desajuste de argumentos (`patched_api_call` recibía 6 argumentos en vez de 4) que causaba el colapso silencioso del bucle de eventos cada 5 segundos.
+* **Rotación de Logs (Prevención de Desbordamiento):** Implementado un sistema nativo para `data/bot.log` que archiva el historial automáticamente al alcanzar los 5MB, previniendo el consumo infinito de disco.
+* **Limpieza de Verbose Debugging:** Eliminados los rastros excesivos de logging en el bucle principal ("Esperando nuevos mensajes", "Detección de ID") que saturaban la interfaz del dashboard y la memoria.
+* **Purga de BOM UTF-8:** Eliminado un carácter invisible (`\ufeff`) en la cabecera del archivo masivo `core/routes_public.py` que comprometía la compatibilidad del intérprete en entornos Linux/Docker.
+
 
 ## [v18.25.15.15-alpha] - 2026-08-19 (Registro Diario de Builds)
 
