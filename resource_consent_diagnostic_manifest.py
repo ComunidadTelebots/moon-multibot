@@ -1,0 +1,4 @@
+import resource_consent_diagnostic_engines as e
+APIS=["consent_editorial_articles","consent_moderated_images","consent_user_appeals","consent_mtproto_proxies","consent_persistent_tasks","consent_moderation_rules","consent_language_metrics","consent_community_translations","consent_personal_consents","consent_telegram_reactions","consent_master_panels","consent_channel_directories","consent_external_links","diagnose_admin_sessions","diagnose_community_profiles","diagnose_telegram_communities","diagnose_house_ads","diagnose_voice_notes","diagnose_suspicious_files","diagnose_captcha_decisions"]
+MANIFEST=[{"release_channel": "rc", "id":fid,"module":"resource_consent_diagnostic_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_consent_diagnostic_engines.py","preflight":"Moonbot proposed; no matching independent consent/read-only diagnostic contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20

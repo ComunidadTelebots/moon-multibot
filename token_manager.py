@@ -4,6 +4,12 @@ Usa Fernet (AES) para encriptación simétrica de tokens
 """
 
 import os
+import sys
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'): sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception: pass
 import json
 from cryptography.fernet import Fernet, InvalidToken
 from dotenv import load_dotenv

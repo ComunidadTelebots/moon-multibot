@@ -1,0 +1,4 @@
+import resource_approval_signature_engines as e
+APIS=["approve_managed_bots","approve_recurring_reminders","approve_security_events","approve_regional_maps","approve_backups","approve_ai_learning_data","approve_rich_commands","approve_hub_notifications","approve_cookie_policies","approve_wayback_history","sign_temporary_roles","sign_managed_groups","sign_scheduled_messages","sign_rss_feeds","sign_telegram_videos","sign_blocklists","sign_required_subscriptions","sign_signed_webhooks","sign_quiet_hours","sign_correlated_incidents"]
+MANIFEST=[{"release_channel": "rc", "id":fid,"module":"resource_approval_signature_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_approval_signature_engines.py","preflight":"Moonbot proposed; no matching independent approval/cryptographic-integrity contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20

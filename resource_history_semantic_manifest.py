@@ -1,0 +1,4 @@
+import resource_history_semantic_engines as e
+APIS=["compare_accessible_preferences","compare_integration_secrets","compare_contextual_responses","compare_miniapp_menus","compare_bot_statistics","compare_ad_preferences","compare_processing_queues","search_creator_accounts","search_partner_channels","search_community_campaigns","search_editorial_articles","search_moderated_images","search_user_appeals","search_mtproto_proxies","search_persistent_tasks","search_moderation_rules","search_language_metrics","search_community_translations","search_personal_consents","search_telegram_reactions"]
+MANIFEST=[{"release_channel": "rc", "id":fid,"module":"resource_history_semantic_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_history_semantic_engines.py","preflight":"Moonbot proposed; no matching independent history/local-search contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20

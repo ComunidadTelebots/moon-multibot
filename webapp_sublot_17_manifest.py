@@ -1,0 +1,7 @@
+FEATURES=[
+ {"release_channel": "rc", "id":f"future-{n:04d}","capability":c,"api":a,"test":f"tests.test_webapp_sublot_17.Sublot17Tests.test_{n}"}
+ for n,c,a in [
+ (993,"Vista compacta configurable","configurable_ai_density"),(994,"Recuperación selectiva","selective_ai_recovery"),(995,"Informe programado","schedule_ai_report"),(996,"Sandbox de pruebas","sandbox_ai_test"),(997,"Conector interoperable","interoperable_ai_connector"),(998,"Panel predictivo","notification_forecast"),(999,"Asistente guiado","guided_notification_setup"),(1000,"Alertas adaptativas","adaptive_notification_alert"),(1668,"Mapa de dependencias funcionales","functional_dependency_map"),(1669,"Reglas condicionales visuales","visual_conditional_rules"),(1670,"Bandeja unificada de revisión","unified_review_inbox"),(1671,"Detección de cambios sensibles","detect_sensitive_changes"),(1672,"Explicación de decisiones automáticas","explain_automatic_decision"),(1673,"Panel de calidad de datos","data_quality_panel"),(1674,"Importación con vista previa","preview_import"),(1675,"Colaboración mediante comentarios","collaborative_comments"),(1676,"Etiquetas inteligentes","smart_tags"),(1677,"Resumen de actividad configurable","configurable_activity_summary"),(1678,"Alertas de caducidad","expiry_alerts"),(1679,"Modo de emergencia reversible","reversible_emergency_mode")]
+]
+for feature in FEATURES:
+ feature["preflight"] = f"retrospective-audit:{feature['api']}:unique-callable-tested"

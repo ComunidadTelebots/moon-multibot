@@ -231,6 +231,24 @@
       align-items: center;
       gap: 8px;
     }
+    .badge-status {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      vertical-align: middle;
+    }
+    .badge-status.estable { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); }
+    .badge-status.rc { background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.4); }
+    .badge-status.beta { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge-status.alfa { background: rgba(251, 146, 60, 0.15); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.4); }
+
     .score-pill {
       font-family: var(--font-mono);
       font-size: 12px;
@@ -407,7 +425,7 @@
       <!-- 1. Cyber Snake -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">🐍 Cyber Snake</div>
+          <div class="game-title">🐍 Cyber Snake <span class="badge-status estable">ESTABLE</span></div>
           <div class="score-pill">Puntos: <span id="snakeScore">0</span></div>
         </div>
         <div class="canvas-box" id="snakeTouchArea">
@@ -430,7 +448,7 @@
       <!-- 2. 2048 Cyber Puzzle -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">⚡ 2048 Cyber</div>
+          <div class="game-title">⚡ 2048 Cyber <span class="badge-status estable">ESTABLE</span></div>
           <div class="score-pill">Score: <span id="score2048">0</span></div>
         </div>
         <div class="grid-2048" id="board2048"></div>
@@ -443,7 +461,7 @@
       <!-- 3. Tres en Raya -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">❌ Tres en Raya</div>
+          <div class="game-title">❌ Tres en Raya <span class="badge-status rc">RC</span></div>
           <div class="score-pill" id="tttStatus">Turno: X</div>
         </div>
         <div id="tttBoard" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:10px auto;"></div>
@@ -456,13 +474,32 @@
       <!-- 4. Memoria Cuántica -->
       <section class="game-card">
         <div class="game-header">
-          <div class="game-title">🧠 Memoria Cuántica</div>
+          <div class="game-title">🧠 Memoria Cuántica <span class="badge-status beta">BETA</span></div>
           <div class="score-pill">Intentos: <span id="memoryMoves">0</span></div>
         </div>
         <div id="memoryBoard" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:300px;margin:10px auto;"></div>
         <div class="hint-text">Encuentra las parejas de iconos</div>
         <div style="display:flex;gap:8px;margin-top:14px;">
           <button id="memoryResetBtn" class="btn-action" style="flex:1;">Mezclar</button>
+        </div>
+      </section>
+
+      <!-- 5. Simulador 3D de Camiones Aster Viento -->
+      <section class="game-card" style="grid-column: 1 / -1;">
+        <div class="game-header">
+          <div class="game-title">🚛 Simulador de Camiones 3D <span class="badge-status alfa">ALFA</span></div>
+          <div class="score-pill">Aster 770 S V8</div>
+        </div>
+        <div style="background:var(--dpad-bg);border:1px solid var(--dpad-border);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:38px;margin-bottom:6px;">🚛</div>
+          <h3 style="font-family:var(--font-display);font-size:16px;font-weight:800;margin-bottom:4px;">Scania 770 S V8 & Heavy Freight 3D</h3>
+          <p style="font-size:12.5px;color:var(--ink-muted);line-height:1.4;margin-bottom:14px;">
+            Simulador físico 3D con dirección real, tacógrafo digital UE 561/2006, radio CB diegética y báscula WIM.
+          </p>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button id="launchTruckGameBtn" class="btn-action" style="flex:1;min-width:180px;">🎮 Jugar Conducción 3D</button>
+            <button id="launchCockpitBtn" class="btn-ghost" style="flex:1;min-width:180px;">👁️ Vista Cabina Cockpit</button>
+          </div>
         </div>
       </section>
 
@@ -505,6 +542,19 @@
     });
 
     applyThemeAndPlatform(currentPlatform, currentTheme);
+
+    const btnTruck = document.getElementById('launchTruckGameBtn');
+    if (btnTruck) btnTruck.onclick = () => {
+      triggerHaptic("medium");
+      if (tg && tg.openLink) tg.openLink(window.location.origin + '/transport-3d.html');
+      else window.location.href = 'transport-3d.html';
+    };
+    const btnCockpit = document.getElementById('launchCockpitBtn');
+    if (btnCockpit) btnCockpit.onclick = () => {
+      triggerHaptic("medium");
+      if (tg && tg.openLink) tg.openLink(window.location.origin + '/transport-3d.html?view=cockpit');
+      else window.location.href = 'transport-3d.html?view=cockpit';
+    };
 
     // Helper de vibración háptica
     function triggerHaptic(type) {
@@ -771,16 +821,42 @@
     // Memory Game
     const memBoard = document.getElementById("memoryBoard");
     const icons = ["🚀","🛸","🛰️","⚡","👑","🚛","🎮","🎲"];
+    let memoryState = [];
+    let flipped = [];
+    
     function initMemory() {
       memBoard.innerHTML = "";
-      const deck = [...icons, ...icons].sort(() => Math.random() - 0.5);
-      deck.forEach(sym => {
+      memoryState = [...icons, ...icons].sort(() => Math.random() - 0.5);
+      flipped = [];
+      
+      memoryState.forEach((sym, idx) => {
         const box = document.createElement("div");
         box.className = "mem-box";
         box.textContent = "❓";
+        box.dataset.idx = idx;
+        
         box.onclick = () => {
+          // Ignorar si ya está revelada o si hay 2 cartas dadas la vuelta
+          if (box.textContent !== "❓" || flipped.length >= 2) return;
+          
           box.textContent = sym;
+          flipped.push({box, sym});
           triggerHaptic("light");
+          
+          if (flipped.length === 2) {
+            if (flipped[0].sym === flipped[1].sym) {
+              // Match
+              triggerHaptic("success");
+              flipped = [];
+            } else {
+              // No match, ocultar después de un tiempo
+              setTimeout(() => {
+                flipped[0].box.textContent = "❓";
+                flipped[1].box.textContent = "❓";
+                flipped = [];
+              }, 800);
+            }
+          }
         };
         memBoard.appendChild(box);
       });

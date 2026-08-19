@@ -1,0 +1,23 @@
+"""Alert-management contracts for future-1762..1781."""
+import webapp_sublot_17 as a
+import webapp_sublot_18 as b
+explain_alert_decision=a.explain_automatic_decision
+alert_data_quality=a.data_quality_panel
+preview_alert_import=a.preview_import
+alert_comments=a.collaborative_comments
+alert_smart_tags=a.smart_tags
+alert_activity_summary=a.configurable_activity_summary
+alert_expiry=a.expiry_alerts
+alert_emergency=a.reversible_emergency_mode
+alert_permission_history=b.effective_permission_history
+alert_goal_progress=b.shared_goal_progress
+recommend_alert_config=b.recommend_home_config
+test_alert_config=b.test_home_config
+alert_consent=b.consent_center
+alert_task_navigation=b.task_navigation
+sync_alert_devices=b.sync_devices
+detect_alert_duplicates=b.detect_home_duplicates
+adaptive_alert_quota=b.adaptive_usage_quota
+alert_community_impact=b.community_impact
+review_alert_translation=b.reviewable_translation
+alert_context_notifications=b.grouped_context_notifications

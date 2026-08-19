@@ -1,0 +1,96 @@
+services:
+  moonbot-rc:
+    build: .
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - MOON_ENV=rc
+    volumes:
+      - ./rc-src:/app
+      - ./data-rc:/app/data
+      - ./downloads-rc:/app/downloads
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.moonbot-rc.rule=Host(`rc.cintiabot.todosobreall.tech`)"
+      - "traefik.http.routers.moonbot-rc.entrypoints=websecure"
+      - "traefik.http.routers.moonbot-rc.tls=true"
+      - "traefik.http.routers.moonbot-rc.tls.certresolver=letsencrypt"
+      - "traefik.http.services.moonbot-rc.loadbalancer.server.port=5000"
+      - "traefik.http.routers.moonbot-rc.middlewares=moonbot-rc-auth"
+      - "traefik.http.middlewares.moonbot-rc-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/rc"
+      
+  moonbot-beta:
+    build: .
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - MOON_ENV=beta
+    volumes:
+      - ./beta-src:/app
+      - ./data-beta:/app/data
+      - ./downloads-beta:/app/downloads
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.moonbot-beta.rule=Host(`beta.cintiabot.todosobreall.tech`)"
+      - "traefik.http.routers.moonbot-beta.entrypoints=websecure"
+      - "traefik.http.routers.moonbot-beta.tls=true"
+      - "traefik.http.routers.moonbot-beta.tls.certresolver=letsencrypt"
+      - "traefik.http.services.moonbot-beta.loadbalancer.server.port=5000"
+      - "traefik.http.routers.moonbot-beta.middlewares=moonbot-beta-auth"
+      - "traefik.http.middlewares.moonbot-beta-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/beta"
+
+  moonbot-alfa:
+    build: .
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - MOON_ENV=alfa
+    volumes:
+      - ./alfa-src:/app
+      - ./data-alfa:/app/data
+      - ./downloads-alfa:/app/downloads
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.moonbot-alfa.rule=Host(`alfa.cintiabot.todosobreall.tech`)"
+      - "traefik.http.routers.moonbot-alfa.entrypoints=websecure"
+      - "traefik.http.routers.moonbot-alfa.tls=true"
+      - "traefik.http.routers.moonbot-alfa.tls.certresolver=letsencrypt"
+      - "traefik.http.services.moonbot-alfa.loadbalancer.server.port=5000"
+      - "traefik.http.routers.moonbot-alfa.middlewares=moonbot-alfa-auth"
+      - "traefik.http.middlewares.moonbot-alfa-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/alfa"
+
+  moonbot-prealfa:
+    build: .
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - MOON_ENV=prealfa
+    volumes:
+      - ./prealfa-src:/app
+      - ./data-prealfa:/app/data
+      - ./downloads-prealfa:/app/downloads
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.moonbot-prealfa.rule=Host(`prealfa.cintiabot.todosobreall.tech`)"
+      - "traefik.http.routers.moonbot-prealfa.entrypoints=websecure"
+      - "traefik.http.routers.moonbot-prealfa.tls=true"
+      - "traefik.http.routers.moonbot-prealfa.tls.certresolver=letsencrypt"
+      - "traefik.http.services.moonbot-prealfa.loadbalancer.server.port=5000"
+      - "traefik.http.routers.moonbot-prealfa.middlewares=moonbot-prealfa-auth"
+      - "traefik.http.middlewares.moonbot-prealfa-auth.forwardauth.address=http://moonbot:5000/api/auth/release-forward-auth/prealfa"
+
+networks:
+  traefik:
+    external: true

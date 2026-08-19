@@ -1,7 +1,19 @@
 services:
+  autoscaler:
+    build: ./autoscaler
+    container_name: moonbot_autoscaler
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app/compose:ro
+    environment:
+      - MIN_REPLICAS=2
+      - MAX_REPLICAS=5
+      - CPU_THRESHOLD_UP=70
+      - CPU_THRESHOLD_DOWN=20
+      - CHECK_INTERVAL=30
   moonbot:
     build: .
-    container_name: moonbot
     restart: unless-stopped
     env_file:
       - .env
