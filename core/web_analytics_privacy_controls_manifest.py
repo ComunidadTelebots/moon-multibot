@@ -25,8 +25,7 @@ CAPABILITIES = (
 )
 CONTEXTS = ("analítica",) * 4 + ("privacidad",) * 16
 FEATURES = tuple(
-    {
-        "id": f"future-{1177 + index:04d}",
+    {"release_channel": "alpha", "id": f"future-{1177 + index:04d}",
         "title": f"{capability} para {context} en TodoSobreAllTech Web",
         "capability": capability,
         "context": context,

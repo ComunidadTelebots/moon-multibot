@@ -37,8 +37,7 @@ PREFLIGHT_REVIEW = (
 )
 
 MANIFEST = tuple(
-    {
-        "id": feature_id,
+    {"release_channel": "alpha", "id": feature_id,
         "title": title,
         "capability": capability,
         "module": "resource_temporal_collaborative_engines.py",

@@ -24,8 +24,7 @@ _ROWS = [
 ]
 
 FEATURES = [
-    {
-        "id": f"future-{number}", "title": title, "capability": capability,
+    {"release_channel": "alpha", "id": f"future-{number}", "title": title, "capability": capability,
         "module": "webapp_offline_operations", "api": api,
         "test": f"tests.test_webapp_offline_operations.WebappOfflineOperationTests.test_future_{number}",
         "preflight": f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent",

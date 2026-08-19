@@ -1,8 +1,7 @@
 """Verified integration-operation capabilities exposed by the safe registry."""
 
 MANIFEST = (
-    {
-        "id": "future-2665",
+    {"release_channel": "alpha", "id": "future-2665",
         "title": "Centro de incidencias correlacionadas para integraciones en Moonbot",
         "capability": "Centro de incidencias correlacionadas para integraciones",
         "module": "integration_operations_engines.py",
@@ -12,8 +11,7 @@ MANIFEST = (
         "test": "tests/test_integration_operations_engines.py::test_future_2665",
         "preflight": "No existe correlación específica por integration_id, tipo, ventana y deduplicación; el escalado de secretos no es equivalente.",
     },
-    {
-        "id": "future-2667",
+    {"release_channel": "alpha", "id": "future-2667",
         "title": "Delegación temporal de funciones para integraciones en Moonbot",
         "capability": "Delegación temporal de funciones para integraciones",
         "module": "integration_operations_engines.py",

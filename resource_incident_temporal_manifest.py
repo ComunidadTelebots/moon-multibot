@@ -36,8 +36,7 @@ PREFLIGHT_CORRELATION = (
 )
 
 MANIFEST = tuple(
-    {
-        "id": feature_id,
+    {"release_channel": "alpha", "id": feature_id,
         "title": title,
         "capability": capability,
         "module": "resource_incident_temporal_engines.py",

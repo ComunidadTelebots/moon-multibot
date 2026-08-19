@@ -1,5 +1,5 @@
 """Machine-readable manifest for sublot 1/10 of the new catalog."""
 import resource_forecast_engines as engine
 APIS=["forecast_temporary_roles","forecast_managed_groups","forecast_scheduled_messages","forecast_rss_feeds","forecast_telegram_videos","forecast_blocklists","forecast_mandatory_subscriptions","forecast_signed_webhooks","forecast_quiet_hours","forecast_correlated_incidents","forecast_accessible_preferences","forecast_integration_secrets","forecast_contextual_responses","forecast_miniapp_menus","forecast_bot_statistics","forecast_ad_preferences","forecast_processing_queues","detect_creator_account_drift","detect_associated_channel_drift","detect_community_campaign_drift"]
-MANIFEST=[{"id":fid,"module":"resource_forecast_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_forecast_engines.py","preflight":"catalog proposed; rg found no equivalent resource-specific forecast/drift contract"} for fid,api in zip(engine.IDS,APIS)]
+MANIFEST=[{"release_channel": "alpha", "id":fid,"module":"resource_forecast_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_forecast_engines.py","preflight":"catalog proposed; rg found no equivalent resource-specific forecast/drift contract"} for fid,api in zip(engine.IDS,APIS)]
 assert len(MANIFEST)==20 and len({x["api"] for x in MANIFEST})==20

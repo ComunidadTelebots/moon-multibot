@@ -10,4 +10,4 @@ _ROLES=["proxy_operator","proxy_operator","proxy_admin","member","proxy_admin","
 FEATURES=[]
 for offset,(api,capability,role) in enumerate(zip(_APIS,_CAPS,_ROLES)):
     number=2102+offset; context="proxies" if number<=2120 else ("panel principal" if number<=2150 else "analítica")
-    FEATURES.append({"id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_proxy_dashboard_analytics_operations","api":api,"role":role,"test":f"tests.test_webapp_proxy_dashboard_analytics_operations.WebappProxyDashboardAnalyticsTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent; equivalent:composed_when_available"})
+    FEATURES.append({"release_channel": "alpha", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_proxy_dashboard_analytics_operations","api":api,"role":role,"test":f"tests.test_webapp_proxy_dashboard_analytics_operations.WebappProxyDashboardAnalyticsTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent; equivalent:composed_when_available"})

@@ -5,4 +5,4 @@ _CAPABILITIES=["Explicación de decisiones automáticas","Panel de calidad de da
 FEATURES=[]
 for offset,(api,capability) in enumerate(zip(_APIS,_CAPABILITIES)):
     number=1882+offset; context="moderación móvil" if number<=1907 else "contenido"
-    FEATURES.append({"id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_moderation_content_operations","api":api,"test":f"tests.test_webapp_moderation_content_operations.WebappModerationContentTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent"})
+    FEATURES.append({"release_channel": "alpha", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_moderation_content_operations","api":api,"test":f"tests.test_webapp_moderation_content_operations.WebappModerationContentTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent"})

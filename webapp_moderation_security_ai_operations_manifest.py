@@ -42,8 +42,7 @@ def _role(api):
     return "ai_admin" if any(x in api for x in ("workflow", "delegation", "batch")) else "ai_reviewer"
 
 
-FEATURES = tuple({
-    "id": f"future-{2342 + index}", "api": api, "module": MODULE,
+FEATURES = tuple({"release_channel": "alpha", "id": f"future-{2342 + index}", "api": api, "module": MODULE,
     "role": _role(api), "status": "implemented",
     "preflight": "api_and_id_absent_from_head", "test": f"tests.test_webapp_moderation_security_ai_operations.WebappModerationSecurityAiTests.test_future_{2342 + index}",
 } for index, api in enumerate(_APIS))
