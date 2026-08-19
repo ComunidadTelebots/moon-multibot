@@ -1,0 +1,4 @@
+import resource_budget_federation_engines as e
+APIS=["budget_editorial_articles","budget_moderated_images","budget_user_appeals","budget_mtproto_proxies","budget_persistent_tasks","budget_moderation_rules","budget_language_metrics","budget_community_translations","budget_personal_consents","budget_telegram_reactions","budget_master_panels","budget_channel_directories","budget_external_links","federate_admin_sessions","federate_community_profiles","federate_telegram_communities","federate_house_ads","federate_voice_notes","federate_suspicious_files","federate_captcha_decisions"]
+MANIFEST=[{"id":fid,"module":"resource_budget_federation_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_budget_federation_engines.py","preflight":"Moonbot proposed; no matching independent budget/federated-dry-run contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20

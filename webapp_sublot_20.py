@@ -1,0 +1,23 @@
+"""Group migration and profile feature contracts for future-1722..1741."""
+import webapp_sublot_17 as a
+import webapp_sublot_18 as b
+group_migration_assistant=b.migration_assistant
+group_decision_log=b.administrative_decision_log
+group_accessibility_analysis=b.continuous_accessibility_analysis
+group_storage_connector=b.external_storage_connector
+group_time_policies=b.time_window_policies
+group_growth_simulator=b.sustainable_growth_simulator
+profile_dependency_map=a.functional_dependency_map
+profile_visual_rules=a.visual_conditional_rules
+profile_review_inbox=a.unified_review_inbox
+profile_sensitive_changes=a.detect_sensitive_changes
+explain_profile_decision=a.explain_automatic_decision
+profile_data_quality=a.data_quality_panel
+preview_profile_import=a.preview_import
+profile_comments=a.collaborative_comments
+profile_smart_tags=a.smart_tags
+profile_activity_summary=a.configurable_activity_summary
+profile_expiry_alerts=a.expiry_alerts
+profile_emergency_mode=a.reversible_emergency_mode
+profile_permission_history=b.effective_permission_history
+profile_goal_progress=b.shared_goal_progress

@@ -10,6 +10,7 @@ data/
 !package.json
 !composer.json
 !data/bots.json.example
+!web/future-features.json
 
 # Archivos Comprimidos (Peligro de filtración)
 *.zip

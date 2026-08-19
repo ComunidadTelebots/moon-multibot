@@ -21,6 +21,8 @@ C_ADMINS = "tg_channel_admins"
 C_SNAPS = "tg_channel_snapshots"
 C_SCHED = "tg_scheduled"
 C_ADS = "tg_ads"
+C_AD_PREFS = "tg_ad_partner_prefs"
+C_AD_TEMPLATES = "tg_ad_templates"
 
 
 def init(pb):
@@ -39,14 +41,39 @@ def init(pb):
         {"name": "active", "type": "bool"}, {"name": "admins_checked", "type": "date"},
         {"name": "listed", "type": "bool"},
     ], ["CREATE UNIQUE INDEX `idx_tgc_chat` ON `tg_channels` (`chat_id`)"])
-    # Migración suave: el directorio PÚBLICO es opt-in (listed). Por defecto NADA
-    # es público; el dueño decide qué publicar. "Mis canales" ignora este campo.
-    pb.ensure_field(C_CHANNELS, {"name": "listed", "type": "bool"})
+    # ensure_collection no modifica una colección existente. Comprobar todos
+    # los campos evita dejar instalaciones antiguas con un esquema incompleto.
+    for field in [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "username", "type": "text"}, {"name": "title", "type": "text"},
+        {"name": "description", "type": "text"}, {"name": "category", "type": "text"},
+        {"name": "ctype", "type": "text"}, {"name": "member_count", "type": "number"},
+        {"name": "growth30d", "type": "number"}, {"name": "posts_count", "type": "number"},
+        {"name": "posts_per_day", "type": "number"}, {"name": "last_post_id", "type": "number"},
+        {"name": "first_post_at", "type": "date"}, {"name": "last_post_at", "type": "date"},
+        {"name": "bot_token", "type": "text"}, {"name": "added_by", "type": "number"},
+        {"name": "active", "type": "bool"}, {"name": "admins_checked", "type": "date"},
+        {"name": "listed", "type": "bool"},
+    ]:
+        added = pb.ensure_field(C_CHANNELS, field)
+        # Las instalaciones anteriores no tenían `active`. PocketBase asigna
+        # False al añadir un bool, lo que ocultaría todos los registros previos.
+        if added and field["name"] == "active":
+            for record in pb.list(C_CHANNELS, per_page=500):
+                pb.update(C_CHANNELS, record["id"], {"active": True})
     pb.ensure_collection(C_ADMINS, [
         {"name": "chat_id", "type": "text", "required": True},
         {"name": "user_id", "type": "number", "required": True},
         {"name": "status", "type": "text"}, {"name": "checked", "type": "date"},
+        {"name": "name", "type": "text"}, {"name": "username", "type": "text"},
     ], ["CREATE UNIQUE INDEX `idx_tga` ON `tg_channel_admins` (`chat_id`,`user_id`)"])
+    for field in [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "user_id", "type": "number", "required": True},
+        {"name": "status", "type": "text"}, {"name": "checked", "type": "date"},
+        {"name": "name", "type": "text"}, {"name": "username", "type": "text"},
+    ]:
+        pb.ensure_field(C_ADMINS, field)
     pb.ensure_collection(C_SNAPS, [
         {"name": "chat_id", "type": "text", "required": True},
         {"name": "day", "type": "text", "required": True},
@@ -71,8 +98,49 @@ def init(pb):
     ])
     # Migración suave de campos nuevos (las colecciones ya existían).
     pb.ensure_field(C_SCHED, {"name": "photo", "type": "text"})
+    for field in [
+        {"name": "ad_id", "type": "text"}, {"name": "ad_side", "type": "text"},
+        {"name": "attempts", "type": "number"}, {"name": "last_error", "type": "text"},
+        {"name": "sent_at", "type": "date"}, {"name": "message_id", "type": "number"},
+    ]:
+        pb.ensure_field(C_SCHED, field)
     pb.ensure_field(C_ADS, {"name": "from_ad_image", "type": "text"})
     pb.ensure_field(C_ADS, {"name": "to_ad_image", "type": "text"})
+    for field in [
+        {"name": "delivered_count", "type": "number"}, {"name": "failed_count", "type": "number"},
+        {"name": "last_delivery", "type": "date"}, {"name": "last_error", "type": "text"},
+        {"name": "clicks", "type": "number"}, {"name": "from_url", "type": "url"},
+        {"name": "to_url", "type": "url"}, {"name": "variants", "type": "text"},
+        {"name": "counter_when", "type": "text"}, {"name": "counter_ad", "type": "text"},
+        {"name": "counter_image", "type": "text"}, {"name": "counter_url", "type": "url"},
+        {"name": "expires_at", "type": "date"}, {"name": "approved_by_master", "type": "bool"},
+    ]:
+        pb.ensure_field(C_ADS, field)
+    pb.ensure_collection(C_AD_PREFS, [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "partner_chat", "type": "text", "required": True},
+        {"name": "status", "type": "text", "required": True},
+        {"name": "updated_by", "type": "number"},
+    ], ["CREATE UNIQUE INDEX `idx_tgap` ON `tg_ad_partner_prefs` (`chat_id`,`partner_chat`)"])
+    pb.ensure_collection(C_AD_TEMPLATES, [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "name", "type": "text", "required": True},
+        {"name": "text", "type": "text", "required": True},
+        {"name": "image", "type": "url"}, {"name": "target_url", "type": "url"},
+        {"name": "created_by", "type": "number"},
+    ])
+    # `ensure_collection` no modifica esquemas existentes. Algunas instalaciones
+    # crearon esta colección antes de incorporar `chat_id`; PocketBase responde
+    # 400 al intentar filtrar por un campo ausente. La migración es idempotente.
+    for field in [
+        {"name": "chat_id", "type": "text", "required": True},
+        {"name": "name", "type": "text", "required": True},
+        {"name": "text", "type": "text", "required": True},
+        {"name": "image", "type": "url"},
+        {"name": "target_url", "type": "url"},
+        {"name": "created_by", "type": "number"},
+    ]:
+        pb.ensure_field(C_AD_TEMPLATES, field)
 
 
 # ── utilidades ──────────────────────────────────────────────────────────────
@@ -171,6 +239,7 @@ def set_channel_admins(chat_id, admins):
         keep.add(uid)
         _pb.upsert(C_ADMINS, f"chat_id='{_cid(chat_id)}' && user_id={uid}",
                    {"chat_id": str(chat_id), "user_id": uid, "status": a.get("status", "administrator"),
+                    "name": str(a.get("name") or "")[:160], "username": str(a.get("username") or "")[:80],
                     "checked": _now()})
     for e in existing:
         if e.get("user_id") not in keep:
@@ -178,6 +247,30 @@ def set_channel_admins(chat_id, admins):
     rec = _pb.first(C_CHANNELS, f"chat_id='{_cid(chat_id)}'")
     if rec:
         _pb.update(C_CHANNELS, rec["id"], {"admins_checked": _now()})
+
+
+def channels_for_admin(user_id):
+    """Canales activos donde el usuario figura como creador o administrador."""
+    try:
+        memberships = _pb.list(C_ADMINS, filter=f"user_id={int(user_id)}", per_page=500)
+    except (TypeError, ValueError):
+        return []
+    result = []
+    for membership in memberships:
+        if membership.get("status") not in ("creator", "administrator"):
+            continue
+        record = _pb.first(C_CHANNELS, f"chat_id='{_cid(membership.get('chat_id'))}' && active=true")
+        if record:
+            result.append(_to_dict(record, membership.get("status")))
+    return result
+
+
+def admins_for_chat(chat_id):
+    """Administradores cacheados, sin campos internos de PocketBase."""
+    rows = _pb.list(C_ADMINS, filter=f"chat_id='{_cid(chat_id)}'", sort="status,name", per_page=200)
+    return [{"user_id": row.get("user_id"), "status": row.get("status") or "administrator",
+             "name": row.get("name") or "", "username": row.get("username") or "",
+             "checked": row.get("checked") or None} for row in rows]
 
 
 # ── lectura para colector / backfill ────────────────────────────────────────
@@ -218,6 +311,8 @@ def _to_dict(r, role=None):
         "listed": bool(r.get("listed")),
         "role": role,
         "owner": role == "creator" if role else None,
+        "synced_at": r.get("updated") or r.get("admins_checked") or r.get("created"),
+        "admins_checked_at": r.get("admins_checked") or None,
     }
 
 
@@ -279,14 +374,16 @@ def get_channel_meta(chat_id):
         return None
     return {"chat_id": r.get("chat_id"), "name": r.get("title") or r.get("username") or "Canal",
             "username": r.get("username"), "ctype": r.get("ctype") or "channel",
-            "subscribers": r.get("member_count") or 0, "listed": bool(r.get("listed"))}
+            "subscribers": r.get("member_count") or 0, "category": r.get("category") or "",
+            "listed": bool(r.get("listed"))}
 
 
 # ── Mensajes programados ────────────────────────────────────────────────────
-def schedule_message(chat_id, text, send_at, created_by=None, bot_token=None, photo=None):
+def schedule_message(chat_id, text, send_at, created_by=None, bot_token=None, photo=None, ad_id=None, ad_side=None):
     return _pb.create(C_SCHED, {"chat_id": str(chat_id), "text": text, "send_at": send_at,
                                 "sent": False, "created_by": created_by, "bot_token": bot_token,
-                                "photo": photo or ""})
+                                "photo": photo or "", "ad_id": ad_id or "", "ad_side": ad_side or "",
+                                "attempts": 0, "last_error": ""})
 
 
 def list_scheduled(chat_id):
@@ -306,8 +403,26 @@ def due_scheduled():
     return _pb.list(C_SCHED, filter=f"sent=false && send_at<='{now}'", per_page=50)
 
 
-def mark_sent(rec_id):
-    _pb.update(C_SCHED, rec_id, {"sent": True})
+def mark_delivery(rec_id, success, message_id=None, error=None):
+    rec = _pb.first(C_SCHED, f"id='{_pb.esc(rec_id)}'")
+    if not rec:
+        return
+    attempts = int(rec.get("attempts", 0) or 0) + 1
+    finished = bool(success or attempts >= 3)
+    _pb.update(C_SCHED, rec_id, {
+        "sent": finished, "attempts": attempts, "last_error": "" if success else str(error or "error")[:500],
+        "sent_at": _now() if success else "", "message_id": int(message_id or 0),
+    })
+    ad_id = rec.get("ad_id")
+    if ad_id:
+        ad = get_ad(ad_id)
+        if ad:
+            delivered = int(ad.get("delivered_count", 0) or 0) + (1 if success else 0)
+            failed = int(ad.get("failed_count", 0) or 0) + (0 if success else 1)
+            status = "completed" if delivered >= 2 else ("delivery_failed" if finished and not success else "accepted")
+            _pb.update(C_ADS, ad_id, {"delivered_count": delivered, "failed_count": failed,
+                                      "last_delivery": _now(), "last_error": "" if success else str(error or "error")[:500],
+                                      "status": status})
 
 
 def is_user_admin_of(user_id, chat_id):
@@ -316,11 +431,11 @@ def is_user_admin_of(user_id, chat_id):
 
 
 def get_user_channels(user_id):
-    """Canales donde el usuario es creator/administrator (desde la caché)."""
+    """Chats activos compartidos por el usuario administrador y Moonbot."""
     admins = _pb.list(C_ADMINS, filter=f"user_id={int(user_id)}", per_page=200)
     if not admins:
         return []
-    role_by_chat = {a["chat_id"]: a.get("status") for a in admins}
+    role_by_chat = {a["chat_id"]: a.get("status") for a in admins if a.get("status") in ("creator", "administrator")}
     channels = {r["chat_id"]: r for r in _all_active()}
     out = []
     for cid, role in role_by_chat.items():
@@ -358,12 +473,15 @@ def get_channel_owner(chat_id):
 
 
 # ── Anuncios mutuos (estilo InsideAds) ──────────────────────────────────────
-def create_ad_request(from_chat, from_user, from_name, to_chat, to_name, from_ad, when, from_image=None):
+def create_ad_request(from_chat, from_user, from_name, to_chat, to_name, from_ad, when, from_image=None,
+                      from_url=None, variants=None, status="pending"):
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S.000Z")
     return _pb.create(C_ADS, {
         "from_chat": str(from_chat), "from_user": from_user, "from_name": from_name,
         "to_chat": str(to_chat), "to_user": get_channel_owner(to_chat), "to_name": to_name,
         "from_ad": from_ad, "from_ad_image": from_image or "", "when": when,
-        "status": "pending", "created": _now(),
+        "from_url": from_url or "", "variants": variants or "", "status": status,
+        "created": _now(), "expires_at": expires, "clicks": 0, "delivered_count": 0, "failed_count": 0,
     })
 
 
@@ -379,6 +497,16 @@ def ads_outgoing(user_id):
     return _pb.list(C_ADS, filter=f"from_user={int(user_id)}", sort="-created", per_page=50)
 
 
+def ads_master_review():
+    return _pb.list(C_ADS, filter="status='master_review'", sort="-created", per_page=100)
+
+
+def ads_history(chat_id, limit=200):
+    cid = _cid(chat_id)
+    rows = _pb.list(C_ADS, filter=f"from_chat='{cid}' || to_chat='{cid}'", sort="-created", per_page=limit)
+    return rows
+
+
 def get_ad(ad_id):
     return _pb.first(C_ADS, f"id='{_pb.esc(ad_id)}'")
 
@@ -390,6 +518,48 @@ def set_ad(ad_id, status, to_ad=None, to_image=None):
     if to_image is not None:
         data["to_ad_image"] = to_image
     _pb.update(C_ADS, ad_id, data)
+
+
+def update_ad(ad_id, data):
+    _pb.update(C_ADS, ad_id, data)
+
+
+def partner_preferences(chat_id):
+    rows = _pb.list(C_AD_PREFS, filter=f"chat_id='{_cid(chat_id)}'", per_page=500)
+    return {str(row.get("partner_chat")): row.get("status") for row in rows}
+
+
+def set_partner_preference(chat_id, partner_chat, status, user_id):
+    if status not in ("favorite", "blocked", "neutral"):
+        return False
+    existing = _pb.first(C_AD_PREFS, f"chat_id='{_cid(chat_id)}' && partner_chat='{_cid(partner_chat)}'")
+    if status == "neutral":
+        if existing:
+            _pb.delete(C_AD_PREFS, existing["id"])
+        return True
+    payload = {"chat_id": str(chat_id), "partner_chat": str(partner_chat), "status": status, "updated_by": user_id}
+    if existing:
+        _pb.update(C_AD_PREFS, existing["id"], payload)
+    else:
+        _pb.create(C_AD_PREFS, payload)
+    return True
+
+
+def ad_templates(chat_id):
+    return _pb.list(C_AD_TEMPLATES, filter=f"chat_id='{_cid(chat_id)}'", sort="-created", per_page=100)
+
+
+def save_ad_template(chat_id, name, text, image, target_url, user_id):
+    return _pb.create(C_AD_TEMPLATES, {"chat_id": str(chat_id), "name": name, "text": text,
+                                      "image": image or "", "target_url": target_url or "", "created_by": user_id})
+
+
+def expire_pending_ads():
+    now = _now()
+    rows = _pb.list(C_ADS, filter=f"(status='pending' || status='countered') && expires_at!='' && expires_at<'{now}'", per_page=100)
+    for row in rows:
+        _pb.update(C_ADS, row["id"], {"status": "expired"})
+    return len(rows)
 
 
 def get_global_stats():
