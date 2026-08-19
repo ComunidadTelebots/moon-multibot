@@ -1,6 +1,6 @@
 # Changelog - Moon Multibot
 
-## v18.25.14 - 2026-08-15 - Evolución completa de Rutas del Continente
+## v18.25.15-alpha - 2026-08-15 - Evolución completa de Rutas del Continente
 
 ### Interfaz y experiencia de usuario
 
