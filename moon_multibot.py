@@ -7148,33 +7148,29 @@ def patch_bot_instances():
             bot.router_queue = queue.Queue()
             
         original_api_call = bot.api_call
-        def patched_api_call(method, payload=None, files=None, timeout=None, silent=False):
+                def patched_api_call(m, p=None, silent=False):
             # En Sub-Bots, interceptamos getUpdates...
-            if MOON_ENV != "stable" and method == "getUpdates":
+            if MOON_ENV != "stable" and m == "getUpdates":
                 try:
                     update = bot.router_queue.get(timeout=10)
                     return {"ok": True, "result": [update]}
                 except queue.Empty:
                     return {"ok": True, "result": []}
                     
-            # En Sub-Bots, las demás llamadas a la API se envían al Stable
-            if MOON_ENV != "stable" and method != "getUpdates":
-                url = f"http://moonbot:5000/api/internal/tg/{method}"
+            # En Sub-Bots, las demás llamadas a la API (JSON) se envían al Stable
+            if MOON_ENV != "stable" and m != "getUpdates":
+                url = f"http://moonbot:5000/api/internal/tg/{m}"
                 kwargs = {"headers": {"X-Bot-Token": bot.token}}
-                if files:
-                    kwargs["data"] = payload
-                    kwargs["files"] = files
-                else:
-                    kwargs["json"] = payload
+                kwargs["json"] = p
                 try:
-                    res = requests.post(url, timeout=timeout or 15, **kwargs)
+                    res = requests.post(url, timeout=15, **kwargs)
                     return res.json()
                 except Exception as e:
                     return {"ok": False, "description": str(e)}
             
             # En Stable, comportamiento normal, pero procesando reenvíos a sub-bots
-            res = original_api_call(method, payload, files, timeout, silent)
-            if MOON_ENV == "stable" and method == "getUpdates" and res.get("ok"):
+            res = original_api_call(m, p, silent)
+            if MOON_ENV == "stable" and m == "getUpdates" and res.get("ok"):
                 for item in res.get("result", []):
                     msg = item.get("message") or item.get("callback_query", {}).get("message")
                     if msg:
