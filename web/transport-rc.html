@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
@@ -127,29 +127,29 @@
     </style>
   </head>
   <body>
-<div style="position:fixed;top:0;left:0;width:100%;background:rgba(0,0,0,0.8);color:#fff;text-align:center;padding:5px;z-index:9999;font-family:monospace;border-bottom:2px solid #39d98a;">EDICIÓN RELEASE CANDIDATE - v1.1.0.0</div>
+<div style="position:fixed;top:0;left:0;width:100%;background:rgba(0,0,0,0.8);color:#fff;text-align:center;padding:5px;z-index:9999;font-family:monospace;border-bottom:2px solid #39d98a;">EDICIÃ“N RELEASE CANDIDATE - v1.1.0.0</div>
     <div class="hud">
-      <div class="pill">Vehículo <b id="vn">Aster Viento 3D</b></div>
+      <div class="pill">VehÃ­culo <b id="vn">Aster Viento 3D</b></div>
       <div class="pill">Vista <b id="view">Exterior</b></div>
       <div class="pill">Ciudad <b id="city">Nova Liria</b></div>
       <div class="pill">Carretera <b id="roadEvent">Sin incidencias</b></div>
       <div class="pill">Trabajo <b id="workState">Conductor</b></div>
-      <div class="pill">Carga <b id="cargoState">0/3 palés</b></div>
-      <div class="pill">Conservación <b id="cargoConditionState">Sin carga</b></div>
-      <div class="pill">Empresa <b id="moneyState">35.000 €</b></div>
+      <div class="pill">Carga <b id="cargoState">0/3 palÃ©s</b></div>
+      <div class="pill">ConservaciÃ³n <b id="cargoConditionState">Sin carga</b></div>
+      <div class="pill">Empresa <b id="moneyState">35.000 â‚¬</b></div>
       <div class="pill">Nivel <b id="levelState">1</b></div>
       <div class="pill">Convoy <b id="convoyState">Desconectado</b></div>
       <div class="pill">Especial <b id="specialState">Sin carga</b></div>
       <div class="pill">Servicio <b id="nearService">En ruta</b></div>
     </div>
     <div class="controls">
-      <button id="truck" class="on">Camión</button
-      ><button id="bus">Autobús</button><button id="ambulance">Ambulancia</button><button id="fireEngine">Bomberos</button><button id="recoveryTruck">Grúa</button><button id="sirenButton">Sirena</button><button id="cam">Vista</button
+      <button id="truck" class="on">CamiÃ³n</button
+      ><button id="bus">AutobÃºs</button><button id="ambulance">Ambulancia</button><button id="fireEngine">Bomberos</button><button id="recoveryTruck">GrÃºa</button><button id="sirenButton">Sirena</button><button id="cam">Vista</button
       ><button id="cruise">Crucero</button><button id="rest">Descansar</button
       ><button id="parking" class="on">Freno P</button><button id="mapButton">Mapa</button
-      ><button id="moreControls">Más controles</button
-      ><button id="workMode">Ir al almacén</button><button id="toolButton">Traspaleta</button
-      ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
+      ><button id="moreControls">MÃ¡s controles</button
+      ><button id="workMode">Ir al almacÃ©n</button><button id="toolButton">Traspaleta</button
+      ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">â›¶</button>
       <button id="engineButton">Arrancar motor</button>
       <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
       <button id="achievementsButton">Logros</button>
@@ -158,29 +158,29 @@
       <button id="academyButton">Academia</button>
       <button id="europeMapButton">Mapa de Europa</button>
       <button id="worldMapButton">Red mundial</button>
-      <select id="fleetVehicle" class="fleet-select" aria-label="Vehículo aéreo o marítimo"><option value="">Flota aire y mar</option></select><select id="fleetLivery" class="fleet-select" aria-label="Diseño visual Canva"></select>
+      <select id="fleetVehicle" class="fleet-select" aria-label="VehÃ­culo aÃ©reo o marÃ­timo"><option value="">Flota aire y mar</option></select><select id="fleetLivery" class="fleet-select" aria-label="DiseÃ±o visual Canva"></select>
       <button id="wheelButton">Volante: buscar</button>
       <button id="specialButton">Transporte especial</button>
       <button id="specialOperate" hidden>Preparar carga</button>
     </div>
     <div class="controls drive">
-      <button class="mobile" data-key="a">◀</button
+      <button class="mobile" data-key="a">â—€</button
       ><button data-key="s">Freno</button><button data-key="w">Acelerar</button
-      ><button class="mobile" data-key="d">▶</button>
+      ><button class="mobile" data-key="d">â–¶</button>
     </div>
-    <a class="osm-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
-    <aside class="operation-cinematic" id="operationCinematic" hidden aria-live="assertive"><div class="operation-head"><b id="operationTitle">Cargando palé</b><small id="operationPercent">0%</small></div><progress id="operationProgress" max="100" value="0"></progress><small class="operation-hint" id="operationHint">Alineando la mercancía con el remolque</small></aside>
-    <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posición</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">−</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">×</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
-    <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
-    <aside class="map-panel" id="academyPanel" hidden><header><h3>Academia de conducción</h3><button id="academyClose">×</button></header><div class="achievement-list" id="academyLessons"></div><p class="route-output" id="academyState">Elige una prueba.</p></aside>
-    <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa · posición del camión</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">×</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posición/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
-    <aside class="map-panel europe-panel" id="worldPanel" hidden><header><h3>Red mundial de carga</h3><button id="worldClose">×</button></header><div class="world-planner"><select id="worldFrom"></select><select id="worldTo"></select></div><div class="map-tools" style="margin-top:8px"><button id="worldPlanButton">Calcular transporte</button><button id="worldDriveButton" disabled>Conducir tramo terrestre</button><button id="worldFlyButton" disabled>Volar tramo aéreo</button><button id="worldSailButton" disabled>Navegar tramo marítimo</button></div><div class="world-plan" id="worldPlanOutput">Selecciona dos centros logísticos.</div></aside>
-    <aside class="map-panel events-panel" id="eventsPanel" hidden aria-label="Centro maestro de eventos"><header><div><h3>Centro maestro de eventos</h3><small id="eventResultCount">0 eventos</small></div><div class="map-tools"><button id="eventExportButton">Exportar JSON</button><button id="eventsClose" aria-label="Cerrar">×</button></div></header><div class="event-kpis"><div class="event-kpi"><b id="eventKpiTotal">0</b><span>Total</span></div><div class="event-kpi"><b id="eventKpiToday">0</b><span>Últimas 24 h</span></div><div class="event-kpi"><b id="eventKpiCompleted">0</b><span>Completados</span></div><div class="event-kpi"><b id="eventKpiPending">0</b><span>Pendientes</span></div><div class="event-kpi"><b id="eventKpiCritical">0</b><span>Críticos</span></div></div><div class="event-filters"><select id="eventCategoryFilter" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option><option value="career">Carrera</option><option value="contracts">Contratos</option><option value="truck">Vehículo</option><option value="economy">Economía</option><option value="operations">Operaciones</option><option value="technical">Técnicos</option></select><select id="eventSeverityFilter" aria-label="Filtrar por severidad"><option value="all">Todas las severidades</option><option value="info">Información</option><option value="warning">Avisos</option><option value="critical">Críticos</option></select><input id="eventSearch" type="search" placeholder="Buscar evento, jugador, región…" /></div><div class="event-table-wrap"><table class="event-stream"><thead><tr><th>Fecha</th><th>Severidad</th><th>Categoría</th><th>Evento</th><th>Jugador / empresa</th><th>Detalle</th></tr></thead><tbody id="eventRows"></tbody></table><div class="event-empty" id="eventEmpty" hidden>No hay eventos para estos filtros.</div></div></aside>
-    <aside class="map-panel cargo-monitor" id="cargoMonitor" hidden aria-label="Control operativo de la mercancía"><header><div><h3>Control de la mercancía</h3><small id="cargoProfile">Carga general</small></div><button id="cargoMonitorClose" aria-label="Cerrar">×</button></header><label class="cargo-selector">Tipo de operación<select id="cargoTypeSelect" aria-label="Tipo de mercancía"><option value="standard">Carga general</option><option value="cold">Cadena de frío</option><option value="fragile">Carga frágil</option><option value="adr">Mercancía ADR</option><option value="livestock">Transporte de animales</option></select></label><div class="cargo-condition-grid"><div class="cargo-meter"><header>Integridad</header><b id="cargoIntegrity">100%</b><progress id="cargoIntegrityBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Temperatura</header><b id="cargoTemperature">18 °C</b><progress id="cargoTemperatureBar" max="100" value="50"></progress></div><div class="cargo-meter"><header>Sujeción</header><b id="cargoRestraint">100%</b><progress id="cargoRestraintBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Equipo</header><b id="cargoEquipment">Cerrado · estable</b><small id="cargoHydration"></small></div></div><p class="cargo-alert" id="cargoAlert" role="status" aria-live="polite">Mercancía estable</p><div class="cargo-actions"><button id="cargoDoorButton" aria-pressed="false">Abrir puertas</button><button id="reeferButton" class="on" aria-pressed="true">Frío activo</button><button id="secureCargoButton">Revisar sujeción</button></div></aside>
+    <a class="osm-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">Â© OpenStreetMap contributors</a>
+    <aside class="operation-cinematic" id="operationCinematic" hidden aria-live="assertive"><div class="operation-head"><b id="operationTitle">Cargando palÃ©</b><small id="operationPercent">0%</small></div><progress id="operationProgress" max="100" value="0"></progress><small class="operation-hint" id="operationHint">Alineando la mercancÃ­a con el remolque</small></aside>
+    <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posiciÃ³n</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">âˆ’</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">Ã—</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
+    <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">Ã—</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
+    <aside class="map-panel" id="academyPanel" hidden><header><h3>Academia de conducciÃ³n</h3><button id="academyClose">Ã—</button></header><div class="achievement-list" id="academyLessons"></div><p class="route-output" id="academyState">Elige una prueba.</p></aside>
+    <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa Â· posiciÃ³n del camiÃ³n</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">Ã—</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posiciÃ³n/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
+    <aside class="map-panel europe-panel" id="worldPanel" hidden><header><h3>Red mundial de carga</h3><button id="worldClose">Ã—</button></header><div class="world-planner"><select id="worldFrom"></select><select id="worldTo"></select></div><div class="map-tools" style="margin-top:8px"><button id="worldPlanButton">Calcular transporte</button><button id="worldDriveButton" disabled>Conducir tramo terrestre</button><button id="worldFlyButton" disabled>Volar tramo aÃ©reo</button><button id="worldSailButton" disabled>Navegar tramo marÃ­timo</button></div><div class="world-plan" id="worldPlanOutput">Selecciona dos centros logÃ­sticos.</div></aside>
+    <aside class="map-panel events-panel" id="eventsPanel" hidden aria-label="Centro maestro de eventos"><header><div><h3>Centro maestro de eventos</h3><small id="eventResultCount">0 eventos</small></div><div class="map-tools"><button id="eventExportButton">Exportar JSON</button><button id="eventsClose" aria-label="Cerrar">Ã—</button></div></header><div class="event-kpis"><div class="event-kpi"><b id="eventKpiTotal">0</b><span>Total</span></div><div class="event-kpi"><b id="eventKpiToday">0</b><span>Ãšltimas 24 h</span></div><div class="event-kpi"><b id="eventKpiCompleted">0</b><span>Completados</span></div><div class="event-kpi"><b id="eventKpiPending">0</b><span>Pendientes</span></div><div class="event-kpi"><b id="eventKpiCritical">0</b><span>CrÃ­ticos</span></div></div><div class="event-filters"><select id="eventCategoryFilter" aria-label="Filtrar por categorÃ­a"><option value="all">Todas las categorÃ­as</option><option value="career">Carrera</option><option value="contracts">Contratos</option><option value="truck">VehÃ­culo</option><option value="economy">EconomÃ­a</option><option value="operations">Operaciones</option><option value="technical">TÃ©cnicos</option></select><select id="eventSeverityFilter" aria-label="Filtrar por severidad"><option value="all">Todas las severidades</option><option value="info">InformaciÃ³n</option><option value="warning">Avisos</option><option value="critical">CrÃ­ticos</option></select><input id="eventSearch" type="search" placeholder="Buscar evento, jugador, regiÃ³nâ€¦" /></div><div class="event-table-wrap"><table class="event-stream"><thead><tr><th>Fecha</th><th>Severidad</th><th>CategorÃ­a</th><th>Evento</th><th>Jugador / empresa</th><th>Detalle</th></tr></thead><tbody id="eventRows"></tbody></table><div class="event-empty" id="eventEmpty" hidden>No hay eventos para estos filtros.</div></div></aside>
+    <aside class="map-panel cargo-monitor" id="cargoMonitor" hidden aria-label="Control operativo de la mercancÃ­a"><header><div><h3>Control de la mercancÃ­a</h3><small id="cargoProfile">Carga general</small></div><button id="cargoMonitorClose" aria-label="Cerrar">Ã—</button></header><label class="cargo-selector">Tipo de operaciÃ³n<select id="cargoTypeSelect" aria-label="Tipo de mercancÃ­a"><option value="standard">Carga general</option><option value="cold">Cadena de frÃ­o</option><option value="fragile">Carga frÃ¡gil</option><option value="adr">MercancÃ­a ADR</option><option value="livestock">Transporte de animales</option></select></label><div class="cargo-condition-grid"><div class="cargo-meter"><header>Integridad</header><b id="cargoIntegrity">100%</b><progress id="cargoIntegrityBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Temperatura</header><b id="cargoTemperature">18 Â°C</b><progress id="cargoTemperatureBar" max="100" value="50"></progress></div><div class="cargo-meter"><header>SujeciÃ³n</header><b id="cargoRestraint">100%</b><progress id="cargoRestraintBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Equipo</header><b id="cargoEquipment">Cerrado Â· estable</b><small id="cargoHydration"></small></div></div><p class="cargo-alert" id="cargoAlert" role="status" aria-live="polite">MercancÃ­a estable</p><div class="cargo-actions"><button id="cargoDoorButton" aria-pressed="false">Abrir puertas</button><button id="reeferButton" class="on" aria-pressed="true">FrÃ­o activo</button><button id="secureCargoButton">Revisar sujeciÃ³n</button></div></aside>
     <section class="cockpit-panel" id="cockpitPanel" hidden>
       <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
-      <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-navigation" aria-label="Navegación"><small>Ruta activa</small><b id="dashNavInstruction">Continúa por la vía</b><output id="dashNavDistance">-- m</output></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState" role="status" aria-live="polite">AEBS listo</b></div></div>
-      <div class="dash-buttons" role="group" aria-label="Controles de cabina"><button data-cockpit="lights" aria-pressed="false">💡 Luces</button><button data-cockpit="wipers" aria-pressed="false">🌧 Limpia</button><button data-cockpit="hazard" aria-pressed="false">⚠ Emergencia</button><button data-cockpit="retarder" aria-pressed="false">R Retarder</button><button data-cockpit="cruise" aria-pressed="false">◉ Crucero</button><button data-cockpit="parking" aria-pressed="true">P Freno</button></div></div>
+      <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-navigation" aria-label="NavegaciÃ³n"><small>Ruta activa</small><b id="dashNavInstruction">ContinÃºa por la vÃ­a</b><output id="dashNavDistance">-- m</output></div><div class="dash-status"><span>Motor <b id="transmissionState">N Â· 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>DaÃ±os <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>LÃ­mite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState" role="status" aria-live="polite">AEBS listo</b></div></div>
+      <div class="dash-buttons" role="group" aria-label="Controles de cabina"><button data-cockpit="lights" aria-pressed="false">ðŸ’¡ Luces</button><button data-cockpit="wipers" aria-pressed="false">ðŸŒ§ Limpia</button><button data-cockpit="hazard" aria-pressed="false">âš  Emergencia</button><button data-cockpit="retarder" aria-pressed="false">R Retarder</button><button data-cockpit="cruise" aria-pressed="false">â—‰ Crucero</button><button data-cockpit="parking" aria-pressed="true">P Freno</button></div></div>
     </section>
     <script src="./transport-boot-screen.js?v=20260814-ui3"></script><script>
       (()=>{const boot=window.TransportBoot?.mount();window.__transportBoot=boot;window.__transportBootPhase=(phase,label)=>boot?.phase(phase,label);window.__transportBootOk=()=>boot?.ready();window.__transportBootClose=()=>boot?.close();addEventListener("error",event=>boot?.fail(event.message||"Error de recurso",event.filename||event.target?.src,event.lineno),true);addEventListener("unhandledrejection",event=>boot?.fail(event.reason||"Promesa rechazada"));boot?.phase("DOM","Interfaz base preparada")})();
@@ -295,7 +295,7 @@
           if(!object?.material)return;
           const materials=Array.isArray(object.material)?object.material:[object.material];
           const recovered=materials.map(material=>{
-            if(!material?.isMeshPhysicalMaterial)return material;
+            
             if(renderRecoveryLevel===1){
               material.transmission=0;
               material.thickness=0;
@@ -354,8 +354,8 @@
       }
       applyReleaseProfile(releaseChannel.channel);
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
-        document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`;
-        document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`;
+        document.querySelector("#cargoState").textContent = `${job.cargo.name} Â· ${job.distanceKm} km`;
+        document.querySelector("#workState").textContent = `${job.from.name} â†’ ${job.to.name}`;
       }});
       const transportUiShell = createTransportUiShell({ career });
       const drivingDock = createTransportDrivingDock({ controls:document.querySelector(".controls:not(.drive)") });
@@ -374,7 +374,7 @@
       missionRuntime.subscribe(event => {
         if (event.type !== "mission:completed") return;
         const reward = event.detail.reward || {};
-        if (reward.money) career.record(reward.money, `Misión: ${event.detail.title}`, { missionId:event.detail.missionId });
+        if (reward.money) career.record(reward.money, `MisiÃ³n: ${event.detail.title}`, { missionId:event.detail.missionId });
         if (reward.xp) career.addXp(reward.xp);
         career.emit("mission:rewarded", { missionId:event.detail.missionId, reward });
       });
@@ -386,12 +386,12 @@
       eventCategory.add(new Option("Seguridad", "security"));
       const eventCategoryFor = type => type.startsWith("security") ? "security" : type.startsWith("contract") ? "contracts" : type.startsWith("truck") ? "truck" : /fine|loan|garage|driver|company/.test(type) ? "economy" : "career";
       const eventSeverityFor = type => /robbery|failed/.test(type) ? "critical" : /incident_prevented|fine|repaired|refueled/.test(type) ? "warning" : "info";
-      const formatEventDetail = detail => Object.entries(detail || {}).map(([key,value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`).join(" · ") || "—";
+      const formatEventDetail = detail => Object.entries(detail || {}).map(([key,value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`).join(" Â· ") || "â€”";
       function renderEventCenter() {
         const filters = { category:eventCategory.value, severity:eventSeverity.value, search:eventSearch.value.trim() }, rows = eventLog.query(filters), summary = eventLog.summary();
         document.querySelector("#eventKpiTotal").textContent = summary.total; document.querySelector("#eventKpiToday").textContent = summary.today; document.querySelector("#eventKpiCompleted").textContent = summary.completed; document.querySelector("#eventKpiPending").textContent = summary.pending; document.querySelector("#eventKpiCritical").textContent = summary.critical;
         document.querySelector("#eventResultCount").textContent = `${rows.length} evento${rows.length === 1 ? "" : "s"}`;
-        eventRows.replaceChildren(...rows.slice(0,500).map(event => { const tr=document.createElement("tr"); tr.className=event.severity; [new Date(event.at).toLocaleString("es-ES"),event.severity,event.category,event.type,`${event.player} · ${event.company}`,formatEventDetail(event.detail)].forEach((value,index)=>{const td=document.createElement("td");td.textContent=value;if(index===5){td.className="event-detail";td.title=value}tr.appendChild(td)}); return tr; }));
+        eventRows.replaceChildren(...rows.slice(0,500).map(event => { const tr=document.createElement("tr"); tr.className=event.severity; [new Date(event.at).toLocaleString("es-ES"),event.severity,event.category,event.type,`${event.player} Â· ${event.company}`,formatEventDetail(event.detail)].forEach((value,index)=>{const td=document.createElement("td");td.textContent=value;if(index===5){td.className="event-detail";td.title=value}tr.appendChild(td)}); return tr; }));
         eventEmpty.hidden = rows.length > 0;
       }
       career.subscribe(event => eventLog.record(eventCategoryFor(event.type), event.type, event.detail, { severity:eventSeverityFor(event.type), player:event.state.profile.name, company:event.state.profile.company }));
@@ -405,21 +405,21 @@
       const cargoProfileFor=job=>job?.cargo?.id==="alimentos"||job?.cargo?.id==="medicinas"?"cold":job?.cargo?.id==="electronica"?"fragile":job?.cargo?.id==="maquinaria"?"adr":"standard";
       function renderCargoCondition(frame=cargoFrame){
         const active=Boolean(career.activeContract||cargoAssigned),integrity=Math.round(frame.integrity),restraint=Math.round(frame.restraint);
-        document.querySelector("#cargoProfile").textContent=active?frame.label:"Sin mercancía asignada";
+        document.querySelector("#cargoProfile").textContent=active?frame.label:"Sin mercancÃ­a asignada";
         document.querySelector("#cargoIntegrity").textContent=`${integrity}%`;document.querySelector("#cargoIntegrityBar").value=integrity;
-        document.querySelector("#cargoTemperature").textContent=`${frame.temperature.toFixed(1)} °C`;document.querySelector("#cargoTemperatureBar").value=Math.max(0,Math.min(100,100-Math.abs(frame.temperature-(frame.type==="cold"?2.5:18))*4));
+        document.querySelector("#cargoTemperature").textContent=`${frame.temperature.toFixed(1)} Â°C`;document.querySelector("#cargoTemperatureBar").value=Math.max(0,Math.min(100,100-Math.abs(frame.temperature-(frame.type==="cold"?2.5:18))*4));
         document.querySelector("#cargoRestraint").textContent=`${restraint}%`;document.querySelector("#cargoRestraintBar").value=restraint;
-        document.querySelector("#cargoEquipment").textContent=`${cargoDoorOpen?"Puertas abiertas":"Cerrado"} · ${reeferPowered?"frío activo":"frío apagado"}`;
-        document.querySelector("#cargoHydration").textContent=frame.type==="livestock"?`Hidratación ${Math.round(frame.hydration)}%`:"Monitor telemático activo";
-        const message=active?(frame.alerts.join(" · ")||"Mercancía estable"):"Acepta un contrato o carga palés";
+        document.querySelector("#cargoEquipment").textContent=`${cargoDoorOpen?"Puertas abiertas":"Cerrado"} Â· ${reeferPowered?"frÃ­o activo":"frÃ­o apagado"}`;
+        document.querySelector("#cargoHydration").textContent=frame.type==="livestock"?`HidrataciÃ³n ${Math.round(frame.hydration)}%`:"Monitor telemÃ¡tico activo";
+        const message=active?(frame.alerts.join(" Â· ")||"MercancÃ­a estable"):"Acepta un contrato o carga palÃ©s";
         const alert=document.querySelector("#cargoAlert");alert.textContent=message;alert.classList.toggle("warning",frame.alerts.length>0);
-        document.querySelector("#cargoConditionState").textContent=active?`${integrity}% · ${frame.temperature.toFixed(1)} °C`:"Sin carga";
+        document.querySelector("#cargoConditionState").textContent=active?`${integrity}% Â· ${frame.temperature.toFixed(1)} Â°C`:"Sin carga";
       }
       document.querySelector("#cargoMonitorButton").onclick=()=>{renderCargoCondition();cargoMonitor.hidden=false};document.querySelector("#cargoMonitorClose").onclick=()=>cargoMonitor.hidden=true;
       document.querySelector("#cargoDoorButton").onclick=()=>{cargoDoorOpen=!cargoDoorOpen;const button=document.querySelector("#cargoDoorButton");button.textContent=cargoDoorOpen?"Cerrar puertas":"Abrir puertas";button.classList.toggle("on",cargoDoorOpen);button.setAttribute("aria-pressed",String(cargoDoorOpen));eventLog.record("operations",cargoDoorOpen?"cargo:doors_opened":"cargo:doors_closed",{speed:Math.round(speed)});renderCargoCondition()};
-      document.querySelector("#reeferButton").onclick=()=>{reeferPowered=!reeferPowered;const button=document.querySelector("#reeferButton");button.textContent=reeferPowered?"Frío activo":"Frío apagado";button.classList.toggle("on",reeferPowered);button.setAttribute("aria-pressed",String(reeferPowered));eventLog.record("operations",reeferPowered?"cargo:reefer_started":"cargo:reefer_stopped",{});renderCargoCondition()};
-      document.querySelector("#secureCargoButton").onclick=()=>{if(speed>1){document.querySelector("#cargoAlert").textContent="Detén el vehículo para revisar la sujeción";return}cargoFrame=cargoCondition.secure();eventLog.record("operations","cargo:secured",{restraint:100});renderCargoCondition()};
-      document.querySelector("#cargoTypeSelect").onchange=event=>{if(speed>1){event.target.value=cargoFrame.type;document.querySelector("#cargoAlert").textContent="Detén el vehículo para cambiar la operación";return}cargoFrame=cargoCondition.select(event.target.value);cargoAssigned=true;reeferPowered=cargoFrame.type==="cold";document.querySelector("#reeferButton").hidden=cargoFrame.type!=="cold";document.querySelector("#cargoHydration").hidden=cargoFrame.type!=="livestock";eventLog.record("operations","cargo:profile_selected",{type:cargoFrame.type,label:cargoFrame.label});renderCargoCondition()};
+      document.querySelector("#reeferButton").onclick=()=>{reeferPowered=!reeferPowered;const button=document.querySelector("#reeferButton");button.textContent=reeferPowered?"FrÃ­o activo":"FrÃ­o apagado";button.classList.toggle("on",reeferPowered);button.setAttribute("aria-pressed",String(reeferPowered));eventLog.record("operations",reeferPowered?"cargo:reefer_started":"cargo:reefer_stopped",{});renderCargoCondition()};
+      document.querySelector("#secureCargoButton").onclick=()=>{if(speed>1){document.querySelector("#cargoAlert").textContent="DetÃ©n el vehÃ­culo para revisar la sujeciÃ³n";return}cargoFrame=cargoCondition.secure();eventLog.record("operations","cargo:secured",{restraint:100});renderCargoCondition()};
+      document.querySelector("#cargoTypeSelect").onchange=event=>{if(speed>1){event.target.value=cargoFrame.type;document.querySelector("#cargoAlert").textContent="DetÃ©n el vehÃ­culo para cambiar la operaciÃ³n";return}cargoFrame=cargoCondition.select(event.target.value);cargoAssigned=true;reeferPowered=cargoFrame.type==="cold";document.querySelector("#reeferButton").hidden=cargoFrame.type!=="cold";document.querySelector("#cargoHydration").hidden=cargoFrame.type!=="livestock";eventLog.record("operations","cargo:profile_selected",{type:cargoFrame.type,label:cargoFrame.label});renderCargoCondition()};
       renderCargoCondition();
       const osmRoutePlanner = createOsmRoutePlanner();
       let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
@@ -442,7 +442,7 @@
         fleetAtlasUrl: "./generated-textures/transport-fleet-atlas-v1.png",
         maintenanceAtlasUrl: "./generated-textures/road-maintenance-vehicles-atlas-v1.png",
       });
-      vehicleTextures.ready.then(() => vehicleTextures.apply(S)).catch(error => console.warn("No se pudieron cargar las texturas de vehículos", error));
+      vehicleTextures.ready.then(() => vehicleTextures.apply(S)).catch(error => console.warn("No se pudieron cargar las texturas de vehÃ­culos", error));
       const emergencyFleet = createEmergencyFleet({ THREE:T, qualityLevel, atlasUrl:"./generated-textures/emergency-fleet-atlas-v1.png" });
       const vehicleSurfaceStates=createVehicleSurfaceStates({THREE:T,qualityLevel});
       emergencyFleet.ready.catch(error => console.warn("No se cargaron las texturas de emergencias", error));
@@ -480,7 +480,7 @@
       let appliedShadowSize=qualityLevel===3?4096:qualityLevel===2?2048:1024;
       sun.shadow.mapSize.set(appliedShadowSize,appliedShadowSize);
       S.add(sun);
-      document.querySelector(".hud").insertAdjacentHTML("beforeend", `<div class="pill">Gráficos <b>${graphicsQuality.toUpperCase()} · ${shadows ? "GPU" : "2D"}</b></div>`);
+      document.querySelector(".hud").insertAdjacentHTML("beforeend", `<div class="pill">GrÃ¡ficos <b>${graphicsQuality.toUpperCase()} Â· ${shadows ? "GPU" : "2D"}</b></div>`);
       const mat = (c, r = 0.65, m = 0.08) =>
           new T.MeshStandardMaterial({ color: c, roughness: r, metalness: m }),
         box = (w, h, d, c) => {
@@ -498,7 +498,7 @@
       const weighStation = createWeighStation({ controls:document.querySelector(".controls:not(.drive)"), eventLog, career });
       const osmScenery = createOsmScenery({ THREE:T, scene:S, qualityLevel, city:"madrid" });
       osmScenery.load().then(counts => {
-        document.querySelector("#roadEvent").title = `OSM: ${counts.trees} árboles, ${counts.gardens} jardines y ${counts.roundabouts} rotondas`;
+        document.querySelector("#roadEvent").title = `OSM: ${counts.trees} Ã¡rboles, ${counts.gardens} jardines y ${counts.roundabouts} rotondas`;
       }).catch(error => console.warn("OpenStreetMap no disponible; se mantiene el escenario local", error));
       let x = box(500, 1, worldLength, 0x4d8943);
       x.position.y = -0.6;
@@ -611,7 +611,7 @@
         x.fillStyle = "#f5f7f3"; x.textAlign = "left"; x.textBaseline = "middle";
         x.font = "700 66px system-ui"; x.fillText(data.destination, 42, 104);
         x.font = "600 45px system-ui"; x.fillText(data.secondary, 42, 202);
-        x.textAlign = "right"; x.font = "800 72px system-ui"; x.fillText("↑", 704, 95);
+        x.textAlign = "right"; x.font = "800 72px system-ui"; x.fillText("â†‘", 704, 95);
         x.font = "700 42px system-ui"; x.fillText(`${data.distance} km`, 704, 202);
         x.fillStyle = "#ffffff"; x.fillRect(42, 269, 150, 55); x.fillStyle = "#075a9b"; x.textAlign = "center"; x.font = "800 37px system-ui"; x.fillText(data.road, 117, 297);
         const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = qualityLevel > 1 ? 8 : 2;
@@ -620,7 +620,7 @@
       for (const data of [
         { z: 215, side: 1, destination: "NOVA LIRIA", secondary: "Puerto Alba", distance: 3, road: "A-10" },
         { z: -35, side: -1, destination: "VALLEVERDE", secondary: "Centro urbano", distance: 2, road: "E-27" },
-        { z: -285, side: 1, destination: "BAHÍA SOLAR", secondary: "Puerto · Logística", distance: 1, road: "A-42" },
+        { z: -285, side: 1, destination: "BAHÃA SOLAR", secondary: "Puerto Â· LogÃ­stica", distance: 1, road: "A-42" },
       ]) {
         const sign = new T.Group();
         for (const px of [-1.9, 1.9]) { const pole = new T.Mesh(new T.CylinderGeometry(0.09, 0.13, 4.25, 12), mat(0x8c989e, 0.3, 0.75)); pole.position.set(px, 2.13, 0); pole.castShadow = true; sign.add(pole); }
@@ -648,7 +648,7 @@
         { name: "Nova Liria", z: 305, color: 0x31c7b7 },
         { name: "Puerto Alba", z: 105, color: 0x42a5e8 },
         { name: "Valleverde", z: -105, color: 0x75bc4c },
-        { name: "Bahía Solar", z: -305, color: 0xf0b84a },
+        { name: "BahÃ­a Solar", z: -305, color: 0xf0b84a },
       ];
       function cityLandmark(city, index) {
         const group = new T.Group();
@@ -924,7 +924,7 @@
           detailedTruckExterior = createDetailedTruckExterior({ THREE: T, paint, glass, chrome, textureMaps: textures.maps, qualityLevel });
           g.add(detailedTruckExterior);
           asterStaticModel=createAsterStaticModelLoader({THREE:T,qualityLevel});
-          asterStaticModel.apply(detailedTruckExterior).then(ok=>{if(ok)document.querySelector("#vn").title=`Carrocería estática ${asterStaticModel.profile}`;return bakedMaterials.ready.then(()=>bakedMaterials.apply(g))}).catch(error=>console.warn("No se cargo la carroceria estatica Aster",error));
+          asterStaticModel.apply(detailedTruckExterior).then(ok=>{if(ok)document.querySelector("#vn").title=`CarrocerÃ­a estÃ¡tica ${asterStaticModel.profile}`;return bakedMaterials.ready.then(()=>bakedMaterials.apply(g))}).catch(error=>console.warn("No se cargo la carroceria estatica Aster",error));
           const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
           trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
           trailer.material.userData.vehicleSurface = "commercial";
@@ -1094,8 +1094,8 @@
         const smoothing = 1 - Math.pow(onFoot || view === 1 || view === 2 ? 0.00004 : 0.0015, dt);
         C.position.lerp(targetPosition, smoothing); cameraLook.lerp(targetLook, smoothing); C.fov += (targetFov - C.fov) * smoothing;
         C.updateProjectionMatrix(); C.lookAt(cameraLook);
-        const viewName = ["Persecución", "Cabina · ratón", kind === "bus" ? "Salón pasajeros" : "Interior cabina", "Cinemática", "Techo", "Parachoques", "Rueda delantera", "Lateral remolque", "Trasera remolque"][view];
-        document.querySelector("#view").textContent = now < cameraTransitionUntil ? `Cambiando a ${viewName}…` : viewName;
+        const viewName = ["PersecuciÃ³n", "Cabina Â· ratÃ³n", kind === "bus" ? "SalÃ³n pasajeros" : "Interior cabina", "CinemÃ¡tica", "Techo", "Parachoques", "Rueda delantera", "Lateral remolque", "Trasera remolque"][view];
+        document.querySelector("#view").textContent = now < cameraTransitionUntil ? `Cambiando a ${viewName}â€¦` : viewName;
         const cockpitPanel = document.querySelector("#cockpitPanel"), interiorView = view === 1 || view === 2;
         cockpitPanel.hidden = onFoot;
         cockpitPanel.classList.toggle("exterior", !interiorView);
@@ -1131,24 +1131,24 @@
       };
       let specialCargoIndex = -1;
       document.querySelector("#specialButton").onclick = () => {
-        if (speed > 1) { document.querySelector("#specialState").textContent = "Detén el vehículo"; return; }
+        if (speed > 1) { document.querySelector("#specialState").textContent = "DetÃ©n el vehÃ­culo"; return; }
         specialCargoIndex = (specialCargoIndex + 1) % (SPECIAL_CARGOES.length + 1);
         const cargo = specialCargoIndex < SPECIAL_CARGOES.length ? specialTransport.select(SPECIAL_CARGOES[specialCargoIndex].id) : specialTransport.select(null);
         cargoAssigned=Boolean(cargo||career.activeContract||loadedPallets);if(cargo)cargoFrame=cargoCondition.select("adr");renderCargoCondition();
         vehicleTextures.apply(S);
         document.querySelector("#specialButton").classList.toggle("on", Boolean(cargo));
         document.querySelector("#specialButton").textContent = cargo ? `Especial: ${cargo.name}` : "Transporte especial";
-        document.querySelector("#specialState").textContent = cargo ? `${cargo.mass / 1000} t · ${cargo.width} m ancho` : "Sin carga";
+        document.querySelector("#specialState").textContent = cargo ? `${cargo.mass / 1000} t Â· ${cargo.width} m ancho` : "Sin carga";
         document.querySelector("#specialOperate").hidden = !cargo;
         document.querySelector("#specialOperate").disabled = false;
-        document.querySelector("#specialOperate").textContent = cargo ? "Preparar hidráulica" : "Preparar carga";
+        document.querySelector("#specialOperate").textContent = cargo ? "Preparar hidrÃ¡ulica" : "Preparar carga";
       };
       document.querySelector("#specialOperate").onclick = () => {
-        if (speed > 1) { document.querySelector("#specialState").textContent = "Detén el vehículo para operar"; return; }
+        if (speed > 1) { document.querySelector("#specialState").textContent = "DetÃ©n el vehÃ­culo para operar"; return; }
         const operation = specialTransport.advanceStage(); if (!operation) return;
-        document.querySelector("#specialOperate").textContent = operation.ready ? "Carga inspeccionada ✓" : operation.label;
+        document.querySelector("#specialOperate").textContent = operation.ready ? "Carga inspeccionada âœ“" : operation.label;
         document.querySelector("#specialOperate").disabled = operation.ready;
-        document.querySelector("#specialState").textContent = operation.ready ? "Lista · cadenas, presión y señalización verificadas" : operation.label;
+        document.querySelector("#specialState").textContent = operation.ready ? "Lista Â· cadenas, presiÃ³n y seÃ±alizaciÃ³n verificadas" : operation.label;
       };
       truck.onclick = () => build("truck");
       const chooseVehicle = type => { build(type); eventLog.record("operations","vehicle:selected",{vehicle:type}); };
@@ -1178,7 +1178,7 @@
       };
       document.querySelector("#moreControls").onclick = () => {
         document.body.classList.toggle("controls-expanded");
-        document.querySelector("#moreControls").textContent = document.body.classList.contains("controls-expanded") ? "Menos controles" : "Más controles";
+        document.querySelector("#moreControls").textContent = document.body.classList.contains("controls-expanded") ? "Menos controles" : "MÃ¡s controles";
       };
       document.querySelector("#cruise").onclick = () => {
         cruiseEnabled = !cruiseEnabled;
@@ -1233,16 +1233,16 @@
           V.position.set(-11, 0, depotZ); V.rotation.set(0, 0, 0);
           worker.position.set(-18, 0, depotZ + 7); worker.visible = true; onFoot = true;
           document.querySelector("#workMode").textContent = "Volver a conducir";
-          document.querySelector("#workState").textContent = "Operario · WASD y E";
+          document.querySelector("#workState").textContent = "Operario Â· WASD y E";
           document.querySelector("#cruise").classList.remove("on");
           document.querySelector("#parking").classList.add("on");
           document.querySelector("#parking").textContent = "Freno P activo";
         } else if (!heldPallet) {
           onFoot = false; worker.visible = false; palletJack.visible = false; forklift.visible = false;
-          document.querySelector("#workMode").textContent = "Ir al almacén";
+          document.querySelector("#workMode").textContent = "Ir al almacÃ©n";
           document.querySelector("#workState").textContent = loadedPallets === warehousePallets.length ? "Carga completa" : "Conductor";
         } else {
-          document.querySelector("#workState").textContent = "Primero entrega el palé";
+          document.querySelector("#workState").textContent = "Primero entrega el palÃ©";
         }
         cameraReady = false; syncWorkTool();
       };
@@ -1258,18 +1258,18 @@
           const available = warehousePallets.filter((p) => !p.userData.loaded)
             .sort((a, b) => a.position.distanceTo(worker.position) - b.position.distanceTo(worker.position))[0];
           if (!available || available.position.distanceTo(worker.position) > 4.2) {
-            document.querySelector("#workState").textContent = "Acércate a un palé"; return;
+            document.querySelector("#workState").textContent = "AcÃ©rcate a un palÃ©"; return;
           }
           heldPallet = available;
-          document.querySelector("#workState").textContent = "Lleva el palé detrás del camión";
+          document.querySelector("#workState").textContent = "Lleva el palÃ© detrÃ¡s del camiÃ³n";
         } else {
           const loadingPoint = new T.Vector3(V.position.x, 0, V.position.z + 10.5);
           if (worker.position.distanceTo(loadingPoint) > 5) {
-            document.querySelector("#workState").textContent = "Ve detrás del remolque"; return;
+            document.querySelector("#workState").textContent = "Ve detrÃ¡s del remolque"; return;
           }
           operationFrame = operationCinematics.start({ now:performance.now(), pallet:heldPallet, tool:workTool });
           cameraReady = false;
-          document.querySelector("#workState").textContent = "Operación de carga en curso";
+          document.querySelector("#workState").textContent = "OperaciÃ³n de carga en curso";
         }
         syncWorkTool();
       }
@@ -1284,18 +1284,18 @@
       document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
       document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
       const europeMapPanel=document.querySelector("#europeMapPanel");
-      async function activateRoadRoute(route,fromLabel,toLabel){activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>{regionalMaterials?.applyTo(osmCorridor.root);document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`}).catch(error=>console.warn("Corredor OSM no disponible",error));osmRoutePois.load(route,activeWorldRoute).then(items=>document.querySelector("#nearService").title=`${items.length} servicios reales de OpenStreetMap`).catch(error=>console.warn("POI OSM no disponibles; se mantienen servicios simulados",error));cargoHubs.setRoute(route,activeWorldRoute);cargoHubs.load().then(items=>document.querySelector("#cargoState").title=`${items.length} hubs de carga 3D`).catch(error=>console.warn("Hubs OSM no disponibles; se usa terminal procedural",error));regionalMaterials?.dispose();regionalMaterials=createRegionalMaterials({THREE:T,coordinates:{lon:route.coordinates[0][0],lat:route.coordinates[0][1]},qualityLevel});osmRoadMesh.applyMaterials(regionalMaterials);regionalMaterials.applyTo(osmCorridor.root);regionalMaterials.applyTo(cargoHubs.root);physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${fromLabel} → ${toLabel}`;return route;}
+      async function activateRoadRoute(route,fromLabel,toLabel){activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>{regionalMaterials?.applyTo(osmCorridor.root);document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios Â· ${counts.areas} terrenos Â· ${counts.trees} Ã¡rboles`}).catch(error=>console.warn("Corredor OSM no disponible",error));osmRoutePois.load(route,activeWorldRoute).then(items=>document.querySelector("#nearService").title=`${items.length} servicios reales de OpenStreetMap`).catch(error=>console.warn("POI OSM no disponibles; se mantienen servicios simulados",error));cargoHubs.setRoute(route,activeWorldRoute);cargoHubs.load().then(items=>document.querySelector("#cargoState").title=`${items.length} hubs de carga 3D`).catch(error=>console.warn("Hubs OSM no disponibles; se usa terminal procedural",error));regionalMaterials?.dispose();regionalMaterials=createRegionalMaterials({THREE:T,coordinates:{lon:route.coordinates[0][0],lat:route.coordinates[0][1]},qualityLevel});osmRoadMesh.applyMaterials(regionalMaterials);regionalMaterials.applyTo(osmCorridor.root);regionalMaterials.applyTo(cargoHubs.root);physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${fromLabel} â†’ ${toLabel}`;return route;}
       const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);await activateRoadRoute(route,from.toUpperCase(),to.toUpperCase());document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
       document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
       document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
       document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
       const worldPanel=document.querySelector("#worldPanel"),worldFrom=document.querySelector("#worldFrom"),worldTo=document.querySelector("#worldTo"),worldOutput=document.querySelector("#worldPlanOutput"),worldDrive=document.querySelector("#worldDriveButton"),worldFly=document.querySelector("#worldFlyButton"),worldSail=document.querySelector("#worldSailButton");
       const logisticsUI=mountLogisticsChainUI({chain:logisticsChain,controls:document.querySelector(".controls:not(.drive)"),getPlan:()=>plannedWorldRoute,getCargo:()=>({name:specialTransport?.state?.cargo?.name||career.activeContract?.cargo?.name||career.activeContract?.cargo||cargoFrame.label||"Carga general",type:cargoFrame.type,massKg:specialTransport?.state?.cargo?.mass||12000,units:Math.max(1,loadedPallets||1),temperature:cargoFrame.temperature}),getCondition:()=>({integrity:cargoFrame.integrity,temperature:cargoFrame.temperature,restraint:cargoFrame.restraint}),onActivateLeg:order=>{const leg=order?.legs?.[order.currentLeg];if(!leg)return;if(leg.mode==="air")activateMultimodalLeg("air","cargo_plane");else if(leg.mode==="sea")activateMultimodalLeg("sea","container_ship");else if(leg.mode==="road")worldDrive.click()}});
-      const worldOptions=WORLD_HUBS.map(hub=>`<option value="${hub.id}">${hub.name} · ${hub.countryCode}</option>`).join("");worldFrom.innerHTML=worldOptions;worldTo.innerHTML=worldOptions;worldFrom.value="madrid";worldTo.value="new_york";
+      const worldOptions=WORLD_HUBS.map(hub=>`<option value="${hub.id}">${hub.name} Â· ${hub.countryCode}</option>`).join("");worldFrom.innerHTML=worldOptions;worldTo.innerHTML=worldOptions;worldFrom.value="madrid";worldTo.value="new_york";
       document.querySelector("#worldMapButton").onclick=()=>{europeMapPanel.hidden=true;worldPanel.hidden=false};document.querySelector("#worldClose").onclick=()=>worldPanel.hidden=true;
-      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}const modeLabel={road:"Carretera",rail:"Ferrocarril",sea:"Barco",air:"Avión"};worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${modeLabel[leg.mode]||leg.mode}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;const customsLeg=plannedWorldRoute.legs.find(leg=>leg.from.countryCode!==leg.to.countryCode)||plannedWorldRoute.legs[0];borderOperations.inspect(customsLeg,{cargo:specialTransport?.state?.cargo?.name||career.activeContract?.cargo||"Carga general",adr:specialCargoIndex>=0});borderOperations.render(worldOutput);worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
+      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexiÃ³n con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestresâ€¦";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}const modeLabel={road:"Carretera",rail:"Ferrocarril",sea:"Barco",air:"AviÃ³n"};worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${modeLabel[leg.mode]||leg.mode}</b> Â· ${leg.from.name} â†’ ${leg.to.name} Â· ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km Â· ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;const customsLeg=plannedWorldRoute.legs.find(leg=>leg.from.countryCode!==leg.to.countryCode)||plannedWorldRoute.legs[0];borderOperations.inspect(customsLeg,{cargo:specialTransport?.state?.cargo?.name||career.activeContract?.cargo||"Carga general",adr:specialCargoIndex>=0});borderOperations.render(worldOutput);worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
       worldDrive.onclick=async()=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode==="road"&&item.coordinates);if(!leg)return;borderOperations.clear();await activateRoadRoute({coordinates:leg.coordinates,steps:[],distanceKm:leg.distanceKm,durationHours:leg.durationHours},leg.from.name,leg.to.name);document.querySelector("#city").textContent=leg.from.name;worldPanel.hidden=true};
-      const activateMultimodalLeg=(mode,vehicleType)=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode===mode);if(!leg)return;borderOperations.clear();build(vehicleType);fleetVehicle.value=vehicleType;document.querySelector("#city").textContent=leg.from.name;document.querySelector("#workState").textContent=`${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`;cargoAssigned=true;worldPanel.hidden=true;eventLog.record("operations",`multimodal:${mode}_started`,{from:leg.from.name,to:leg.to.name,distanceKm:Math.round(leg.distanceKm),vehicle:vehicleType})};
+      const activateMultimodalLeg=(mode,vehicleType)=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode===mode);if(!leg)return;borderOperations.clear();build(vehicleType);fleetVehicle.value=vehicleType;document.querySelector("#city").textContent=leg.from.name;document.querySelector("#workState").textContent=`${leg.from.name} â†’ ${leg.to.name} Â· ${Math.round(leg.distanceKm)} km`;cargoAssigned=true;worldPanel.hidden=true;eventLog.record("operations",`multimodal:${mode}_started`,{from:leg.from.name,to:leg.to.name,distanceKm:Math.round(leg.distanceKm),vehicle:vehicleType})};
       worldFly.onclick=()=>activateMultimodalLeg("air","cargo_plane");
       worldSail.onclick=()=>activateMultimodalLeg("sea","container_ship");
       function drawRouteMap() {
@@ -1309,33 +1309,33 @@
         mapCtx.strokeStyle = "#354b59"; mapCtx.lineWidth = 30 * scale; mapCtx.beginPath(); mapCtx.moveTo(mapX(0), mapY(V.position.z - range * 1.1)); mapCtx.lineTo(mapX(0), mapY(V.position.z + range * 1.1)); mapCtx.stroke();
         for (const laneX of [-7.5, 0, 7.5]) { mapCtx.strokeStyle = laneX ? "#e8e6d0" : "#f0cf5d"; mapCtx.lineWidth = Math.max(1, .16 * scale); mapCtx.setLineDash(laneX ? [] : [10 * scale, 8 * scale]); mapCtx.beginPath(); mapCtx.moveTo(mapX(laneX), 0); mapCtx.lineTo(mapX(laneX), h); mapCtx.stroke(); }
         mapCtx.setLineDash([]); mapCtx.font = "600 11px system-ui"; mapCtx.textBaseline = "middle";
-        cityData.forEach((city) => { const x = mapX(0), y = mapY(city.z); if (y < -20 || y > h + 20) return; mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(x, y, 6, 0, Math.PI * 2); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = "left"; mapCtx.fillText(`${city.name} · ${Math.round(Math.abs(city.z - V.position.z))} m`, x + 11, y); });
-        const markers = [{ x: roadworks.position.x, z: roadworks.position.z + 70, color: "#ff9d32", label: "Obras" }, { x: 0, z: -250, color: "#a9b7c3", label: "Túnel" }];
+        cityData.forEach((city) => { const x = mapX(0), y = mapY(city.z); if (y < -20 || y > h + 20) return; mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(x, y, 6, 0, Math.PI * 2); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = "left"; mapCtx.fillText(`${city.name} Â· ${Math.round(Math.abs(city.z - V.position.z))} m`, x + 11, y); });
+        const markers = [{ x: roadworks.position.x, z: roadworks.position.z + 70, color: "#ff9d32", label: "Obras" }, { x: 0, z: -250, color: "#a9b7c3", label: "TÃºnel" }];
         roadsideServices.services.forEach(service => markers.push({ x: service.side * 39, z: service.z, color: service.type === "fuel" ? "#47dfc7" : service.type === "workshop" ? "#f1ad45" : "#69aaf2", label: service.type === "fuel" ? "Gasolinera" : service.type === "workshop" ? "Taller" : "Descanso" }));
-        traffic3d.forEach((vehicle) => markers.push({ x: vehicle.position.x, z: vehicle.position.z, color: "#e8eef2", label: "Tráfico" }));
+        traffic3d.forEach((vehicle) => markers.push({ x: vehicle.position.x, z: vehicle.position.z, color: "#e8eef2", label: "TrÃ¡fico" }));
         markers.forEach((marker) => { const x = mapX(marker.x), y = mapY(marker.z); if (x < 0 || x > w || y < 0 || y > h) return; mapCtx.fillStyle = marker.color; mapCtx.fillRect(x - 4, y - 6, 8, 12); if (range <= 280) { mapCtx.fillStyle = "#b9cbd3"; mapCtx.textAlign = "left"; mapCtx.fillText(marker.label, x + 7, y); } });
         mapCtx.save(); mapCtx.translate(cx, cy); mapCtx.rotate(-V.rotation.y); mapCtx.fillStyle = "#55f0c8"; mapCtx.shadowColor = "#55f0c8"; mapCtx.shadowBlur = 10; mapCtx.beginPath(); mapCtx.moveTo(0, -13); mapCtx.lineTo(-8, 10); mapCtx.lineTo(0, 6); mapCtx.lineTo(8, 10); mapCtx.closePath(); mapCtx.fill(); mapCtx.restore();
-        mapCtx.shadowBlur = 0; mapCtx.fillStyle = "#071017dd"; mapCtx.fillRect(8, 8, w - 16, 38); mapCtx.fillStyle = "#e7fbf7"; mapCtx.textAlign = "left"; mapCtx.font = "700 12px system-ui"; mapCtx.fillText(`PK ${(physicalDistance / 1000).toFixed(2)} · X ${V.position.x.toFixed(1)} · Z ${V.position.z.toFixed(1)} · ${Math.round(((V.rotation.y * 180 / Math.PI) + 360) % 360)}°`, 16, 22);
-        mapCtx.fillStyle = "#8faab4"; mapCtx.font = "11px system-ui"; mapCtx.fillText(`${document.querySelector("#city").textContent} · seguimiento GPS activo`, 16, 38);
+        mapCtx.shadowBlur = 0; mapCtx.fillStyle = "#071017dd"; mapCtx.fillRect(8, 8, w - 16, 38); mapCtx.fillStyle = "#e7fbf7"; mapCtx.textAlign = "left"; mapCtx.font = "700 12px system-ui"; mapCtx.fillText(`PK ${(physicalDistance / 1000).toFixed(2)} Â· X ${V.position.x.toFixed(1)} Â· Z ${V.position.z.toFixed(1)} Â· ${Math.round(((V.rotation.y * 180 / Math.PI) + 360) % 360)}Â°`, 16, 22);
+        mapCtx.fillStyle = "#8faab4"; mapCtx.font = "11px system-ui"; mapCtx.fillText(`${document.querySelector("#city").textContent} Â· seguimiento GPS activo`, 16, 38);
         const scaleMeters = range <= 140 ? 25 : range <= 560 ? 100 : 250, scalePixels = scaleMeters * scale;
         mapCtx.strokeStyle = "#ffffff"; mapCtx.lineWidth = 2; mapCtx.beginPath(); mapCtx.moveTo(16, h - 18); mapCtx.lineTo(16 + scalePixels, h - 18); mapCtx.stroke(); mapCtx.fillStyle = "#ffffff"; mapCtx.fillText(`${scaleMeters} m`, 16, h - 29);
       }
       function updateCareerHud() {
-        document.querySelector("#moneyState").textContent = `${Math.round(career.state.economy.money).toLocaleString("es-ES")} €`;
-        document.querySelector("#levelState").textContent = `${career.state.progress.level} · ${career.state.progress.xp} XP`;
+        document.querySelector("#moneyState").textContent = `${Math.round(career.state.economy.money).toLocaleString("es-ES")} â‚¬`;
+        document.querySelector("#levelState").textContent = `${career.state.progress.level} Â· ${career.state.progress.xp} XP`;
         document.querySelector("#fuelState").textContent = `${Math.round(career.state.truck.fuel)}%`;
       }
       document.querySelector("#contractButton").onclick = () => {
-        try { const job = career.generateContracts(3)[0]; career.acceptContract(job.id); cargoAssigned=true; cargoFrame=cargoCondition.select(cargoProfileFor(job)); document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`; document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`; renderCargoCondition(); }
+        try { const job = career.generateContracts(3)[0]; career.acceptContract(job.id); cargoAssigned=true; cargoFrame=cargoCondition.select(cargoProfileFor(job)); document.querySelector("#cargoState").textContent = `${job.cargo.name} Â· ${job.distanceKm} km`; document.querySelector("#workState").textContent = `${job.from.name} â†’ ${job.to.name}`; renderCargoCondition(); }
         catch (error) { document.querySelector("#workState").textContent = error.message; }
         updateCareerHud();
       };
       document.querySelector("#contractButton").onclick = () => companyPanel.open();
       document.querySelector("#serviceButton").onclick = () => {
-        if (speed > 1) { document.querySelector("#workState").textContent = "Detén el camión para entrar al taller"; return; }
-        if (!nearestRoadsideService || nearestRoadsideService.distance > 72 || !["workshop", "fuel"].includes(nearestRoadsideService.type)) { document.querySelector("#workState").textContent = "Acércate a un taller o gasolinera"; return; }
-        if (nearestRoadsideService.type === "fuel") { career.refuel(); document.querySelector("#workState").textContent = "Depósito lleno"; }
-        else { career.repair(100); document.querySelector("#workState").textContent = "Reparación completada"; }
+        if (speed > 1) { document.querySelector("#workState").textContent = "DetÃ©n el camiÃ³n para entrar al taller"; return; }
+        if (!nearestRoadsideService || nearestRoadsideService.distance > 72 || !["workshop", "fuel"].includes(nearestRoadsideService.type)) { document.querySelector("#workState").textContent = "AcÃ©rcate a un taller o gasolinera"; return; }
+        if (nearestRoadsideService.type === "fuel") { career.refuel(); document.querySelector("#workState").textContent = "DepÃ³sito lleno"; }
+        else { career.repair(100); document.querySelector("#workState").textContent = "ReparaciÃ³n completada"; }
         updateCareerHud();
       };
       const achievementsPanel = document.querySelector("#achievementsPanel"), achievementList = document.querySelector("#achievementList");
@@ -1343,7 +1343,7 @@
       document.querySelector("#achievementsButton").onclick = () => { renderAchievements(); achievementsPanel.hidden = false; };
       document.querySelector("#achievementsClose").onclick = () => achievementsPanel.hidden = true;
       const academyPanel = document.querySelector("#academyPanel"), academyState = document.querySelector("#academyState"), academyLessons = document.querySelector("#academyLessons");
-      function renderAcademy() { academyLessons.innerHTML = drivingAcademy.lessons.map(item => `<button data-lesson="${item.id}">${item.name}<small style="display:block">${item.duration} s · máximo ${item.maxSpeed} km/h · mejor ${"★".repeat(drivingAcademy.best[item.id] || 0)}${"☆".repeat(3 - (drivingAcademy.best[item.id] || 0))}</small></button>`).join(""); academyLessons.querySelectorAll("[data-lesson]").forEach(button => button.onclick = () => { const lesson = drivingAcademy.start(button.dataset.lesson); academyState.textContent = `${lesson.name}: conduce ${lesson.duration} s sin colisiones, excesos ni maniobras bruscas.`; academyPanel.hidden = true; }); }
+      function renderAcademy() { academyLessons.innerHTML = drivingAcademy.lessons.map(item => `<button data-lesson="${item.id}">${item.name}<small style="display:block">${item.duration} s Â· mÃ¡ximo ${item.maxSpeed} km/h Â· mejor ${"â˜…".repeat(drivingAcademy.best[item.id] || 0)}${"â˜†".repeat(3 - (drivingAcademy.best[item.id] || 0))}</small></button>`).join(""); academyLessons.querySelectorAll("[data-lesson]").forEach(button => button.onclick = () => { const lesson = drivingAcademy.start(button.dataset.lesson); academyState.textContent = `${lesson.name}: conduce ${lesson.duration} s sin colisiones, excesos ni maniobras bruscas.`; academyPanel.hidden = true; }); }
       document.querySelector("#academyButton").onclick = () => { renderAcademy(); academyPanel.hidden = false; };
       document.querySelector("#academyClose").onclick = () => academyPanel.hidden = true;
       document.querySelector("#engineButton").onclick = async () => { engineRunning=!engineRunning; await engineAudio.setRunning(engineRunning); document.querySelector("#engineButton").textContent=engineRunning?"Apagar motor":"Arrancar motor"; document.querySelector("#engineButton").classList.toggle("on",engineRunning); eventLog.record("operations",engineRunning?"engine:started":"engine:stopped",{vehicle:kind}); if(!engineRunning){cruiseEnabled=false;document.querySelector("#cruise").classList.remove("on")} };
@@ -1354,22 +1354,22 @@
         if (msg.type === "message") {
           const assist = document.querySelector("#assistState");
           if (assist) {
-            assist.textContent = `📻 [CH ${msg.channel}] ${msg.text.slice(0, 32)}`;
+            assist.textContent = `ðŸ“» [CH ${msg.channel}] ${msg.text.slice(0, 32)}`;
             assist.style.color = "#55ead9";
           }
         }
       });
       window.MoonConvoy?.onChange?.(state => {
-        document.querySelector("#convoyState").textContent = state?.joined ? `${state.room} · ${state.players?.length || 0} jugadores · ${state.ai?.length || 0} IA · ${state.mode === "online" ? `${state.ping} ms` : "LAN"}` : "Desconectado";
+        document.querySelector("#convoyState").textContent = state?.joined ? `${state.room} Â· ${state.players?.length || 0} jugadores Â· ${state.ai?.length || 0} IA Â· ${state.mode === "online" ? `${state.ping} ms` : "LAN"}` : "Desconectado";
         if(releaseChannel.includes("alpha")){
           sharedWorldPresence?.update?.(state, state?.you);
-          const operation = sharedOperations?.get?.(state); if (operation) document.querySelector("#convoyState").title = `${operation.name} · ${operation.ready}/${operation.roles.length} medios en destino · ${operation.remaining} s`;
+          const operation = sharedOperations?.get?.(state); if (operation) document.querySelector("#convoyState").title = `${operation.name} Â· ${operation.ready}/${operation.roles.length} medios en destino Â· ${operation.remaining} s`;
         }else sharedWorldPresence?.update?.({players:[],ai:[]}, state?.you);
       });
       updateCareerHud();
       document.querySelector("#rest").onclick = () => {
-        if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
-        if (!nearestRoadsideService || nearestRoadsideService.type !== "rest" || nearestRoadsideService.distance > 72) { document.querySelector("#fatigueState").textContent = "Busca un área de descanso"; return; }
+        if (speed > 1) { document.querySelector("#fatigueState").textContent = "DetÃ©n el vehÃ­culo"; return; }
+        if (!nearestRoadsideService || nearestRoadsideService.type !== "rest" || nearestRoadsideService.distance > 72) { document.querySelector("#fatigueState").textContent = "Busca un Ã¡rea de descanso"; return; }
         fatigue = 0; parkingBrake = true; cruiseEnabled = false;
         document.querySelector("#cruise").classList.remove("on"); document.querySelector("#cruise").textContent = "Crucero";
         document.querySelector("#fatigueState").textContent = "Descanso completado";
@@ -1377,7 +1377,7 @@
       document.querySelector("#rescue").onclick = () => {
         speed = 0; steer = 0; V.position.x = -5.5; V.rotation.set(0, 0, 0); parkingBrake = true;
         damage = Math.max(0, damage - 15); cruiseEnabled = false;
-        document.querySelector("#assistState").textContent = "Vehículo recuperado";
+        document.querySelector("#assistState").textContent = "VehÃ­culo recuperado";
         eventLog.record("operations","vehicle:recovered",{damage:Math.round(damage),city:document.querySelector("#city").textContent},{severity:"warning"});
       };
       let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0, cockpitDrawAt = 0, cargoDrawAt = 0, europeMapDrawAt = 0;
@@ -1389,23 +1389,23 @@
         const operationPanel = document.querySelector("#operationCinematic");
         operationPanel.hidden = !operationFrame.active;
         if (operationFrame.active) {
-          const phases = { align:"Alineando la mercancía con el remolque", lift:"Elevando y entrando en la caja", secure:"Asegurando el palé y comprobando anclajes" };
+          const phases = { align:"Alineando la mercancÃ­a con el remolque", lift:"Elevando y entrando en la caja", secure:"Asegurando el palÃ© y comprobando anclajes" };
           const percent = Math.round(operationFrame.progress * 100);
           document.querySelector("#operationProgress").value = percent;
           document.querySelector("#operationPercent").textContent = `${percent}%`;
-          document.querySelector("#operationHint").textContent = phases[operationFrame.phase] || "Completando operación";
+          document.querySelector("#operationHint").textContent = phases[operationFrame.phase] || "Completando operaciÃ³n";
           if (heldPallet) {
             const loadingPoint = new T.Vector3(V.position.x, .45, V.position.z + 8.8);
             heldPallet.visible = true; heldPallet.position.lerp(loadingPoint, Math.min(1, dt * 2.2));
           }
         } else if (previousOperation.active && heldPallet) {
           heldPallet.userData.loaded = true; heldPallet.visible = false; heldPallet = null; loadedPallets++; cargoAssigned=true; cameraReady=false;
-          document.querySelector("#cargoState").textContent = `${loadedPallets}/${warehousePallets.length} palés`;
-          document.querySelector("#workState").textContent = loadedPallets === warehousePallets.length ? "Carga completa · vuelve a conducir" : "Palé asegurado · recoge otro";
+          document.querySelector("#cargoState").textContent = `${loadedPallets}/${warehousePallets.length} palÃ©s`;
+          document.querySelector("#workState").textContent = loadedPallets === warehousePallets.length ? "Carga completa Â· vuelve a conducir" : "PalÃ© asegurado Â· recoge otro";
           eventLog.record("operations","cargo:pallet-loaded",{ loaded:loadedPallets, total:warehousePallets.length, tool:previousOperation.tool });
           if (loadedPallets === warehousePallets.length && !networkShipmentCreated) {
             const shipment = window.MoonLogistics?.create("Rutas del Continente 3D"); networkShipmentCreated = true;
-            if (shipment) document.querySelector("#cargoState").textContent = `${shipment.cargo} · lista para ferrocarril`;
+            if (shipment) document.querySelector("#cargoState").textContent = `${shipment.cargo} Â· lista para ferrocarril`;
           }
           syncWorkTool();
         }
@@ -1437,9 +1437,9 @@
         const worldState = worldEvents.update({ position: V.position, speed, dt, weather: regionalEventFrame.effects.weather||currentWeather(), synchronizedTime: convoyNow / 1000, defaultSpeedLimit:regionalEventFrame.effects.speedLimit||90 });
         nearestRoadsideService = activeOsmRoute ? (osmRoutePois.nearest(V.position) || routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null) : roadsideServices.update(V.position);
         weighStation.update({ service:nearestRoadsideService, speed, cargoMassKg:cargoAssigned ? ({standard:12000,cold:15000,fragile:9000,adr:17500,livestock:13500}[cargoFrame.type] || 12000) : 0, restraint:cargoFrame.restraint });
-        const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso", charging: "Carga eléctrica" };
+        const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso", charging: "Carga elÃ©ctrica" };
         document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
-          ? `${nearestRoadsideService.name || serviceNames[nearestRoadsideService.type] || "Servicio"} · ${Math.round(nearestRoadsideService.distance)} m`
+          ? `${nearestRoadsideService.name || serviceNames[nearestRoadsideService.type] || "Servicio"} Â· ${Math.round(nearestRoadsideService.distance)} m`
           : "En ruta";
         const specialFrame = (specialTransport && typeof specialTransport.update === "function")
           ? (specialTransport.update({ dt, speed, laneOffset: V.position.x }) || { active: false, cargo: { mass: 0, height: 1.65 }, ready: true, maxSpeed: 90, stageLabel: "" })
@@ -1447,7 +1447,7 @@
         if(releaseChannel.includes("alpha")){
           window.MoonConvoy?.update?.({ game: "truck", vehicle: kind, x: V.position.x, y: V.position.z, z: V.position.z, altitude: V.position.y, speed, heading: V.rotation.y, cargo: career.activeContract?.cargo?.name || "", engine:engineRunning, headlights:headlightsOn, braking:Boolean(braking), indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0, hazards:hazardsOn, siren:sirenOn, weather:worldState.localWeather });
           sharedWorldPresence?.tick?.(dt);
-          const sharedMission = sharedOperations?.get?.(window.MoonConvoy?.state || {}, Date.now()); if (sharedMission && window.MoonConvoy?.state?.joined) document.querySelector("#specialState").textContent = sharedMission.complete ? `${sharedMission.name} · COMPLETADA` : `${sharedMission.name} · ${sharedMission.ready}/${sharedMission.roles.length} · ${sharedMission.remaining}s`;
+          const sharedMission = sharedOperations?.get?.(window.MoonConvoy?.state || {}, Date.now()); if (sharedMission && window.MoonConvoy?.state?.joined) document.querySelector("#specialState").textContent = sharedMission.complete ? `${sharedMission.name} Â· COMPLETADA` : `${sharedMission.name} Â· ${sharedMission.ready}/${sharedMission.roles.length} Â· ${sharedMission.remaining}s`;
         }
         window.TransportAchievements?.update?.({ distance: career.state.progress.distanceKm, speed, loaded: loadedPallets, rain: isWetWeather(), night: currentWeather() === "night", convoyPlayers: window.MoonConvoy?.state?.players?.length || 0, damage: Math.round(damage) });
         if (worldState.totalFines > lastWorldFine) {
@@ -1501,7 +1501,7 @@
             vehicleType: kind,
           }, dt);
           speed = physicalFrame.speedKmh; physicalDistance += physicalFrame.forwardMeters;
-          document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC · ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
+          document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC Â· ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
         }
         speed = T.MathUtils.clamp(speed, 0, specialFrame?.active ? specialFrame.maxSpeed : V.userData.maxSpeed || (kind === "bus" ? 92 : 112));
         const activeAircraft=AIR_FLEET.find(item=>item.id===kind);
@@ -1528,7 +1528,7 @@
           if(activeOsmRoute&&activeWorldRoute!==worldPolygonRouteRef){worldPolygonRouteRef=activeWorldRoute;worldPolygonMesh.setRoute(activeOsmRoute,activeWorldRoute);worldPolygonMesh.applyMaterials(regionalMaterials);}
           worldPolygonMesh.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[700,1200,2200,4200,5200][qualityLevel]||2200});
           const cargoHub=cargoHubs.update(dt,{playerPosition:V.position,camera:C});
-          if(cargoHub?.distance<180){document.querySelector("#cargoState").textContent=`${cargoHub.name} · ${cargoHub.type}`;if(cargoHub.active)document.querySelector("#workState").textContent="Zona de transferencia de carga";}
+          if(cargoHub?.distance<180){document.querySelector("#cargoState").textContent=`${cargoHub.name} Â· ${cargoHub.type}`;if(cargoHub.active)document.querySelector("#workState").textContent="Zona de transferencia de carga";}
         } else {
           V.position.x = T.MathUtils.clamp(V.position.x + (physicalFrame?.lateralMovement || steer * speed * dt * .025),-17.5,17.5);
           if (!onFoot) V.position.z -= physicalFrame?.forwardMeters || speed * dt / 3.6;
@@ -1541,16 +1541,16 @@
         fatigue = Math.min(100, fatigue + speed * dt * 0.00065);
         if (fatigue > 82) {
           steer += Math.sin(now * 0.0017) * dt * 0.08;
-          document.querySelector("#fatigueState").textContent = `Crítica ${Math.round(fatigue)}%`;
+          document.querySelector("#fatigueState").textContent = `CrÃ­tica ${Math.round(fatigue)}%`;
         } else document.querySelector("#fatigueState").textContent = fatigue > 55 ? `Cansancio ${Math.round(fatigue)}%` : `Descanso ${Math.round(100 - fatigue)}%`;
         let collisionThisFrame = false;
         if (nearest && nearest.gap < 4.5 && nearest.lateral < 2.4) {
           collisionThisFrame = true;
           speed *= 0.18; damage = Math.min(100, damage + 8);
-          document.querySelector("#assistState").textContent = "Colisión detectada"; wheelInput.pulse(0.8, 220);
+          document.querySelector("#assistState").textContent = "ColisiÃ³n detectada"; wheelInput.pulse(0.8, 220);
         }
         const lessonFrame = drivingAcademy.update(dt, { speed, acceleration: physicalFrame?.acceleration, lateralG: physicalFrame?.lateralG, collision: collisionThisFrame, interior: view === 1 || view === 2 });
-        if (lessonFrame) academyState.textContent = lessonFrame.done ? `${lessonFrame.name}: ${"★".repeat(lessonFrame.stars)}${"☆".repeat(3 - lessonFrame.stars)} · ${lessonFrame.score} puntos` : `${lessonFrame.name} · ${Math.ceil(lessonFrame.duration - lessonFrame.elapsed)} s · excesos ${lessonFrame.speeding.toFixed(1)} s · golpes ${lessonFrame.collisions}`;
+        if (lessonFrame) academyState.textContent = lessonFrame.done ? `${lessonFrame.name}: ${"â˜…".repeat(lessonFrame.stars)}${"â˜†".repeat(3 - lessonFrame.stars)} Â· ${lessonFrame.score} puntos` : `${lessonFrame.name} Â· ${Math.ceil(lessonFrame.duration - lessonFrame.elapsed)} s Â· excesos ${lessonFrame.speeding.toFixed(1)} s Â· golpes ${lessonFrame.collisions}`;
         if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); wheelInput.pulse(0.22, 45); }
         if (bumpTime > 0) { bumpTime -= dt; V.position.y = Math.abs(Math.sin(bumpTime * 34)) * 0.12; }
         else V.position.y += ((physicalFrame?.suspension || 0) - V.position.y) * Math.min(1, dt * 12);
@@ -1561,27 +1561,27 @@
           if(now>=cargoDrawAt){cargoDrawAt=now+250;renderCargoCondition(cargoFrame)}
         }
         document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
-        document.querySelector("#physicsState").textContent = physicalFrame?.aquaplaning > .12 ? `Aquaplaning · ${Math.round(physicalFrame.aquaplaning * 100)}%` : Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "Arcén · baja adherencia" : isWetWeather() ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : currentWeather() === "snow" ? `Nieve · ${Math.round((physicalFrame?.grip || .58) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
-        document.querySelector("#transmissionState").textContent = engineRunning ? `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}ª`} · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°` : `Motor apagado · aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar`;
+        document.querySelector("#physicsState").textContent = physicalFrame?.aquaplaning > .12 ? `Aquaplaning Â· ${Math.round(physicalFrame.aquaplaning * 100)}%` : Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "ArcÃ©n Â· baja adherencia" : isWetWeather() ? `Mojado Â· ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : currentWeather() === "snow" ? `Nieve Â· ${Math.round((physicalFrame?.grip || .58) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
+        document.querySelector("#transmissionState").textContent = engineRunning ? `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}Âª`} Â· ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm Â· aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar Â· frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}Â°` : `Motor apagado Â· aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar`;
         engineAudio.update({rpm:engineRunning?(physicalFrame?.rpm||physics.rpm):0,load:Number(accelerating)||0,running:engineRunning,speed,surface:Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?"gravel":"asphalt",weather:currentWeather(),windSpeed:liveWeatherState?.windSpeed||(currentWeather()==="storm"?34:isWetWeather()?18:5),braking:Boolean(braking),indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0,hazards:hazardsOn});
-        document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
-        if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
-        else if (physicalFrame?.lowAirPressure) document.querySelector("#assistState").textContent = `⚠ Presión de aire baja · ${physicalFrame.airPressureBar.toFixed(1)} bar`;
-        else if (physicalFrame?.absActive) document.querySelector("#assistState").textContent = `ABS actuando · ${Math.round(physicalFrame.absPressure * 100)}% presión`;
-        else if (physicalFrame?.tractionLimited) document.querySelector("#assistState").textContent = "Control de tracción actuando";
+        document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " Â· EXCESO" : ""}` : "SemÃ¡foro rojo";
+        if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco Â· reduce velocidad";
+        else if (physicalFrame?.lowAirPressure) document.querySelector("#assistState").textContent = `âš  PresiÃ³n de aire baja Â· ${physicalFrame.airPressureBar.toFixed(1)} bar`;
+        else if (physicalFrame?.absActive) document.querySelector("#assistState").textContent = `ABS actuando Â· ${Math.round(physicalFrame.absPressure * 100)}% presiÃ³n`;
+        else if (physicalFrame?.tractionLimited) document.querySelector("#assistState").textContent = "Control de tracciÃ³n actuando";
         if (specialFrame?.active) {
-          document.querySelector("#specialState").textContent = specialFrame.ready ? `${specialFrame.cargo?.name || "Especial"} · ${(specialFrame.cargo?.mass || 0) / 1000} t · escolta ${specialFrame.escortCount}` : specialFrame.stageLabel;
-          if (!specialFrame.ready) document.querySelector("#assistState").textContent = "Completa la preparación antes de circular";
+          document.querySelector("#specialState").textContent = specialFrame.ready ? `${specialFrame.cargo?.name || "Especial"} Â· ${(specialFrame.cargo?.mass || 0) / 1000} t Â· escolta ${specialFrame.escortCount}` : specialFrame.stageLabel;
+          if (!specialFrame.ready) document.querySelector("#assistState").textContent = "Completa la preparaciÃ³n antes de circular";
           if (specialFrame.restricted) document.querySelector("#assistState").textContent = "Carga especial: centra el convoy y reduce velocidad";
         }
         document.querySelector("#dashSpeed").textContent = Math.round(speed);
         const activeAssist=document.querySelector("#assistState"),assistText=activeAssist.textContent;
-        const assistLevel=/colisión|sin combustible|vuelco|frenando/i.test(assistText)?"critical":/exceso|actuando|reduce|preparación|especial/i.test(assistText)?"warning":"info";
+        const assistLevel=/colisiÃ³n|sin combustible|vuelco|frenando/i.test(assistText)?"critical":/exceso|actuando|reduce|preparaciÃ³n|especial/i.test(assistText)?"warning":"info";
         activeAssist.dataset.level=assistLevel;
         hudMotion.update({speed,limit:worldState.currentSpeedLimit||90,alertLevel:assistLevel});
         document.querySelector("#dashGear").textContent = `D${physicalFrame?.gear || physics.gear}`;
         document.querySelector("#dashFuel").textContent = `${Math.round(career.state.truck.fuel)}% combustible`;
-        document.querySelector("#dashLimit").textContent = worldState.currentSpeedLimit ? `Límite ${worldState.currentSpeedLimit}` : "STOP";
+        document.querySelector("#dashLimit").textContent = worldState.currentSpeedLimit ? `LÃ­mite ${worldState.currentSpeedLimit}` : "STOP";
         document.querySelector("#dashRpmBar").style.width = `${Math.min(100, (physicalFrame?.rpm || physics.rpm) / 23)}%`;
         document.querySelector("#visualWheel").style.transform = `rotate(${steer * 135}deg)`;
         if (V.userData.cockpitSteering) V.userData.cockpitSteering.rotation.z = -steer * 1.75;
@@ -1593,7 +1593,7 @@
         if (V.userData.instrument && now >= cockpitDrawAt) {
           cockpitDrawAt = now + 80;
           const { canvas, context: x, texture } = V.userData.instrument;
-          const gearLabel = physicalFrame?.shifting ? "↕" : `D${physicalFrame?.gear || physics.gear}`;
+          const gearLabel = physicalFrame?.shifting ? "â†•" : `D${physicalFrame?.gear || physics.gear}`;
           x.clearRect(0, 0, canvas.width, canvas.height);
           const gradient = x.createLinearGradient(0, 0, 0, canvas.height); gradient.addColorStop(0, "#12313a"); gradient.addColorStop(1, "#020709");
           x.fillStyle = gradient; x.fillRect(0, 0, canvas.width, canvas.height);
@@ -1601,7 +1601,7 @@
           x.textAlign = "center"; x.fillStyle = "#eafffb"; x.font = "700 82px system-ui"; x.fillText(Math.round(speed), 250, 98);
           x.font = "600 22px system-ui"; x.fillStyle = "#8edfd4"; x.fillText(`km/h     ${gearLabel}     ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm`, 250, 137);
           x.font = "500 18px system-ui"; x.fillStyle = worldState.speeding ? "#ff756b" : "#b4c8cd";
-          x.fillText(`LÍMITE ${worldState.currentSpeedLimit || 0}  ·  COMBUSTIBLE ${Math.round(career.state.truck.fuel)}%  ·  FRENO ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`, 250, 169);
+          x.fillText(`LÃMITE ${worldState.currentSpeedLimit || 0}  Â·  COMBUSTIBLE ${Math.round(career.state.truck.fuel)}%  Â·  FRENO ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}Â°`, 250, 169);
           texture.needsUpdate = true;
           if (V.userData.navigation) {
             const { canvas: navCanvas, context: nav, texture: navTexture } = V.userData.navigation;
@@ -1611,7 +1611,7 @@
             nav.strokeStyle = "#42dbc5"; nav.lineWidth = 28; nav.lineCap = "round"; nav.beginPath();
             if(activeOsmRoute&&activeWorldRoute.length){const centerIndex=Math.min(activeWorldRoute.length-1,Math.floor(Math.min(1,physicalDistance/Math.max(1,routeRuntime.length))*(activeWorldRoute.length-1))),start=Math.max(0,centerIndex-12),end=Math.min(activeWorldRoute.length-1,centerIndex+45),pose=routeRuntime.sampleAt(Math.min(physicalDistance,routeRuntime.length),0),heading=pose?.heading||0,cos=Math.cos(-heading),sin=Math.sin(-heading),scale=.42;for(let i=start;i<=end;i++){const dx=activeWorldRoute[i].x-(pose?.x||0),dz=activeWorldRoute[i].z-(pose?.z||0),x=192+(dx*cos-dz*sin)*scale,y=255+(dx*sin+dz*cos)*scale;(i===start?nav.moveTo(x,y):nav.lineTo(x,y));}nav.stroke()}else{nav.moveTo(192,420);nav.bezierCurveTo(185,300,245,236,170,120);nav.bezierCurveTo(138,70,185,42,230,-20);nav.stroke()}
             nav.fillStyle = "#f5fbfa"; nav.beginPath(); nav.moveTo(192, 230); nav.lineTo(172, 274); nav.lineTo(192, 264); nav.lineTo(212, 274); nav.closePath(); nav.fill();
-            nav.fillStyle = "#9db4bc"; nav.font = "600 23px system-ui"; nav.textAlign = "center"; nav.fillText(`${document.querySelector("#city").textContent} · ${Math.max(1, Math.round((V.position.z + 2800) / 100))} km`, 192, 354);
+            nav.fillStyle = "#9db4bc"; nav.font = "600 23px system-ui"; nav.textAlign = "center"; nav.fillText(`${document.querySelector("#city").textContent} Â· ${Math.max(1, Math.round((V.position.z + 2800) / 100))} km`, 192, 354);
             navTexture.needsUpdate = true;
           }
         }
@@ -1632,7 +1632,7 @@
           "Nova Liria",
           "Puerto Alba",
           "Valleverde",
-          "Bahía Solar",
+          "BahÃ­a Solar",
         ][Math.max(0, Math.floor((420 - V.position.z) / 205) % 4)];
         regionOperations.update({ city:document.querySelector("#city").textContent, distance:physicalDistance, service:nearestRoadsideService, roadState:document.querySelector("#roadEvent").textContent, now });
         let navigationFrame = null;
@@ -1640,20 +1640,20 @@
           const progress=Math.min(1,physicalDistance/Math.max(1,routeRuntime.length)),gpsCoordinate=coordinateAtRouteProgress(activeOsmRoute,progress);
           navigationFrame=routeNavigation.update(gpsCoordinate,{speedKmh:speed});
           document.querySelector("#dashNavInstruction").textContent=navigationFrame.arrived?"Destino alcanzado":navigationFrame.offRoute?"Recalculando ruta":navigationFrame.nextInstruction;
-          document.querySelector("#dashNavDistance").textContent=navigationFrame.arrived?"✓":`${Math.round(navigationFrame.distanceToManeuverMeters||navigationFrame.distanceRemainingMeters)} m`;
+          document.querySelector("#dashNavDistance").textContent=navigationFrame.arrived?"âœ“":`${Math.round(navigationFrame.distanceToManeuverMeters||navigationFrame.distanceRemainingMeters)} m`;
         } else {
-          document.querySelector("#dashNavInstruction").textContent="Continúa por la vía";
+          document.querySelector("#dashNavInstruction").textContent="ContinÃºa por la vÃ­a";
           document.querySelector("#dashNavDistance").textContent=`${Math.max(1,Math.round((V.position.z+2800)/100))} km`;
         }
         const alertElement=document.querySelector("#assistState");
-        const contextualAlert = physicalFrame?.rolloverWarning ? ["critical","Riesgo de vuelco · reduce velocidad"]
-          : emergency ? ["critical","AEBS · frenada de emergencia"]
-          : navigationFrame?.offRoute ? ["warning","Fuera de ruta · recalculando"]
-          : worldState.speeding ? ["warning",`Exceso de velocidad · límite ${worldState.currentSpeedLimit}`]
-          : physicalFrame?.aquaplaning > .12 ? ["warning","Aquaplaning · reduce velocidad"]
+        const contextualAlert = physicalFrame?.rolloverWarning ? ["critical","Riesgo de vuelco Â· reduce velocidad"]
+          : emergency ? ["critical","AEBS Â· frenada de emergencia"]
+          : navigationFrame?.offRoute ? ["warning","Fuera de ruta Â· recalculando"]
+          : worldState.speeding ? ["warning",`Exceso de velocidad Â· lÃ­mite ${worldState.currentSpeedLimit}`]
+          : physicalFrame?.aquaplaning > .12 ? ["warning","Aquaplaning Â· reduce velocidad"]
           : physicalFrame?.absActive ? ["warning","ABS actuando"]
-          : physicalFrame?.tractionLimited ? ["warning","Control de tracción actuando"]
-          : specialFrame?.active && (!specialFrame.ready || specialFrame.restricted) ? ["warning",specialFrame.ready?"Carga especial · centra el convoy":"Completa la preparación de la carga"]
+          : physicalFrame?.tractionLimited ? ["warning","Control de tracciÃ³n actuando"]
+          : specialFrame?.active && (!specialFrame.ready || specialFrame.restricted) ? ["warning",specialFrame.ready?"Carga especial Â· centra el convoy":"Completa la preparaciÃ³n de la carga"]
           : navigationFrame?.arrived ? ["normal","Destino alcanzado"] : ["normal","AEBS listo"];
         alertElement.dataset.level=contextualAlert[0]; alertElement.textContent=contextualAlert[1];
         syncCockpitControls();
@@ -1746,7 +1746,7 @@
       }
       roadworks.position.z = -20; S.add(roadworks);
       const tunnel = new T.Group();
-      tunnel.userData.kind = "Túnel Sierra Norte";
+      tunnel.userData.kind = "TÃºnel Sierra Norte";
       for (let z = -330; z <= -170; z += 8) {
         for (const side of [-1, 1]) part(tunnel, 1.1, 9, 7.8, 0x4b535b, side * 15.1, 4.5, z);
         part(tunnel, 31.2, 1.1, 7.8, 0x555d64, 0, 9.25, z);
@@ -1817,10 +1817,10 @@
         if (weatherSelection === 3) {
           const progress = activeOsmRoute ? Math.min(1, physicalDistance / Math.max(1, routeRuntime.length)) : 0;
           const coordinate = activeOsmRoute ? coordinateAtRouteProgress(activeOsmRoute, progress) : { lat:40.4168, lon:-3.7038 };
-          liveEnvironment.setLocation(coordinate); weatherButton.textContent = "Clima real: cargando…";
+          liveEnvironment.setLocation(coordinate); weatherButton.textContent = "Clima real: cargandoâ€¦";
           liveWeatherState = await liveEnvironment.load(true);
           weatherMode = ["rain","snow","storm","thunderstorm","fog"].includes(liveWeatherState.weather) ? 1 : 0;
-          weatherButton.textContent = `Real: ${liveWeatherState.weather} · ${Math.round(liveWeatherState.temperature || 0)}°C${liveWeatherState.wildfire ? " · incendio cercano" : ""}`;
+          weatherButton.textContent = `Real: ${liveWeatherState.weather} Â· ${Math.round(liveWeatherState.temperature || 0)}Â°C${liveWeatherState.wildfire ? " Â· incendio cercano" : ""}`;
         } else {
           liveEnvironment.disable(); liveWeatherState = null; weatherMode = weatherSelection;
           weatherButton.textContent = ["Clima: despejado","Clima: lluvia","Hora: noche"][weatherMode];
@@ -1895,11 +1895,11 @@
             tunnelDistance = -170 - V.position.z,
             wildlifeHazard = ambientLife.evaluateNearestHazard?.(V.position),
             eventLabel = document.querySelector("#roadEvent");
-          if (workDistance < 35 && workDistance > -125) eventLabel.textContent = "⚠ Obras · reduzca velocidad";
+          if (workDistance < 35 && workDistance > -125) eventLabel.textContent = "âš  Obras Â· reduzca velocidad";
           else if (workDistance >= 35 && workDistance < 190) eventLabel.textContent = `Obras a ${Math.round(workDistance)} m`;
-          else if (tunnelDistance >= 0 && tunnelDistance < 220) eventLabel.textContent = `Túnel a ${Math.round(tunnelDistance)} m`;
-          else if (tunnelDistance < 0 && tunnelDistance > -175) eventLabel.textContent = "Túnel Sierra Norte";
-          else if (wildlifeHazard && wildlifeHazard.warning) eventLabel.textContent = `🦌 ${wildlifeHazard.recommendedAction}`;
+          else if (tunnelDistance >= 0 && tunnelDistance < 220) eventLabel.textContent = `TÃºnel a ${Math.round(tunnelDistance)} m`;
+          else if (tunnelDistance < 0 && tunnelDistance > -175) eventLabel.textContent = "TÃºnel Sierra Norte";
+          else if (wildlifeHazard && wildlifeHazard.warning) eventLabel.textContent = `ðŸ¦Œ ${wildlifeHazard.recommendedAction}`;
           else eventLabel.textContent = regionalEventFrame.id ? regionalEventFrame.label : "Sin incidencias";
           if (workDistance < -150) roadworks.position.z = V.position.z - 520 - Math.random() * 260;
           rain.position.set(V.position.x, 0, V.position.z - 30);
@@ -1946,3 +1946,4 @@
     </script>
   </body>
 </html>
+
