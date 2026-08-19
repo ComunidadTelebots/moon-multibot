@@ -1,7 +1,9 @@
-# syntax=docker/dockerfile:1.7
-FROM python:3.12-slim
+﻿FROM python:3.10-slim
 
 WORKDIR /app
+
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
 
 # Conserva índices y paquetes descargados entre reconstrucciones con BuildKit.
 RUN --mount=type=cache,id=moonbot-apt-cache,target=/var/cache/apt,sharing=locked \
@@ -12,25 +14,13 @@ RUN --mount=type=cache,id=moonbot-apt-cache,target=/var/cache/apt,sharing=locked
     && test -x /usr/bin/curl && test -x /usr/bin/tesseract
 
 COPY requirements.txt .
-RUN --mount=type=cache,id=moonbot-pip-cache,target=/root/.cache/pip,sharing=locked \
-    pip install -r requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
-# Usa libtdjson.so local si fue copiado al contexto de build (setup_tdlib.sh),
-# de lo contrario descarga el binario pre-compilado desde el GitHub Release.
-ARG TDLIB_SO_URL=https://github.com/ComunidadTelebots/moon-multibot/releases/download/tdlib-prebuilt/libtdjson.so
-RUN if [ -f libtdjson.so ]; then \
-        echo "[TDLib] Usando binario local"; \
-        mv libtdjson.so /usr/local/lib/libtdjson.so; \
-    else \
-        echo "[TDLib] Descargando desde GitHub Release"; \
-        curl -fL "${TDLIB_SO_URL}" -o /usr/local/lib/libtdjson.so; \
-    fi && ldconfig
+# Usar modo no bufferizado para logs inmediatos
+ENV PYTHONUNBUFFERED=1
 
-EXPOSE 5000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
-
-CMD ["bash", "start.sh"]
+CMD ["python", "moon_multibot.py"]
