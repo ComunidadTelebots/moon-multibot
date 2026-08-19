@@ -196,6 +196,7 @@ function login() {
                 gtag("event", "login", { method: "dashboard" });
             }
             switchTab('dashboard');
+            if(!localStorage.getItem("moon_tour_done")) setTimeout(() => startWebTour(), 300);
             refreshAnalyticsSettings();
             showToast("🌙 Bienvenido", "Conexión neuronal establecida.");
         } else {
@@ -212,8 +213,68 @@ function logout() {
     location.reload();
 }
 
+const WEB_ACTIONS = [
+    ["dashboard","Panel","Estado general"],["bots","Bots","Instancias conectadas"],
+    ["chat","Chat","Conversaciones"],["ia","Moon IA","Aprendizaje y fuentes"],
+    ["moderation","Moderación","Grupos, usuarios y políticas"],["proxies","Proxies","Controles MTProto"],
+    ["security","Seguridad","CAS, VirusTotal y análisis"],["queue","Cola","Procesos pendientes"],
+    ["history","Historial","Actividad global"],["settings","Ajustes","Sistema y accesibilidad"]
+];
+function webFavoriteActions(){try{return JSON.parse(localStorage.getItem("moon_action_favorites")||"[]");}catch(e){return [];}}
+function toggleWebFavorite(id){let rows=webFavoriteActions();rows=rows.includes(id)?rows.filter(x=>x!==id):[...rows,id];localStorage.setItem("moon_action_favorites",JSON.stringify(rows));renderCommandPalette(commandPaletteQuery.value);}
+function openCommandPalette(){commandPalette.style.display="flex";commandPaletteTitle.textContent="Buscar acciones";commandPaletteQuery.style.display="block";commandPaletteQuery.value="";renderCommandPalette("");setTimeout(()=>commandPaletteQuery.focus(),0);}
+function closeCommandPalette(){commandPalette.style.display="none";}
+function runWebAction(id){closeCommandPalette();switchTab(id);}
+function renderCommandPalette(query=""){
+    const q=query.toLowerCase(),favs=webFavoriteActions();
+    const rows=WEB_ACTIONS.filter(x=>(x[1]+" "+x[2]).toLowerCase().includes(q));
+    commandPaletteResults.innerHTML=rows.map(x=>`<div class="command-result" onclick="runWebAction('${x[0]}')"><div><b>${x[1]}</b><small>${x[2]}</small></div><button class="command-star ${favs.includes(x[0])?"on":""}" onclick="event.stopPropagation();toggleWebFavorite('${x[0]}')">★</button></div>`).join("")||"<p>Sin resultados.</p>";
+}
+async function openWebNotifications(){
+    commandPalette.style.display="flex";commandPaletteTitle.textContent="Notificaciones";commandPaletteQuery.style.display="none";
+    commandPaletteResults.innerHTML='<div class="loading-state"><p>Cargando alertas…</p></div>';
+    try {
+        const headers={"Authorization":getStoredAuthToken()};
+        const [threatResponse,auditResponse]=await Promise.all([
+            fetch("/api/security/threat-history",{headers}),fetch("/api/security/audit",{headers})
+        ]);
+        const threats=await threatResponse.json(),audit=await auditResponse.json();
+        const rows=[
+            ...(threats.history||[]).filter(x=>x.risk==="high"||x.risk==="medium"||x.malicious>0).slice(0,20).map(x=>({title:"Alerta de seguridad",body:`${x.kind||x.source}: ${x.risk||x.malicious+" detecciones"}`})),
+            ...(audit.logs||[]).slice(-20).reverse().map(x=>({title:x.type||"Actividad administrativa",body:x.message||x.action||x.reason||JSON.stringify(x).slice(0,120)}))
+        ];
+        commandPaletteResults.innerHTML=rows.map(x=>`<div class="command-result"><div><b>${escapeHtml(x.title)}</b><small>${escapeHtml(x.body)}</small></div></div>`).join("")||'<p>Sin notificaciones pendientes.</p>';
+    } catch(error) {
+        commandPaletteResults.innerHTML='<p>No se pudieron cargar las notificaciones.</p>';
+    }
+}
+function applyWebDisplayPreferences(){
+    let p={compact:"off",font:"normal"};try{p={...p,...JSON.parse(localStorage.getItem("moon_display_preferences")||"{}")};}catch(e){}
+    document.body.classList.toggle("moon-compact",p.compact==="on");
+    document.documentElement.classList.remove("moon-font-small","moon-font-large");
+    if(p.font==="small"||p.font==="large")document.documentElement.classList.add("moon-font-"+p.font);
+    if(document.getElementById("webCompactMode"))webCompactMode.value=p.compact;
+    if(document.getElementById("webFontSize"))webFontSize.value=p.font;
+}
+function saveWebDisplayPreferences(){
+    localStorage.setItem("moon_display_preferences",JSON.stringify({compact:webCompactMode.value,font:webFontSize.value}));
+    applyWebDisplayPreferences();showToast("Interfaz","Preferencias visuales guardadas.");
+}
+const WEB_TOUR=[
+    ["Panel principal","Consulta el estado del sistema y de todos los bots."],
+    ["Búsqueda global","Encuentra cualquier panel y guarda accesos favoritos."],
+    ["Moderación y seguridad","Gestiona grupos, reportes, CAS, fotografías y VirusTotal."],
+    ["Ajustes","Personaliza densidad y tamaño del texto cuando lo necesites."]
+];
+function startWebTour(index=0){
+    const step=WEB_TOUR[index];commandPalette.style.display="flex";commandPaletteQuery.style.display="none";
+    commandPaletteTitle.textContent=`Guía ${index+1}/${WEB_TOUR.length}`;
+    commandPaletteResults.innerHTML=`<div class="command-result"><div><b>${step[0]}</b><small>${step[1]}</small></div></div><div style="display:flex;gap:10px"><button class="btn-mini-wide" onclick="finishWebTour()">Omitir</button><button class="btn-mini-wide" onclick="${index===WEB_TOUR.length-1?"finishWebTour()":`startWebTour(${index+1})`}">${index===WEB_TOUR.length-1?"Terminar":"Siguiente"}</button></div>`;
+}
+function finishWebTour(){localStorage.setItem("moon_tour_done","1");closeCommandPalette();}
+
 // --- Tab Management ---
-function switchTab(tabId, btn) {
+function switchTab(tabId, btn, fromHistory = false) {
     const container = document.getElementById('tab-container');
     if(!container) return;
 
@@ -247,6 +308,9 @@ function switchTab(tabId, btn) {
     };
 
     const fileName = fileMap[tabId] || 'dashboard.html';
+    if(!fromHistory && (!history.state || history.state.moonTab !== tabId)) {
+        history.pushState({...(history.state || {}), moonTab: tabId}, "", "#" + tabId);
+    }
     fetch(fileName + '?v=' + Date.now())
     .then(r => r.text())
     .then(html => {
@@ -261,7 +325,7 @@ function switchTab(tabId, btn) {
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
         if(tabId === 'bots') fetchBots();
-        if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); }
+        if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); loadFaqManager(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
         if(tabId === 'moderation') { loadModerationTab(); fetchSecurityBlacklist(); }
@@ -880,6 +944,27 @@ function testIA() {
     });
 }
 
+async function lookupWayback() {
+    const url = document.getElementById("waybackUrl")?.value.trim();
+    const timestamp = document.getElementById("waybackTimestamp")?.value.trim();
+    const out = document.getElementById("waybackResult");
+    if (!url || !out) return showToast("Wayback", "Introduce una URL.");
+    out.innerHTML = "<i>Consultando Internet Archive...</i>";
+    try {
+        const response = await fetch("/api/security/wayback/lookup", {
+            method: "POST",
+            headers: {"Authorization": authToken, "Content-Type": "application/json"},
+            body: JSON.stringify({url, timestamp})
+        });
+        const result = await response.json();
+        if (!result.ok) out.innerHTML = `<div class="vt-card">Error: ${escapeHtml(result.error || "Consulta fallida")}</div>`;
+        else if (!result.available) out.innerHTML = `<div class="vt-card">No existe una copia accesible.</div>`;
+        else out.innerHTML = `<div class="vt-card"><b>Copia encontrada</b><br>${escapeHtml(result.snapshot_timestamp || "")} · HTTP ${escapeHtml(result.status || "—")}<br><a href="${escapeHtml(result.snapshot_url)}" target="_blank" rel="noopener noreferrer">Abrir copia archivada</a></div>`;
+    } catch (error) {
+        out.innerHTML = `<div class="vt-card">No se pudo conectar con Internet Archive.</div>`;
+    }
+}
+
 function addIAFeeder() {
     const input = document.getElementById("feederInput");
     if(!input || !input.value) return;
@@ -1320,6 +1405,7 @@ async function injectMultilingual() {
 
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
+    applyWebDisplayPreferences();
     setTheme(localStorage.getItem('moon_theme') || 'moon');
     refreshAnalyticsSettings();
     if(authToken) {
@@ -1333,6 +1419,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- Settings Logic ---
 function loadSettings() {
+    applyWebDisplayPreferences();
     if(!authToken) return;
     fetch('/api/admin/settings', { headers: { 'Authorization': authToken } })
     .then(r => r.json()).then(data => {
@@ -2134,12 +2221,113 @@ function loadModerationTab() {
     });
     // Cargar leaderboard
     refreshLeaderboard();
+    loadCommunityAdmin();
+    loadEngagementAdmin();
+    loadGroupAdministration();
+    loadRoadmapAdmin();
 }
+function loadCommunityAdmin(){
+    const host=document.getElementById("communityAdminPanel");if(!host)return;
+    fetch("/api/users/community?status=pending",{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>{
+        const profiles=d.profiles||[],requests=d.role_requests||[];
+        host.innerHTML=`<div class="suite-grid">${profiles.slice(0,30).map(p=>`<div class="mod-item"><span>${suiteEsc(p.name)} · nivel ${p.level} · ${p.xp} XP ${p.verified?"· verificado":""}</span><span><button class="btn-mod-mini" onclick="addCommunityXp('${suiteEsc(p.user_id)}')">+100 XP</button> <button class="btn-mod-mini" onclick="verifyCommunityMember('${suiteEsc(p.user_id)}',${!p.verified})">${p.verified?"Quitar verificación":"Verificar"}</button></span></div>`).join("")||"<p>Sin perfiles.</p>"}</div><h4>Solicitudes pendientes</h4>${requests.map(x=>`<div class="mod-item"><span>${suiteEsc(x.user_id)} solicita ${suiteEsc(x.role)}</span><span><button class="btn-mod-mini" onclick="resolveWebCommunityRole('${x.id}','approved')">Aprobar</button> <button class="btn-mod-mini" onclick="resolveWebCommunityRole('${x.id}','rejected')">Rechazar</button></span></div>`).join("")||"<p>Sin solicitudes.</p>"}`;
+    });
+    fetchManagedBots();
+}
+
+let managedBotManagerUsername = "";
+async function managedBotApi(action, payload = {}) {
+    const response = await fetch("/api/managed-bots/action", {
+        method: "POST",
+        headers: {"Authorization": authToken, "Content-Type": "application/json"},
+        body: JSON.stringify({action, ...payload})
+    });
+    return response.json();
+}
+async function fetchManagedBots() {
+    const status = document.getElementById("managedBotsStatus");
+    const list = document.getElementById("managedBotList");
+    if (!status || !list || !authToken) return;
+    try {
+        const response = await fetch("/api/managed-bots", {headers: {"Authorization": authToken}});
+        const data = await response.json();
+        managedBotManagerUsername = data.manager_username || "";
+        status.innerHTML = data.capable
+            ? `<b>Gestor activo:</b> @${escapeHtml(managedBotManagerUsername)}`
+            : `<b>Permiso pendiente:</b> activa <code>can_manage_bots</code> para el bot gestor en BotFather y reinicia Moonbot.`;
+        document.getElementById("managedAutoConnect").checked = Boolean(data.auto_connect);
+        list.innerHTML = (data.bots || []).map(bot => `
+          <div class="glass-panel bot-card" style="padding:18px">
+            <h4 style="margin:0">@${escapeHtml(bot.username || bot.bot_id)}</h4>
+            <small>${escapeHtml(bot.name || "")} · ${escapeHtml(bot.status || "detectado")}</small>
+            <div class="drop-actions" style="display:grid;gap:7px;margin-top:14px">
+              ${bot.status !== "connected" ? `<button onclick="managedBotAction('connect','${escapeJsArg(bot.bot_id)}')">CONECTAR</button>` : ""}
+              <button onclick="managedBotAccess('${escapeJsArg(bot.bot_id)}',${Boolean(bot.is_access_restricted)})">${bot.is_access_restricted ? "PERMITIR ACCESO" : "RESTRINGIR ACCESO"}</button>
+              ${bot.status === "connected" ? `<button onclick="rotateManagedBot('${escapeJsArg(bot.bot_id)}')">ROTAR TOKEN</button>
+              <button class="danger" onclick="disconnectManagedBot('${escapeJsArg(bot.bot_id)}')">DESCONECTAR</button>` : ""}
+            </div>
+          </div>`).join("") || `<p class="subtitle">Los bots creados aparecerán aquí al confirmar Telegram.</p>`;
+    } catch (error) {
+        status.textContent = "No se pudo consultar la administración de bots.";
+    }
+}
+function createManagedBot() {
+    const username = (document.getElementById("managedBotUsername")?.value || "").trim().replace(/^@/, "");
+    const name = (document.getElementById("managedBotName")?.value || "").trim();
+    if (!managedBotManagerUsername) return showToast("Permiso requerido", "El bot gestor no tiene can_manage_bots.");
+    if (!/^[A-Za-z][A-Za-z0-9_]{3,30}bot$/i.test(username)) return showToast("Usuario no válido", "Debe terminar en bot y usar letras, números o guion bajo.");
+    const url = `https://t.me/newbot/${encodeURIComponent(managedBotManagerUsername)}/${encodeURIComponent(username)}?name=${encodeURIComponent(name || username)}`;
+    window.open(url, "_blank", "noopener");
+}
+async function setManagedAutoConnect(enabled) {
+    const data = await managedBotApi("set_auto_connect", {enabled});
+    showToast(data.ok ? "Configuración guardada" : "Error", data.ok ? "Autoconexión actualizada." : data.msg);
+}
+async function managedBotAction(action, bot_id, extra = {}) {
+    const data = await managedBotApi(action, {bot_id, ...extra});
+    showToast(data.ok ? "Bot actualizado" : "Error", data.msg || (data.ok ? "Acción completada." : "No se pudo completar."));
+    if (data.ok) fetchBots();
+}
+async function managedBotAccess(bot_id, restricted) {
+    return managedBotAction("access_set", bot_id, {is_access_restricted: !restricted});
+}
+async function rotateManagedBot(bot_id) {
+    if (!confirm("¿Rotar el token? El token anterior dejará de funcionar inmediatamente.")) return;
+    return managedBotAction("rotate", bot_id);
+}
+async function disconnectManagedBot(bot_id) {
+    if (!confirm("¿Desconectar este bot de Moonbot? El bot administrado seguirá existiendo en Telegram.")) return;
+    return managedBotAction("disconnect", bot_id);
+}
+function addCommunityXp(user_id){fetch("/api/users/community/xp",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id,amount:100,reason:"reconocimiento web"})}).then(loadCommunityAdmin);}
+function resolveWebCommunityRole(request_id,decision){fetch("/api/users/community/role-request/resolve",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({request_id,decision})}).then(loadCommunityAdmin);}
+function runWeeklyRecognition(){fetch("/api/users/community/recognize",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({limit:5})}).then(r=>r.json()).then(d=>{showToast("Reconocimiento semanal",`${(d.profiles||[]).length} colaboradores`);loadCommunityAdmin();});}
+function verifyCommunityMember(user_id,verified){fetch("/api/users/community/verify",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id,verified})}).then(loadCommunityAdmin);}
+const engagementAdminAction=(action,extra={})=>fetch("/api/users/engagement/action",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({action,...extra})}).then(r=>r.json());
+function loadEngagementAdmin(){const host=document.getElementById("engagementAdminPanel");if(!host)return;fetch("/api/users/engagement",{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>{host.innerHTML=`<button class="btn-mod-mini" onclick="exportEngagementAgenda()">Exportar agenda .ics</button><h4>Eventos</h4>${(d.events||[]).map(e=>`<div class="mod-item"><span>${suiteEsc(e.title)} · ${e.attendees.length} inscritos · ${e.waitlist.length} espera</span><span><button class="btn-mod-mini" onclick="drawEngagement('${e.id}')">Sortear</button><button class="btn-mod-mini" onclick="showEventStats('${e.id}')">Estadísticas</button></span></div><div class="mod-item"><input id="checkin-${e.id}" placeholder="ID asistente"><button class="btn-mod-mini" onclick="checkinEngagement('${e.id}')">Confirmar</button></div>${(e.questions||[]).map(q=>`<div class="mod-item"><span>${suiteEsc(q.text)} · ${suiteEsc(q.status)}</span><span><button class="btn-mod-mini" onclick="moderateEngagementQuestion('${e.id}','${q.id}','approved')">Aprobar</button><button class="btn-mod-mini" onclick="moderateEngagementQuestion('${e.id}','${q.id}','rejected')">Rechazar</button></span></div>`).join("")}${(e.submissions||[]).map(s=>`<div class="mod-item"><span>${suiteEsc(s.title)} · ${s.votes.length} votos · jurado ${s.jury_average??"-"}</span><span><input id="score-${s.id}" type="number" min="0" max="10" step=".5" placeholder="0-10"><button class="btn-mod-mini" onclick="scoreEngagement('${e.id}','${s.id}')">Puntuar</button></span></div>`).join("")}`).join("")||"<p>Sin eventos.</p>"}<h4>Retos</h4>${(d.challenges||[]).map(c=>`<div class="mod-item"><span>${suiteEsc(c.title)} · objetivo ${c.target} · ${Object.keys(c.progress||{}).length} participantes</span></div>`).join("")||"<p>Sin retos.</p>"}<h4>Buzón anónimo</h4>${(d.inbox||[]).slice(0,20).map(x=>`<div class="mod-item"><span>${suiteEsc(x.category)} · ${suiteEsc(x.text)}</span></div>`).join("")||"<p>Vacío.</p>"}<h4>Mentorías</h4>${(d.matches||[]).slice(0,20).map(x=>`<div class="mod-item"><span>${suiteEsc(x.mentor_id)} → ${suiteEsc(x.mentee_id)}</span></div>`).join("")||"<p>Sin asignaciones.</p>"}`;});}
+function createEngagementEvent(){const date=new Date(engEventAt.value);if(isNaN(date))return showToast("Error","Selecciona fecha");engagementAdminAction("event_create",{title:engEventTitle.value,starts_at:date.toISOString(),capacity:+engEventCapacity.value,kind:engEventKind.value,description:engEventDescription.value}).then(loadEngagementAdmin);}
+function createEngagementSurvey(){engagementAdminAction("survey_create",{title:engSurveyTitle.value,options:engSurveyOptions.value.split("|")}).then(loadEngagementAdmin);}
+function createEngagementChallenge(){const date=new Date(engChallengeEnd.value);if(isNaN(date))return showToast("Error","Selecciona fecha");engagementAdminAction("challenge_create",{title:engChallengeTitle.value,target:+engChallengeTarget.value,ends_at:date.toISOString()}).then(loadEngagementAdmin);}
+function drawEngagement(event_id){engagementAdminAction("draw",{event_id,winners:1}).then(d=>showToast("Sorteo",d.result?`Ganador: ${d.result.winners.join(", ")}`:(d.error||"Sin participantes")));}
+function showEventStats(event_id){engagementAdminAction("event_stats",{event_id}).then(d=>showToast("Estadísticas",d.result?`${d.result.attended}/${d.result.registered} asistentes`:(d.error||"Error")));}
+function checkinEngagement(event_id){engagementAdminAction("checkin",{event_id,user_id:document.getElementById(`checkin-${event_id}`).value}).then(d=>{showToast("Asistencia",d.ok?"Confirmada":"Usuario no inscrito");if(d.ok)loadEngagementAdmin();});}
+function moderateEngagementQuestion(event_id,question_id,status){engagementAdminAction("question_moderate",{event_id,question_id,status}).then(loadEngagementAdmin);}
+function scoreEngagement(event_id,submission_id){engagementAdminAction("contest_score",{event_id,submission_id,score:+document.getElementById(`score-${submission_id}`).value}).then(loadEngagementAdmin);}
+function exportEngagementAgenda(){engagementAdminAction("agenda").then(d=>{if(!d.ok)return showToast("Agenda",d.error||"Error");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([d.result],{type:"text/calendar"}));a.download="moonbot-agenda.ics";a.click();URL.revokeObjectURL(a.href);});}
+const groupAdminAction=(action,extra={})=>fetch("/api/users/group-administration/action",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({action,...extra})}).then(r=>r.json());
+function loadGroupAdministration(){const host=document.getElementById("groupAdministrationPanel");if(!host)return;fetch("/api/users/group-administration",{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>{host.textContent=JSON.stringify({grupos:Object.keys(d.configs||{}).length,aprobaciones:(d.approvals||[]).filter(x=>x.status==="pending"),delegaciones:(d.delegations||[]).filter(x=>x.status==="active"),inactivos:d.inactive||[],auditorias:d.audits||[]},null,2);});}
+function setupGroupAdmin(){groupAdminAction("setup",{group_id:gaGroup.value,community_type:gaType.value}).then(loadGroupAdministration);}
+function compareGroupAdmin(){groupAdminAction("compare",{group_ids:gaCompare.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(d=>groupAdministrationPanel.textContent=JSON.stringify(d.result,null,2));}
+function syncGroupAdmin(){groupAdminAction("sync",{source_id:gaGroup.value,target_ids:gaTargets.value.split(",").map(x=>x.trim()).filter(Boolean),fields:gaFields.value.split(",").map(x=>x.trim()).filter(Boolean)}).then(loadGroupAdministration);}
+function delegateGroupAdmin(){const date=new Date(gaDelegateEnd.value);if(isNaN(date))return showToast("Error","Selecciona una fecha");groupAdminAction("delegate",{group_id:gaGroup.value,user_id:gaDelegateUser.value,permissions:gaDelegatePerms.value.split(","),expires_at:date.toISOString()}).then(loadGroupAdministration);}
+function loadRoadmapAdmin(){const host=document.getElementById("roadmapAdminPanel");if(!host)return;fetch("/api/users/roadmap",{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>host.textContent=JSON.stringify(d,null,2));}
+function runRoadmapAction(){let data={};try{data=JSON.parse(roadmapPayload.value||"{}");}catch(e){return showToast("JSON inválido",e.message);}fetch("/api/users/roadmap/action",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({action:roadmapAction.value,data})}).then(r=>r.json()).then(d=>{roadmapAdminPanel.textContent=JSON.stringify(d,null,2);showToast("Roadmap",d.ok?"Función ejecutada":(d.error||"Error"));});}
 
 function loadModerationData() {
     const sel = document.getElementById("modGroupSelect");
     if (!sel || !sel.value) return;
     currentModCid = sel.value;
+    loadWebBotPermissions();
 
     fetch(`/api/moderation/${currentModCid}`, { headers: { "Authorization": authToken } })
     .then(r => r.json()).then(data => {
@@ -2181,7 +2369,106 @@ function loadModerationData() {
         const notesArea = document.getElementById("modGroupNotes");
         if (notesArea) notesArea.value = data.notes || "";
     });
+    loadGroupSuite();
 }
+function loadWebBotPermissions(){
+    const host=document.getElementById("modBotPermissions");if(!host||!currentModCid)return;
+    fetch(`/api/moderation/${currentModCid}/bot-permissions`,{headers:{"Authorization":authToken}}).then(r=>r.json()).then(data=>{
+        if(!data.ok){host.innerHTML=`<div class="mod-permission-alert"><h4>No se pudieron comprobar los permisos</h4><p>${suiteEsc(data.error||"Telegram no respondió")}</p><button class="btn-mod-mini" onclick="loadWebBotPermissions()">Comprobar de nuevo</button></div>`;return;}
+        if(data.healthy){host.innerHTML="";return;}
+        host.innerHTML=`<div class="mod-permission-alert" data-help="Muestra los permisos que el bot necesita realmente dentro del grupo."><h4>El bot no tiene permisos suficientes</h4><p>Faltan:</p><ul>${data.missing.map(x=>`<li>${suiteEsc(x.label)}</li>`).join("")}</ul><p>En Telegram abre el grupo → Administradores → @${suiteEsc(data.bot_username)}; activa esos permisos, guarda y vuelve a comprobar.</p><button class="btn-mod-mini" onclick="loadWebBotPermissions()">Comprobar de nuevo</button></div>`;
+    });
+}
+window.addEventListener("popstate", event => {
+    const tab = event.state && event.state.moonTab;
+    if(tab) switchTab(tab, null, true);
+});
+
+let currentSuiteSnapshot = null;
+const suiteHeaders = () => ({ "Authorization": authToken, "Content-Type": "application/json" });
+const suiteAction = (action, extra={}) => fetch("/api/moderation/suite/action", {
+    method:"POST", headers:suiteHeaders(), body:JSON.stringify({cid:currentModCid, action, ...extra})
+}).then(r=>r.json());
+
+function suiteEsc(value) {
+    const el=document.createElement("div"); el.textContent=String(value == null ? "" : value); return el.innerHTML;
+}
+
+function loadGroupSuite() {
+    if(!currentModCid) return;
+    fetch(`/api/moderation/${currentModCid}/suite`, {headers:{"Authorization":authToken}})
+    .then(r=>r.json()).then(data=>{
+        if(!data.ok) return;
+        currentSuiteSnapshot=data;
+        document.getElementById("modSuiteEmpty").hidden=true;
+        document.getElementById("modSuite").hidden=false;
+        const c=data.config;
+        sqQuarantine.checked=c.quarantine.enabled; sqRaid.checked=c.raid.enabled;
+        sqWelcome.checked=c.welcome.enabled; sqConsensus.checked=c.consensus.enabled;
+        sqQHours.value=c.quarantine.hours; sqQMessages.value=c.quarantine.messages;
+        sqRaidJoins.value=c.raid.joins; sqVotes.value=c.consensus.votes_required;
+        sqWelcomeText.value=c.welcome.message;
+        sqChannelBan.checked=c.channel_senders.ban_external_channels;
+        sqChannelDelete.checked=c.channel_senders.delete_messages;
+        sqChannelNotify.checked=c.channel_senders.notify;
+        sqBotEnabled.checked=c.bot_interaction.enabled;sqBotLearn.checked=c.bot_interaction.learn;
+        sqBotReply.checked=c.bot_interaction.reply;sqBotAllowed.value=c.bot_interaction.allowed_usernames.join(", ");
+        sqBotLimit.value=c.bot_interaction.max_replies_per_hour;
+        sqBotInteractions.innerHTML=(data.bot_interactions||[]).slice(0,10).map(x=>`<div class="mod-item"><span>@${suiteEsc(x.username)} · ${x.learned?"aprendido":"omitido"} · ${x.replied?"respondido":"sin respuesta"}</span></div>`).join("")||"<p>Sin interacciones.</p>";
+        const media=c.media_security;
+        sqMediaEnabled.checked=media.enabled; sqMediaPhotos.checked=media.scan_photos;
+        sqMediaLinks.checked=media.scan_links; sqMediaFiles.checked=media.scan_files;
+        sqMediaOcr.checked=media.ocr; sqMediaImpersonation.checked=media.impersonation;
+        sqMediaSensitive.checked=media.sensitive; sqMediaAction.value=media.action;
+        sqMediaThreshold.value=media.threshold; sqMediaVt.value=media.vt_malicious;
+        sqGroupAccent.value=c.appearance.accent;sqGroupCompact.checked=c.appearance.compact;
+        sqSlowEnabled.checked=c.adaptive_slow.enabled;sqSlowBase.value=c.adaptive_slow.base_seconds;sqSlowMax.value=c.adaptive_slow.max_seconds;
+        sqLimitsEnabled.checked=c.content_limits.enabled;sqLimitMentions.value=c.content_limits.mentions;sqLimitEmojis.value=c.content_limits.emojis;sqLimitUppercase.value=c.content_limits.uppercase_percent;sqLimitAction.value=c.content_limits.action;
+        sqMediaEvents.innerHTML=(data.media_events||[]).slice(0,10).map(x=>`<div class="mod-item"><span>${suiteEsc(x.source)} · ${suiteEsc(x.user||x.user_id||"")} · ${suiteEsc(x.reason)} · ${suiteEsc(x.action_applied||x.action)}</span></div>`).join("")||"<p>Sin decisiones multimedia.</p>";
+        sqRules.innerHTML=c.rules.length?c.rules.map((x,i)=>`<div class="mod-item">${suiteEsc(x.start)}–${suiteEsc(x.end)} · ${suiteEsc(x.action)} <button class="btn-mod-mini" onclick="removeSuiteRule(${i})">Quitar</button></div>`).join(""):"<p>Sin reglas.</p>";
+        sqReports.innerHTML=data.reports.length?data.reports.map(x=>`<div class="mod-item"><span>${suiteEsc(x.target_id)} · ${suiteEsc(x.reason)} · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<span><button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','reviewed')">Revisado</button> <button class="btn-mod-mini" onclick="resolveSuiteReport('${x.id}','dismissed')">Descartar</button></span>`:""}</div>`).join(""):"<p>Sin reportes.</p>";
+        sqConsensusList.innerHTML=data.consensus.length?data.consensus.map(x=>`<div class="mod-item"><span>${suiteEsc(x.action)} ${suiteEsc(x.target_id)} · ${x.votes.length} votos · ${suiteEsc(x.status)}</span>${x.status==="pending"?`<button class="btn-mod-mini" onclick="voteSuiteProposal('${x.id}')">Votar</button>`:""}</div>`).join(""):"<p>Sin propuestas.</p>";
+        sqTemplates.innerHTML=data.templates.length?data.templates.map(x=>`<div class="mod-item"><span>${suiteEsc(x.name)}</span><button class="btn-mod-mini" onclick="applySuiteTemplate('${x.id}')">Aplicar</button></div>`).join(""):"<p>Sin plantillas.</p>";
+    });
+}
+
+function saveGroupSuite() {
+    const old=(currentSuiteSnapshot&&currentSuiteSnapshot.config)||{};
+    const config={...old,
+        quarantine:{...(old.quarantine||{}),enabled:sqQuarantine.checked,hours:+sqQHours.value,messages:+sqQMessages.value},
+        raid:{...(old.raid||{}),enabled:sqRaid.checked,joins:+sqRaidJoins.value},
+        welcome:{...(old.welcome||{}),enabled:sqWelcome.checked,message:sqWelcomeText.value},
+        consensus:{...(old.consensus||{}),enabled:sqConsensus.checked,votes_required:+sqVotes.value},
+        channel_senders:{ban_external_channels:sqChannelBan.checked,delete_messages:sqChannelDelete.checked,notify:sqChannelNotify.checked},
+        bot_interaction:{enabled:sqBotEnabled.checked,learn:sqBotLearn.checked,reply:sqBotReply.checked,allowed_usernames:sqBotAllowed.value.split(",").map(x=>x.trim()).filter(Boolean),max_replies_per_hour:+sqBotLimit.value},
+        media_security:{...(old.media_security||{}),enabled:sqMediaEnabled.checked,
+            scan_photos:sqMediaPhotos.checked,scan_links:sqMediaLinks.checked,
+            scan_files:sqMediaFiles.checked,ocr:sqMediaOcr.checked,
+            impersonation:sqMediaImpersonation.checked,sensitive:sqMediaSensitive.checked,
+            action:sqMediaAction.value,threshold:+sqMediaThreshold.value,
+            vt_malicious:+sqMediaVt.value},
+        appearance:{accent:sqGroupAccent.value,compact:sqGroupCompact.checked},
+        adaptive_slow:{...(old.adaptive_slow||{}),enabled:sqSlowEnabled.checked,base_seconds:+sqSlowBase.value,max_seconds:+sqSlowMax.value},
+        content_limits:{enabled:sqLimitsEnabled.checked,mentions:+sqLimitMentions.value,emojis:+sqLimitEmojis.value,uppercase_percent:+sqLimitUppercase.value,action:sqLimitAction.value}
+    };
+    fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config})})
+    .then(r=>r.json()).then(d=>{if(d.ok){showToast("✅ Suite guardada","Protección actualizada.");loadGroupSuite();}});
+}
+function addSuiteRule(){const c=currentSuiteSnapshot.config;c.rules.push({enabled:true,start:sqRuleStart.value||"00:00",end:sqRuleEnd.value||"23:59",days:[0,1,2,3,4,5,6],action:"admin_only"});saveSuiteRules(c.rules);}
+function removeSuiteRule(i){const rules=currentSuiteSnapshot.config.rules.filter((_,n)=>n!==i);saveSuiteRules(rules);}
+function saveSuiteRules(rules){fetch("/api/moderation/suite/settings",{method:"POST",headers:suiteHeaders(),body:JSON.stringify({cid:currentModCid,config:{rules}})}).then(()=>loadGroupSuite());}
+function resolveSuiteReport(report_id,decision){suiteAction("resolve_report",{report_id,decision}).then(loadGroupSuite);}
+function createSuiteProposal(){suiteAction("proposal",{target_id:sqProposalUid.value,moderation_action:sqProposalAction.value,reason:sqProposalReason.value}).then(loadGroupSuite);}
+function voteSuiteProposal(proposal_id){suiteAction("vote",{proposal_id}).then(loadGroupSuite);}
+function assignSuiteRole(){suiteAction("role",{user_id:sqUserUid.value,role:sqUserRole.value}).then(d=>showToast(d.ok?"✅ Rol asignado":"❌ Error",d.ok?sqUserUid.value:(d.error||"No se pudo guardar")));}
+function loadSuiteContext(){fetch(`/api/moderation/${currentModCid}/suite/context/${encodeURIComponent(sqUserUid.value)}`,{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>sqContext.textContent=JSON.stringify(d.context||d,null,2));}
+function loadSuiteSummary(){fetch(`/api/moderation/${currentModCid}/suite/summary`,{headers:{"Authorization":authToken}}).then(r=>r.json()).then(d=>sqSummary.textContent=JSON.stringify(d.summary||d,null,2));}
+function saveSuiteTemplate(){suiteAction("template_save",{name:sqTemplateName.value||"Plantilla"}).then(loadGroupSuite);}
+function applySuiteTemplate(template_id){if(confirm("¿Aplicar esta configuración al grupo?"))suiteAction("template_apply",{template_id}).then(loadGroupSuite);}
+function exportSuiteBackup(){const blob=new Blob([JSON.stringify(currentSuiteSnapshot,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`grupo-${currentModCid}-backup.json`;a.click();URL.revokeObjectURL(a.href);}
+function simulateSuiteMessage(){fetch(`/api/moderation/${currentModCid}/suite/simulate`,{method:"POST",headers:suiteHeaders(),body:JSON.stringify({text:sqSimulationText.value})}).then(r=>r.json()).then(d=>sqSimulationOutput.textContent=JSON.stringify(d.simulation||d,null,2));}
+function reviewSuiteSanctions(){fetch(`/api/moderation/${currentModCid}/suite/sanctions/review`,{method:"POST",headers:suiteHeaders()}).then(r=>r.json()).then(d=>showToast("Sanciones revisadas",`${d.expired||0} caducadas · ${d.active||0} activas`));}
+function createTemporaryBan(){fetch(`/api/moderation/${currentModCid}/suite/sanctions/temporary-ban`,{method:"POST",headers:suiteHeaders(),body:JSON.stringify({user_id:sqTempBanUid.value,hours:+sqTempBanHours.value,reason:sqTempBanReason.value})}).then(r=>r.json()).then(d=>showToast(d.ok?"Ban temporal creado":"Error",d.ok?d.expires_at:(d.error||"No se pudo aplicar")));}
 
 function webUnwarn(target) {
     if (!currentModCid) return;
@@ -2596,6 +2883,106 @@ function loadProxiesTab() {
     });
 }
 
+async function loadFaqManager() {
+    const list = document.getElementById("faqManagerList");
+    if(!list || !authToken) return;
+    list.innerHTML = `<p class="section-desc">Cargando respuestas...</p>`;
+    try {
+        const response = await fetch("/api/automation/faq", {
+            headers: { "Authorization": authToken }
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || "No se pudieron cargar");
+        const faq = Array.isArray(data.faq) ? data.faq : [];
+        if(!faq.length) {
+            list.innerHTML = `<p class="section-desc">Todavía no hay preguntas frecuentes. Puedes crear la primera arriba.</p>`;
+            return;
+        }
+        list.innerHTML = faq.map((item, index) => `
+            <div class="user-row" data-web-faq-row="${index}" style="align-items:stretch; flex-direction:column; gap:10px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; gap:12px;">
+                    <strong>${escapeHtml(item.question)}</strong>
+                    <span class="status-tag admin">${Number(item.count || 0)} consultas</span>
+                </div>
+                <textarea rows="2" maxlength="1500" data-web-faq-answer="${index}" placeholder="Escribe la respuesta automática...">${escapeHtml(item.answer || "")}</textarea>
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <button class="btn-link-mini" data-web-faq-save="${index}">GUARDAR</button>
+                    <button class="btn-link-mini" data-web-faq-delete="${index}" style="background:rgba(239,68,68,.15); color:#f87171;">ELIMINAR</button>
+                </div>
+            </div>
+        `).join("");
+        list.querySelectorAll("[data-web-faq-save]").forEach(button => {
+            button.addEventListener("click", () => saveFaqAnswer(faq[Number(button.dataset.webFaqSave)]));
+        });
+        list.querySelectorAll("[data-web-faq-delete]").forEach(button => {
+            button.addEventListener("click", () => deleteFaqAnswer(faq[Number(button.dataset.webFaqDelete)]));
+        });
+    } catch(error) {
+        list.innerHTML = `<p class="section-desc" style="color:#f87171;">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+async function createFaqAnswer() {
+    const questionInput = document.getElementById("faqNewQuestion");
+    const answerInput = document.getElementById("faqNewAnswer");
+    const question = questionInput?.value.trim();
+    const answer = answerInput?.value.trim();
+    if(!question || !answer) {
+        showToast("FAQ", "Completa la pregunta y la respuesta.");
+        return;
+    }
+    if(await setFaqAnswer(question, answer)) {
+        questionInput.value = "";
+        answerInput.value = "";
+        loadFaqManager();
+    }
+}
+
+async function saveFaqAnswer(item) {
+    const rows = Array.from(document.querySelectorAll("[data-web-faq-row]"));
+    const row = rows.find(candidate => candidate.querySelector("strong")?.textContent === item.question);
+    const answer = row?.querySelector("textarea")?.value.trim();
+    if(!answer) {
+        showToast("FAQ", "La respuesta no puede estar vacía.");
+        return;
+    }
+    if(await setFaqAnswer(item.question, answer)) loadFaqManager();
+}
+
+async function setFaqAnswer(question, answer) {
+    try {
+        const response = await fetch("/api/automation/faq/set", {
+            method: "POST",
+            headers: { "Authorization": authToken, "Content-Type": "application/json" },
+            body: JSON.stringify({ question, answer })
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || "No se pudo guardar");
+        showToast("FAQ", "Respuesta guardada.");
+        return true;
+    } catch(error) {
+        showToast("FAQ", error.message);
+        return false;
+    }
+}
+
+async function deleteFaqAnswer(item) {
+    if(!confirm(`¿Eliminar la pregunta "${item.question}"?`)) return;
+    try {
+        const response = await fetch("/api/automation/faq/delete", {
+            method: "POST",
+            headers: { "Authorization": authToken, "Content-Type": "application/json" },
+            body: JSON.stringify({ question: item.question })
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || "No se pudo eliminar");
+        showToast("FAQ", "Pregunta eliminada.");
+        loadFaqManager();
+    } catch(error) {
+        showToast("FAQ", error.message);
+    }
+}
+
 function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, ch => ({
         "&": "&amp;",
@@ -2747,6 +3134,22 @@ function loadSecurityTab() {
     fetchSecurityBlacklist();
     fetchSecurityAudit();
     fetchGlobalBans();
+    fetchDetectedIdLists();
+}
+
+function fetchDetectedIdLists() {
+    fetch("/api/admin/detected-id-lists", { headers: { "Authorization": authToken } })
+    .then(r => r.json()).then(data => {
+        const box = document.getElementById("detectedIdLists");
+        if(!box) return;
+        const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const lists = data.lists || [];
+        if(!lists.length){box.innerHTML='<p style="color:var(--text-muted)">Todavía no se han detectado listas.</p>';return;}
+        box.innerHTML = lists.map(item => {
+            const rows=(item.comparisons||[]).map(row=>`<tr><td><code>${safe(row.user_id)}</code></td><td>${row.global_banned?'Sí':'No'}</td><td>${safe((row.local_banned_groups||[]).join(', ')||'—')}</td><td>${row.cas_status==='pending'?'Pendiente':(row.cas_banned?'Sí':'No')}</td><td>${safe(row.captcha?.status||'unknown')}</td></tr>`).join('');
+            return `<details style="border:1px solid var(--glass-border);border-radius:10px;padding:12px"><summary style="cursor:pointer"><b>${safe(item.name)}</b> · ${safe(item.chat_name)} · ${(item.user_ids||[]).length} IDs</summary><p style="color:var(--text-muted);margin:8px 0">${safe(item.detected_at)} · riesgo ${safe(item.score)}/100 · remitente ${safe(item.sender_name)} (${safe(item.sender_id)})</p><div style="overflow:auto"><table class="audit-table" style="width:100%;font-size:11px"><thead><tr><th>ID</th><th>Global</th><th>Grupos</th><th>CAS</th><th>Captcha</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+        }).join('');
+    }).catch(()=>{});
 }
 
 function fetchGlobalBans() {
@@ -2879,6 +3282,69 @@ function scanHashVT() {
             showToast("🚨 SEGURIDAD", "Se ha detectado un hash malicioso en el análisis.");
         }
     });
+}
+
+function renderSecurityAnalysis(data) {
+    if (!data || !data.ok) {
+        return `<div class="vt-card" style="border-color:var(--danger)"><b>❌ ${escapeHtml(data?.error || "No se pudo completar el análisis")}</b></div>`;
+    }
+    if (data.queued) return `<div class="vt-card"><b>⏳ Análisis enviado</b><p>${escapeHtml(data.message || "Resultado pendiente")}</p></div>`;
+    if (data.not_found) return `<div class="vt-card"><b>⚪ Sin informe previo</b><p>No figura todavía en VirusTotal.</p></div>`;
+    const danger = data.risk === "high" || Number(data.malicious) > 0;
+    const signals = (data.signals || []).map(item => `<li>${escapeHtml(item.label)}</li>`).join("");
+    const engines = (data.engines || []).slice(0, 10).map(item => `<li><b>${escapeHtml(item.engine)}</b>: ${escapeHtml(item.result)}</li>`).join("");
+    return `<div class="vt-card" style="border-color:${danger ? "var(--danger)" : "var(--success)"}">
+        <h4 style="color:${danger ? "var(--danger)" : "var(--success)"}">${danger ? "🚨 REVISIÓN NECESARIA" : "✅ SIN SEÑALES CRÍTICAS"}</h4>
+        ${data.score != null ? `<p><b>${Number(data.score)}/100</b> · ${escapeHtml(data.filename || "imagen")}</p>` : ""}
+        ${data.malicious != null ? `<p><b>${Number(data.malicious)} / ${Number(data.total_engines || 0)}</b> motores maliciosos · ${Number(data.suspicious || 0)} sospechosos</p>` : ""}
+        ${data.cached ? `<p class="subtitle">Resultado recuperado de caché.</p>` : ""}
+        ${signals ? `<ul>${signals}</ul>` : ""}${engines ? `<ul>${engines}</ul>` : ""}
+        ${data.ocr_text ? `<details><summary>Texto detectado</summary><pre style="white-space:pre-wrap">${escapeHtml(data.ocr_text)}</pre></details>` : ""}
+        ${data.link ? `<a href="${escapeHtml(data.link)}" target="_blank" rel="noopener">Ver informe completo ↗</a>` : ""}
+    </div>`;
+}
+
+function scanSecurityImage() {
+    const input = document.getElementById("visionImageInput");
+    const result = document.getElementById("visionAnalysisResult");
+    if (!input?.files?.[0]) { showToast("Seguridad", "Selecciona una fotografía."); return; }
+    const form = new FormData();
+    form.append("image", input.files[0]);
+    form.append("ocr", String(document.getElementById("visionOcr").checked));
+    form.append("impersonation", String(document.getElementById("visionImpersonation").checked));
+    form.append("sensitive", String(document.getElementById("visionSensitive").checked));
+    result.innerHTML = `<div class="loading-spinner">Analizando fotografía...</div>`;
+    fetch("/api/security/media/analyze", { method: "POST", headers: { "Authorization": authToken }, body: form })
+      .then(r => r.json()).then(data => { result.innerHTML = renderSecurityAnalysis(data); loadSecurityAudit(); })
+      .catch(() => { result.innerHTML = renderSecurityAnalysis({ ok:false, error:"Error de conexión" }); });
+}
+
+function toggleVtAdvancedInput() {
+    const fileMode = document.getElementById("vtAdvancedKind").value === "file";
+    document.getElementById("vtAdvancedFile").style.display = fileMode ? "block" : "none";
+    document.getElementById("vtAdvancedValue").style.display = fileMode ? "none" : "block";
+}
+
+function scanVirusTotalAdvanced() {
+    const kind = document.getElementById("vtAdvancedKind").value;
+    const result = document.getElementById("vtAdvancedResult");
+    result.innerHTML = `<div class="loading-spinner">Consultando VirusTotal...</div>`;
+    let request;
+    if (kind === "file") {
+        const file = document.getElementById("vtAdvancedFile")?.files?.[0];
+        if (!file) { showToast("VirusTotal", "Selecciona un archivo."); result.innerHTML = ""; return; }
+        const form = new FormData(); form.append("file", file);
+        request = fetch("/api/security/vt/file", { method:"POST", headers:{ "Authorization":authToken }, body:form });
+    } else {
+        const value = document.getElementById("vtAdvancedValue").value.trim();
+        if (!value) { showToast("VirusTotal", "Introduce el valor que quieres analizar."); result.innerHTML = ""; return; }
+        request = fetch("/api/security/vt/analyze", {
+            method:"POST", headers:{ "Authorization":authToken, "Content-Type":"application/json" },
+            body:JSON.stringify({ kind, value })
+        });
+    }
+    request.then(r => r.json()).then(data => { result.innerHTML = renderSecurityAnalysis(data); loadSecurityAudit(); })
+      .catch(() => { result.innerHTML = renderSecurityAnalysis({ ok:false, error:"Error de conexión" }); });
 }
 
 // --- Queue Tab ---
