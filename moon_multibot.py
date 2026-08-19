@@ -7215,7 +7215,8 @@ def telegram_webhook(token):
         if bot.token == token:
             try:
                 import queue
-                if not hasattr(bot, "router_queue"):
+                import queue
+        if not hasattr(bot, "router_queue"):
                     bot.router_queue = queue.Queue()
                 bot.router_queue.put(update)
             except Exception as e:
@@ -7247,6 +7248,7 @@ def patch_bot_instances():
 
         bot._patched_for_router = True
         
+        import queue
         if not hasattr(bot, "router_queue"):
             bot.router_queue = queue.Queue()
             
