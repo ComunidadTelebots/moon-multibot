@@ -7215,10 +7215,11 @@ def telegram_webhook(token):
         if bot.token == token:
             try:
                 import queue
-                import queue
-        if not hasattr(bot, "router_queue"):
+                if not hasattr(bot, "router_queue"):
                     bot.router_queue = queue.Queue()
                 bot.router_queue.put(update)
+            except Exception as e:
+                pass
             except Exception as e:
                 pass
             return "OK", 200
