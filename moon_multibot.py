@@ -362,7 +362,17 @@ def add_web_log(lvl, txt):
     t = datetime.datetime.now().strftime("%H:%M:%S")
     web_logs.append({"time": t, "level": lvl, "text": txt})
     if len(web_logs) > 50: web_logs.pop(0)
-    with open("data/bot.log", "a", encoding="utf-8") as f:
+    
+    log_path = "data/bot.log"
+    try:
+        if os.path.exists(log_path) and os.path.getsize(log_path) > 5 * 1024 * 1024:
+            if os.path.exists(log_path + ".1"):
+                os.remove(log_path + ".1")
+            os.rename(log_path, log_path + ".1")
+    except Exception:
+        pass
+
+    with open(log_path, "a", encoding="utf-8") as f:
         f.write(f"[{t}] [{lvl}] {txt}\n")
 
 # Wire logger into extracted modules now that add_web_log is available
@@ -6239,7 +6249,7 @@ class MoonBot:
         if webhook_base and MOON_ENV == "stable":
             wh_url = f"{webhook_base.rstrip('/')}/api/telegram/webhook/{self.token}"
             self.api_call("setWebhook", {"url": wh_url})
-            add_web_log("DEBUG", f"Webhook configurado para {self.bot_username}: {wh_url}")
+            
 
         while self.running:
             try:
@@ -6264,7 +6274,7 @@ class MoonBot:
                 
                 if not res.get("result"): 
                     # Solo logueamos cada 10 intentos vacÃ­os para no saturar
-                    if random.random() < 0.1: add_web_log("DEBUG", "Esperando nuevos mensajes de Telegram...")
+                    
                     self.run_periodic_maintenance()
                     continue
                 
@@ -6370,13 +6380,13 @@ class MoonBot:
                         bot_chats.append(cid)
                         db.set(f"CHATS_{self.token}", bot_chats)
                     cid, text, user = str(msg["chat"]["id"]), msg.get("text", ""), msg.get("from", {})
-                    add_web_log("DEBUG", f"Nuevo mensaje detectado: CID={cid}, User={user.get('first_name')}")
+                    
                     if not isinstance(text, str): text = str(text) if text is not None else ""
                     if user.get("is_bot"):
                         self.handle_bot_learning_message(cid, msg, user)
                         continue
                     uid, uname = str(user.get("id", cid)), user.get("first_name", "Chat")
-                    add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | Verificando Permisos...")
+                    
                     self.record_group_user_language(cid, user, text)
 
                     # Cortafuegos temprano: no dar karma, aprendizaje ni proceso a usuarios baneados.
@@ -6502,7 +6512,7 @@ class MoonBot:
                             continue
                     
                     # Debug message
-                    add_web_log("DEBUG", f"Procesando mensaje de {uname} en {global_chat_names.get(cid, cid)}: {text[:20]}")
+                    
                     
                     # Global History Log (Captured before any filtering)
                     history = db.get("GLOBAL_HISTORY", [])
