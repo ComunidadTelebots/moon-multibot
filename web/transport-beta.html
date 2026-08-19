@@ -344,11 +344,11 @@
       const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
       const career = createTransportCareer();
       const releaseChannel = createReleaseChannelSystem({onChange:channel=>{
-        if(channel==="stable")location.assign(stableEditionUrl());
+        if(false){}
         else applyReleaseProfile(channel);
       }});
       await releaseChannel.ready;
-      if(releaseChannel.channel==="stable"){
+      if(false){
         location.replace(stableEditionUrl());
         await new Promise(()=>{});
       }
