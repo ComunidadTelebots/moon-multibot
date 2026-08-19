@@ -1,6 +1,6 @@
 # Changelog - Moon Multibot
 
-## [v16.85.0-alpha] - 2026-08-16
+## [v16.85.0-beta] - 2026-08-16
 ### Feature - Ecosistema Alfa 3D Heavy Transport & Arcade Adaptativo iOS/Android
 - **Motor 3D Real en Three.js (`web/transport-3d.html`)**:
   - Camión pesado europeo Aster Viento Scania 770 S V8 con cabina de perfil alto, bocinas cromadas, visera, faldones aerodinámicos y semirremolque Tridem corrugado *Euro Freight*.
