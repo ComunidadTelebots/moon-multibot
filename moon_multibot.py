@@ -7240,8 +7240,11 @@ def internal_tg_proxy(method):
 
 # 3. Parchear Telegram Bot API
 def patch_bot_instances():
+    print(f"[DEBUG] Ejecutando patch_bot_instances. Bots activos: {len(active_bots)}", flush=True)
     for bot in active_bots:
+        print(f"[DEBUG] Parcheando bot {bot.bot_username}. Ya parcheado: {getattr(bot, '_patched_for_router', False)}", flush=True)
         if getattr(bot, "_patched_for_router", False): continue
+
         bot._patched_for_router = True
         
         if not hasattr(bot, "router_queue"):
