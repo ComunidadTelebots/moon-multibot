@@ -3998,3 +3998,7 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 - Los IDs plausibles encontrados se presentan al creador con el motivo y botones separados para aplicar el ban global o descartar cada candidato; nunca se banean automáticamente desde el contenido de un archivo.
 - Cada conjunto nuevo se registra centralmente con nombre, huella, grupo y remitente, comparando sus IDs con baneos globales, baneos por grupo, CAS y verificaciones captcha.
 - El remitente de una lista nueva queda silenciado hasta superar un captcha; después de agotar los intentos puede presentar una apelación al creador.
+
+**Arquitectura Multi-Canal (Micro-Repositorios)**
+* **Enrutamiento por Base de Datos Restaurado:** Se reescribió el interceptor del router (`patched_api_call`) para restaurar la lógica perdida en commits anteriores. Ahora el Master (stable) vuelve a consultar nativamente `SELECT release_channels FROM users` y redirige los eventos de Telegram a las instancias correspondientes (`alpha`, `beta`, `rc`) de forma transparente.
+* **Aislamiento de Manifiestos:** Se escanearon y etiquetaron automáticamente **103 archivos de manifiesto** (`*manifest.py`) inyectando la propiedad `"release_channel": "alpha"`. Esto sella las fronteras del control de acceso y prepara el código base para su división física en micro-repositorios sin pérdida de compatibilidad.
