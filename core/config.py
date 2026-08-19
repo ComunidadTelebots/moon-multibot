@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-APP_VERSION = "v16.81.0"
+APP_VERSION = "v18.22.0"
 BOT_STORE_PATH = "data/bots.json"
 
 # --- Web / Auth ---
@@ -33,6 +33,10 @@ DEEP_DREAM_MODE = os.getenv("DEEP_DREAM_MODE", "false").lower() == "true"
 
 # --- Moderación ---
 CAS_CACHE_TTL = int(os.getenv("CAS_CACHE_TTL", "1800"))
+CAS_EXPORT_PATH = os.getenv("CAS_EXPORT_PATH", "data/cas_export.csv")
+CAS_EXPORT_REFRESH_SECONDS = int(os.getenv("CAS_EXPORT_REFRESH_SECONDS", "86400"))
+CAS_FEED_PATH = os.getenv("CAS_FEED_PATH", "data/cas_feed_ids.txt")
+CAS_FEED_REFRESH_SECONDS = int(os.getenv("CAS_FEED_REFRESH_SECONDS", "300"))
 
 # --- TDLib (MTProto user client) ---
 TDLIB_API_ID = os.getenv("TDLIB_API_ID", "")
@@ -54,6 +58,6 @@ PROXY_VPS_PORTS = os.getenv("PROXY_VPS_PORTS", "8443,8444,8445,8446")
 DB_PATH = "data/moon_dev.db" if MOON_ENV == "dev" else "data/moon_database.db"
 
 # --- PocketBase (directorio de canales) ---
-POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://todosobrealltech-pocketbase-1:8090")
+POCKETBASE_URL = os.getenv("POCKETBASE_URL", "http://todosobrealltech-pocketbase:8090")
 PB_SUPERUSER_EMAIL = os.getenv("PB_SUPERUSER_EMAIL", "")
 PB_SUPERUSER_PASSWORD = os.getenv("PB_SUPERUSER_PASSWORD", "")

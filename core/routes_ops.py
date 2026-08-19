@@ -39,7 +39,11 @@ def web_faq_list():
         return jsonify({"ok": False}), 401
     faq_db = _db.get("FAQ_DB", {})
     faq_answers = _db.get("FAQ_ANSWERS", {})
-    merged = [{"question": q, "count": c, "answer": faq_answers.get(q, "")} for q, c in sorted(faq_db.items(), key=lambda x: x[1], reverse=True)]
+    questions = set(faq_db) | set(faq_answers)
+    merged = [
+        {"question": q, "count": faq_db.get(q, 0), "answer": faq_answers.get(q, "")}
+        for q in sorted(questions, key=lambda item: (-faq_db.get(item, 0), item))
+    ]
     return jsonify({"ok": True, "faq": merged})
 
 
