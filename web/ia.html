@@ -540,6 +540,24 @@
     </div>
 </div>
 
+<div class="glass-panel" style="margin-top: 25px;">
+    <div class="panel-header-flex">
+        <div>
+            <h3>💬 Respuestas automáticas</h3>
+            <p class="section-desc">Crea y administra las mismas respuestas frecuentes disponibles en la Mini App.</p>
+        </div>
+        <button class="btn-glow-mini" onclick="loadFaqManager()">ACTUALIZAR</button>
+    </div>
+    <div class="input-group" style="align-items: stretch; margin-bottom: 15px;">
+        <input type="text" id="faqNewQuestion" maxlength="240" placeholder="Nueva pregunta frecuente...">
+        <input type="text" id="faqNewAnswer" maxlength="1500" placeholder="Respuesta automática...">
+        <button class="btn-secondary" onclick="createFaqAnswer()">AÑADIR</button>
+    </div>
+    <div id="faqManagerList">
+        <p class="section-desc">Cargando respuestas...</p>
+    </div>
+</div>
+
 <style>
 .admin-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
 .ia-stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }

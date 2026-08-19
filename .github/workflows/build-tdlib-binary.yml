@@ -40,7 +40,7 @@ jobs:
         run: echo "hash=$(git -C /tmp/td rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Upload libtdjson.so as Release asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: tdlib-prebuilt
           name: "TDLib prebuilt (linux/amd64)"

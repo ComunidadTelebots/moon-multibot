@@ -1,5 +1,11 @@
 HELP_TEXT = """Comandos extra instalados:
 /calc <expr>
+/calculadora <expr>
+/clima, /hora, /mapa <lugar>
+/wiki, /diccionario, /stack <consulta>
+/terremoto [magnitud], /google, /rae
+/alternativa, /distro, /isos, /kernel, /man
+/helpadmin, /info, /reglas, /conv
 /genpass [len]
 /note add|del, /notes
 /todo add|done, /todos

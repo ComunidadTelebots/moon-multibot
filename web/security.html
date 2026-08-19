@@ -37,6 +37,41 @@
         </div>
 
         <div class="glass-panel mt-20">
+            <h3>🖼️ Análisis avanzado de fotografías</h3>
+            <p class="subtitle">OCR, spam visual, suplantación y señales sensibles para revisión humana.</p>
+            <input type="file" id="visionImageInput" accept="image/jpeg,image/png,image/webp,image/gif">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:12px;">
+                <label><input type="checkbox" id="visionOcr" checked> Leer texto</label>
+                <label><input type="checkbox" id="visionImpersonation" checked> Buscar suplantación</label>
+                <label><input type="checkbox" id="visionSensitive" checked> Señales sensibles</label>
+            </div>
+            <button class="btn-glow-mini" onclick="scanSecurityImage()">ANALIZAR FOTO</button>
+            <div id="visionAnalysisResult" class="mt-20"></div>
+        </div>
+
+        <div class="glass-panel mt-20">
+            <h3>Σ VirusTotal ampliado</h3>
+            <p class="subtitle">Consulta archivos, hashes, URLs y dominios con resultados por motor.</p>
+            <select id="vtAdvancedKind" class="input-style" onchange="toggleVtAdvancedInput()">
+                <option value="hash">Hash</option><option value="url">URL</option>
+                <option value="domain">Dominio</option><option value="file">Archivo</option>
+            </select>
+            <input id="vtAdvancedValue" class="input-style" placeholder="Hash, URL o dominio..." style="margin-top:10px">
+            <input type="file" id="vtAdvancedFile" style="margin-top:10px;display:none">
+            <button class="btn-glow-mini" onclick="scanVirusTotalAdvanced()" style="margin-top:10px">ANALIZAR</button>
+            <div id="vtAdvancedResult" class="mt-20"></div>
+        </div>
+
+        <div class="glass-panel mt-20">
+            <h3>🕰 Wayback Machine</h3>
+            <p class="subtitle">Consulta si existe una copia histórica de una página web.</p>
+            <input id="waybackUrl" class="input-style" placeholder="https://ejemplo.com">
+            <input id="waybackTimestamp" class="input-style" inputmode="numeric" maxlength="14" placeholder="Fecha opcional: YYYYMMDD" style="margin-top:10px">
+            <button class="btn-glow-mini" onclick="lookupWayback()" style="margin-top:10px">BUSCAR COPIA</button>
+            <div id="waybackResult" class="mt-20"></div>
+        </div>
+
+        <div class="glass-panel mt-20">
             <h3 data-i18n="sec_firewall_title">🔥 Firewall de Red</h3>
             <p class="subtitle" data-i18n="sec_firewall_subtitle">Control de IPs y bloqueos automáticos.</p>
             <div id="blacklistContainer" style="margin-top: 15px;">
@@ -61,6 +96,12 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="glass-panel mt-20">
+            <h3>📚 Listas de IDs detectadas</h3>
+            <p class="subtitle">Archivos observados en los grupos, con comparación global, local, CAS y captcha.</p>
+            <div id="detectedIdLists" style="display:grid;gap:12px;margin-top:15px;"></div>
         </div>
     </div>
 
