@@ -1,4 +1,4 @@
-﻿"""
+"""
 routes_public.py â€” Endpoints PÃšBLICOS (sin JWT) del hub.
 
 Zona pÃºblica del panel: estadÃ­sticas de canales y obtenciÃ³n de proxy MTProto.
