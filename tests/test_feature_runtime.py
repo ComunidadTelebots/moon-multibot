@@ -1,0 +1,54 @@
+import unittest
+
+from core.feature_runtime import execute, list_features, registry
+
+
+class FeatureRuntimeTests(unittest.TestCase):
+    def test_registry_is_unique_and_callable(self):
+        features = list_features()
+        self.assertEqual(2742, len(features))
+        self.assertEqual(len(features), len({row["id"] for row in features}))
+        self.assertTrue(all(callable(row["callable"]) for row in registry().values()))
+        self.assertTrue(all(row["minimum_role"] in {"user", "group_admin", "group_creator", "master"} for row in features))
+        self.assertTrue(all(isinstance(row.get("input_schema", {}).get("parameters"), list) for row in features))
+        self.assertTrue(all(all(parameter.get("control") in {"text", "number", "boolean", "json"} for parameter in row["input_schema"]["parameters"]) for row in features))
+        variadic_kwargs = [
+            parameter for row in features for parameter in row["input_schema"]["parameters"]
+            if parameter.get("variadic") and parameter.get("binding") == "kwargs"
+        ]
+        self.assertEqual(17, len(variadic_kwargs))
+        self.assertTrue(all(parameter["control"] == "json" for parameter in variadic_kwargs))
+        self.assertEqual({"user", "group_admin", "group_creator", "master"}, {row["minimum_role"] for row in features})
+
+    def test_executes_only_registered_function(self):
+        result = execute("future-3002", {
+            "args": [[{"active_roles": 2, "expiring_roles": 1},
+                      {"active_roles": 4, "expiring_roles": 1}]],
+            "kwargs": {"horizon": 2, "slot_capacity": 10},
+        })
+        self.assertEqual("future-3002", result["feature_id"])
+        with self.assertRaises(KeyError):
+            execute("os.system", {"args": ["whoami"]})
+
+    def test_rejects_unbound_or_malformed_payload(self):
+        with self.assertRaises((TypeError, ValueError)):
+            execute("future-3002", {"kwargs": {}})
+        with self.assertRaises(ValueError):
+            execute("future-3002", [])
+
+    def test_role_filter_and_execution_are_enforced(self):
+        user_ids = {row["id"] for row in list_features("user")}
+        master_only = next(row for row in list_features() if row["minimum_role"] == "master")
+        self.assertNotIn(master_only["id"], user_ids)
+        with self.assertRaises(PermissionError):
+            execute(master_only["id"], {"args": [], "kwargs": {}}, actor_role="user")
+
+    def test_explicit_manifest_role_is_validated_and_preserved(self):
+        from core.feature_access import classify_feature
+        self.assertEqual("group_creator", classify_feature({"minimum_role": "group_creator", "api": "incident"})["minimum_role"])
+        with self.assertRaises(ValueError):
+            classify_feature({"minimum_role": "root", "api": "unsafe"})
+
+
+if __name__ == "__main__":
+    unittest.main()

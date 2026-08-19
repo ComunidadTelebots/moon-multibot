@@ -1,0 +1,14 @@
+[Unit]
+Description=Moonbot web autoscaler
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/moonbot
+ExecStart=/usr/bin/python3 /root/moonbot/scripts/moon-autoscale.py --min 1 --max 4 --up 72 --down 28
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

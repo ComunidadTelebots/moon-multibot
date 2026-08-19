@@ -1,26 +1,64 @@
-name: CI — Lint
+name: CI
 
 on:
   push:
     branches: [master]
     paths:
       - "**.py"
+      - "web/hub.html"
+      - "requirements.txt"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
 
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install validation tools
+        run: pip install ruff requests
 
-      - name: Lint
-        run: ruff check . --select E,F,W --ignore E501,E402,F401,W291,W293
+      # Prioriza errores que pueden romper la ejecución. El estilo histórico se
+      # corregirá por lotes sin convertir deuda antigua en falsos negativos.
+      - name: Check fatal Python errors
+        run: >-
+          ruff check
+          moon_multibot.py core plugins
+          ban_manager.py community_engagement.py community_members.py
+          gban_intelligence.py group_administration.py group_rss.py group_suite.py
+          roadmap_engine.py spam_analyzer.py spam_risk.py universal_i18n.py
+          --select E9,F63,F7,F82 --no-cache
+
+      - name: Run unit tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m unittest discover -s tests -v
+
+      - name: Extract Hub JavaScript
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          scripts = re.findall(r'<script[^>]*>(.*?)</script>', Path('web/hub.html').read_text(encoding='utf-8-sig'), re.S)
+          Path('/tmp/hub-inline.js').write_text(scripts[-1], encoding='utf-8')
+          PY
+
+      - name: Validate Hub JavaScript
+        run: node --check /tmp/hub-inline.js

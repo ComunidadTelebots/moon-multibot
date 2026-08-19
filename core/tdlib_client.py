@@ -231,6 +231,36 @@ class TDLibClient:
             }
             self._log("TDLIB", f"Usuario: @{self._me.get('username')} (id={self._me.get('id')})")
 
+    def get_chat_verification(self, chat_ref, timeout: float = 10.0) -> dict:
+        """Consulta el distintivo oficial de Telegram mediante TDLib/MTProto."""
+        checked_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if not self.is_ready:
+            return {"checked": False, "verified": None, "status": "tdlib_not_ready", "checked_at": checked_at}
+        reference = str(chat_ref or "").strip()
+        if not reference:
+            return {"checked": False, "verified": None, "status": "missing_chat", "checked_at": checked_at}
+        if reference.startswith("https://t.me/"):
+            reference = reference.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+        reference = reference.lstrip("@")
+        query = ({"@type": "getChat", "chat_id": int(reference)} if reference.lstrip("-").isdigit()
+                 else {"@type": "searchPublicChat", "username": reference})
+        chat = self.send_await(query, timeout=timeout)
+        if not chat or chat.get("@type") == "error":
+            return {"checked": False, "verified": None, "status": "chat_unavailable", "checked_at": checked_at,
+                    "error": str((chat or {}).get("message") or "timeout")[:160]}
+        chat_type = chat.get("type") or {}
+        if chat_type.get("@type") != "chatTypeSupergroup":
+            return {"checked": True, "verified": False, "status": "not_channel_or_supergroup", "checked_at": checked_at,
+                    "chat_id": chat.get("id")}
+        details = self.send_await({"@type": "getSupergroup", "supergroup_id": chat_type.get("supergroup_id")}, timeout=timeout)
+        if not details or details.get("@type") == "error":
+            return {"checked": False, "verified": None, "status": "details_unavailable", "checked_at": checked_at,
+                    "chat_id": chat.get("id"), "error": str((details or {}).get("message") or "timeout")[:160]}
+        verification_status = details.get("verification_status") or {}
+        verified = details.get("is_verified") is True or verification_status.get("is_verified") is True
+        return {"checked": True, "verified": verified, "status": "verified" if verified else "not_verified",
+                "checked_at": checked_at, "chat_id": chat.get("id"), "username": reference}
+
     # ── Envío de mensajes ─────────────────────────────────────────
 
     def send_message(self, chat_id: int, text: str,

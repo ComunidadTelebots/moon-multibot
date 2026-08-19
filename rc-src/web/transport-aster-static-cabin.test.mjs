@@ -1,0 +1,2 @@
+import assert from"node:assert/strict";import test from"node:test";import fs from"node:fs";
+test("static cabin keeps every component separately UV mapped",()=>{const model=JSON.parse(fs.readFileSync(new URL("./models/aster-cabin-high.json",import.meta.url)));assert.equal(model.version,1);assert.ok(model.components.length>=10);for(const part of model.components){assert.equal(part.positions.length/3,part.uvs.length/2);assert.ok(part.indices.length>=6);assert.ok(part.source);}});

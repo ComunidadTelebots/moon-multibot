@@ -1,0 +1,7 @@
+export function createFireEffect({THREE:T,scene,qualityLevel=2}){
+  const canvas=document.createElement("canvas");canvas.width=canvas.height=256;const x=canvas.getContext("2d"),g=x.createRadialGradient(128,190,8,128,128,118);g.addColorStop(0,"#fffbd0");g.addColorStop(.18,"#ffd33d");g.addColorStop(.48,"#ff5b19");g.addColorStop(.78,"#7d1010aa");g.addColorStop(1,"#0000");x.fillStyle=g;x.beginPath();x.moveTo(128,8);x.bezierCurveTo(210,92,220,200,128,246);x.bezierCurveTo(28,198,52,94,128,8);x.fill();
+  const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;const material=new T.SpriteMaterial({map:texture,transparent:true,depthWrite:false,blending:T.AdditiveBlending}),root=new T.Group();root.name="live_wildfire_effect";const count=[2,4,7,11][qualityLevel]||4;for(let i=0;i<count;i++){const flame=new T.Sprite(material.clone());flame.position.set((Math.random()-.5)*7,1.8+Math.random()*2,(Math.random()-.5)*7);flame.scale.set(2.4+Math.random()*2,4+Math.random()*4,1);flame.userData.phase=Math.random()*6;root.add(flame)}root.visible=false;scene.add(root);
+  function update(dt,state,position){root.visible=Boolean(state?.enabled&&state?.wildfire);if(position)root.position.copy(position);if(root.visible)for(const flame of root.children){flame.userData.phase+=dt*5;flame.material.opacity=.65+Math.sin(flame.userData.phase)*.22;flame.scale.x=2.8+Math.sin(flame.userData.phase*1.7)*.5}}
+  function dispose(){scene.remove(root);for(const flame of root.children)flame.material.dispose();texture.dispose()}
+  return {root,update,dispose};
+}

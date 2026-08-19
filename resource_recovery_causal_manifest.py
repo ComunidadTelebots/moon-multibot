@@ -1,0 +1,4 @@
+import resource_recovery_causal_engines as e
+APIS=["recover_accessible_preferences","recover_integration_secrets","recover_contextual_responses","recover_miniapp_menus","recover_bot_statistics","recover_ad_preferences","recover_processing_queues","audit_creator_accounts","audit_associated_channels","audit_community_campaigns","audit_editorial_articles","audit_moderated_images","audit_user_appeals","audit_mtproto_proxies","audit_persistent_tasks","audit_moderation_rules","audit_language_metrics","audit_community_translations","audit_personal_consents","audit_telegram_reactions"]
+MANIFEST=[{"id":fid,"module":"resource_recovery_causal_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_recovery_causal_engines.py","preflight":"Moonbot catalog proposed; no matching resource-specific recovery/causal schema found"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20

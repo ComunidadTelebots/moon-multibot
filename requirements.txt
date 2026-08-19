@@ -5,6 +5,7 @@ PyJWT
 python-dotenv
 cryptography
 openai
+tzdata
 scikit-learn
 textblob
 paramiko
