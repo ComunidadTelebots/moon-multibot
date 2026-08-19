@@ -1,8 +1,23 @@
+import re
 import time
 import requests
+import hashlib
+from urllib.parse import quote
 
 
-TELEGRAM_BOT_API_VERSION = "10.1"
+TELEGRAM_BOT_API_VERSION = "10.2"
+
+RICH_MARKDOWN_MODES = {"richmarkdown", "rich_markdown", "rich-markdown"}
+RICH_MESSAGE_MAX_CHARS = 32768
+RICH_MESSAGE_MAX_BLOCKS = 500
+RICH_MESSAGE_MAX_MEDIA = 50
+
+COMMUNITY_AD_COMMANDS = {
+    "help", "alternativa", "calc", "calculadora", "clima", "conv", "diccionario",
+    "distro", "get", "getgif", "getweb", "google", "hora", "huracan", "info",
+    "isos", "kernel", "man", "mapa", "meme", "ping", "rae", "reglas", "sera",
+    "stack", "terremoto", "top", "tr", "wiki", "proxy",
+}
 
 DEPRECATED_METHOD_ALIASES = {
     "kickChatMember": "banChatMember",
@@ -30,6 +45,8 @@ DEFAULT_ALLOWED_UPDATES = [
     "poll_answer",
     "message_reaction",
     "message_reaction_count",
+    "managed_bot",
+    "subscription",
 ]
 
 GUEST_UPDATE_FIELDS = (
@@ -41,6 +58,151 @@ GUEST_UPDATE_FIELDS = (
 
 def normalize_method(method):
     return DEPRECATED_METHOD_ALIASES.get(method, method)
+
+
+def is_rich_markdown_mode(parse_mode):
+    return str(parse_mode or "").strip().lower() in RICH_MARKDOWN_MODES
+
+
+def looks_like_rich_markdown(text):
+    value = str(text or "")
+    return bool(
+        re.search(r"(?m)^#{1,6}\s+\S", value)
+        or re.search(r"(?m)^\|.+\|\s*$\n^\|[-: |]+\|\s*$", value)
+        or re.search(r"(?m)^\s*[-*]\s+\[[ xX]\]\s+", value)
+        or "<details>" in value
+        or "```" in value
+        or re.search(r"\$\$.+?\$\$", value, re.S)
+    )
+
+
+def format_command_rich_markdown(command, text):
+    """Mejora visualmente una respuesta de comando sin alterar su contenido."""
+    value = str(text or "").strip()
+    if not value or looks_like_rich_markdown(value):
+        return value
+    name = str(command or "respuesta").split("@", 1)[0].lstrip("/").replace("_", " ").strip()
+    titles = {
+        "ban": "🛡️ Moderación", "gban": "🛡️ Seguridad global", "unban": "🛡️ Moderación",
+        "mute": "🔇 Moderación", "warn": "⚠️ Advertencia", "clima": "🌤️ Tiempo",
+        "hora": "🕒 Hora local", "wiki": "📚 Wikipedia", "diccionario": "📖 Diccionario",
+        "info": "🌙 Moonbot", "reglas": "📜 Reglas", "calc": "🧮 Resultado",
+        "calculadora": "🧮 Resultado", "terremoto": "🌍 Actividad sísmica",
+        "top": "🏆 Clasificación", "help": "📘 Ayuda", "helpadmin": "🛡️ Ayuda administrativa",
+    }
+    title = titles.get(name.lower(), f"🌙 {name.title() or 'Moonbot'}")
+    lower = value.lower()
+    if any(token in lower for token in ("error", "no pude", "no se pudo", "inválido", "denegado")):
+        body = f"> **⚠️ Atención**\n> {value.replace(chr(10), chr(10) + '> ')}"
+        state = "`REVISAR`"
+    elif any(token in lower for token in ("correcto", "completado", "guardado", "confirmado", "resultado:")):
+        body = f"> **✅ Operación completada**\n> {value.replace(chr(10), chr(10) + '> ')}"
+        state = "`COMPLETADO`"
+    else:
+        lines = value.splitlines()
+        pairs, remaining = [], []
+        for line in lines:
+            match = re.match(r"^([^:\n]{1,40}):\s+(.{1,300})$", line.strip())
+            if match and not re.search(r"https?://", line, re.I):
+                pairs.append((match.group(1).strip(), match.group(2).strip()))
+            else:
+                remaining.append(line)
+        # Dos o más métricas se entienden mejor como tarjeta tabular.
+        if len(pairs) >= 2:
+            table = ["| Dato | Valor |", "|---|---|"]
+            for key, item in pairs[:12]:
+                safe_key, safe_item = key.replace("|", "\\|"), item.replace("|", "\\|")
+                table.append(f"| {safe_key} | {safe_item} |")
+            body = "\n".join(table)
+            extra = "\n".join(remaining).strip()
+            if extra:
+                body += f"\n\n{extra}"
+        else:
+            body = value
+        state = "`INFORMACIÓN`"
+    return f"## {title}\n\n{state}\n\n{body}\n\n---\n_Respuesta enriquecida de Moonbot_"
+
+
+def append_community_ad(markdown, command, ads, chat_id, now=None,
+                        api_base="https://api.todosobreall.tech",
+                        directory_base="https://canales.todosobreall.tech"):
+    """Añade una tarjeta comunitaria medible solo a respuestas informativas."""
+    name = str(command or "").split("@", 1)[0].lstrip("/").lower()
+    if name not in COMMUNITY_AD_COMMANDS or not str(chat_id).startswith("-"):
+        return str(markdown or "")
+    candidates = [row for row in (ads or []) if isinstance(row, dict)
+                  and row.get("enabled", True)
+                  and row.get("approval_status") == "approved"
+                  and row.get("id") and row.get("url")]
+    if not candidates:
+        return str(markdown or "")
+    highest = max(int(row.get("priority", 0) or 0) for row in candidates)
+    candidates = sorted((row for row in candidates if int(row.get("priority", 0) or 0) == highest),
+                        key=lambda row: str(row.get("id")))
+    bucket = int((now if now is not None else time.time()) // 600)
+    digest = hashlib.sha256(f"{chat_id}:{bucket}".encode()).digest()
+    ad = candidates[int.from_bytes(digest[:4], "big") % len(candidates)]
+    ad_id = quote(str(ad["id"])[:100], safe="")
+    tracked = f"{str(api_base).rstrip('/')}/house-ads/{ad_id}/click?placement=bot_reply"
+    username_match = re.match(r"^https://t\.me/([A-Za-z0-9_]{5,64})/?$", str(ad.get("url", "")))
+    title = re.sub(r"[\[\]*_`]", "", str(ad.get("title") or "Comunidad Telegram"))[:80]
+    description = re.sub(r"[\[\]*_`]", "", str(ad.get("description") or "Descubre esta comunidad"))[:160]
+    links = f"[Unirme]({tracked})"
+    if username_match:
+        directory = f"{str(directory_base).rstrip('/')}/canal/{username_match.group(1)}"
+        links += f"  ·  [Ver ficha]({directory})"
+    card = ("### 📣 Comunidad recomendada\n"
+            f"> **{title}**\n> {description}\n\n"
+            f"{links}\n\n_Publicidad comunitaria · servicio gratuito y sin ánimo de lucro_")
+    return f"{str(markdown or '').rstrip()}\n\n---\n{card}"
+
+
+def build_input_rich_message(markdown=None, html=None, blocks=None, media=None,
+                             is_rtl=False, skip_entity_detection=False):
+    """Build and validate the Bot API 10.2 InputRichMessage payload."""
+    provided = sum(value is not None for value in (markdown, html, blocks))
+    if provided != 1:
+        raise ValueError("exactly one of markdown, html or blocks is required")
+    payload = {}
+    if markdown is not None:
+        markdown = str(markdown)
+        if len(markdown) > RICH_MESSAGE_MAX_CHARS:
+            raise ValueError("rich markdown exceeds 32768 characters")
+        payload["markdown"] = markdown
+    elif html is not None:
+        html = str(html)
+        if len(html) > RICH_MESSAGE_MAX_CHARS:
+            raise ValueError("rich HTML exceeds 32768 characters")
+        payload["html"] = html
+    else:
+        if not isinstance(blocks, list) or len(blocks) > RICH_MESSAGE_MAX_BLOCKS:
+            raise ValueError("rich message blocks must be a list of at most 500 items")
+        payload["blocks"] = blocks
+    if media is not None:
+        if not isinstance(media, list) or len(media) > RICH_MESSAGE_MAX_MEDIA:
+            raise ValueError("rich message media must be a list of at most 50 items")
+        clean_media = []
+        for item in media:
+            if not isinstance(item, dict):
+                raise ValueError("each rich message media item must be an object")
+            media_id = str(item.get("id") or "")
+            media_value = item.get("media")
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", media_id):
+                raise ValueError("rich message media id must contain 1-64 letters, numbers, _ or -")
+            if not isinstance(media_value, dict):
+                raise ValueError("rich message media payload must be an object")
+            media_type = str(media_value.get("type") or "")
+            if media_type not in {"animation", "audio", "photo", "video", "voice_note"}:
+                raise ValueError("unsupported rich message media type")
+            if not str(media_value.get("media") or "").strip():
+                raise ValueError("rich message media file or URL is required")
+            clean_media.append({"id": media_id, "media": media_value})
+        payload["media"] = clean_media
+    if is_rtl:
+        payload["is_rtl"] = True
+    if skip_entity_detection:
+        payload["skip_entity_detection"] = True
+    return payload
 
 
 def telegram_api_call(session, base_url, method, params=None, files=None, timeout=35, _retries=3):

@@ -1,0 +1,40 @@
+const CACHE_PREFIX = "moon.osm.route.v1", CACHE_TTL = 30 * 86400000;
+const EARTH_RADIUS_M = 6371008.8, DEG = Math.PI / 180;
+const routeMetricsCache = new WeakMap();
+export const EUROPE_GEO_CITIES = Object.freeze({
+  lisbon:[-9.1393,38.7223],porto:[-8.6291,41.1579],seville:[-5.9845,37.3891],madrid:[-3.7038,40.4168],barcelona:[2.1734,41.3851],paris:[2.3522,48.8566],lyon:[4.8357,45.764],marseille:[5.3698,43.2965],london:[-.1276,51.5072],dublin:[-6.2603,53.3498],brussels:[4.3517,50.8503],amsterdam:[4.9041,52.3676],hamburg:[9.9937,53.5511],berlin:[13.405,52.52],munich:[11.582,48.1351],zurich:[8.5417,47.3769],milan:[9.19,45.4642],rome:[12.4964,41.9028],naples:[14.2681,40.8518],venice:[12.3155,45.4408],vienna:[16.3738,48.2082],prague:[14.4378,50.0755],warsaw:[21.0122,52.2297],copenhagen:[12.5683,55.6761],oslo:[10.7522,59.9139],stockholm:[18.0686,59.3293],helsinki:[24.9384,60.1699],tallinn:[24.7536,59.437],riga:[24.1052,56.9496],vilnius:[25.2797,54.6872],budapest:[19.0402,47.4979],zagreb:[15.9819,45.815],ljubljana:[14.5058,46.0569],bratislava:[17.1077,48.1486],bucharest:[26.1025,44.4268],sofia:[23.3219,42.6977],athens:[23.7275,37.9838],belgrade:[20.4489,44.7866],sarajevo:[18.4131,43.8563],tirana:[19.8187,41.3275],skopje:[21.4316,41.9981]
+});
+const simplify=(coordinates,maximum=1800)=>{if(coordinates.length<=maximum)return coordinates;const stride=Math.ceil(coordinates.length/maximum),points=coordinates.filter((_,i)=>i%stride===0),last=coordinates.at(-1);if(points.at(-1)!==last)points.push(last);return points};
+export function createOsmRoutePlanner({endpoint="https://router.project-osrm.org"}={}){
+  async function route(fromId,toId){const from=EUROPE_GEO_CITIES[fromId],to=EUROPE_GEO_CITIES[toId];if(!from||!to||fromId===toId)throw new Error("Origen o destino no disponible");const key=`${CACHE_PREFIX}.${fromId}.${toId}`;let cached;try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch{}if(cached&&Date.now()-cached.at<CACHE_TTL)return{...cached.route,source:"cache"};const response=await fetch(`${endpoint}/route/v1/driving/${from.join(",")};${to.join(",")}?overview=full&geometries=geojson&steps=true&annotations=false`,{headers:{Accept:"application/json"}});if(!response.ok)throw new Error(`OSRM ${response.status}`);const payload=await response.json(),result=payload.routes?.[0];if(payload.code!=="Ok"||!result?.geometry?.coordinates?.length)throw new Error(payload.message||"Ruta no encontrada");const value={fromId,toId,distanceKm:result.distance/1000,durationHours:result.duration/3600,coordinates:simplify(result.geometry.coordinates),steps:(result.legs?.[0]?.steps||[]).map(step=>({name:step.name||"Carretera sin nombre",distanceKm:step.distance/1000,maneuver:step.maneuver?.type||"continue",modifier:step.maneuver?.modifier||"straight",location:step.maneuver?.location})),source:"osrm-openstreetmap"};try{localStorage.setItem(key,JSON.stringify({at:Date.now(),route:value}))}catch{}return value}
+  return{route};
+}
+export function projectRouteToWorld(route,{width=1500,length=12000}={}){const coords=route?.coordinates||[];if(coords.length<2)return[];const lat0=coords[0][1]*Math.PI/180,origin=coords[0],metric=coords.map(([lon,lat])=>({x:(lon-origin[0])*111320*Math.cos(lat0),z:-(lat-origin[1])*110540}));let travelled=0;const samples=metric.map((point,index)=>{if(index)travelled+=Math.hypot(point.x-metric[index-1].x,point.z-metric[index-1].z);return{...point,d:travelled}}),total=Math.max(1,travelled),maxX=Math.max(1,...samples.map(p=>Math.abs(p.x))),scale=Math.min(width/maxX,length/total);return samples.map(point=>({x:point.x*scale,z:-point.d*scale,distanceKm:point.d/1000}))}
+
+export function coordinateAtRouteProgress(route, progressRatio = 0) {
+  const coordinates = route?.coordinates || route?.geometry?.coordinates || [];
+  if (!coordinates.length) return null;
+  if (coordinates.length === 1) return [...coordinates[0]];
+  let metrics = routeMetricsCache.get(route);
+  if (!metrics) {
+    const segmentLengths = [], cumulative = [0];
+    for (let index = 1; index < coordinates.length; index++) {
+      const [lon1, lat1] = coordinates[index - 1], [lon2, lat2] = coordinates[index];
+      const dLat = (lat2 - lat1) * DEG, dLon = (lon2 - lon1) * DEG;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * DEG) * Math.cos(lat2 * DEG) * Math.sin(dLon / 2) ** 2;
+      const length = 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)));
+      segmentLengths.push(length); cumulative.push(cumulative.at(-1) + length);
+    }
+    metrics = { segmentLengths, cumulative };
+    routeMetricsCache.set(route, metrics);
+  }
+  const { segmentLengths, cumulative } = metrics;
+  const target = Math.max(0, Math.min(1, Number(progressRatio) || 0)) * cumulative.at(-1);
+  let index = 0;
+  while (index < segmentLengths.length - 1 && cumulative[index + 1] < target) index++;
+  const length = segmentLengths[index], t = length ? (target - cumulative[index]) / length : 0;
+  return [
+    coordinates[index][0] + (coordinates[index + 1][0] - coordinates[index][0]) * t,
+    coordinates[index][1] + (coordinates[index + 1][1] - coordinates[index][1]) * t,
+  ];
+}

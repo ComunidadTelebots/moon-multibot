@@ -1,5 +1,6 @@
 ﻿import json
 import os
+import re
 from datetime import datetime
 
 def handle_command(bot, cid, uid, text, rank):
@@ -36,9 +37,17 @@ def handle_command(bot, cid, uid, text, rank):
         if not filename:
             bot.send_msg(cid, "Uso: /restore_db <filename.json>")
             return True
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\.json", filename):
+            bot.send_msg(cid, "âŒ Nombre de backup no válido.")
+            return True
+        data_dir = os.path.abspath("data")
+        backup_path = os.path.abspath(os.path.join(data_dir, filename))
+        if os.path.commonpath((data_dir, backup_path)) != data_dir:
+            bot.send_msg(cid, "âŒ Ruta de backup no válida.")
+            return True
         
         try:
-            with open(f"data/{filename}", "r", encoding="utf-8") as f:
+            with open(backup_path, "r", encoding="utf-8") as f:
                 db_data = json.load(f)
             
             for key, value in db_data.items():

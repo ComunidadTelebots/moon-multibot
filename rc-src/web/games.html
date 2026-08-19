@@ -1,0 +1,334 @@
+<div class="glass-panel" style="margin-bottom: 20px;">
+    <h3 style="margin-bottom: 6px;">Juegos HTML5</h3>
+    <p class="subtitle">Minijuegos integrados en el panel Moon. Todo corre en tu navegador.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;">
+        <select id="gamesBotSelect"></select>
+        <select id="gamesChatSelect"></select>
+        <button id="gamesTestSendBtn" style="margin-top:0;">Probar Telegram</button>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+    <section class="glass-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <h4 style="margin:0;">Snake</h4>
+            <div style="font-size:12px;color:var(--text-muted);">Puntos: <span id="snakeScore">0</span></div>
+        </div>
+        <canvas id="snakeCanvas" width="300" height="300" style="margin-top:10px;border:1px solid var(--glass-border);border-radius:8px;background:#0b1220;"></canvas>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+            <button id="snakeStartBtn" style="margin-top:0;">Iniciar</button>
+            <button id="snakeResetBtn" style="margin-top:0;background:rgba(255,255,255,0.08);">Reiniciar</button>
+            <button id="snakeSendBtn" style="margin-top:0;background:rgba(56,189,248,0.18);">Enviar score</button>
+        </div>
+        <p style="margin-top:8px;color:var(--text-muted);font-size:12px;">Controles: flechas o WASD.</p>
+    </section>
+
+    <section class="glass-panel">
+        <h4 style="margin:0 0 10px 0;">Tres en Raya</h4>
+        <div id="tttBoard" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+            <span id="tttStatus" style="font-size:13px;color:var(--text-muted);">Turno: X</span>
+            <div style="display:flex;gap:8px;">
+                <button id="tttSendBtn" style="margin-top:0;width:auto;padding:8px 12px;background:rgba(56,189,248,0.18);">Enviar</button>
+                <button id="tttResetBtn" style="margin-top:0;width:auto;padding:8px 12px;">Reiniciar</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="glass-panel">
+        <h4 style="margin:0 0 10px 0;">Memoria</h4>
+        <div id="memoryBoard" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+            <span style="font-size:13px;color:var(--text-muted);">Movimientos: <span id="memoryMoves">0</span></span>
+            <div style="display:flex;gap:8px;">
+                <button id="memorySendBtn" style="margin-top:0;width:auto;padding:8px 12px;background:rgba(56,189,248,0.18);">Enviar</button>
+                <button id="memoryResetBtn" style="margin-top:0;width:auto;padding:8px 12px;">Mezclar</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+(() => {
+    const root = document.getElementById("tab-container");
+    if (!root) return;
+    const botSelect = root.querySelector("#gamesBotSelect");
+    const chatSelect = root.querySelector("#gamesChatSelect");
+    const testSendBtn = root.querySelector("#gamesTestSendBtn");
+    let botsCache = [];
+
+    async function loadBotsAndChats() {
+        try {
+            const res = await fetch("/api/bots", {
+                headers: { "Authorization": (typeof getStoredAuthToken === "function" ? getStoredAuthToken() : (window.authToken || "")) }
+            });
+            const data = await res.json();
+            botsCache = Array.isArray(data?.bots) ? data.bots : [];
+            if (!botsCache.length) {
+                botSelect.innerHTML = '<option value="">Sin bots activos</option>';
+                chatSelect.innerHTML = '<option value="">Sin chats</option>';
+                return;
+            }
+            botSelect.innerHTML = botsCache.map((b, idx) => `<option value="${idx}">${(b.name || ("Bot " + idx))}</option>`).join("");
+            renderChatsForBot(0);
+        } catch (e) {
+            botSelect.innerHTML = '<option value="">Error cargando bots</option>';
+            chatSelect.innerHTML = '<option value="">Error cargando chats</option>';
+        }
+    }
+
+    function renderChatsForBot(botIdx) {
+        const b = botsCache[botIdx];
+        const chats = Array.isArray(b?.chats) ? b.chats : [];
+        if (!chats.length) {
+            chatSelect.innerHTML = '<option value="">Sin chats en este bot</option>';
+            return;
+        }
+        chatSelect.innerHTML = chats.map(c => `<option value="${c.id}">${c.name || c.id}</option>`).join("");
+    }
+
+    botSelect.onchange = () => {
+        const idx = Number(botSelect.value || "0");
+        renderChatsForBot(idx);
+    };
+
+    async function sendToTelegram(text) {
+        const chatId = (chatSelect.value || "").trim();
+        const botIdx = Number(botSelect.value || "0");
+        if (!chatId) {
+            if (typeof showToast === "function") showToast("Juegos", "Selecciona un chat destino.");
+            return false;
+        }
+        try {
+            const res = await fetch("/api/telegram/call", {
+                method: "POST",
+                headers: {
+                    "Authorization": (typeof getStoredAuthToken === "function" ? getStoredAuthToken() : (window.authToken || "")),
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    method: "send_msg",
+                    bot_idx: botIdx,
+                    params: { chat_id: chatId, text }
+                })
+            });
+            const data = await res.json();
+            if (data && data.ok) {
+                if (typeof showToast === "function") showToast("Juegos", "Puntuación enviada a Telegram.");
+                return true;
+            }
+            if (typeof showToast === "function") showToast("Juegos", data?.description || data?.msg || "No se pudo enviar.");
+            return false;
+        } catch (e) {
+            if (typeof showToast === "function") showToast("Juegos", "Error de red al enviar.");
+            return false;
+        }
+    }
+
+    testSendBtn.onclick = () => sendToTelegram("Prueba de integración de juegos HTML5 con Telegram API.");
+    loadBotsAndChats();
+
+    // Snake
+    const snakeCanvas = root.querySelector("#snakeCanvas");
+    const snakeScoreEl = root.querySelector("#snakeScore");
+    const snakeStartBtn = root.querySelector("#snakeStartBtn");
+    const snakeResetBtn = root.querySelector("#snakeResetBtn");
+    const snakeSendBtn = root.querySelector("#snakeSendBtn");
+    const sctx = snakeCanvas.getContext("2d");
+    const size = 15;
+    const cells = 20;
+    let snake = [{x: 10, y: 10}];
+    let food = {x: 5, y: 5};
+    let dir = {x: 1, y: 0};
+    let snakeTimer = null;
+    let snakeScore = 0;
+
+    function placeFood() {
+        let ok = false;
+        while (!ok) {
+            food = {x: Math.floor(Math.random() * cells), y: Math.floor(Math.random() * cells)};
+            ok = !snake.some(s => s.x === food.x && s.y === food.y);
+        }
+    }
+
+    function drawSnake() {
+        sctx.clearRect(0, 0, snakeCanvas.width, snakeCanvas.height);
+        sctx.fillStyle = "#38bdf8";
+        snake.forEach(p => sctx.fillRect(p.x * size, p.y * size, size - 1, size - 1));
+        sctx.fillStyle = "#ef4444";
+        sctx.fillRect(food.x * size, food.y * size, size - 1, size - 1);
+    }
+
+    function stepSnake() {
+        const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+        if (head.x < 0 || head.y < 0 || head.x >= cells || head.y >= cells || snake.some(p => p.x === head.x && p.y === head.y)) {
+            clearInterval(snakeTimer);
+            snakeTimer = null;
+            return;
+        }
+        snake.unshift(head);
+        if (head.x === food.x && head.y === food.y) {
+            snakeScore += 10;
+            snakeScoreEl.textContent = String(snakeScore);
+            placeFood();
+        } else {
+            snake.pop();
+        }
+        drawSnake();
+    }
+
+    function resetSnake() {
+        clearInterval(snakeTimer);
+        snakeTimer = null;
+        snake = [{x: 10, y: 10}];
+        dir = {x: 1, y: 0};
+        snakeScore = 0;
+        snakeScoreEl.textContent = "0";
+        placeFood();
+        drawSnake();
+    }
+
+    snakeStartBtn.onclick = () => {
+        if (snakeTimer) return;
+        snakeTimer = setInterval(stepSnake, 110);
+    };
+    snakeResetBtn.onclick = resetSnake;
+    snakeSendBtn.onclick = () => sendToTelegram(`Snake score: ${snakeScore}`);
+    resetSnake();
+
+    window.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k === "arrowup" || k === "w") { if (dir.y !== 1) dir = {x: 0, y: -1}; }
+        if (k === "arrowdown" || k === "s") { if (dir.y !== -1) dir = {x: 0, y: 1}; }
+        if (k === "arrowleft" || k === "a") { if (dir.x !== 1) dir = {x: -1, y: 0}; }
+        if (k === "arrowright" || k === "d") { if (dir.x !== -1) dir = {x: 1, y: 0}; }
+    });
+
+    // Tic Tac Toe
+    const tttBoard = root.querySelector("#tttBoard");
+    const tttStatus = root.querySelector("#tttStatus");
+    const tttResetBtn = root.querySelector("#tttResetBtn");
+    const tttSendBtn = root.querySelector("#tttSendBtn");
+    let ttt = Array(9).fill("");
+    let tttTurn = "X";
+    let tttOver = false;
+    const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+    function tttCheck() {
+        for (const [a,b,c] of wins) {
+            if (ttt[a] && ttt[a] === ttt[b] && ttt[a] === ttt[c]) return ttt[a];
+        }
+        if (ttt.every(x => x)) return "draw";
+        return "";
+    }
+
+    function tttRender() {
+        tttBoard.innerHTML = "";
+        for (let i = 0; i < 9; i++) {
+            const b = document.createElement("button");
+            b.textContent = ttt[i] || " ";
+            b.style.marginTop = "0";
+            b.style.height = "64px";
+            b.style.fontSize = "24px";
+            b.style.fontWeight = "800";
+            b.style.background = "rgba(255,255,255,0.05)";
+            b.onclick = () => {
+                if (tttOver || ttt[i]) return;
+                ttt[i] = tttTurn;
+                const r = tttCheck();
+                if (r) {
+                    tttOver = true;
+                    tttStatus.textContent = r === "draw" ? "Empate." : `Gana: ${r}`;
+                } else {
+                    tttTurn = tttTurn === "X" ? "O" : "X";
+                    tttStatus.textContent = `Turno: ${tttTurn}`;
+                }
+                tttRender();
+            };
+            tttBoard.appendChild(b);
+        }
+    }
+
+    function tttReset() {
+        ttt = Array(9).fill("");
+        tttTurn = "X";
+        tttOver = false;
+        tttStatus.textContent = "Turno: X";
+        tttRender();
+    }
+    tttSendBtn.onclick = () => sendToTelegram(`Tres en raya: ${tttStatus.textContent}`);
+    tttResetBtn.onclick = tttReset;
+    tttReset();
+
+    // Memory
+    const memBoard = root.querySelector("#memoryBoard");
+    const memMovesEl = root.querySelector("#memoryMoves");
+    const memResetBtn = root.querySelector("#memoryResetBtn");
+    const memSendBtn = root.querySelector("#memorySendBtn");
+    const emojis = ["🌙","🚀","🤖","🧠","⚡","🛡️","📡","💎"];
+    let memCards = [];
+    let memOpen = [];
+    let memLock = false;
+    let memMoves = 0;
+
+    function shuffle(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function memRender() {
+        memBoard.innerHTML = "";
+        memCards.forEach((card, idx) => {
+            const b = document.createElement("button");
+            b.style.marginTop = "0";
+            b.style.height = "62px";
+            b.style.fontSize = "24px";
+            b.style.background = card.done || card.open ? "rgba(56,189,248,0.18)" : "rgba(255,255,255,0.05)";
+            b.textContent = card.done || card.open ? card.v : "•";
+            b.onclick = () => {
+                if (memLock || card.done || card.open) return;
+                card.open = true;
+                memOpen.push(idx);
+                memRender();
+                if (memOpen.length === 2) {
+                    memMoves += 1;
+                    memMovesEl.textContent = String(memMoves);
+                    const [a, c] = memOpen;
+                    if (memCards[a].v === memCards[c].v) {
+                        memCards[a].done = true;
+                        memCards[c].done = true;
+                        memOpen = [];
+                        memRender();
+                    } else {
+                        memLock = true;
+                        setTimeout(() => {
+                            memCards[a].open = false;
+                            memCards[c].open = false;
+                            memOpen = [];
+                            memLock = false;
+                            memRender();
+                        }, 650);
+                    }
+                }
+            };
+            memBoard.appendChild(b);
+        });
+    }
+
+    function memReset() {
+        memMoves = 0;
+        memMovesEl.textContent = "0";
+        memOpen = [];
+        memLock = false;
+        memCards = shuffle(emojis.concat(emojis)).map(v => ({v, open: false, done: false}));
+        memRender();
+    }
+    memSendBtn.onclick = () => sendToTelegram(`Memoria: ${memMoves} movimientos`);
+    memResetBtn.onclick = memReset;
+    memReset();
+})();
+</script>

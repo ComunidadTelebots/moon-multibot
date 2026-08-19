@@ -1,0 +1,184 @@
+:root {
+  --season-primary: var(--teal);
+  --season-secondary: var(--cyan);
+  --season-rgb: 93, 202, 165;
+}
+
+html[data-season] {
+  --teal: var(--season-primary);
+  --cyan: var(--season-secondary);
+  --grad: linear-gradient(120deg, var(--season-primary), var(--season-secondary));
+}
+
+html[data-season] body {
+  background-image:
+    radial-gradient(circle at 5% 18%, rgba(var(--season-rgb), .1), transparent 45vw),
+    radial-gradient(circle at 95% 70%, color-mix(in srgb, var(--season-secondary) 10%, transparent), transparent 48vw);
+  background-attachment: fixed;
+}
+
+.seasonal-banner {
+  position: relative;
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding:
+    7px
+    max(46px, env(safe-area-inset-right))
+    7px
+    max(16px, env(safe-area-inset-left));
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% -150%, color-mix(in srgb, var(--season-secondary) 32%, transparent), transparent 72%),
+    color-mix(in srgb, var(--season-primary) 9%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--season-primary) 28%, transparent);
+}
+
+.seasonal-banner__content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seasonal-banner__symbol {
+  color: var(--season-primary);
+  font-size: 15px;
+  line-height: 1;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--season-primary) 55%, transparent);
+}
+
+.seasonal-banner__close {
+  position: absolute;
+  top: 50%;
+  right: max(10px, env(safe-area-inset-right));
+  width: 28px;
+  height: 28px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .05);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.seasonal-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 18;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.seasonal-particle {
+  position: absolute;
+  top: -20px;
+  color: var(--season-primary);
+  opacity: .5;
+  font-size: 12px;
+  text-shadow: 0 0 12px var(--season-secondary);
+  animation: seasonal-fall var(--season-duration, 10s) linear infinite;
+  animation-delay: var(--season-delay, 0s);
+}
+
+@keyframes seasonal-fall {
+  0% {
+    transform: translate3d(0, -5vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: .55;
+  }
+  88% {
+    opacity: .4;
+  }
+  100% {
+    transform: translate3d(var(--season-drift, 20px), 105vh, 0) rotate(280deg);
+    opacity: 0;
+  }
+}
+
+html[data-season="christmas"] {
+  --season-primary: #ef6464;
+  --season-secondary: #50c878;
+  --season-rgb: 239, 100, 100;
+}
+
+html[data-season="new-year"],
+html[data-season="europe-day"] {
+  --season-primary: #68a4ff;
+  --season-secondary: #ffd45c;
+  --season-rgb: 104, 164, 255;
+}
+
+html[data-season="valentine"],
+html[data-season="sant-jordi"] {
+  --season-primary: #ff6f9f;
+  --season-secondary: #f6a8c4;
+  --season-rgb: 255, 111, 159;
+}
+
+html[data-season="halloween"] {
+  --season-primary: #ff9838;
+  --season-secondary: #a980ff;
+  --season-rgb: 255, 152, 56;
+}
+
+html[data-season="fallas"],
+html[data-season="kings-day"] {
+  --season-primary: #ff9147;
+  --season-secondary: #ffd05a;
+  --season-rgb: 255, 145, 71;
+}
+
+html[data-season="san-juan"] {
+  --season-primary: #34c8ff;
+  --season-secondary: #ffd05a;
+  --season-rgb: 52, 200, 255;
+}
+
+html[data-season="st-patrick"] {
+  --season-primary: #54d889;
+  --season-secondary: #f2d65c;
+  --season-rgb: 84, 216, 137;
+}
+
+html[data-season="italy-republic"],
+html[data-season="portugal-day"] {
+  --season-primary: #49c77e;
+  --season-secondary: #f26d6d;
+  --season-rgb: 73, 199, 126;
+}
+
+html[data-season="bastille-day"] {
+  --season-primary: #5590ff;
+  --season-secondary: #f46f77;
+  --season-rgb: 85, 144, 255;
+}
+
+html[data-season="oktoberfest"] {
+  --season-primary: #5e9cff;
+  --season-secondary: #ffc857;
+  --season-rgb: 94, 156, 255;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-particle {
+    animation: none;
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .seasonal-banner {
+    font-size: 11.5px;
+  }
+}

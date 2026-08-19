@@ -1,0 +1,62 @@
+[
+  {
+    "id": "official-todosobrealltech",
+    "title": "Todo Sobre All Tech",
+    "description": "Noticias, tecnología y novedades de nuestra red sin ánimo de lucro.",
+    "url": "https://t.me/TodoSobreAllTech",
+    "cta": "Seguir canal",
+    "placement": "all",
+    "priority": 60,
+    "background": "#eaf6ff",
+    "foreground": "#123d66",
+    "accent": "#1688d4"
+  },
+  {
+    "id": "official-comunidadtelebots",
+    "title": "Comunidad Telebots",
+    "description": "Canales, grupos y proyectos de la comunidad Telegram.",
+    "url": "https://t.me/comunidadtelebots",
+    "cta": "Abrir comunidad",
+    "placement": "all",
+    "priority": 60,
+    "background": "#ecfdf5",
+    "foreground": "#14532d",
+    "accent": "#16a36a"
+  },
+  {
+    "id": "official-resistencia-censura",
+    "title": "Resistencia a la Censura",
+    "description": "Privacidad, acceso libre a la información y resistencia digital.",
+    "url": "https://t.me/resistencia_censura",
+    "cta": "Ver canal",
+    "placement": "all",
+    "priority": 60,
+    "background": "#fff7ed",
+    "foreground": "#7c2d12",
+    "accent": "#ea580c"
+  },
+  {
+    "id": "official-todosobregameplays",
+    "title": "Todo Sobre Gameplays",
+    "description": "Vídeos, directos y novedades para la comunidad gaming.",
+    "url": "https://t.me/TodoSobreGameplaysCanal",
+    "cta": "Ver gameplays",
+    "placement": "all",
+    "priority": 60,
+    "background": "#f5f3ff",
+    "foreground": "#4c1d95",
+    "accent": "#7c3aed"
+  },
+  {
+    "id": "official-instagram",
+    "title": "TodoSobreAllTech en Instagram",
+    "description": "Noticias, tecnología e inteligencia artificial en formato visual.",
+    "url": "https://www.instagram.com/todosobrealltech/",
+    "cta": "Seguir en Instagram",
+    "placement": "all",
+    "priority": 60,
+    "background": "#fff1f2",
+    "foreground": "#831843",
+    "accent": "#db2777"
+  }
+]

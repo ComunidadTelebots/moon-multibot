@@ -1,6 +1,16 @@
+import os
+import re
+import tempfile
+import time
+
 import requests as _requests
 
 from flask import Blueprint, request, jsonify
+from plugins.url_tools import inspect_url
+from werkzeug.utils import secure_filename
+
+from core.media_analyzer import analyze_image
+from core.security_insights import build_alerts, detect_anomalies, redact_results, search_history, summarize_history
 
 bp = Blueprint("security", __name__)
 
@@ -9,16 +19,51 @@ _db = None
 _vt_mgr = None
 _add_web_log = None
 _check_cas_status = None
+_wayback = None
+_MAX_SCAN_BYTES = 10 * 1024 * 1024
 
 
-def setup(check_jwt, db, vt_mgr, add_web_log, check_cas_status):
-    global _check_jwt, _db, _vt_mgr, _add_web_log, _check_cas_status
+def _append_threat_history(item):
+    rows = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    if not isinstance(rows, list):
+        rows = []
+    rows.append(item)
+    _db.set("THREAT_ANALYSIS_HISTORY", rows[-300:])
+
+
+def setup(check_jwt, db, vt_mgr, add_web_log, check_cas_status, wayback):
+    global _check_jwt, _db, _vt_mgr, _add_web_log, _check_cas_status, _wayback
     _check_jwt = check_jwt
     _db = db
     _vt_mgr = vt_mgr
     _add_web_log = add_web_log
     _check_cas_status = check_cas_status
+    _wayback = wayback
     return bp
+
+
+@bp.route("/api/security/url/inspect", methods=["POST"])
+def api_url_inspect():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    result = inspect_url((request.json or {}).get("url"))
+    return jsonify(result), (200 if result.get("ok") else 400)
+
+
+@bp.route("/api/security/wayback/lookup", methods=["POST"])
+def api_wayback_lookup():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    result = _wayback.lookup(body.get("url"), body.get("timestamp"))
+    return jsonify(result), 200 if result.get("ok") else 400
+
+
+@bp.route("/api/security/wayback/history")
+def api_wayback_history():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "history": _wayback.history()})
 
 
 @bp.route("/api/health/telegram")
@@ -44,6 +89,188 @@ def api_security_vt_scan():
     return jsonify(_vt_mgr.scan_hash(file_hash))
 
 
+@bp.route("/api/security/vt/analyze", methods=["POST"])
+def api_security_vt_analyze():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    kind, value = str(body.get("kind", "")).lower(), str(body.get("value", "")).strip()
+    result = _vt_mgr.analyze(kind, value)
+    if result.get("ok"):
+        _append_threat_history({
+            "time": int(time.time()), "source": "virustotal",
+            "kind": kind, "value": value[:500], "risk": result.get("risk", "pending"),
+            "malicious": result.get("malicious", 0),
+            "suspicious": result.get("suspicious", 0),
+            "cached": bool(result.get("cached")),
+        })
+    return jsonify(result), 200 if result.get("ok") else 400
+
+
+@bp.route("/api/security/vt/file", methods=["POST"])
+def api_security_vt_file():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        return jsonify({"ok": False, "error": "Archivo faltante"}), 400
+    if request.content_length and request.content_length > _MAX_SCAN_BYTES + 1024 * 128:
+        return jsonify({"ok": False, "error": "El archivo supera 10 MB"}), 413
+    suffix = os.path.splitext(secure_filename(upload.filename))[1][:12]
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix="moon-vt-", suffix=suffix, delete=False) as target:
+            path = target.name
+            total = 0
+            while True:
+                chunk = upload.stream.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > _MAX_SCAN_BYTES:
+                    return jsonify({"ok": False, "error": "El archivo supera 10 MB"}), 413
+                target.write(chunk)
+        result = _vt_mgr.scan_file(path, secure_filename(upload.filename))
+        if result.get("ok"):
+            _append_threat_history({
+                "time": int(time.time()), "source": "virustotal",
+                "kind": "file", "value": result.get("value"),
+                "filename": secure_filename(upload.filename),
+                "risk": result.get("risk", "pending"),
+                "malicious": result.get("malicious", 0),
+                "suspicious": result.get("suspicious", 0),
+            })
+        return jsonify(result), 200 if result.get("ok") else 400
+    finally:
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+@bp.route("/api/security/media/analyze", methods=["POST"])
+def api_security_media_analyze():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return jsonify({"ok": False, "error": "Imagen faltante"}), 400
+    if request.content_length and request.content_length > _MAX_SCAN_BYTES + 1024 * 128:
+        return jsonify({"ok": False, "error": "La imagen supera 10 MB"}), 413
+    suffix = os.path.splitext(secure_filename(upload.filename))[1][:12]
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix="moon-image-", suffix=suffix, delete=False) as target:
+            path = target.name
+            total = 0
+            while True:
+                chunk = upload.stream.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > _MAX_SCAN_BYTES:
+                    return jsonify({"ok": False, "error": "La imagen supera 10 MB"}), 413
+                target.write(chunk)
+        options = {
+            "ocr": request.form.get("ocr", "true") == "true",
+            "impersonation": request.form.get("impersonation", "true") == "true",
+            "sensitive": request.form.get("sensitive", "true") == "true",
+        }
+        result = analyze_image(path, options)
+        result["filename"] = secure_filename(upload.filename)
+        if result.get("ok"):
+            _db.set("STATS_PHOTOS", int(_db.get("STATS_PHOTOS", 0)) + 1)
+            _append_threat_history({
+                "time": int(time.time()), "source": "vision",
+                "kind": "image", "value": result.get("sha256"),
+                "filename": result.get("filename"), "risk": result.get("risk"),
+                "score": result.get("score"), "signals": result.get("signals", []),
+            })
+        return jsonify(result), 200 if result.get("ok") else 400
+    finally:
+        if path:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+@bp.route("/api/security/threat-history")
+def api_security_threat_history():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    rows = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    return jsonify({"ok": True, "history": list(reversed(rows[-100:])) if isinstance(rows, list) else []})
+
+
+@bp.route("/api/security/threat-insights")
+def api_security_threat_insights():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    query = str(request.args.get("q") or "").strip()[:200]
+    try:
+        limit = max(1, min(100, int(request.args.get("limit", 30))))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "límite inválido"}), 400
+    rows = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    rows = rows if isinstance(rows, list) else []
+    preferences = _db.get("SECURITY_INSIGHT_PREFERENCES", {})
+    preferences = preferences if isinstance(preferences, dict) else {}
+    preferences = {"minimum_severity": preferences.get("minimum_severity", "medium"),
+                   "privacy_mode": bool(preferences.get("privacy_mode", True))}
+    acknowledged = _db.get("SECURITY_INSIGHT_ACKNOWLEDGED", [])
+    acknowledged = acknowledged if isinstance(acknowledged, list) else []
+    anomalies = detect_anomalies(rows)
+    results = search_history(rows, query, limit)
+    return jsonify({
+        "ok": True,
+        "query": query,
+        "results": redact_results(results, preferences["privacy_mode"]),
+        "summary": summarize_history(rows),
+        "anomalies": anomalies,
+        "alerts": build_alerts(rows, anomalies, preferences["minimum_severity"], acknowledged),
+        "preferences": preferences,
+    })
+
+
+@bp.route("/api/security/threat-preferences", methods=["POST"])
+def api_security_threat_preferences():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    severity = str(body.get("minimum_severity") or "medium").lower()
+    if severity not in ("low", "medium", "high", "critical"):
+        return jsonify({"ok": False, "error": "severidad inválida"}), 400
+    preferences = {"minimum_severity": severity, "privacy_mode": bool(body.get("privacy_mode", True))}
+    _db.set("SECURITY_INSIGHT_PREFERENCES", preferences)
+    return jsonify({"ok": True, "preferences": preferences})
+
+
+@bp.route("/api/security/threat-alerts/ack", methods=["POST"])
+def api_security_threat_alert_ack():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    alert_id = str((request.json or {}).get("alert_id") or "").lower()
+    if not re.fullmatch(r"[a-f0-9]{20}", alert_id):
+        return jsonify({"ok": False, "error": "alerta inválida"}), 400
+    rows = _db.get("SECURITY_INSIGHT_ACKNOWLEDGED", [])
+    rows = rows if isinstance(rows, list) else []
+    threats = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    threats = threats if isinstance(threats, list) else []
+    preferences = _db.get("SECURITY_INSIGHT_PREFERENCES", {})
+    preferences = preferences if isinstance(preferences, dict) else {}
+    active_ids = {item["id"] for item in build_alerts(
+        threats, detect_anomalies(threats), preferences.get("minimum_severity", "medium"), rows
+    )}
+    if alert_id not in active_ids:
+        return jsonify({"ok": False, "error": "alerta no encontrada"}), 404
+    if alert_id not in rows:
+        rows.append(alert_id)
+        _db.set("SECURITY_INSIGHT_ACKNOWLEDGED", rows[-200:])
+    return jsonify({"ok": True, "alert_id": alert_id})
+
+
 @bp.route("/api/security/cas/check/<uid>")
 def api_security_cas_check(uid):
     if not _check_jwt(request):
@@ -63,11 +290,20 @@ def api_security_audit():
 def get_vision_stats():
     if not _check_jwt(request):
         return jsonify({"ok": False}), 401
+    history = _db.get("THREAT_ANALYSIS_HISTORY", [])
+    history = history if isinstance(history, list) else []
+    analysed = len(history)
+    detected = sum(
+        row.get("risk") in ("high", "medium") or int(row.get("malicious", 0) or 0) > 0
+        for row in history
+    )
     return jsonify({
         "ok": True,
         "photos": _db.get("STATS_PHOTOS", 0),
         "videos": _db.get("STATS_VIDEOS", 0),
-        "threats": len(_db.get("BANNED_HASHES", [])),
+        "threats": detected,
+        "analyses": analysed,
+        "clean_rate": round((analysed - detected) * 100 / analysed, 1) if analysed else 100,
         "shield_enabled": _db.get("NEURAL_SHIELD", True),
     })
 

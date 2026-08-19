@@ -10,10 +10,10 @@ def handle_command(bot, cid, uid, text, rank):
     if not parts:
         return False
     cmd = parts[0].lower()
-    if cmd not in ["/calc", "/math"]:
+    if cmd not in ["/calc", "/math", "/calculadora"]:
         return False
     if len(parts) < 2:
-        bot.send_msg(cid, "Uso: /calc <expresion>. Ej: /calc (2+5)*3")
+        bot.send_msg(cid, "Uso: /calculadora <expresión>. Ej: /calculadora (2+5)*3")
         return True
     expr = parts[1].strip()
     try:

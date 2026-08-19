@@ -1,0 +1,4 @@
+import resource_expiry_approval_engines as e
+APIS=["expire_editorial_articles","expire_moderated_images","expire_user_appeals","expire_mtproto_proxies","expire_persistent_tasks","expire_moderation_rules","expire_language_metrics","expire_community_translations","expire_personal_consents","expire_telegram_reactions","expire_master_panels","expire_channel_directories","expire_external_links","approve_admin_sessions","approve_community_profiles","approve_telegram_communities","approve_house_ads","approve_voice_notes","approve_suspicious_files","approve_captcha_decisions"]
+MANIFEST=[{"release_channel": "alpha", "id":fid,"module":"resource_expiry_approval_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_expiry_approval_engines.py","preflight":"Moonbot proposed; no matching independent expiry/multilevel-approval contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20

@@ -95,7 +95,10 @@ class ProxyManager:
         key_passphrase = PROXY_VPS_KEY_PASSPHRASE
         ports = cfg.get("ports") or PROXY_VPS_PORTS
         if isinstance(ports, str):
-            ports = [int(p.strip()) for p in ports.split(",") if p.strip().isdigit()]
+            ports = [p.strip() for p in ports.split(",") if p.strip()]
+        if not isinstance(ports, (list, tuple)):
+            ports = self.vps_default_ports
+        ports = [self._validated_port(value) for value in ports]
         return {
             "host": host, "user": user, "port": port, "key_path": key_path,
             "password": password if include_secret else "",
@@ -110,21 +113,35 @@ class ProxyManager:
         cfg = {
             "host": data.get("host", current.get("host", "")).strip(),
             "user": data.get("user", current.get("user", "root")).strip() or "root",
-            "port": int(data.get("port", current.get("port", 22)) or 22),
+            "port": self._validated_port(data.get("port", current.get("port", 22)) or 22),
             "key_path": data.get("key_path", current.get("key_path", "")).strip(),
             "ports": data.get("ports", current.get("ports", self.vps_default_ports))
         }
         if isinstance(cfg["ports"], str):
-            cfg["ports"] = [int(p.strip()) for p in cfg["ports"].split(",") if p.strip().isdigit()]
+            cfg["ports"] = [p.strip() for p in cfg["ports"].split(",") if p.strip()]
+        if not isinstance(cfg["ports"], (list, tuple)):
+            raise ValueError("La lista de puertos no es válida")
+        cfg["ports"] = [self._validated_port(port) for port in cfg["ports"]]
         self.db.set("PROXY_VPS_CONFIG", cfg)
         return self.get_vps_config(include_secret=False)
+
+    @staticmethod
+    def _validated_port(value):
+        try:
+            port = int(value)
+        except (TypeError, ValueError):
+            raise ValueError("Puerto no válido")
+        if not 1 <= port <= 65535 or isinstance(value, bool):
+            raise ValueError("Puerto fuera de rango")
+        return port
 
     def ssh_exec(self, command, timeout=35):
         cfg = self.get_vps_config(include_secret=True)
         if not cfg.get("host"):
             raise ValueError("VPS no configurado")
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.load_system_host_keys()
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
         connect_kwargs = {
             "hostname": cfg["host"], "username": cfg["user"], "port": cfg["port"],
             "timeout": 12, "look_for_keys": False, "allow_agent": False

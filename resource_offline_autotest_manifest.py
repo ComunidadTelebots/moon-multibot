@@ -1,0 +1,4 @@
+import resource_offline_autotest_engines as e
+APIS=["offline_editorial_articles","offline_moderated_images","offline_user_appeals","offline_mtproto_proxies","offline_persistent_tasks","offline_moderation_rules","offline_language_metrics","offline_community_translations","offline_personal_consents","offline_telegram_reactions","offline_master_panels","offline_channel_directories","offline_external_links","autotest_admin_sessions","autotest_community_profiles","autotest_telegram_communities","autotest_house_ads","autotest_voice_notes","autotest_suspicious_files","autotest_captcha_decisions"]
+MANIFEST=[{"release_channel": "alpha", "id":fid,"module":"resource_offline_autotest_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_offline_autotest_engines.py","preflight":"Moonbot proposed; no matching independent offline/sandbox-test contract"} for fid,api in zip(e.IDS,APIS)]
+assert len(MANIFEST)==20 and len(set(APIS))==20
