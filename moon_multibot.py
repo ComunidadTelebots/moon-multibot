@@ -7042,142 +7042,6 @@ def health_monitor():
 
 proxy_bot = None
 
-@app.route("/api/admin/telegram_ping", methods=["GET"])
-def telegram_ping():
-    try:
-        if not active_bots:
-            return jsonify({"status": "error", "message": "No hay bots activos en active_bots."}), 500
-        bot = active_bots[0]
-        res = requests.get(f"https://api.telegram.org/bot{bot.token}/getMe", timeout=10)
-        data = res.json()
-        if data.get("ok"):
-            return jsonify({
-                "status": "ok", 
-                "bot_username": data["result"]["username"],
-                "active_bots_count": len(active_bots),
-                "is_patched": getattr(bot, "_patched_for_router", False)
-            }), 200
-        else:
-            return jsonify({"status": "error", "telegram_error": data}), 400
-    except Exception as e:
-        return jsonify({"status": "exception", "message": str(e)}), 500
-
-if __name__ == "__main__":
-    start_time, bots_data = time.time(), []
-    run_bot_workers = MOON_ROLE not in {"web", "frontend"}
-    # Las réplicas web no deben hacer polling: Telegram solo permite un
-    # consumidor coherente por bot y duplicarlo repetiría mensajes/tareas.
-    if run_bot_workers:
-        bots_data = token_manager.load_bots_from_file(BOT_STORE_PATH, encrypted=True)
-    
-    active_bots = []
-    
-    # Solo iniciamos hilos si NO es el reloader de Flask (para evitar duplicados)
-    is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or MOON_ENV != "dev"
-    
-    if bots_data and is_main_process and run_bot_workers:
-        for i, b_info in enumerate(bots_data):
-            token = b_info.get("token")
-            if token:
-                try:
-                    bot_instance = MoonBot(token)
-                    active_bots.append(bot_instance)
-                    add_web_log("INFO", f"Configurando bot {i+1}: @{bot_instance.bot_username}")
-                except Exception as e:
-                    add_web_log("ERROR", f"Fallo al iniciar bot {i+1}: {e}")
-
-        if active_bots:
-            proxy_bot = active_bots[0]
-            for bot in active_bots:
-                # SincronizaciÃ³n Inicial: Poblar chats conocidos
-                history = db.get("GLOBAL_HISTORY", [])
-                known_cids = list(set(str(m.get("cid")) for m in history if m.get("cid")))
-                if known_cids:
-                    tk = bot.token
-                    current = db.get(f"CHATS_{tk}", [])
-                    updated = list(set(current + known_cids))
-                    db.set(f"CHATS_{tk}", updated)
-                
-                add_web_log("SUCCESS", f"Lanzando hilo para @{bot.bot_username}...")
-                command_sync = bot.sync_command_menu()
-                add_web_log(
-                    "SUCCESS" if command_sync.get("synced") else "WARNING",
-                    f"Menú de comandos @{bot.bot_username}: {len(command_sync['public'])} públicos, "
-                    f"{len(command_sync['admin'])} admin, {command_sync['plugins_loaded']} plugins",
-                )
-                threading.Thread(target=bot.run, daemon=True).start()
-            
-            def daily_report_worker():
-                """EnvÃ­a un resumen diario del crecimiento y salud del bot."""
-                time.sleep(60)
-                while True:
-                    try:
-                        now = datetime.datetime.now()
-                        today = now.strftime("%Y-%m-%d")
-                        last_report = db.get("LAST_DAILY_REPORT", "")
-                        report_hour = int(db.get("GLOBAL_SETTINGS", {}).get("daily_report_hour", 8))
-                        if last_report != today and now.hour >= report_hour:
-                            if MASTER_ID:
-                                ia_nativa.send_master_report("ðŸ“… RESUMEN DIARIO DE INTELIGENCIA")
-                                db.set("LAST_DAILY_REPORT", today)
-                                add_web_log("INFO", f"Reporte diario enviado al Administrador Maestro ({now.strftime('%H:%M')}).")
-                    except Exception as e:
-                        add_web_log("DEBUG", f"Error en daily_report_worker: {e}")
-                    time.sleep(3600)
-
-            def auto_backup_worker():
-                """EnvÃ­a backup de la DB al Master cada N horas segÃºn GLOBAL_SETTINGS.auto_backup_hours."""
-                time.sleep(120)
-                while True:
-                    try:
-                        interval_h = int(db.get("GLOBAL_SETTINGS", {}).get("auto_backup_hours", 0))
-                        if interval_h > 0 and MASTER_ID and proxy_bot:
-                            last_backup = db.get("LAST_AUTO_BACKUP", 0)
-                            if time.time() - last_backup >= interval_h * 3600:
-                                db_path = "data/moon_database.db"
-                                if os.path.exists(db_path):
-                                    size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
-                                    proxy_bot.send_document(
-                                        MASTER_ID, db_path,
-                                        f"ðŸ—„ï¸ Backup automÃ¡tico â€” {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)"
-                                    )
-                                    db.set("LAST_AUTO_BACKUP", time.time())
-                                    add_web_log("INFO", f"Backup automÃ¡tico enviado al Master ({size_mb} MB).")
-                    except Exception as e:
-                        add_web_log("DEBUG", f"Error en auto_backup_worker: {e}")
-                    time.sleep(3600)
-
-            def cleanup_worker():
-                """Elimina archivos de downloads/ mÃ¡s antiguos que N dÃ­as segÃºn GLOBAL_SETTINGS."""
-                time.sleep(300)
-                while True:
-                    try:
-                        days = int(db.get("GLOBAL_SETTINGS", {}).get("auto_cleanup_days", 0))
-                        if days > 0:
-                            for bot in active_bots:
-                                bot.purge_old_media(days)
-                    except Exception as e:
-                        add_web_log("DEBUG", f"Error en cleanup_worker: {e}")
-                    time.sleep(86400)
-
-            threading.Thread(target=daily_report_worker, daemon=True).start()
-            threading.Thread(target=auto_backup_worker, daemon=True).start()
-            threading.Thread(target=cleanup_worker, daemon=True).start()
-            threading.Thread(target=cas_export_worker, daemon=True).start()
-            threading.Thread(target=cas_feed_worker, daemon=True).start()
-            threading.Thread(target=health_monitor, daemon=True).start()
-        else:
-            add_web_log("ERROR", "No se pudo iniciar ningÃºn bot. Verifica data/bots.json")
-    
-    add_web_log("INFO", f"Moon Multibot listo ({MOON_ENV.upper()} / rol {MOON_ROLE}). Iniciando Dashboard...")
-    if MOON_ENV == "dev":
-        app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
-    else:
-        from waitress import serve
-        print(f"[*] SERVIDOR DE PRODUCCIÃ“N ACTIVO (Waitress) en puerto {FLASK_PORT}")
-        serve(app, host="0.0.0.0", port=FLASK_PORT, threads=FLASK_THREADS)
-
-
 # === ROUTER PATCH ===
 import os, requests, threading, time, queue
 from flask import request, jsonify
@@ -7325,3 +7189,141 @@ def check_bots():
         patch_bot_instances()
     threading.Timer(5.0, check_bots).start()
 check_bots()
+
+
+@app.route("/api/admin/telegram_ping", methods=["GET"])
+def telegram_ping():
+    try:
+        if not active_bots:
+            return jsonify({"status": "error", "message": "No hay bots activos en active_bots."}), 500
+        bot = active_bots[0]
+        res = requests.get(f"https://api.telegram.org/bot{bot.token}/getMe", timeout=10)
+        data = res.json()
+        if data.get("ok"):
+            return jsonify({
+                "status": "ok", 
+                "bot_username": data["result"]["username"],
+                "active_bots_count": len(active_bots),
+                "is_patched": getattr(bot, "_patched_for_router", False)
+            }), 200
+        else:
+            return jsonify({"status": "error", "telegram_error": data}), 400
+    except Exception as e:
+        return jsonify({"status": "exception", "message": str(e)}), 500
+
+if __name__ == "__main__":
+    start_time, bots_data = time.time(), []
+    run_bot_workers = MOON_ROLE not in {"web", "frontend"}
+    # Las réplicas web no deben hacer polling: Telegram solo permite un
+    # consumidor coherente por bot y duplicarlo repetiría mensajes/tareas.
+    if run_bot_workers:
+        bots_data = token_manager.load_bots_from_file(BOT_STORE_PATH, encrypted=True)
+    
+    active_bots = []
+    
+    # Solo iniciamos hilos si NO es el reloader de Flask (para evitar duplicados)
+    is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or MOON_ENV != "dev"
+    
+    if bots_data and is_main_process and run_bot_workers:
+        for i, b_info in enumerate(bots_data):
+            token = b_info.get("token")
+            if token:
+                try:
+                    bot_instance = MoonBot(token)
+                    active_bots.append(bot_instance)
+                    add_web_log("INFO", f"Configurando bot {i+1}: @{bot_instance.bot_username}")
+                except Exception as e:
+                    add_web_log("ERROR", f"Fallo al iniciar bot {i+1}: {e}")
+
+        if active_bots:
+            proxy_bot = active_bots[0]
+            for bot in active_bots:
+                # SincronizaciÃ³n Inicial: Poblar chats conocidos
+                history = db.get("GLOBAL_HISTORY", [])
+                known_cids = list(set(str(m.get("cid")) for m in history if m.get("cid")))
+                if known_cids:
+                    tk = bot.token
+                    current = db.get(f"CHATS_{tk}", [])
+                    updated = list(set(current + known_cids))
+                    db.set(f"CHATS_{tk}", updated)
+                
+                add_web_log("SUCCESS", f"Lanzando hilo para @{bot.bot_username}...")
+                command_sync = bot.sync_command_menu()
+                add_web_log(
+                    "SUCCESS" if command_sync.get("synced") else "WARNING",
+                    f"Menú de comandos @{bot.bot_username}: {len(command_sync['public'])} públicos, "
+                    f"{len(command_sync['admin'])} admin, {command_sync['plugins_loaded']} plugins",
+                )
+                threading.Thread(target=bot.run, daemon=True).start()
+            
+            def daily_report_worker():
+                """EnvÃ­a un resumen diario del crecimiento y salud del bot."""
+                time.sleep(60)
+                while True:
+                    try:
+                        now = datetime.datetime.now()
+                        today = now.strftime("%Y-%m-%d")
+                        last_report = db.get("LAST_DAILY_REPORT", "")
+                        report_hour = int(db.get("GLOBAL_SETTINGS", {}).get("daily_report_hour", 8))
+                        if last_report != today and now.hour >= report_hour:
+                            if MASTER_ID:
+                                ia_nativa.send_master_report("ðŸ“… RESUMEN DIARIO DE INTELIGENCIA")
+                                db.set("LAST_DAILY_REPORT", today)
+                                add_web_log("INFO", f"Reporte diario enviado al Administrador Maestro ({now.strftime('%H:%M')}).")
+                    except Exception as e:
+                        add_web_log("DEBUG", f"Error en daily_report_worker: {e}")
+                    time.sleep(3600)
+
+            def auto_backup_worker():
+                """EnvÃ­a backup de la DB al Master cada N horas segÃºn GLOBAL_SETTINGS.auto_backup_hours."""
+                time.sleep(120)
+                while True:
+                    try:
+                        interval_h = int(db.get("GLOBAL_SETTINGS", {}).get("auto_backup_hours", 0))
+                        if interval_h > 0 and MASTER_ID and proxy_bot:
+                            last_backup = db.get("LAST_AUTO_BACKUP", 0)
+                            if time.time() - last_backup >= interval_h * 3600:
+                                db_path = "data/moon_database.db"
+                                if os.path.exists(db_path):
+                                    size_mb = round(os.path.getsize(db_path) / (1024 * 1024), 2)
+                                    proxy_bot.send_document(
+                                        MASTER_ID, db_path,
+                                        f"ðŸ—„ï¸ Backup automÃ¡tico â€” {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} ({size_mb} MB)"
+                                    )
+                                    db.set("LAST_AUTO_BACKUP", time.time())
+                                    add_web_log("INFO", f"Backup automÃ¡tico enviado al Master ({size_mb} MB).")
+                    except Exception as e:
+                        add_web_log("DEBUG", f"Error en auto_backup_worker: {e}")
+                    time.sleep(3600)
+
+            def cleanup_worker():
+                """Elimina archivos de downloads/ mÃ¡s antiguos que N dÃ­as segÃºn GLOBAL_SETTINGS."""
+                time.sleep(300)
+                while True:
+                    try:
+                        days = int(db.get("GLOBAL_SETTINGS", {}).get("auto_cleanup_days", 0))
+                        if days > 0:
+                            for bot in active_bots:
+                                bot.purge_old_media(days)
+                    except Exception as e:
+                        add_web_log("DEBUG", f"Error en cleanup_worker: {e}")
+                    time.sleep(86400)
+
+            threading.Thread(target=daily_report_worker, daemon=True).start()
+            threading.Thread(target=auto_backup_worker, daemon=True).start()
+            threading.Thread(target=cleanup_worker, daemon=True).start()
+            threading.Thread(target=cas_export_worker, daemon=True).start()
+            threading.Thread(target=cas_feed_worker, daemon=True).start()
+            threading.Thread(target=health_monitor, daemon=True).start()
+        else:
+            add_web_log("ERROR", "No se pudo iniciar ningÃºn bot. Verifica data/bots.json")
+    
+    add_web_log("INFO", f"Moon Multibot listo ({MOON_ENV.upper()} / rol {MOON_ROLE}). Iniciando Dashboard...")
+    if MOON_ENV == "dev":
+        app.run(host="0.0.0.0", port=FLASK_PORT, debug=True)
+    else:
+        from waitress import serve
+        print(f"[*] SERVIDOR DE PRODUCCIÃ“N ACTIVO (Waitress) en puerto {FLASK_PORT}")
+        serve(app, host="0.0.0.0", port=FLASK_PORT, threads=FLASK_THREADS)
+
+
