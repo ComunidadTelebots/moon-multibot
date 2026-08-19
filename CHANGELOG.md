@@ -1,6 +1,6 @@
 # Changelog - Moon Multibot
 
-## [v18.26.0-alpha] - 2026-08-19 (Fusión Arquitectónica de Interfaces)
+## [v18.26.15.16-alpha] - 2026-08-19 (Fusión Arquitectónica de Interfaces)
 
 **Refactorización Completa del Hub (Diseño Todo-en-Uno)**
 * Se ha unificado toda la evolución histórica del diseño web en un solo archivo inmaculado (`hub.html`).
