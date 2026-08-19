@@ -1,4 +1,4 @@
 import resource_trace_quota_engines as e
 APIS=["trace_master_panels","trace_channel_directories","trace_external_links","quota_admin_sessions","quota_community_profiles","quota_telegram_communities","quota_house_ads","quota_voice_notes","quota_suspicious_files","quota_captcha_decisions","quota_managed_bots","quota_recurring_reminders","quota_security_events","quota_regional_maps","quota_backups","quota_ai_learning_data","quota_rich_commands","quota_hub_notifications","quota_cookie_policies","quota_wayback_history"]
-MANIFEST=[{"release_channel": "alpha", "id":fid,"module":"resource_trace_quota_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_trace_quota_engines.py","preflight":"Moonbot proposed; no matching independent trace/dynamic-quota contract"} for fid,api in zip(e.IDS,APIS)]
+MANIFEST=[{"release_channel": "beta", "id":fid,"module":"resource_trace_quota_engines.py","api":api,"capability":api.replace("_"," "),"test":"tests/test_resource_trace_quota_engines.py","preflight":"Moonbot proposed; no matching independent trace/dynamic-quota contract"} for fid,api in zip(e.IDS,APIS)]
 assert len(MANIFEST)==20 and len(set(APIS))==20

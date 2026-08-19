@@ -48,7 +48,7 @@ def _role(api):
 
 
 FEATURES = tuple(
-    {"release_channel": "alpha", "id": f"future-{2282 + index}",
+    {"release_channel": "beta", "id": f"future-{2282 + index}",
         "api": api,
         "module": MODULE,
         "role": _role(api),

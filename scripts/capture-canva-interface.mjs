@@ -1,0 +1,10 @@
+import { chromium } from "../.browser-tools/node_modules/playwright-core/index.mjs";
+const browser=await chromium.launch({executablePath:"C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",headless:true,args:["--use-angle=d3d11"]});
+const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
+const errors=[];page.on("pageerror",error=>errors.push(error.message));
+await page.goto("http://127.0.0.1:8765/transport-3d.html?quality=high",{waitUntil:"networkidle",timeout:60000});
+await page.waitForTimeout(3500);const enter=page.locator("[data-enter]");if(await enter.isVisible())await enter.click();else await page.evaluate(()=>{document.querySelector("#transportBoot")?.remove()});await page.waitForTimeout(800);
+await page.screenshot({path:"canva-interface-driving.png"});
+await page.locator(".moon-menu-button").click();await page.waitForTimeout(300);await page.screenshot({path:"canva-interface-center.png"});
+console.log(JSON.stringify({errors,drive:await page.locator(".canva-drive-tools").count(),center:await page.locator(".moon-shell:not([hidden])").count()}));
+await browser.close();

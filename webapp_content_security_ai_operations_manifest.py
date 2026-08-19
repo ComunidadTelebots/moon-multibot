@@ -7,4 +7,4 @@ _CAPS=["Recomendador de configuración","Pruebas automáticas de configuración"
 FEATURES=[]
 for offset,(api,capability) in enumerate(zip(_APIS,_CAPS)):
     number=1922+offset; context="contenido" if number<=1937 else ("seguridad" if number<=1967 else "IA")
-    FEATURES.append({"release_channel": "alpha", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_content_security_ai_operations","api":api,"test":f"tests.test_webapp_content_security_ai_operations.WebappContentSecurityAiTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent"})
+    FEATURES.append({"release_channel": "beta", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_content_security_ai_operations","api":api,"test":f"tests.test_webapp_content_security_ai_operations.WebappContentSecurityAiTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent"})
