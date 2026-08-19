@@ -343,7 +343,8 @@
       const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>{performanceFrame=frame;graphicsSelector.update(frame)}});
       const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
       const career = createTransportCareer();
-      const releaseChannel = createReleaseChannelSystem({onChange:channel=>{
+      const releaseChannel = createReleaseChannelSystem({
+        forcedChannel: "rc", onChange:channel=>{
         if(false){}
         else applyReleaseProfile(channel);
       }});
@@ -352,7 +353,7 @@
         location.replace(stableEditionUrl());
         await new Promise(()=>{});
       }
-      applyReleaseProfile(releaseChannel.channel);
+      applyReleaseProfile("rc");
       const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
         document.querySelector("#cargoState").textContent = `${job.cargo.name} Â· ${job.distanceKm} km`;
         document.querySelector("#workState").textContent = `${job.from.name} â†’ ${job.to.name}`;
@@ -1946,5 +1947,7 @@
     </script>
   </body>
 </html>
+
+
 
 
