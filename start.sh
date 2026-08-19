@@ -758,9 +758,11 @@ fi
 run_migration
 
 # 2. Comprobación de actualizaciones de Git (Opcional)
-if command -v git &>/dev/null; then
+if [ "${ENABLE_STARTUP_GIT_CHECK:-false}" = "true" ] && command -v git &>/dev/null; then
     echo "🚀 Comprobando actualizaciones en GitHub..."
-    git fetch origin master &>/dev/null
+    if ! timeout "${GIT_FETCH_TIMEOUT_SECONDS:-15}" git fetch origin master &>/dev/null; then
+        echo "Aviso: no se pudo comprobar GitHub; el arranque continuará."
+    fi
     BEHIND_COUNT=$(git rev-list --count HEAD..origin/master 2>/dev/null || echo "0")
     if [ "$BEHIND_COUNT" != "0" ]; then
         if [ "${AUTO_DOCKER_UPDATE:-true}" = "true" ]; then

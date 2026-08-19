@@ -1,6 +1,8 @@
+import datetime
 import time
 
 from flask import Blueprint, request, jsonify
+from group_suite import GroupSuite
 
 bp = Blueprint("moderation", __name__)
 
@@ -55,6 +57,33 @@ def web_mod_get(cid):
         "ok": True, "warns": warns, "notes": notes, "config": config,
         "local_bans": _ban_manager.get_local_bans(cid).get("users", []),
     })
+
+
+@bp.route("/api/moderation/<cid>/bot-permissions")
+def web_mod_bot_permissions(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    bot = _get_bot_for_chat(cid)
+    if not bot:
+        return jsonify({"ok": False, "error": "bot no disponible"}), 503
+    response = bot.api_call("getChatMember", {"chat_id": cid, "user_id": bot.bot_id}, silent=True)
+    if not isinstance(response, dict) or not response.get("ok"):
+        return jsonify({"ok": False, "error": response.get("description", "sin respuesta") if isinstance(response, dict) else "sin respuesta"}), 502
+    member, required = response.get("result") or {}, {
+        "can_manage_chat": "Gestionar el grupo",
+        "can_delete_messages": "Eliminar mensajes",
+        "can_restrict_members": "Restringir y banear miembros",
+        "can_invite_users": "Invitar y aprobar miembros",
+        "can_pin_messages": "Fijar mensajes",
+    }
+    status = member.get("status", "left")
+    missing = [] if status == "creator" else [
+        {"permission": key, "label": label} for key, label in required.items() if not member.get(key, False)
+    ]
+    if status not in ("administrator", "creator"):
+        missing.insert(0, {"permission": "administrator", "label": "Añadir el bot como administrador"})
+    return jsonify({"ok": True, "healthy": not missing, "status": status, "missing": missing,
+                    "bot_username": getattr(bot, "bot_username", "MoonBot")})
 
 
 @bp.route("/api/moderation/settings", methods=["POST"])
@@ -161,3 +190,106 @@ def web_mod_unmute():
         muted.remove(target)
         _db.set(f"MUTED_{cid}", muted)
     return jsonify({"ok": True})
+
+
+def _suite():
+    return GroupSuite(_db)
+
+
+@bp.route("/api/moderation/<cid>/suite")
+def web_suite_get(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **_suite().snapshot(cid)})
+
+
+@bp.route("/api/moderation/suite/settings", methods=["POST"])
+def web_suite_settings():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    cid = str(body.get("cid", ""))
+    if not cid:
+        return jsonify({"ok": False, "error": "grupo requerido"}), 400
+    return jsonify({"ok": True, "config": _suite().save_config(cid, body.get("config") or {})})
+
+
+@bp.route("/api/moderation/suite/action", methods=["POST"])
+def web_suite_action():
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    cid, action = str(body.get("cid", "")), body.get("action")
+    suite = _suite()
+    result = None
+    if action == "resolve_report":
+        if body.get("decision") not in ("reviewed", "dismissed"):
+            return jsonify({"ok": False, "error": "decisión no válida"}), 400
+        result = suite.resolve_report(cid, body.get("report_id"), body.get("decision"), "master_web")
+    elif action == "proposal":
+        if body.get("moderation_action") not in ("ban", "mute", "warn"):
+            return jsonify({"ok": False, "error": "acción de moderación no válida"}), 400
+        result = suite.proposal(cid, body.get("target_id"), body.get("moderation_action"),
+                                body.get("reason", ""), "master_web")
+    elif action == "vote":
+        result = suite.vote(cid, body.get("proposal_id"), "master_web")
+    elif action == "role":
+        result = suite.set_role(cid, body.get("user_id"), body.get("role"), body.get("expires_at"))
+    elif action == "template_save":
+        result = suite.save_template(cid, body.get("name") or "Plantilla")
+    elif action == "template_apply":
+        result = suite.apply_template(cid, body.get("template_id"))
+    if not result:
+        return jsonify({"ok": False, "error": "acción o elemento no válido"}), 400
+    return jsonify({"ok": True, "result": result})
+
+
+@bp.route("/api/moderation/<cid>/suite/context/<uid>")
+def web_suite_context(cid, uid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "context": _suite().user_context(cid, uid)})
+
+
+@bp.route("/api/moderation/<cid>/suite/summary")
+def web_suite_summary(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "summary": _suite().summary(cid)})
+
+
+@bp.route("/api/moderation/<cid>/suite/simulate", methods=["POST"])
+def web_suite_simulate(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, "simulation": _suite().simulate_message(cid, (request.json or {}).get("text", ""))})
+
+
+@bp.route("/api/moderation/<cid>/suite/sanctions/review", methods=["POST"])
+def web_suite_sanctions_review(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    return jsonify({"ok": True, **_ban_manager.review_local_expirations(cid)})
+
+
+@bp.route("/api/moderation/<cid>/suite/sanctions/temporary-ban", methods=["POST"])
+def web_suite_temporary_ban(cid):
+    if not _check_jwt(request):
+        return jsonify({"ok": False}), 401
+    body = request.json or {}
+    uid = str(body.get("user_id", "")).strip()
+    try:
+        hours = max(1, min(int(body.get("hours", 24)), 720))
+    except (TypeError, ValueError):
+        hours = 24
+    if not uid.isdigit():
+        return jsonify({"ok": False, "error": "ID de usuario inválido"}), 400
+    expires = time.time() + hours * 3600
+    expires_iso = datetime.datetime.fromtimestamp(expires).isoformat()
+    _ban_manager.ban_local_user(cid, uid, body.get("reason") or "Sanción temporal",
+                                "master_web", expires_iso)
+    bot = _get_bot_for_chat(cid) if _get_bot_for_chat else None
+    if bot:
+        bot.api_call("banChatMember", {"chat_id": cid, "user_id": uid,
+                                       "until_date": int(expires)}, silent=True)
+    return jsonify({"ok": True, "user_id": uid, "expires_at": expires_iso})

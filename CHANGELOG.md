@@ -1,5 +1,1186 @@
 ﻿# Changelog - Moon Multibot
 
+### CI operativo y errores de ejecución corregidos - 2026-07-30
+- El CI comprueba errores Python que pueden romper la ejecución, ejecuta las 21 pruebas y valida el JavaScript del Hub.
+- Se corrigen las referencias administrativas de campañas al identificador real del master y se elimina un bloque inalcanzable con variables inexistentes.
+- Dependabot queda configurado para Python, Docker y GitHub Actions sin publicar secretos.
+
+### Reconstrucciones Docker más rápidas - 2026-07-28
+- Docker conserva en la caché de BuildKit los índices y paquetes de APT y las descargas de Python, reduciendo esperas cuando una capa necesita reconstruirse.
+- Las dependencias del sistema se instalan sin paquetes recomendados innecesarios para reducir el tamaño de la imagen.
+
+### Anuncios Telegram no intrusivos - 2026-07-28
+- Las campañas comunitarias del Hub admiten mosaico deslizable, fila compacta, tarjetas, recomendación rotatoria y cinta de accesos.
+- El modo automático adapta la presentación al número de chats y mantiene los enlaces medidos sin ventanas emergentes, superposiciones ni reproducción automática.
+
+### Campañas comunitarias compatibles con el Hub - 2026-07-28
+- La vista Instant de NoticiasWeb3 muestra las campañas comunitarias como un mosaico horizontal compacto y abre cada chat dentro del flujo de Telegram.
+- El gestor de anuncios del master en el Hub permite seleccionar una comunidad detectada y crear su campaña completa sin acudir a la web externa.
+- Se mantienen enlaces medidos por chat y compatibilidad con anuncios individuales.
+
+### Campañas mosaico para comunidades Telegram - 2026-07-28
+- Las campañas propias pueden contener hasta 16 grupos o canales de una comunidad y mantener métricas de clics por chat.
+- El formato se conserva en Moonbot con validación de enlaces y compatibilidad con las campañas individuales anteriores.
+
+### Detección y gestión asistida de Comunidades Telegram 10.2 - 2026-07-28
+- Moonbot registra automáticamente altas y bajas de chats en comunidades y confirma el estado mediante `getChat`.
+- La web y el Hub agrupan los chats por comunidad, muestran miembros detectados y proponen el resto de chats administrados por el mismo bot.
+- Se añade una comprobación masiva de hasta 100 chats y un flujo seguro para completar en Telegram las incorporaciones que Bot API todavía no permite ejecutar directamente.
+
+### Vista Instant de NoticiasWeb3 - 2026-07-28
+- NoticiasWeb3 dispone ahora de una vista rápida nativa en el Hub, inspirada en Telegram Instant View, con búsqueda, lectura resumida y navegación interna.
+- Las campañas propias se intercalan en el feed y los artículos usando enlaces medidos del gestor de anuncios.
+
+### Lista histórica de baneos de marzo de 2018 - 2026-07-28
+- Se incorpora una segunda lista estática independiente, fechada el 9 de marzo de 2018 y activa globalmente por defecto.
+- De 2.672 entradas recibidas se conservan 2.669 IDs únicas; se descartan tres repeticiones internas y 270 coincidencias con la lista de 2016.
+- La nueva lista contiene 2.399 IDs realmente nuevas y se puede activar, desactivar o limitar a grupos sin modificar la lista de 2016.
+- Las listas de 2016 y 2018 permanecen activas simultáneamente y se unen a los GBAN creados localmente o desde los paneles.
+- Los datos se consideran señales históricas de moderación no verificadas y mantienen acceso al sistema de apelación.
+
+### Propuestas comunitarias de GBAN con análisis previo - 2026-07-28
+- Los administradores de grupos pueden proponer un usuario al registro global aportando motivo y evidencias.
+- Moonbot puntúa de forma explicable la propuesta con señales antispam, coincidencia CAS y consenso entre grupos diferentes.
+- Solo CAS, tres grupos independientes o riesgo antispam extremo con varias evidencias activan una cuarentena global automática de 24 horas.
+- La decisión queda pendiente en la campana de la WebApp master, con botones para confirmar el GBAN permanente o revocarlo inmediatamente.
+- Un único reporte nunca produce por sí solo un bloqueo global automático y todas las decisiones quedan en auditoría.
+- El motor v2 pondera calidad y variedad de evidencias, independencia de grupos y reportantes, contradicciones recientes y confianza calibrada.
+- Cada aprobación o rechazo del master actualiza la fiabilidad bayesiana del reportante y las métricas de acierto del sistema.
+- La evaluación incorpora reincidencia en bans locales, advertencias, fallos de captcha y eventos spam o ham confirmados en todos los grupos administrados.
+- El historial legítimo reduce el riesgo, mientras que la conducta persistente en varios grupos puede activar una cuarentena aunque no exista coincidencia CAS.
+- Las propuestas llegan al master como Rich Markdown 10.2 con tabla, confianza, recomendación y señales desplegables.
+- Confirmar o revocar desde Telegram edita el mensaje original, actualiza su estado y elimina los botones; existe fallback automático a `editMessageText`.
+- Todas las respuestas generadas por comandos de grupo se presentan automáticamente con Rich Markdown 10.2 y un encabezado contextual, incluidos comandos de plugins.
+- Las respuestas que ya contienen tablas, tareas, código, fórmulas o detalles enriquecidos se conservan sin envolverlas de nuevo.
+- Si Rich Markdown no está disponible, Moonbot entrega exactamente el texto original mediante el mecanismo compatible anterior.
+- El diseñador contextual incorpora estados visuales, tarjetas de aviso o éxito, separadores y firma discreta de Moonbot.
+- Las respuestas con varias parejas `dato: valor` se convierten automáticamente en tablas sin transformar URLs, código ni contenido ya enriquecido.
+
+### Recuperación de comandos clásicos TeleBots - 2026-07-28
+- Se recuperan `/helpadmin`, `/info`, `/reglas`, `/conv`, `/calculadora` y `/sera` con integración en el cargador actual de plugins.
+- Vuelven las utilidades GNU/Linux `/alternativa`, `/distro`, `/isos`, `/kernel` y `/man`, enlazando fuentes y descargas oficiales.
+- Se añaden `/clima`, `/hora`, `/mapa`, `/terremoto`, `/wiki`, `/diccionario`, `/stack`, `/google` y `/rae` con validación de entrada, tiempos de espera, caché y límites de respuesta.
+- Las consultas usan Open-Meteo, USGS, OpenStreetMap, Wikimedia y Stack Exchange según corresponda.
+- Se incorporan pruebas automatizadas de alias, conversión numérica, consultas simuladas y tratamiento seguro de fallos externos.
+
+### Reacciones contextuales de Telegram - 2026-07-28
+- Moonbot interpreta el mensaje y el texto al que responde para detectar agradecimiento, humor, celebración, entusiasmo, tristeza, acuerdo, duda o novedad.
+- Las reacciones usan `setMessageReaction`, excluyen contenido sensible y aplican espera y máximo por hora configurables por grupo.
+- WebApp y web ofrecen los mismos perfiles; los mensajes de otros bots permanecen excluidos salvo activación expresa.
+
+### RSS automático por grupo - 2026-07-28
+- Los administradores pueden gestionar una lista RSS o Atom independiente desde la sección de cada grupo en la WebApp.
+- Cada fuente se puede probar, activar, pausar o eliminar; una fuente recién activada inicializa su historial sin publicar entradas antiguas.
+- Moonbot comprueba las fuentes activas cada cinco minutos y publica las entradas nuevas con el bot asociado al grupo.
+- Se limitan cantidad, tamaño y tiempo de respuesta, se bloquean destinos privados para evitar SSRF y se validan también las redirecciones.
+- Los administradores pueden filtrar titulares, personalizar el mensaje con `{title}`, `{url}` y `{source}`, y publicar dentro de un tema del foro.
+- Cada fuente admite frecuencia propia, máximo por ciclo, horario silencioso UTC y pausa automática configurable por fallos.
+- La ejecución manual permite inicializar o publicar una fuente inmediatamente desde WebApp o web sin esperar al siguiente ciclo.
+- Se incorporan estado de salud, contadores de comprobaciones, publicaciones, filtros y errores por fuente.
+- Las fuentes se pueden renombrar y reiniciar sin publicar entradas antiguas; las entregas quedan registradas en un historial limitado.
+- El motor calcula latencia y próxima ejecución, y aplica backoff exponencial acotado cuando una fuente falla.
+- El historial conserva título, URL y origen de cada entrega; WebApp permite vaciarlo y reiniciar contadores por fuente.
+
+### Correlación de incidencias multigrupo - 2026-07-28
+- Nuevo motor determinista que cruza cronologías sin modificar los incidentes originales.
+- Agrupa eventos por ventana temporal, tipo y vocabulario común y asigna un nivel de riesgo explicable.
+- Disponible mediante rutas protegidas para Web y WebApp master.
+
+### Bóveda personal cifrada en la WebApp - 2026-07-28
+- Ajustes incorpora una bóveda local con consentimiento explícito para notas privadas.
+- El contenido se cifra con AES-GCM y una clave PBKDF2 antes de almacenarse en el dispositivo.
+- Permite crear, desbloquear, volver a cifrar, bloquear y eliminar sin transmitir datos al bot.
+
+### Búsqueda y navegación por voz en la WebApp - 2026-07-28
+- La búsqueda global acepta comandos hablados y filtra acciones sin necesidad de teclado.
+- Una coincidencia directa abre la vista permitida, respetando los roles de usuario, administrador y master.
+- Se reutiliza el procesamiento de voz existente en Moonbot y se sincroniza el estado real con el roadmap.
+
+### Comparador y catálogo sincronizado en la WebApp - 2026-07-27
+- El roadmap master permite comparar hasta tres entradas sin salir del Hub.
+- El catálogo local se sincroniza con las 3.000 entradas de `todosobreall.tech/roadmap` y reconoce definiciones completadas.
+- Los contadores separan funciones incluidas, definidas, en desarrollo y propuestas.
+
+### Roadmap master dentro de la WebApp - 2026-07-27
+- El roadmap vuelve al Centro avanzado de la WebApp y solo se muestra dentro del área master.
+- Incluye búsqueda, filtro de estado y un apartado identificable de features incluidas.
+- La URL pública completa continúa siendo `https://todosobreall.tech/roadmap`.
+
+### Roadmap canónico - 2026-07-27
+- El Hub enlaza exclusivamente a `https://todosobreall.tech/roadmap` para consultar la planificación.
+- Eliminada la pantalla independiente `roadmap1000.html` y ocultado el antiguo ejecutor genérico.
+- Las herramientas operativas permanecen en IA, moderación, automatizaciones, integraciones y operaciones.
+
+### Horizonte mediante recursos REST reales - 2026-07-27
+- Nuevos recursos `/api/internal/horizon/features/<slug>` y `/api/users/horizon/<slug>` con `GET`, `POST`, `PUT` y `DELETE`.
+- `GET` consulta estado, `POST` ejecuta, `PUT` configura y `DELETE` revierte las funciones del Horizonte 1000.
+- Las funciones antiguas conservan compatibilidad sin permitir mutaciones REST no soportadas.
+- Se corrige el estado del catálogo: 29 integradas y 971 con ruta preparada para conectar sus efectos de producción.
+
+### Horizonte completo y ejecutable - 2026-07-27
+- Nuevo motor `Horizon1000Engine` para las 1.000 funciones multiplataforma, con comportamiento específico para 21 categorías.
+- Todas ofrecen ejecución, configuración persistente, consulta de estado, reversión y auditoría.
+- `FullHorizonSuite` expone ahora las 1.100 funciones mediante la misma API usada por Hub y TodoSobreAllTech.
+- Los 30 tipos de capacidad cuentan con algoritmos propios y ejemplos de entrada asistidos en web y Mini App.
+
+### Horizonte unificado - 2026-07-27
+- Horizonte 202 y Horizonte 1000 se presentan como un solo catálogo de 1.100 funciones.
+- El Hub conserva el ejecutor de las 100 funciones operativas e integra el roadmap por estado.
+- Las rutas y acciones anteriores continúan siendo compatibles.
+
+### Horizonte 202 unificado de extremo a extremo - 2026-07-27
+
+- Las 25 funciones originales de `RoadmapEngine` y las 75 de `HorizonCompletion` forman ahora un catálogo único de exactamente 100 operaciones.
+- Un único ejecutor protegido permite usar cualquiera de las 100 desde la MiniApp o TodoSobreAllTech, conservando persistencia y auditoría.
+- El endpoint interno publica total, categorías, motor responsable e historial reciente sin exponer claves ni datos privados.
+- El Hub deja de limitar su selector a las últimas 75 funciones y muestra también las 25 primeras.
+
+### Edición, distribución y encuestas desde el chat - 2026-07-27
+
+- Se conectan a las interfaces los métodos ya existentes para editar, copiar, reenviar y limpiar todas las reacciones de un mensaje.
+- Nueva acción para desfijar todos los mensajes del grupo con una sola confirmación administrativa.
+- El chat puede crear encuestas de 1 a 12 opciones y el motor admite modo cuestionario, respuestas múltiples, caducidad y protección.
+- Copiar y reenviar solo permite destinos realmente administrados por una instancia conocida de Moonbot.
+
+### Controles completos del chat master - 2026-07-27
+
+- Se auditaron las funciones existentes y se reutilizaron los métodos Telegram ya incorporados, evitando duplicarlos.
+- Hub y API permiten responder por `message_id`, borrar, fijar, desfijar y reaccionar desde la conversación.
+- Los envíos normales y Rich admiten entrega silenciosa, protección contra reenvío y respuesta contextual.
+- El historial conserva identificadores y relaciones de respuesta; al borrar en Telegram se retira también la copia local.
+
+### Mensajes efímeros y Comunidades de Bot API 10.2 - 2026-07-27
+
+- Moonbot puede enviar mensajes de grupo visibles únicamente para el usuario indicado y nunca los copia al historial público del chat.
+- Se incorporan edición de texto, multimedia, pie y teclado, además del borrado de mensajes efímeros.
+- El bot registra altas y bajas de chats en Comunidades Telegram y conserva los cambios de suscripciones de pago.
+- `sendMessage` y `sendRichMessage` admiten los parámetros modernos de temas, privacidad, notificación, respuestas, efectos y publicaciones sugeridas.
+
+### Bot API 10.2 en el chat del Hub - 2026-07-27
+
+- El chat master envía mensajes normales, Rich Markdown y Rich HTML sin abandonar la conversación.
+- Incluye plantillas para detalles desplegables, listas, citas y expresiones matemáticas, además de escritura RTL.
+- Los mensajes enriquecidos pueden referenciar foto, vídeo, audio, animación o la nueva nota de voz de Bot API 10.2.
+- El servidor valida identificadores, tipos y archivos multimedia antes de entregar el payload a Telegram y conserva fallback de texto.
+
+### Chat MiniApp con diseño Telegram - 2026-07-27
+
+- La lista de conversaciones, cabecera, burbujas, horas, acciones y compositor adoptan una presentación compacta inspirada en Telegram.
+- Al abrir un grupo se consulta en Telegram el número real de miembros mediante el bot seleccionado y se actualiza la caché del inventario.
+- Los controles de moderación quedan recogidos dentro de cada mensaje para mantener limpia la conversación.
+
+### Avisos web del aprendizaje IA - 2026-07-27
+
+- Cada copia horaria del aprendizaje genera un aviso estructurado para TodoSobreAllTech con resultado, tamaño, neuronas, progreso y fecha.
+- Se conservan los últimos 100 eventos y se exponen únicamente mediante los endpoints administrativos protegidos.
+- Los fallos de entrega también quedan visibles para que el master pueda detectarlos sin revisar los logs del bot.
+
+### Chat Telegram dentro de la MiniApp - 2026-07-27
+
+- El master dispone de un chat integrado en el Hub con todos los grupos únicos y los bots asociados a cada comunidad.
+- Permite leer el historial, elegir qué bot responde en grupos compartidos, enviar Markdown y actualizar la conversación automáticamente.
+- Desde cada mensaje se puede advertir, silenciar, restaurar o banear al usuario, además de abrir los archivos protegidos del historial.
+- Cada grupo se abre como una pestaña interna con flecha atrás y conserva el diseño oscuro original de la MiniApp.
+- Los endpoints administrativos aceptan un JWT temporal con alcance exclusivo `miniapp_master`; los tokens sin ese alcance siguen sin acceder.
+
+### Chat Telegram en TodoSobreAllTech - 2026-07-27
+
+- El panel master externo puede consultar el historial seguro de cada comunidad y enviar mensajes mediante el bot realmente asociado.
+- Los envíos validan pertenencia, longitud y resultado de Telegram, se guardan en el historial y dejan registro de auditoría.
+- El master puede filtrar el inventario por cualquiera de sus bots y elegir qué instancia escribe en los grupos compartidos.
+- Cada mensaje admite ban local, mute temporal, advertencias acumulables, karma, cuarentena y acciones de restauración; tres advertencias activan el baneo local automático.
+- Fotos, vídeos, audios, stickers y documentos del historial pueden recuperarse bajo demanda mediante un proxy autenticado, sin revelar tokens y con límite de 20 MB.
+
+### Sincronización manual de comunidades - 2026-07-27
+
+- El panel master puede actualizar bajo demanda el nombre, alias, descripción, tipo, miembros y administradores de un grupo o canal directamente desde Telegram.
+- El inventario administrativo informa de la última sincronización conocida y conserva la fecha de la última comprobación de administradores.
+- Las fotos de grupos y canales se entregan mediante un proxy autenticado que nunca expone el token del bot.
+- Se conserva y expone el equipo administrador de cada comunidad con ID, rol, nombre, alias y fecha de comprobación.
+
+### Grupos y canales paginados - 2026-07-27
+
+- Nueva consulta administrativa paginada con búsqueda global y filtro real por grupo o canal.
+- Solo devuelve comunidades vinculadas actualmente con al menos una instancia activa de Moonbot.
+- Cada registro conserva tipo, enlace público, métricas y bots asociados.
+
+### Usuarios paginados desde servidor - 2026-07-27
+
+- La API administrativa pagina el inventario completo de usuarios y mantiene la búsqueda global por nombre o ID.
+- Se limita cada respuesta a un máximo de 100 registros e informa de página, total y número de páginas.
+
+### Campañas oficiales instalables - 2026-07-26
+
+- Moonbot incluye en GitHub campañas iniciales para Todo Sobre All Tech, Comunidad Telebots, Resistencia a la Censura y Todo Sobre Gameplays.
+- Se crean activas al instalar la actualización, evitan duplicados y conservan métricas y pausas en actualizaciones posteriores.
+
+### Corrección de «Mis canales» - 2026-07-26
+
+- La vista personal muestra únicamente grupos y canales donde coinciden el usuario administrador y un bot activo de Moonbot.
+- El master deja de recibir el inventario global en «Mis canales»; este continúa disponible en sus paneles de administración.
+
+### Carga de sitios integrados - 2026-07-26
+
+- Se corrige la capa de carga que permanecía visible sobre NoticiasWeb3 aunque el iframe ya hubiese terminado.
+- El Hub elimina la pantalla de carga al completar el iframe y ofrece recuperación tras doce segundos si la red es lenta.
+
+### Anuncios propios configurables - 2026-07-26
+
+- El catálogo admite descripciones Markdown de hasta 800 caracteres; los anuncios entre grupos conservan su envío mediante Markdown de Telegram.
+- El catálogo pausa automáticamente campañas al alcanzar su objetivo y permite duplicarlas sin heredar métricas; la MiniApp incluye la acción de duplicado.
+- El master puede aprobar, rechazar y reiniciar métricas de cada campaña directamente desde la MiniApp.
+- El catálogo incorpora estados de aprobación para impedir que una propuesta pendiente o rechazada llegue a publicarse.
+- Moonbot conserva la programación temporal de campañas y permite reiniciar sus métricas sin eliminar el anuncio.
+- La MiniApp recomienda automáticamente el hueco con menor cobertura y aprovecha la campaña con mejor CTR.
+- El catálogo conserva el diseño personalizado compartido: colores y llamada a la acción.
+- Moonbot mantiene el catálogo central de promociones propias para canales y grupos.
+- El master puede añadir, pausar, activar y eliminar anuncios desde la MiniApp.
+- Cada anuncio define ubicación, prioridad, imagen y enlace, y registra impresiones y clics.
+- TodoSobreAllTech consume el mismo catálogo mediante la integración interna firmada.
+- El catálogo conserva métricas por ubicación y permite copiar enlaces medidos del dominio TodoSobreAllTech.
+
+### Noticias Web3 moderna en el Hub - 2026-07-26
+
+- La tarjeta Noticias Web3 solicita expresamente la versión 2026 al abrir su vista integrada.
+- La URL embebida conserva `miniapp=1` y añade parámetros mediante la API segura de URL.
+
+### Sitios web integrados en la MiniApp - 2026-07-26
+
+- Telegram Web, Noticias Web3, Resistencia, Gameplays, TodoSobreAllTech y Comunidad se abren en una pantalla nativa dentro del Hub.
+- Cada servicio dispone de cabecera, flecha para volver, recarga y apertura externa de respaldo.
+- La vista integrada ocupa el espacio disponible y respeta el botón Atrás de Telegram.
+- El iframe aplica permisos limitados a navegación, formularios, descargas, portapapeles y pantalla completa.
+
+### Espacio personal para todos los usuarios - 2026-07-26
+
+- La MiniApp abre ahora en `Para ti`, aunque el usuario no administre grupos ni sea master.
+- El inicio reúne perfil, nivel, XP, karma, biografía, recordatorios y preferencias de avisos.
+- Incluye encuestas, eventos, retos, mentoría, concursos, preguntas, agenda y buzón anónimo.
+- Se añaden accesos rápidos al directorio, notificaciones, ajustes y proxies MTProto.
+- Un bloc privado local permite guardar notas sin enviarlas al servidor.
+- La pestaña y las acciones de administración solo aparecen al confirmar grupos administrados.
+
+### Obtención fiable de proxies MTProto - 2026-07-26
+
+- La MiniApp usa el catálogo completo de TodoSobreAllTech cuando Moonbot no tiene proxies locales configurados.
+- Los nodos propios y de menor latencia se priorizan y se omiten los marcados como desconectados.
+- La vista ofrece conexión directa, copia de credenciales, latencia, origen, actualización y reintento.
+- El comando `/proxy` admite fuentes comunitarias y reconstruye enlaces ausentes.
+
+### Servicio gratuito y sin ánimo de lucro - 2026-07-26
+
+- `/start`, `/help` y el nuevo comando `/gratis` explican el carácter comunitario y gratuito del servicio.
+- El menú de comandos de Telegram y el Hub muestran la misma información.
+- Se aclara que cualquier apoyo es voluntario y no concede privilegios.
+
+### Anuncios recíprocos entre grupos - 2026-07-26
+
+- Los socios se ordenan por categoría y tamaño de audiencia, excluyendo destinos incompatibles o desactivados.
+- Se impiden duplicados pendientes, exceso diario, campañas demasiado próximas y fechas inseguras.
+- El programador usa una única instancia, reintenta hasta tres veces y solo confirma entregas aceptadas por Telegram.
+- Cada campaña muestra entregas, fallos y estado final en Hub; la política también se controla desde TodoSobreAllTech.
+- Se añaden vista previa, plantillas, variantes A/B, enlaces medibles, clics, cancelación, contrapropuestas y franjas recomendadas.
+- Los socios admiten favoritos, bloqueos y reputación; las solicitudes caducan y los contenidos sensibles pasan por revisión master.
+- Los enlaces se validan con VirusTotal cuando está disponible y los informes finales resumen entregas, fallos y clics.
+- La API interna ofrece al panel master de TodoSobreAllTech el mismo inventario de socios, campañas y acciones principales.
+
+### Salud y rendimiento de plugins - 2026-07-26
+
+- Moonbot mide carga, comprobaciones, ejecuciones, errores y latencia media por plugin.
+- Tres fallos consecutivos abren un cortacircuitos de cinco minutos para mantener operativo el resto del bot.
+- Los errores de importación y ejecución se exponen de forma segura en Hub y TodoSobreAllTech.
+
+### Aislamiento de plugins por grupo - 2026-07-26
+
+- Cada grupo mantiene su propia lista de plugins desactivados sin afectar al resto de comunidades.
+- Los plugins bloqueados no ejecutan comandos ni aparecen en el menú administrativo específico del chat.
+- Hub y TodoSobreAllTech muestran el inventario completo y permiten alternarlo con sincronización inmediata.
+
+### Comandos dinámicos y plugins - 2026-07-26
+
+- Las instancias cargan realmente los plugins durante el arranque y registran cualquier fallo con su nombre.
+- Moonbot descubre los comandos instalados y crea menús separados para usuarios, administradores y master mediante `setMyCommands`.
+- Los menús se sincronizan al arrancar, al recargar plugins, al modificar un grupo o bajo demanda desde Hub y TodoSobreAllTech.
+
+### Política de formatos por grupo - 2026-07-26
+
+- Moonbot puede bloquear por grupo fotos, vídeos, audios, notas de voz, documentos, stickers, GIF y videomensajes.
+- El filtro actúa antes de descargar el archivo, admite límite de tamaño y permite eliminar, silenciar o banear.
+- Los administradores quedan protegidos y Hub y TodoSobreAllTech comparten la configuración.
+- El anti-flood específico del grupo sustituye al control global antiguo para evitar sanciones duplicadas.
+
+### Anti-flood configurable por grupo - 2026-07-26
+
+- Moonbot cuenta ráfagas por usuario y grupo usando límites y ventanas independientes.
+- Puede eliminar el mensaje excedente, aplicar mute temporal y escalar reincidencias a ban local.
+- Los administradores quedan excluidos y la configuración está disponible tanto en Hub como en TodoSobreAllTech.
+
+### Mute real durante el captcha - 2026-07-26
+
+- Los usuarios admitidos quedan sin permisos de texto, audio, documentos, fotos, vídeos, notas, encuestas, stickers ni vistas previas.
+- Los permisos solo se restauran después de superar captcha, suscripciones obligatorias y comprobaciones CAS/comunitarias.
+- Las entradas directas también quedan protegidas; los reintentos mantienen el mute y los casos rechazados o caducados se expulsan.
+- Hub y TodoSobreAllTech comparten el mismo interruptor por grupo y muestran qué solicitudes tienen el mute activo.
+
+### Horizonte 1000 sincronizado · bloque de moderación - 2026-07-26
+
+- Moonbot valida y persiste simulaciones de reglas, plantillas, informes programados, traducciones y comunicados versionados.
+- El Hub ofrece controles específicos para las cinco funciones y muestra la respuesta real del motor.
+- TodoSobreAllTech accede al mismo motor mediante una ruta interna limitada y protegida por la clave administrativa compartida.
+
+### Contador master unificado - 2026-07-26
+
+- La tarjeta de grupos usa el inventario multibot completo en lugar del contador histórico de claves `ADMINS_`.
+- El resumen y el listado comparten una única consulta, evitando mostrar 21 grupos mientras el inventario contiene muchos más.
+- La cifra representa grupos únicos y mantiene separados los grupos compartidos entre bots.
+
+### Corrección del arranque en conexiones lentas - 2026-07-26
+
+- La comprobación de GitHub queda desactivada por defecto dentro del contenedor.
+- Si se habilita, `git fetch` tiene límite de tiempo y nunca bloquea el servidor web.
+
+### Corrección del inventario de grupos - 2026-07-26
+
+- La MiniApp del master une los registros de PocketBase con los chats activos de todas las instancias.
+- Los nombres persistidos se restauran al arrancar y se muestran también en todosobreall.tech.
+- Cada grupo indica qué instancia de bot lo administra en la MiniApp y en la API web.
+
+## v18.22.0 - Inventario completo en MiniApp - 2026-07-26
+
+- La MiniApp consulta primero el inventario master validado por el servidor y evita quedarse en los grupos personales.
+- El listado une todas las instancias activas, elimina duplicados y devuelve grupos únicos y compartidos.
+- La selección ya no depende de una variable de autenticación del navegador que podía llegar tarde.
+- La respuesta incluye número de instancias y usernames para mantener el panel móvil alineado con la web.
+- La sección de bots incorpora estado, eventos, latencia, errores y grupos exclusivos/compartidos, igual que la web.
+- Consultar bots ya no crea instancias temporales de Moonbot para resolver sus nombres.
+
+## v18.21.0 - Acceso global independiente - 2026-07-26
+
+- El master puede configurar el canal obligatorio general sin entrar en ningún grupo.
+- Un interruptor global permite activar o pausar el requisito conservando el canal configurado.
+- El endpoint está protegido mediante la sesión firmada de Telegram y rechaza usuarios no master.
+
+## v18.20.0 - Grupos exclusivos y compartidos - 2026-07-26
+
+- El inventario diferencia grupos únicos, exclusivos y administrados por varias instancias.
+- Cada bot informa cuántos de sus grupos son propios y cuántos comparte con otros bots.
+- La relación grupo-bot se genera desde las instancias activas para evitar asociaciones incompletas.
+
+## v18.19.1 - Identidad oficial de bots - 2026-07-26
+
+- El nombre visible y el username de cada instancia se obtienen directamente mediante `getMe` de Telegram.
+- El panel de rendimiento ya no deduce el nombre desde registros locales.
+
+## v18.19.0 - Rendimiento real por instancia - 2026-07-26
+
+- Cada bot expone actividad procesada, llamadas y errores de Telegram, latencia, uptime y fallos del polling.
+- El centro de control distingue el estado real de ejecución de cada instancia.
+- Las métricas se mantienen separadas por bot y no mezclan sus grupos ni su actividad.
+
+## v18.18.0 - Idiomas de usuarios por grupo - 2026-07-26
+
+- Se registra el idioma de Telegram de cada usuario que participa o entra en un grupo.
+- Si Telegram no aporta idioma, se intenta detectar a partir del texto del mensaje.
+- La captura ocurre antes de los filtros de moderación para no perder usuarios bloqueados o mensajes eliminados.
+- El mapa ofrece distribución global o por grupo sin exponer identidades ni tratar el idioma como ubicación real.
+
+## v18.17.1 - Autenticación master multi-bot - 2026-07-26
+
+- La MiniApp valida `initData` con el bot activo desde el que Telegram la abrió.
+- El acceso master funciona también desde una instancia secundaria de Moonbot.
+- La cabecera avisa cuando Telegram no puede validar la sesión.
+
+## v18.17.0 - Canales obligatorios por niveles - 2026-07-26
+
+- El dueño de cada grupo puede configurar su propio canal obligatorio.
+- El master puede añadir un canal general obligatorio para todos los grupos.
+- El captcha distingue el requisito del grupo del requisito global y comprueba ambos antes de aprobar.
+
+## v18.16.0 - Suscripción obligatoria y captcha persistente - 2026-07-26
+
+- Cada grupo puede exigir la suscripción a hasta 20 canales antes de aprobar una solicitud.
+- El captcha muestra los canales pendientes y permite volver a comprobarlos sin repetir el reto.
+- La aprobación manual también respeta las suscripciones obligatorias configuradas.
+- Si un usuario pendiente intenta escribir, se elimina el mensaje y se reenvía el acceso al captcha con límite anti-spam.
+- La MiniApp permite configurar los canales obligatorios desde el panel de acceso de cada grupo.
+
+## v18.14.0 - Experiencia web sincronizada - 2026-07-26
+
+- Preferencias persistentes para favoritos, widgets, modo compacto y recorrido guiado.
+- Catálogo unificado de acciones para el buscador global de todosobreall.tech.
+- Historial administrativo limitado y sincronizable entre sesiones.
+- Centro de notificaciones agregado desde informes, apelaciones y solicitudes.
+- Tamaño de texto, alto contraste y movimiento reducido configurables.
+- Temas visuales persistentes por grupo administrado.
+- Endpoint protegido para sincronizar cambios locales después de recuperar conexión.
+
+## v18.13.0 - Operaciones y fiabilidad administrables - 2026-07-26
+
+- Planes de despliegue gradual con lotes y resultados de salud por instancia.
+- Política de copias cifradas con retención y selección de módulos.
+- Planes de restauración con confirmación pendiente y cancelación segura.
+- Registro de salud, latencia y estado de dependencias externas.
+- Alertas de CPU, memoria, disco y latencia basadas en umbrales.
+- Modo degradado con capacidades disponibles cuando falla una dependencia.
+- Diagnóstico automático, agrupación de errores y recomendaciones operativas.
+- Ventanas de mantenimiento programables y cancelables desde la administración.
+
+## v18.12.0 - Integraciones y API administrables - 2026-07-26
+
+- Registro de módulos con versión, permisos y checksum verificable.
+- Tokens API con ámbitos restringidos, caducidad, rotación y revocación.
+- Aislamiento sandbox configurable por bot y cuotas por método.
+- Exportación e importación de configuraciones firmadas contra manipulaciones.
+- Enlace de incidentes y calendarios externos sin exponer tokens de sincronización.
+- Manifiesto SDK consultable con eventos y modelo de autenticación compatibles.
+- Auditoría de todas las operaciones realizadas desde TodoSobreAllTech.
+
+## v18.11.0 - Automatizaciones administrables - 2026-07-26
+
+- Constructor de reglas por palabra clave con condiciones y respuestas automáticas.
+- Simulador de reglas que no publica mensajes ni ejecuta acciones reales.
+- Formularios adaptables asociados a grupos administrados.
+- Webhooks HTTPS con validación de destino y secretos ocultos en todas las respuestas.
+- Calendario de acciones conectado al ejecutor existente de Moonbot.
+- Control de cola con priorización, cancelación y reintento de webhooks fallidos.
+- Biblioteca instalable de automatizaciones de bienvenida, soporte e incidencias.
+- Endpoint interno protegido y auditoría de todos los cambios administrativos.
+
+## v18.10.0 - Centro de IA externo - 2026-07-26
+
+- ConfiguraciÃ³n segura de proveedor y modelo global sin exponer claves API.
+- SelecciÃ³n de proveedor, modelo y finalidad por grupo administrado.
+- Alta y eliminaciÃ³n de fuentes aprobadas y borrado selectivo de memorias.
+- Registro comparable de precisiÃ³n, latencia y coste por modelo.
+- DetecciÃ³n de preguntas sin respuesta y lagunas de conocimiento.
+- Cola de revisiÃ³n humana con aprobaciÃ³n, rechazo, comentarios y auditorÃ­a.
+
+## v18.9.0 - Seguridad administrativa completada - 2026-07-26
+
+- AgregaciÃ³n de fuentes CAS, SpamWatch, registro comunitario, listas locales y otras fuentes.
+- Acciones protegidas de mute y unmute por grupo mediante permisos de Telegram.
+- CreaciÃ³n de casos de revisiÃ³n por pares desde TodoSobreAllTech.
+- Consulta de raids preparada para actualizaciÃ³n automÃ¡tica cada 15 segundos en la web.
+- ComprobaciÃ³n de suplantaciÃ³n por similitud de nombre y coincidencia de username.
+
+## v18.8.0 - Horizonte 1000 en la WebApp - 2026-07-26
+
+- CatÃ¡logo local con exactamente 1.000 propuestas diferenciadas para Web, Moonbot y Telegram WebApp.
+- Nueva pantalla `/roadmap1000.html` optimizada para mÃ³vil con bÃºsqueda, filtros y paginaciÃ³n.
+- Acceso directo desde el panel de roadmap de la MiniApp.
+- Cada entrada se etiqueta como propuesta e incluye producto, categorÃ­a, prioridad, dificultad y dependencia.
+- Se conserva Horizonte 202 como conjunto operativo independiente del nuevo roadmap.
+
+## v18.7.0 - Cierre de funciones administrativas parciales - 2026-07-26
+
+- GuÃ­a paso a paso para reparar permisos insuficientes del bot en cada grupo.
+- Historial reciente sanitizado y comparaciÃ³n de configuraciones entre grupos.
+- Acciones reales de silenciar/restaurar usuarios mediante `restrictChatMember`.
+- Casos de revisiÃ³n por pares para sanciones dudosas.
+- Detector de suplantaciÃ³n basado en similitud de nombre y username.
+- Los raids activos continÃºan expuestos en el centro de seguridad para actualizaciÃ³n periÃ³dica.
+
+## v18.6.0 - Centro editorial externo - 2026-07-26
+
+- API editorial protegida conectada al motor persistente `RoadmapEngine`.
+- PublicaciÃ³n inmediata multigrupo utilizando Rich Markdown con fallback seguro.
+- ProgramaciÃ³n para una fecha concreta y recurrencia diaria, semanal o mensual.
+- NormalizaciÃ³n horaria para que las fechas del navegador sean compatibles con el ejecutor del servidor.
+- Vista previa con variables, plantillas reutilizables y comparador de titulares.
+- Comunicados versionados con checksum y calendario de publicaciones pendientes.
+- Todos los destinos se validan contra grupos realmente administrados por Moonbot.
+
+## v18.5.0 - Centro de seguridad externo - 2026-07-26
+
+- Resumen protegido de amenazas, eventos multimedia, raids activos y fuentes de baneos.
+- AnÃ¡lisis de URL, dominios y hashes mediante el gestor existente de VirusTotal y su cachÃ©.
+- Detector local de tokens, claves privadas, API keys y JWT que no almacena ni devuelve los secretos.
+- CronologÃ­a consolidada de incidentes y resultados de anÃ¡lisis.
+- ExportaciÃ³n JSON de evidencias con firma HMAC-SHA256 verificable.
+- Los anÃ¡lisis iniciados desde TodoSobreAllTech quedan registrados en la auditorÃ­a de Moonbot.
+
+## v18.4.0 - Usuarios y sanciones externas - 2026-07-26
+
+- API interna protegida para buscar usuarios y consultar reputaciÃ³n, actividad, idioma y notas.
+- Ficha sanitizada con motivo, fuente, Ã¡mbito y vencimiento del baneo.
+- ComprobaciÃ³n CAS contra la copia local para evitar peticiones remotas innecesarias.
+- Baneo y restauraciÃ³n global o por grupo con propagaciÃ³n real mediante Telegram Bot API.
+- Cuarentena por grupo, notas administrativas y resoluciÃ³n de apelaciones.
+- Registro de auditorÃ­a para todas las acciones iniciadas desde TodoSobreAllTech.
+
+## v18.3.0 - Grupos y plugins operativos - 2026-07-26
+
+- AdministraciÃ³n externa segura de grupos con listado, detalle, permisos, actividad y configuraciÃ³n de `GroupSuite`.
+- Copia controlada de configuraciÃ³n entre grupos conocidos, sin aceptar destinos ajenos al bot.
+- Plugin `group_health`: diagnÃ³stico inmediato de permisos esenciales de Telegram.
+- Plugin `incident_log`: registro persistente y consulta de incidentes por grupo.
+- Plugin `quiet_hours`: configuraciÃ³n validada de horarios silenciosos.
+- Plugin `group_digest`: resumen local de actividad y participantes sin servicios externos.
+- Plugin `rule_templates`: perfiles estricto, equilibrado y comunidad para moderaciÃ³n.
+
+## v18.2.0 - Centro de control externo seguro - 2026-07-26
+
+- Nuevo endpoint interno `/api/internal/admin-overview` autenticado con una clave servidor-a-servidor.
+- Resumen sanitizado de instancias, grupos, usuarios observados, actividad reciente y tareas pendientes.
+- Métricas reales de CPU, RAM y disco para el centro de control de TodoSobreAllTech.
+- Registro `last_seen` por usuario para calcular actividad de las últimas 24 horas sin inventar estimaciones.
+- Ningún token de bot, secreto ni identificador individual se devuelve al panel central.
+
+## v18.1.0 - Mapa lingüístico agregado - 2026-07-26
+
+- Registro persistente del `language_code` declarado por Telegram para cada usuario conocido.
+- Endpoint público de solo lectura `/api/public/stats/language-map` con datos exclusivamente agregados.
+- Conversión idioma/región a puntos orientativos para representación global.
+- Etiquetado expreso de la visualización como estimación lingüística, no ubicación física.
+- No se publican identificadores, nombres, mensajes, IP ni coordenadas individuales.
+
+## v18.0.0 - Horizonte 202 completado - 2026-07-26
+
+- Las 100 funciones del catálogo Horizonte 202 disponen de una operación ejecutable, persistencia y auditoría.
+- Completadas las áreas de contenido, IA, accesibilidad, privacidad, operaciones, integraciones, sostenibilidad y experiencia Telegram.
+- Nuevo motor `HorizonCompletion` con 75 capacidades estables y catálogo de slugs para API y MiniApp.
+- Ejecutor contextual autenticado en la MiniApp para probar cada función con parámetros JSON.
+- Datos sensibles redactados en auditoría y mensajes administrativos de un solo uso consumibles.
+- Catálogo público marcado como completo y sincronizado con TodoSobreAllTech.
+
+### Funciones incorporadas en v18.0.0 (75)
+
+#### Contenido y canales (5)
+
+- Mapa de fuentes y citas de cada publicación.
+- Detección de contenido desactualizado.
+- Paquetes de publicación multicanal.
+- Modo cobertura en directo con hitos.
+- Archivo temático navegable de conversaciones.
+
+#### IA y conocimiento (10)
+
+- Memorias separadas por proyecto y finalidad.
+- Explicaciones con nivel principiante o experto.
+- Debate interno entre agentes antes de responder.
+- Registro visible de fuentes usadas por la IA.
+- Detector de lagunas de conocimiento.
+- Entrenamiento por ejemplos aprobados y contraejemplos.
+- Modo profesor con ejercicios adaptativos.
+- Resúmenes que preservan opiniones minoritarias.
+- Comparador de respuestas entre modelos.
+- Caducidad automática del conocimiento sensible al tiempo.
+
+#### Accesibilidad e idiomas (10)
+
+- Lectura fácil automática para textos complejos.
+- Audiodescripción de imágenes relevantes.
+- Subtítulos colaborativos para mensajes de vídeo.
+- Modo alto contraste por chat.
+- Navegación completa mediante voz.
+- Transliteración entre alfabetos.
+- Glosarios locales por comunidad e idioma.
+- Traducción que conserva nombres y terminología.
+- Resúmenes en lengua de signos mediante avatar.
+- Detector de barreras de accesibilidad antes de publicar.
+
+#### Privacidad y protección (10)
+
+- Panel personal de datos almacenados.
+- Borrado selectivo con vista previa.
+- Mensajes administrativos de un solo uso.
+- Alertas por capturas de datos sensibles.
+- Anonimización automática de exportaciones.
+- Claves de recuperación divididas entre responsables.
+- Modo investigación con acceso temporal.
+- Detector de secretos pegados por accidente.
+- Etiquetas de retención por tipo de dato.
+- Informe mensual de privacidad comprensible.
+
+#### Operaciones y fiabilidad (10)
+
+- Gemelo digital para ensayar configuraciones.
+- Despliegue canario por grupos seleccionados.
+- Recuperación automática según objetivo de servicio.
+- Mapa de dependencias y puntos únicos de fallo.
+- Presupuesto de errores por función.
+- Reproducción de incidentes con eventos anonimizados.
+- Detector de configuraciones divergentes.
+- Ventanas de mantenimiento por zona horaria.
+- Capacidad predictiva de colas y almacenamiento.
+- Modo degradado que conserva funciones esenciales.
+
+#### Integraciones abiertas (10)
+
+- Conectores creados visualmente sin código.
+- Mercado comunitario de automatizaciones.
+- Puente ActivityPub para comunidades federadas.
+- Sincronización bidireccional con calendarios CalDAV.
+- Importación y exportación mediante OPML.
+- Eventos firmados con WebSub.
+- Identidad portable mediante credenciales verificables.
+- Flujos compatibles con Matrix.
+- Catálogo automático de capacidades por bot.
+- Entorno de pruebas aislado para integraciones.
+
+#### Sostenibilidad y crecimiento (10)
+
+- Calculadora transparente de costes por comunidad.
+- Objetivos de financiación con hitos verificables.
+- Patrocinios con frecuencia máxima configurable.
+- Reparto de ingresos entre creadores colaboradores.
+- Modo ahorro energético para tareas no urgentes.
+- Informe de huella operativa estimada.
+- Donaciones destinadas a funciones concretas.
+- Créditos comunitarios no transferibles.
+- Predicción de abandono con intervención respetuosa.
+- Experimentos A/B con consentimiento y límites.
+
+#### Experiencia Telegram (10)
+
+- Bandeja unificada de temas pendientes.
+- Atajos personales sincronizados con la Mini App.
+- Panel lateral contextual por mensaje.
+- Respuestas efímeras para operaciones sensibles.
+- Comunidades enlazadas con permisos heredables.
+- Consultas de entrada con formularios adaptativos.
+- Rutas guiadas para nuevos administradores.
+- Modo evento que transforma temporalmente el grupo.
+- Acciones masivas con previsualización y deshacer.
+- Centro de notificaciones priorizadas por impacto.
+
+## v17.9.0 - Contenido conectado - 2026-07-26
+
+- Series editoriales ordenadas con publicación y archivado.
+- Reutilización inteligente de contenido según antigüedad, rendimiento y vigencia.
+- Calendario de silencios para evitar publicaciones durante ventanas sensibles.
+- Comparador de titulares con claridad, longitud y señales de clickbait.
+- Comunicados públicos con historial, correcciones y checksum por versión.
+- Controles equivalentes en API y MiniApp; catálogo Horizonte 202 actualizado a 25 funciones operativas.
+
+### Funciones incorporadas en v17.9.0 (5)
+
+- Editor de series editoriales conectadas.
+- Reutilización inteligente de contenido antiguo.
+- Calendario de silencios para evitar saturación.
+- Comparador de titulares antes de publicar.
+- Versionado público de comunicados corregidos.
+
+## v17.8.0 - Rich Markdown de Telegram - 2026-07-26
+
+- Compatibilidad con `sendRichMessage` y `sendRichMessageDraft` de Bot API 10.2.
+- Rich Markdown con encabezados, listas, tareas, tablas, referencias, fórmulas, detalles y medios.
+- Validación local de límites oficiales: 32.768 caracteres, 500 bloques y 50 medios.
+- Fallback automático a texto normal cuando el endpoint aún no está disponible.
+- Nuevo comando `/rich` (`/richmarkdown`) y modo programático `parse_mode="RichMarkdown"`.
+- Editor autenticado en la Mini App para publicar Rich Markdown en grupos administrados.
+- Endpoint web `/api/users/rich-message` con comprobación del grupo de destino y auditoría.
+
+## v17.7.0 - Horizonte 202 - 2026-07-26
+
+- Catálogo adicional de 100 funciones nuevas, separado del roadmap anterior y del motor operativo.
+- Diez áreas: moderación, comunidad, contenido, IA, accesibilidad, privacidad, operaciones, integraciones, sostenibilidad y experiencia Telegram.
+- Buscador y filtros dentro del Centro avanzado de la Mini App.
+- Cada elemento se identifica expresamente como propuesta planificada, no como función ya implementada.
+- Catálogo equivalente publicado en TodoSobreAllTech para mantener ambos proyectos alineados.
+- Primera fase operativa: radar de escalada, mediación por turnos, cuarentena de dominios, revisión por pares y simulación de impacto de reglas.
+- Segunda fase operativa: detección de brigadas, pasaporte de reputación consentido, riesgo de clonación de voz, cronología de incidentes y cadena de custodia verificable.
+- Tercera fase operativa: asambleas, presupuesto participativo ponderado, círculos temporales, banco de tiempo y bienvenida humana distribuida.
+- Cuarta fase operativa: misiones entre grupos, reconocimiento de aportes invisibles, salud social agregada, relevos administrativos y memoria anual comunitaria.
+
+### Funciones incorporadas en v17.7.0 (20)
+
+- Radar de conversaciones que están escalando.
+- Modo mediador con turnos de palabra.
+- Detección de brigadas externas coordinadas.
+- Cuarentena de enlaces recién registrados.
+- Pasaporte de reputación exportable por el usuario.
+- Revisión por pares para sanciones dudosas.
+- Simulador de impacto antes de cambiar una regla.
+- Detector de estafas por clonación de voz.
+- Mapa temporal de incidentes por tema.
+- Cadena de custodia firmada para evidencias.
+- Asambleas con propuestas y enmiendas.
+- Presupuesto comunitario con votos ponderados.
+- Círculos temporales por intereses.
+- Banco de tiempo entre miembros.
+- Rondas automáticas de bienvenida humana.
+- Misiones colaborativas entre varios grupos.
+- Reconocimiento de contribuciones invisibles.
+- Panel de salud social sin leer mensajes privados.
+- Sistema de relevos para administradores.
+- Memoria anual generada por la comunidad.
+
+## v17.6.0 - Integración con Wayback Machine
+
+- Cliente para la Availability JSON API oficial de Internet Archive.
+- Consulta de la captura disponible más próxima, con fecha opcional `YYYYMMDDhhmmss`.
+- Validación de URL, bloqueo de direcciones locales/privadas, timeout y errores controlados.
+- Comandos `/wayback`, `/archivo` y `/archive` para todos los usuarios.
+- Consulta equivalente en el Centro de Seguridad web y en la Mini App del master.
+- Historial local limitado de consultas sin descargar ni ejecutar el contenido archivado.
+
+## v17.5.1 - Recuperación del panel de canales
+
+- Migración completa de los campos de `tg_channels` y `tg_channel_admins` en instalaciones antiguas.
+- Los registros existentes se marcan activos al crear por primera vez el campo `active`, evitando que una migración los oculte.
+- Los posts de canal registran el chat antes de salir del bucle de procesamiento.
+- El backfill combina los chats locales con los canales activos ya conocidos en PocketBase.
+- El master consulta todos los espacios del bot; los demás usuarios conservan únicamente sus grupos asociados.
+- La Mini App muestra los errores de PocketBase y conexión en vez de convertirlos silenciosamente en una lista vacía.
+- Los grupos básicos también quedan registrados al recibir cambios de membresía del bot.
+
+## v17.5.0 - Bots administrados de Telegram
+
+- Compatibilidad completa con `managed_bot` y detección de `can_manage_bots`.
+- Creación guiada mediante el flujo oficial de Telegram, tanto en la web como en la Mini App.
+- Conexión automática opcional de nuevos bots administrados y almacenamiento cifrado de sus tokens.
+- Consulta y cambio del acceso restringido, rotación segura de credenciales y desconexión local.
+- Registro auditable y catálogo de bots detectados sin exponer tokens al navegador ni a los registros.
+- Confirmaciones obligatorias para rotar credenciales o desconectar una instancia.
+
+## [Unreleased] — Roadmap de 102 funciones propuestas
+> Estas funciones son propuestas priorizables y todavía no se consideran implementadas.
+
+### Moderación y seguridad (1–10)
+1. Modo lento adaptativo según el volumen y riesgo del chat. **Implementado en v16.91.0.**
+2. Detección coordinada de raids entre varios grupos. **Implementado en v17.0.0.**
+3. Cuarentena reforzada por nivel de reputación. **Implementado en v17.0.0.**
+4. Bloqueo de suplantaciones de administradores. **Implementado en v17.0.0.**
+5. Detección de enlaces acortados y redirecciones encadenadas. **Implementado en v17.0.0.**
+6. Análisis de archivos peligrosos por hash y tipo MIME. **Implementado en v17.0.0.**
+7. Límites personalizados de menciones, emojis y mayúsculas. **Implementado en v16.91.0.**
+8. Reincidencia compartida entre grupos autorizados. **Implementado en v17.0.0.**
+9. Simulación previa de reglas antes de activarlas. **Implementado en v16.91.0.**
+10. Caducidad y revisión automática de sanciones. **Implementado en v16.91.0.**
+
+### Miembros y comunidad (11–20)
+11. Perfil comunitario con actividad, karma y roles. **Implementado en v16.92.0.**
+12. Solicitudes para obtener roles personalizados. **Implementado en v16.92.0.**
+13. Programa de mentores para nuevos miembros. **Implementado en v16.93.0.**
+14. Reconocimientos semanales a colaboradores. **Implementado en v16.92.0.**
+15. Sistema configurable de niveles y experiencia. **Implementado en v16.92.0.**
+16. Directorio interno de miembros verificados. **Implementado en v16.92.0.**
+17. Encuestas de satisfacción y clima del grupo. **Implementado en v16.93.0.**
+18. Buzón anónimo con protección antiabuso. **Implementado en v16.93.0.**
+19. Recordatorios personales gestionados por el bot. **Implementado en v16.92.0.**
+20. Panel de preferencias de notificaciones por usuario. **Implementado en v16.92.0.**
+
+### Administración de grupos (21–30)
+21. Asistente inicial de configuración por tipo de comunidad. **Implementado en v16.94.0.**
+22. Comparador de configuración entre grupos. **Implementado en v16.94.0.**
+23. Sincronización selectiva de reglas y roles. **Implementado en v16.94.0.**
+24. Historial de cambios con restauración por versión. **Implementado en v16.94.0.**
+25. Aprobación dual para cambios críticos. **Implementado en v16.94.0.**
+26. Delegación temporal de permisos administrativos. **Implementado en v16.94.0.**
+27. Calendario común de acciones y eventos. **Implementado en v16.94.0.**
+28. Horarios de apertura y cierre del chat. **Implementado en v16.94.0.**
+29. Archivado automático de grupos inactivos. **Implementado en v16.94.0.**
+30. Comprobación periódica de permisos del bot. **Implementado en v16.94.0.**
+
+### Automatización y contenido (31–40)
+31. Publicaciones recurrentes con calendario visual. **Implementado en v17.0.0.**
+32. Flujo de aprobación editorial antes de publicar. **Implementado en v17.0.0.**
+33. Biblioteca compartida de mensajes y recursos. **Implementado en v17.0.0.**
+34. Variables dinámicas en plantillas. **Implementado en v17.0.0.**
+35. Traducción automática opcional de publicaciones. **Implementado en v17.0.0.**
+36. Reutilización de contenido entre canales autorizados. **Implementado en v17.0.0.**
+37. Caducidad automática de mensajes promocionales. **Implementado en v17.0.0.**
+38. Respuestas por palabra clave con condiciones. **Implementado en v17.0.0.**
+39. Formularios conversacionales configurables. **Implementado en v17.0.0.**
+40. Webhooks por eventos de grupo. **Implementado en v17.0.0.**
+
+### Inteligencia artificial (41–50)
+41. Resúmenes diarios, semanales y por tema. **Implementado en v17.0.0.**
+42. Respuestas basadas exclusivamente en fuentes aprobadas. **Implementado en v17.0.0.**
+43. Detección de preguntas sin respuesta. **Implementado en v17.0.0.**
+44. Clasificación automática de conversaciones por tema. **Implementado en v17.0.0.**
+45. Explicación legible de cada decisión de moderación. **Implementado en v17.0.0.**
+46. Comparador de precisión entre modelos. **Implementado en v17.0.0.**
+47. Pruebas A/B de respuestas automáticas. **Implementado en v17.0.0.**
+48. Memoria separada y exportable por grupo. **Implementado en v17.0.0.**
+49. Detección de cambios de tono y conflictos emergentes. **Implementado en v17.0.0.**
+50. Asistente para redactar reglas comunitarias. **Implementado en v17.0.0.**
+
+### Eventos y participación (51–60)
+51. Creación guiada de eventos en Telegram. **Implementado en v16.93.0.**
+52. Inscripciones con cupos y lista de espera. **Implementado en v16.93.0.**
+53. Confirmación de asistencia y recordatorios. **Implementado en v16.93.0.**
+54. Sorteos auditables con reglas configurables. **Implementado en v16.93.0.**
+55. Concursos con jurado y votación comunitaria. **Implementado en v16.93.0.**
+56. Retos periódicos con progreso y clasificación. **Implementado en v16.93.0.**
+57. Sesiones de preguntas y respuestas moderadas. **Implementado en v16.93.0.**
+58. Agenda comunitaria exportable a calendario. **Implementado en v16.93.0.**
+59. Certificados o insignias de participación. **Implementado en v16.93.0.**
+60. Estadísticas posteriores a cada evento. **Implementado en v16.93.0.**
+
+### Analítica e informes (61–70)
+61. Retención de miembros por cohortes. **Implementado en v17.0.0.**
+62. Embudo de entrada desde solicitud hasta participación. **Implementado en v17.0.0.**
+63. Horas y días con mayor actividad. **Implementado en v17.0.0.**
+64. Crecimiento orgánico frente a campañas. **Implementado en v17.0.0.**
+65. Panel de salud comunitaria. **Implementado en v17.0.0.**
+66. Alertas por anomalías en métricas. **Implementado en v17.0.0.**
+67. Informes programados por Telegram o correo. **Implementado en v17.0.0.**
+68. Comparación anónima entre grupos propios. **Implementado en v17.0.0.**
+69. Exportación compatible con herramientas BI. **Implementado en v17.0.0.**
+70. Objetivos mensuales con seguimiento visual. **Implementado en v17.0.0.**
+
+### Bots, integraciones y API (71–80)
+71. Marketplace interno de módulos verificados. **Implementado en v17.0.0.**
+72. Tokens de API con permisos granulares. **Implementado en v17.0.0.**
+73. Rotación automática de credenciales. **Implementado en v17.0.0.**
+74. Entorno de pruebas aislado por bot. **Implementado en v17.0.0.**
+75. Monitor de cuotas y límites de Telegram. **Implementado en v17.0.0.**
+76. Integración con calendarios externos. **Implementado en v17.0.0.**
+77. Integración con gestores de incidencias. **Implementado en v17.0.0.**
+78. Importación y exportación de configuración firmada. **Implementado en v17.0.0.**
+79. Registro de webhooks con reintentos y cola muerta. **Implementado en v17.0.0.**
+80. SDK documentado para extensiones de Moonbot. **Implementado en v17.0.0.**
+
+### Operaciones y fiabilidad (81–90)
+81. Despliegues graduales entre instancias. **Implementado en v17.0.0.**
+82. Reversión automática ante fallos de salud. **Implementado en v17.0.0.**
+83. Copias cifradas con política de retención. **Implementado en v17.0.0.**
+84. Restauración selectiva por grupo o módulo. **Implementado en v17.0.0.**
+85. Panel de dependencias y servicios externos. **Implementado en v17.0.0.**
+86. Alertas de disco, memoria, CPU y latencia. **Implementado en v17.0.0.**
+87. Modo degradado cuando falla la IA o CAS. **Implementado en v17.0.0.**
+88. Diagnóstico automático con recomendaciones. **Implementado en v17.0.0.**
+89. Registro de errores agrupado por causa. **Implementado en v17.0.0.**
+90. Ventanas de mantenimiento programadas. **Implementado en v17.0.0.**
+
+### Experiencia web y Mini App (91–100)
+91. Buscador global de acciones y ajustes. **Implementado en v16.88.0.**
+92. Acciones favoritas en la portada. **Implementado en v16.89.0.**
+93. Navegación con historial y enlaces internos. **Implementado en v16.89.0.**
+94. Centro unificado de notificaciones. **Implementado en v16.89.0.**
+95. Modo compacto para administradores avanzados. **Implementado en v16.88.0.**
+96. Accesibilidad mejorada y control de tamaño de texto. **Implementado en v16.88.0.**
+97. Temas visuales por grupo. **Implementado en v16.90.0.**
+98. Panel personalizable mediante widgets. **Implementado en v17.0.0.**
+99. Trabajo offline con sincronización posterior. **Implementado en v17.0.0.**
+100. Recorrido guiado para cada función nueva. **Recorrido base y reiniciable implementado en v16.90.0.**
+
+### Análisis multimedia y amenazas (101–102)
+101. Análisis visual avanzado de fotografías para detectar contenido peligroso, spam visual, suplantaciones, texto incrustado y material sensible, con explicación y revisión administrativa. **Implementado en v16.86.0 y automatización por grupo añadida en v16.87.0.**
+102. Integración ampliada con la API de VirusTotal para analizar archivos, hashes, URLs y dominios, reutilizar resultados en caché, mostrar detecciones por motor y aplicar acciones configurables sin bloquear el bot cuando la API no responda. **Implementado en v16.86.0 y políticas por grupo añadidas en v16.87.0.**
+
+## [v17.4.0] - 2026-07-25
+
+### Aprendizaje e interacción entre bots
+
+- Opción independiente por grupo, desactivada por defecto.
+- Lista explícita de usernames de bots autorizados para impedir aprendizaje de fuentes desconocidas.
+- Aprendizaje opcional de mensajes, eliminando URLs y rechazando comandos.
+- Respuesta opcional únicamente cuando el otro bot menciona a Moonbot o responde a uno de sus mensajes.
+- Límite configurable de respuestas por hora para cortar conversaciones infinitas entre bots.
+- Los mensajes de bots nunca atraviesan el procesador de comandos ni los sistemas de karma.
+- Historial de interacciones, aprendizaje y respuestas visible en web y Mini App.
+- Configuración equivalente en ambas interfaces y ayuda contextual traducible.
+- Versión visible sincronizada a `v17.4.0`.
+
+## [v17.3.0] - 2026-07-25
+
+### Diagnóstico visible de permisos
+
+- Comprobación real de los permisos del bot mediante `getChatMember` al abrir cada grupo.
+- Aviso naranja destacado inmediatamente debajo del nombre cuando faltan capacidades.
+- Lista exacta de permisos ausentes: administrar, borrar, restringir, invitar/aprobar y fijar.
+- Instrucciones paso a paso para corregir los permisos desde los administradores de Telegram.
+- Botón para comprobar de nuevo sin recargar la Mini App.
+- El aviso se oculta automáticamente cuando todos los permisos están concedidos.
+- Diagnóstico equivalente en la pantalla de moderación de la web clásica.
+- Permisos específicos de publicación cuando el espacio administrado es un canal.
+- Versión visible sincronizada a `v17.3.0`.
+
+## [v17.2.2] - 2026-07-25
+
+### Protección contra canales remitentes
+
+- Ajuste independiente por grupo para banear canales externos usados como identidad de envío.
+- Eliminación opcional del mensaje mediante `deleteMessage` y bloqueo mediante `banChatSenderChat`.
+- Aviso opcional al grupo y registro del resultado en la auditoría administrativa.
+- El canal oficialmente vinculado continúa ignorándose y nunca se banea con esta política.
+- Configuración equivalente en la web clásica y la Mini App, con explicación contextual.
+- Versión visible sincronizada a `v17.2.2`.
+
+## [v17.2.1] - 2026-07-25
+
+### Filtro de publicaciones vinculadas
+
+- Las publicaciones de canales se contabilizan para estadísticas, pero no activan moderación, karma, IA ni respuestas.
+- Los mensajes automáticos enviados por un canal a su grupo de debate se ignoran antes de procesar usuarios.
+- También se ignoran mensajes publicados con identidad de canal dentro de grupos y supergrupos.
+- Los mensajes normales de usuarios, bots administrados y administradores anónimos del propio grupo conservan su comportamiento.
+- Versión visible sincronizada a `v17.2.1`.
+
+## [v17.2.0] - 2026-07-25
+
+### Ayuda contextual
+
+- Botones `?` discretos en títulos, apartados, ajustes y acciones principales.
+- Explicaciones en una ventana accesible sin abandonar la sección actual.
+- Cobertura automática del contenido cargado dinámicamente en la web y la Mini App.
+- Descripciones específicas para seguridad, proxies, IA, comunidad, eventos, integraciones y operaciones.
+- `/help comando` explica el propósito y alcance de cada comando y traduce la respuesta al idioma del usuario.
+- Versión visible sincronizada a `v17.2.0`.
+
+## [v17.1.0] - 2026-07-25
+
+### Traducción universal
+
+- Idioma automático a partir de Telegram o del navegador y selección manual entre todos los códigos ISO disponibles.
+- Traducción bajo demanda de la web, la Mini App y el captcha, incluida la interfaz generada dinámicamente.
+- Caché persistente en servidor y navegador para evitar traducir repetidamente las mismas cadenas.
+- Respuestas de comandos traducidas al idioma del usuario con fallback seguro en español.
+- Alias latinos adicionales para comandos comunes; los comandos canónicos siguen funcionando en cualquier idioma.
+- Compatibilidad con variantes regionales y códigos históricos normalizados.
+- Versión visible sincronizada a `v17.1.0`.
+
+## [v17.0.0] - 2026-07-25
+
+### Roadmap completo
+
+- Seguridad coordinada contra raids, cuarentena por reputación, suplantaciones, redirecciones y archivos peligrosos.
+- Automatización editorial con biblioteca, plantillas, traducción, recurrencias, formularios, palabras clave y webhooks fiables.
+- Inteligencia comunitaria con resúmenes, fuentes aprobadas, temas, preguntas pendientes, explicaciones, A/B, memoria y tono.
+- Analítica de cohortes, embudos, actividad, campañas, salud, anomalías, informes, comparación anónima, BI y objetivos.
+- Marketplace, tokens granulares, rotación, sandbox, cuotas, calendarios, incidencias, configuración firmada y SDK.
+- Operaciones con despliegues graduales, rollback, backups cifrados, restauración selectiva, dependencias, alertas y diagnóstico.
+- Widgets personalizables y cola offline con sincronización automática en la Mini App.
+- Centro avanzado disponible tanto en la web clásica como en la Mini App master.
+- Versión visible sincronizada a `v17.0.0`.
+
+## [v16.94.0] - 2026-07-25
+
+### Administración avanzada de grupos
+
+- Asistente inicial con perfiles para comunidades, soporte, noticias y gaming.
+- Comparación y sincronización selectiva de ajustes entre grupos.
+- Historial versionado con restauración de configuraciones anteriores.
+- Aprobación dual para cambios críticos y delegaciones administrativas temporales.
+- Calendario ejecutable de acciones y horarios automáticos de apertura y cierre.
+- Detección de grupos inactivos para archivado y auditoría horaria de permisos del bot.
+- Paneles equivalentes en la web clásica y la Mini App master.
+- Versión visible sincronizada a `v16.94.0`.
+
+## [v16.93.0] - 2026-07-25
+
+### Comunidad, eventos y participación
+
+- Programa de mentorías por habilidades, capacidad y asignación automática.
+- Encuestas anónimas de clima y buzón protegido con límite antiabuso.
+- Eventos con cupos, lista de espera, promoción automática, check-in y recordatorios.
+- Sorteos reproducibles con semilla y huella de participantes para auditoría.
+- Concursos con propuestas, voto comunitario y puntuación independiente del jurado.
+- Retos con progreso y clasificación; sesiones Q&A con aprobación administrativa.
+- Agenda exportable en iCalendar, certificados verificables y estadísticas de asistencia.
+- Funciones equilibradas entre la web de administración y la Mini App de Telegram.
+- Versión visible sincronizada a `v16.93.0`.
+
+## [v16.92.0] - 2026-07-25
+### Perfiles y progresión comunitaria
+- Perfil persistente con presentación, karma, roles, insignias, experiencia y nivel calculado.
+- Experiencia automática por actividad y asignación manual de XP desde los paneles administrativos.
+- Solicitudes de roles con aprobación o rechazo por el master.
+- Reconocimiento semanal de colaboradores mediante insignias fechadas.
+- Directorio interno limitado a miembros verificados o con roles comunitarios.
+
+### Herramientas personales
+- Recordatorios personales con fecha futura y entrega automática por mensaje privado de Telegram.
+- Preferencias individuales para alertas de seguridad, reportes, eventos, recordatorios y resúmenes.
+- Las preferencias filtran el centro real de notificaciones.
+- Gestión equivalente desde la Mini App y el panel web.
+- Versión visible sincronizada a `v16.92.0`.
+
+## [v16.91.0] - 2026-07-25
+### Moderación adaptativa
+- Modo lento dinámico por grupo, calculado según la actividad del último minuto y con espera mínima y máxima configurables.
+- Límites independientes para menciones, emojis y porcentaje de mayúsculas.
+- Acciones de observación, eliminación o eliminación con advertencia; los administradores quedan excluidos.
+- Simulador seguro que muestra métricas, señales y acción prevista sin modificar contadores ni ejecutar medidas.
+
+### Sanciones temporales
+- Los baneos locales admiten fecha de expiración y se limpian automáticamente al consultarlos.
+- Revisión manual de sanciones caducadas desde la Mini App y el panel web.
+- Historial de expiración registrado para auditoría.
+- Versión visible sincronizada a `v16.91.0`.
+
+## [v16.90.0] - 2026-07-25
+### Personalización y ayuda
+- Temas visuales independientes por grupo con cinco colores de acento y vista compacta opcional.
+- Configuración persistente compartida por la Mini App y el panel web de moderación.
+- Recorrido guiado de cuatro pasos para usuarios de la Mini App y administradores del panel web.
+- El recorrido aparece en el primer acceso, se puede omitir y reiniciar desde Ajustes.
+- Versión visible sincronizada a `v16.90.0`.
+
+## [v16.89.0] - 2026-07-25
+### Portada, historial y notificaciones reales
+- Las acciones favoritas aparecen directamente en la portada de la Mini App.
+- Navegación mediante el historial del navegador en la Mini App y el panel web; el botón Atrás recupera la pestaña anterior.
+- Nuevo endpoint autenticado de notificaciones que limita los resultados a grupos administrados por el usuario.
+- Alertas reales de reportes pendientes y decisiones de seguridad multimedia por grupo.
+- El master recibe también las apelaciones pendientes; el panel web agrega amenazas y actividad administrativa.
+- Estado leído persistente y acceso directo al grupo relacionado desde una notificación.
+- Versión visible sincronizada a `v16.89.0`.
+
+## [v16.88.0] - 2026-07-25
+### Navegación y productividad
+- Buscador global de paneles y acciones en la Mini App y en la web clásica.
+- Acciones favoritas persistentes para acceder rápidamente a las herramientas habituales.
+- Los resultados respetan el rol y no muestran el panel master a usuarios sin permiso.
+- Primera fase del centro de notificaciones, con estado leído persistente y acceso desde la cabecera.
+
+### Accesibilidad
+- Modo compacto opcional para administradores que necesitan mayor densidad de información.
+- Tamaños de texto pequeño, normal y grande aplicados a toda la interfaz.
+- Las preferencias se guardan localmente y se restauran al volver a abrir cualquiera de los paneles.
+- La navegación, los temas y las pestañas existentes permanecen sin cambios.
+- Versión visible sincronizada a `v16.88.0`.
+
+## [v16.87.0] - 2026-07-25
+### Políticas multimedia por grupo
+- Cada grupo puede activar por separado el análisis automático de fotografías, enlaces y archivos.
+- Controles para OCR, suplantación, señales sensibles, umbral visual y número mínimo de detecciones de VirusTotal.
+- Tres acciones configurables: solo avisar, eliminar el contenido o eliminar y banear al remitente.
+- El modo seguro por defecto es solo aviso y los creadores o administradores del grupo nunca reciben acciones destructivas automáticas.
+- Alertas opcionales en el grupo y al master, con historial de las últimas 300 decisiones por grupo.
+- Los archivos superiores a 10 MB se omiten y los temporales se eliminan incluso si falla la descarga o el análisis.
+
+### Paridad de interfaces
+- La política y su historial aparecen en la suite del grupo de la Mini App.
+- Los mismos controles y decisiones están disponibles en el panel web de moderación.
+- Versión visible sincronizada a `v16.87.0`.
+
+## [v16.86.0] - 2026-07-25
+### Análisis avanzado de fotografías
+- Nuevo analizador local para JPEG, PNG, WebP y GIF con límite de 10 MB y 40 megapíxeles.
+- Extracción OCR opcional, detección de enlaces incrustados, frases de estafa y posibles suplantaciones de marca.
+- Señal sensible débil y explicable que siempre requiere revisión humana y nunca genera por sí sola un ban automático.
+- Resultado con SHA-256, dimensiones, formato, entropía, color medio, puntuación, nivel de riesgo y señales ponderadas.
+- Historial persistente de análisis y métricas de amenazas/tasa de resultados limpios.
+
+### VirusTotal ampliado
+- Consulta de hashes MD5, SHA-1 y SHA-256, URLs y dominios mediante API v3.
+- Carga manual de archivos de hasta 10 MB; primero reutiliza el informe del hash y solo sube archivos desconocidos.
+- Envío de URLs desconocidas a la cola de VirusTotal.
+- Resultados normalizados con detecciones totales, motores maliciosos o sospechosos, etiquetas, reputación y enlace al informe.
+- Caché en memoria con caducidad para ahorrar cuota y tratamiento específico de límites HTTP 429 y fallos temporales.
+
+### Web y Mini App
+- Centro de Seguridad ampliado en la subpágina master de la Mini App con análisis de fotos, selector VirusTotal e historial.
+- Los mismos análisis están disponibles en el panel web clásico.
+- Los archivos temporales se eliminan después de cada análisis, también cuando se produce un error.
+- Versión visible sincronizada a `v16.86.0`.
+
+## [v16.85.0] - 2026-07-25
+### Suite avanzada de grupos — web y Mini App
+- Diez herramientas compartidas y persistentes: cuarentena para miembros nuevos, escudo anti-raid, reglas horarias, reportes mediante `/report`, decisiones por consenso, historial contextual, roles personalizados, bienvenidas, resúmenes inteligentes y plantillas con copia JSON.
+- El panel web master y el panel de cada grupo en la Mini App exponen las mismas capacidades sin modificar el diseño ni la navegación existente.
+- Las plantillas son compartidas entre grupos y permiten replicar protección, palabras prohibidas y configuración antispam.
+
+### Seguridad y aprendizaje antispam
+- Motor de riesgo explicable con señales, puntuación y registro de eventos para que cada decisión pueda revisarse.
+- Integración del aprendizaje de grupos feeder, medición de precisión, falsos positivos y detección de campañas repetidas.
+- Consulta de CAS mediante exportación local en caché, API y canal `@cas_feed` como respaldo; alertas a administradores antes de aplicar un ban.
+- Contador independiente de baneados por CAS y enriquecimiento automático de baneos antiguos con su fuente y motivo desde el historial y el export local.
+- Registro comunitario de reportes y compatibilidad con fuentes externas de reputación sin delegar automáticamente decisiones críticas.
+
+### Acceso automático y administración
+- Flujo captcha para solicitudes de acceso, aprobación automática tras superarlo y comprobaciones de reputación intermedias.
+- Separación entre la lista personal de grupos del usuario y el centro master de canales propios.
+- Nuevas acciones de administración para usuarios, administradores de grupo y master, con permisos comprobados en servidor.
+- Las trece acciones del panel master abren ahora una subpágina completa con flecha atrás; la lista y su posición se conservan al regresar.
+
+### Mini App, identidad y navegación
+- Mini App principal en `hub.html` con validación criptográfica de `initData`, caducidad de sesión y verificación exclusiva contra el bot configurado como hub.
+- Dos experiencias separadas: espacios asociados al usuario y centro master de canales propios; un administrador de grupo no recibe permisos globales.
+- Navegación por Mis canales, Administrar, Master, Directorio, Red y Ajustes, más una pantalla independiente para cada grupo.
+- Tema nuevo y tema clásico seleccionables, con preferencia persistida mediante Telegram CloudStorage y almacenamiento local.
+- Temas visuales estacionales y festivos integrados sin modificar las funciones ni los permisos.
+- Apertura segura de enlaces internos de Telegram y enlaces externos desde la Mini App.
+- Estados de carga, vacíos, errores y avisos breves adaptados a dispositivos móviles.
+
+### Canales, directorio y estadísticas
+- Registro de canales en PocketBase con propiedad, tipo, username, visibilidad y metadatos protegidos.
+- Colector de canales y grupos observados por los bots, con backfill para instalaciones anteriores.
+- Asociación de espacios al usuario autenticado y comprobación de administración mediante Telegram.
+- Buscador, filtros por tipo y ordenación de los canales asociados.
+- Ordenación de canales personales por recientes, suscriptores, crecimiento o nombre.
+- Favoritos y accesos recientes persistentes para volver rápidamente a los espacios usados.
+- Publicación o retirada de cada canal del directorio público mediante interruptor.
+- Estadísticas globales, detalle por canal, ranking, snapshots de suscriptores y crecimiento a 30 días.
+- Directorio público ordenable por suscriptores con búsqueda y filtro de favoritos.
+- Resumen compartible del canal con miembros, crecimiento y enlace público.
+
+### Gestión de cada grupo
+- Envío inmediato de mensajes y programación por fecha y hora desde la Mini App.
+- Listado y cancelación de publicaciones programadas.
+- Borradores persistentes por grupo y biblioteca local de plantillas de mensajes.
+- Generación de imágenes desde una descripción y envío posterior al grupo.
+- Consulta de baneados, advertencias y estado CAS de cada usuario.
+- Restauración de usuarios, retirada de advertencias y acceso a contexto antes de moderar.
+- Configuración de automoderación, antienlaces, bienvenida, escudo de seguridad y aprendizaje IA.
+- Gestión de palabras prohibidas con acciones de borrar, advertir o banear.
+- Notas privadas de moderación por grupo.
+- Exportación JSON del estado completo de moderación.
+- Estadísticas de actividad del grupo y resumen operativo para administradores.
+
+### Captcha y solicitudes de acceso
+- Captcha visual configurable para solicitudes de entrada, con número máximo de intentos y caducidad.
+- Aprobación automática de Telegram cuando el usuario supera correctamente el desafío.
+- Rechazo automático al agotar intentos o expirar la solicitud.
+- Comprobación intermedia contra export local de CAS, API de CAS y respaldo de `@cas_feed`.
+- Avisos al master y a los administradores cuando el solicitante aparece en CAS.
+- Revisión manual de solicitudes con botones de aprobar o rechazar.
+- Configuración del captcha equilibrada entre panel web y Mini App.
+
+### Registro comunitario y reputación
+- Registro estructurado de baneos globales con motivo, fuente, evidencias, grupos, autor, gravedad, revisión y vencimiento.
+- Importación compatible con la lista histórica `legacy`, enriquecida posteriormente con historial y fuentes CAS locales.
+- Contadores separados de baneos globales, CAS, locales, revocados, expirados y pendientes de revisión.
+- Búsqueda por ID, motivo o fuente y filtros por estado.
+- Exportación completa del registro en CSV y JSON.
+- Reportes de administradores que requieren aprobación master antes de incorporarse al registro global.
+- Apelaciones de usuarios con resolución, auditoría y retirada automática del bloqueo cuando se aceptan.
+- Baneos temporales con expiración automática y conservación del historial.
+- Niveles de riesgo `low`, `medium`, `high` y `critical`.
+- Claves de API revocables para integraciones comunitarias.
+- Endpoint de consulta servidor a servidor con permisos limitados, rate limit y respuesta sin evidencias privadas.
+
+### Motor de riesgo, CAS y aprendizaje
+- Motor antispam explicable que combina enlaces, repetición, patrones, campañas, muestras aprendidas y reputación.
+- Umbrales configurables para vigilar, borrar, silenciar o banear.
+- Registro de cada evento con puntuación, señales y razones legibles.
+- Retroalimentación de administradores como spam confirmado, falso positivo o caso ignorado.
+- Muestras positivas y negativas aprendidas desde grupos feeder autorizados.
+- Medición por feeder de casos revisados, aciertos, falsos positivos y precisión.
+- Detección de campañas repetidas entre mensajes y grupos.
+- Caché en memoria para consultas CAS recientes.
+- Descarga atómica y periódica de `export.csv`, cargada en una estructura local optimizada.
+- Sincronización del canal público `@cas_feed` como respaldo de baneos recientes.
+- Funcionamiento degradado: si una fuente CAS falla se prueban las demás sin bloquear el bot.
+
+### Centro master
+- Resumen general de usuarios, grupos, CPU, RAM y proxies activos.
+- Administración de usuarios y baneos, reportes, apelaciones y claves de integración.
+- Estado y control individual de proxies MTProto, además de escaneo bajo demanda.
+- Listado, alta y desconexión de instancias de bots con tokens protegidos.
+- Panel de Moon IA con palabras, idiomas, fuentes, muestras de seguridad y calidad de feeders.
+- Cola de tareas con priorización, cancelación y salud de Telegram.
+- Seguridad con estado del escudo neural, métricas visuales, auditoría y consulta CAS manual.
+- Diagnóstico del sistema con versión, recursos, registros, actualización y reinicio.
+- Informes exportables de red en texto y JSON.
+- Auditoría administrativa exportable.
+- Gestión de preguntas frecuentes y respuestas automáticas desde web y Mini App.
+- Comunicados globales con confirmación previa y contador de chats alcanzados.
+- Creación manual de backups con confirmación y resultado visible.
+- Pantalla de mantenimiento con estado actual y activación o desactivación confirmada.
+
+### Publicidad cruzada y experiencia de usuario
+- Descubrimiento de canales compatibles para acuerdos de promoción cruzada.
+- Solicitud, recepción, aceptación y rechazo de propuestas entre canales.
+- Seguimiento separado de anuncios entrantes y salientes.
+- Historial de moderación, reportes y estadísticas exportables desde la Mini App.
+- Traducción y detección de idioma conservadas en el núcleo multilingüe.
+- Reparación de mojibake antes de mostrar o enviar contenido heredado.
+
 ## [v16.84.0] - 2026-07-11
 ### Feature - Proxies MTProto en CintiaBot (pedir, recomendar, administrar)
 - **`/proxy`**: envía al usuario los proxies MTProto propios + los del canal más cercanos a su zona, deducida por el `language_code` de Telegram (un bot no ve la IP). Botón "Pedir proxy" en `/start` (callback `req_proxy`).
@@ -1007,3 +2188,32 @@ Esta actualizaciÃ³n masiva introduce 200 nuevas mejoras centradas en la escala
 
 
 
+# Captcha estricto sin excepciones
+
+- Acción colectiva para obligar a los miembros observados de un grupo a repetir el captcha.
+- Comando administrativo `/recaptcha_todos` con ejecución segura en segundo plano.
+- Vista previa, cancelación segura e historial de las campañas colectivas de captcha.
+- Reverificación periódica configurable por días y lista de hasta 100 miembros exentos por grupo.
+- Mute inmediato, envío privado del desafío y contador de entregas bloqueadas por Telegram.
+- Nuevo control por grupo y global para que los pendientes no puedan eludir el captcha.
+- Moonbot reaplica los permisos silenciados ante cada intento y vuelve a mostrar el desafío.
+- El control está disponible tanto en la MiniApp como en el panel web de TodoSobreAllTech.
+# Publicidad automática de canales del master
+
+- Un canal malformado o un fallo de sincronización ya no puede convertir la respuesta JSON en una página HTML de error.
+- Control independiente para activar o detener la promoción de cada canal desde la MiniApp.
+- NoticiasWeb3 recibe campañas propias generadas desde los canales donde el master es creador o administrador.
+- Los anuncios conservan impresiones, clics y métricas por ubicación, y desaparecen si el canal deja de estar administrado.
+
+# Lista estática de bloqueos de Telegram
+
+- Se incorpora en `blocklists/telegram_legacy_ids.txt` una lista independiente proporcionada por el propietario, validada como IDs numéricos y deduplicada durante su generación.
+- Moonbot consulta esta fuente junto a los baneos persistentes, locales y CAS, manteniendo su procedencia separada para auditoría.
+- Los identificadores empaquetados no pueden desbanearse accidentalmente desde la gestión ordinaria.
+- La lista se guarda con nombre propio y puede activarse globalmente o únicamente para una selección de grupos mediante la API administrativa.
+- `Telegram Legacy` queda activa globalmente por defecto y fechada el 24 de septiembre de 2016.
+- Se activa el análisis estático de scripts Lua, Python, JavaScript, PHP, Ruby, shell, PowerShell y otros formatos para detectar recopilación o exfiltración de IDs de Telegram sin ejecutar los archivos.
+- Los patrones críticos se eliminan del grupo y avisan al creador; los casos intermedios quedan registrados para revisión administrativa.
+- Los IDs plausibles encontrados se presentan al creador con el motivo y botones separados para aplicar el ban global o descartar cada candidato; nunca se banean automáticamente desde el contenido de un archivo.
+- Cada conjunto nuevo se registra centralmente con nombre, huella, grupo y remitente, comparando sus IDs con baneos globales, baneos por grupo, CAS y verificaciones captcha.
+- El remitente de una lista nueva queda silenciado hasta superar un captcha; después de agotar los intentos puede presentar una apelación al creador.
