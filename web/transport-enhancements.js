@@ -1,4 +1,4 @@
-/* Procedural, original visual enhancements for Rutas 3D.
+﻿/* Procedural, original visual enhancements for Rutas 3D.
  * This module deliberately has no imports: pass the active THREE namespace in.
  */
 
@@ -260,17 +260,17 @@ export function createTransportEnhancements(options) {
     const weather = state.weather || "clear";
     const dayPhase = state.dayPhase == null ? 0.34 : Number(state.dayPhase) % 1;
     const angle = dayPhase * Math.PI * 2 - Math.PI / 2;
-    const sunDirection = skyUniforms.sunDirection.value;
-    sunDirection.set(Math.cos(angle) * 0.65, Math.sin(angle), -0.35).normalize();
+    const sunDirection = skyUniforms.sunDirection?.value;
+    if(sunDirection) sunDirection.set(Math.cos(angle) * 0.65, Math.sin(angle), -0.35).normalize();
     const daylight = clamp(sunDirection.y * 2.2 + 0.35, 0.035, 1);
-    skyUniforms.daylight.value = daylight;
+    if(skyUniforms.daylight) skyUniforms.daylight.value = daylight;
     if (sun) {
       sun.position.copy(sunDirection).multiplyScalar(145);
       sun.intensity = daylight * (weather === "rain" ? 1.35 : 3.1);
       sun.color.set(weather === "rain" ? 0xd8e4ee : 0xffe4b3);
     }
-    skyUniforms.topColor.value.set(weather === "rain" ? 0x596b79 : 0x2878bd);
-    skyUniforms.horizonColor.value.set(weather === "rain" ? 0xaab6bd : 0xd8eff8);
+    if(skyUniforms.topColor) skyUniforms.topColor.value.set(weather === "rain" ? 0x596b79 : 0x2878bd);
+    if(skyUniforms.horizonColor) skyUniforms.horizonColor.value.set(weather === "rain" ? 0xaab6bd : 0xd8eff8);
     fill.intensity = (qualityLevel > 1 ? 0.72 : 0.55) * (0.3 + daylight * 0.7);
     fill.color.set(weather === "rain" ? 0xaab9c4 : daylight < 0.2 ? 0x6074a5 : 0xb9d8f0);
     wetRoad.opacity += ((weather === "rain" ? 0.36 : 0) - wetRoad.opacity) * 0.035;
@@ -314,3 +314,5 @@ export function applyRealisticRendererSettings(THREE, renderer, qualityLevel = 2
   if (THREE.PCFSoftShadowMap !== undefined) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.sortObjects = true;
 }
+
+
