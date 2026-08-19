@@ -1,5 +1,5 @@
 from webapp_sublot_24 import APIS
 C=["Recomendador de configuración","Pruebas automáticas de configuración","Centro de consentimiento","Navegación simplificada por tareas","Sincronización entre dispositivos","Detección de duplicados","Cuotas adaptativas por uso","Panel de impacto comunitario","Traducción revisable por la comunidad","Notificaciones agrupadas por contexto","Asistente de migración","Registro de decisiones administrativas","Análisis de accesibilidad continuo","Conector de almacenamiento externo","Políticas por franja horaria","Simulador de crecimiento sostenible","Mapa de dependencias funcionales","Reglas condicionales visuales","Bandeja unificada de revisión","Detección de cambios sensibles"]
-FEATURES=[{"release_channel": "alpha", "id":f"future-{n:04d}","capability":c,"api":a,"test":f"tests.test_webapp_sublot_24.Sublot24Tests.test_{n}"}for n,c,a in zip(range(1802,1822),C,APIS)]
+FEATURES=[{"release_channel": "prealfa", "id":f"future-{n:04d}","capability":c,"api":a,"test":f"tests.test_webapp_sublot_24.Sublot24Tests.test_{n}"}for n,c,a in zip(range(1802,1822),C,APIS)]
 for feature in FEATURES:
  feature["preflight"] = f"retrospective-audit:{feature['api']}:unique-callable-tested"

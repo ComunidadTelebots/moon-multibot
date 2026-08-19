@@ -87,7 +87,7 @@ def _roles(index, operation):
 
 
 MANIFEST = tuple(
-    {"release_channel": "alpha", "id": feature_id, "title": title, "capability": capability,
+    {"release_channel": "prealfa", "id": feature_id, "title": title, "capability": capability,
         "module": module, "api": operation.__name__,
         "test": f"tests/test_resource_rotation_archive_restore_observability_quality.py::test_{feature_id.replace('-', '_')}",
         "preflight": _preflight(index, feature_id, operation.__name__),

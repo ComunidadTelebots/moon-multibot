@@ -103,7 +103,7 @@ def _preflight(index: int) -> str:
 
 
 MANIFEST = tuple(
-    {"release_channel": "alpha", "id": feature_id,
+    {"release_channel": "prealfa", "id": feature_id,
         "title": title,
         "capability": capability,
         "module": module,

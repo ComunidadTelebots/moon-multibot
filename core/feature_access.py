@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 ROLES = ("user", "group_admin", "group_creator", "master")
-RELEASE_CHANNELS = ("stable", "rc", "beta", "alpha")
+RELEASE_CHANNELS = ("stable", "rc", "beta", "alpha", "prealfa")
 
 MASTER_TERMS = (
     "global", "system", "backup", "secret", "incident", "creator_account",

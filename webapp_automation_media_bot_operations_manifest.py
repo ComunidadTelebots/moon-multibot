@@ -25,7 +25,7 @@ def _capability(api):
     return f"{operation.replace('_', ' ')} para {_domain(api)} con vista previa segura y sin efectos directos"
 
 
-FEATURES = tuple({"release_channel": "alpha", "id": f"future-{2522 + index}", "api": api, "module": MODULE,
+FEATURES = tuple({"release_channel": "prealfa", "id": f"future-{2522 + index}", "api": api, "module": MODULE,
     "title": f"{_capability(api).capitalize()} en Moonbot",
     "capability": _capability(api), "role": _role(api), "status": "implemented",
     "preflight": "id_api_and_behavior_absent_from_head",

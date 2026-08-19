@@ -54,7 +54,7 @@ def _preflight(feature_id, api, family):
 
 
 MANIFEST = tuple(
-    {"release_channel": "alpha", "id": feature_id,
+    {"release_channel": "prealfa", "id": feature_id,
         "title": f"{prefix} {LABELS[resource]} en Moonbot",
         "capability": f"{prefix} {LABELS[resource]}",
         "module": "resource_quality_sandbox_governance_impact_engines.py",

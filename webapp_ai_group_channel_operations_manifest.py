@@ -28,7 +28,7 @@ def _role(api):
     return "channel_owner" if any(x in api for x in ("workflow", "delegation", "batch")) else "channel_admin"
 
 
-FEATURES = tuple({"release_channel": "alpha", "id": f"future-{2402 + index}", "api": api, "module": MODULE,
+FEATURES = tuple({"release_channel": "prealfa", "id": f"future-{2402 + index}", "api": api, "module": MODULE,
     "role": _role(api), "status": "implemented",
     "preflight": "api_and_id_absent_from_head", "test": f"tests.test_webapp_ai_group_channel_operations.WebappAiGroupChannelTests.test_future_{2402 + index}",
 } for index, api in enumerate(_APIS))

@@ -10,4 +10,4 @@ _ROLES=["creator","creator","creator_admin","creator","creator_admin","creator",
 FEATURES=[]
 for offset,(api,capability,role) in enumerate(zip(_APIS,_CAPS,_ROLES)):
     number=2042+offset; context="creadores" if number<=2060 else ("noticias" if number<=2090 else "proxies")
-    FEATURES.append({"release_channel": "alpha", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_creator_news_proxy_operations","api":api,"role":role,"test":f"tests.test_webapp_creator_news_proxy_operations.WebappCreatorNewsProxyTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent; equivalent:composed_when_available"})
+    FEATURES.append({"release_channel": "prealfa", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_creator_news_proxy_operations","api":api,"role":role,"test":f"tests.test_webapp_creator_news_proxy_operations.WebappCreatorNewsProxyTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent; equivalent:composed_when_available"})

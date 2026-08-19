@@ -28,7 +28,7 @@ def _capability(api):
     return f"{operation.capitalize()} para {area}"
 
 
-FEATURES = tuple({"release_channel": "alpha", "id": f"future-{2462 + index}", "api": api, "module": MODULE,
+FEATURES = tuple({"release_channel": "prealfa", "id": f"future-{2462 + index}", "api": api, "module": MODULE,
     "title": _capability(api), "capability": _capability(api),
     "role": _role(api), "status": "implemented",
     "preflight": "api_and_id_absent_from_head",

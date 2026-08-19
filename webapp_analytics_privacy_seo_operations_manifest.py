@@ -10,4 +10,4 @@ _ROLES=["analyst","self","campaign_manager","member","analytics_admin","analytic
 FEATURES=[]
 for offset,(api,capability,role) in enumerate(zip(_APIS,_CAPS,_ROLES)):
     number=2162+offset;context="analítica" if number<=2180 else ("privacidad" if number<=2210 else "SEO")
-    FEATURES.append({"release_channel": "alpha", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_analytics_privacy_seo_operations","api":api,"role":role,"test":f"tests.test_webapp_analytics_privacy_seo_operations.WebappAnalyticsPrivacySeoTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent; equivalent:composed_when_available"})
+    FEATURES.append({"release_channel": "prealfa", "id":f"future-{number}","title":f"{capability} para {context}","capability":capability,"module":"webapp_analytics_privacy_seo_operations","api":api,"role":role,"test":f"tests.test_webapp_analytics_privacy_seo_operations.WebappAnalyticsPrivacySeoTests.test_future_{number}","preflight":f"catalog:future-{number}:definition_only; runtime_symbol:{api}:absent; equivalent:composed_when_available"})
