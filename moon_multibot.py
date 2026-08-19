@@ -929,7 +929,16 @@ def join_app(): return send_from_directory("web", "join.html")
 @app.route("/transport")
 @app.route("/trucks")
 @app.route("/camiones")
-def transport_app(): return send_from_directory("web", "transport-3d.html")
+def transport_app():
+    if MOON_ENV == "stable":
+        return "Juego en mantenimiento para el canal estable. Cambia a beta o alfa.", 403
+    elif MOON_ENV == "beta":
+        return send_from_directory("web", "transport-beta.html")
+    elif MOON_ENV == "rc":
+        return send_from_directory("web", "transport-rc.html")
+    elif MOON_ENV == "prealfa":
+        return send_from_directory("web", "transport-prealfa.html")
+    return send_from_directory("web", "transport-alfa.html")
 
 @app.route("/juegos")
 @app.route("/games")
@@ -4640,11 +4649,12 @@ class MoonBot:
                  {"text": "?? Circuito Neón", "callback_data": "moon_game:html5:race"}],
                 [{"text": "?? Órbita Cero", "callback_data": "moon_game:html5:orbit"},
                  {"text": "?? Torre Pulso", "callback_data": "moon_game:html5:tower"}],
-                [{"text": "?? Rutas del Continente", "callback_data": "moon_game:html5:hauler"}],
                 [{"text": "?? Gato Soda Rush", "callback_data": "moon_game:html5:gatosoda"},
                  {"text": "?? Leyenda Latina", "callback_data": "moon_game:html5:leyendalatina"}],
             ]
         }
+        if MOON_ENV != "stable":
+            kb["inline_keyboard"].insert(5, [{"text": "?? Rutas del Continente", "callback_data": "moon_game:html5:hauler"}])
         self.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown", "reply_markup": json.dumps(kb)})
 
     def _ttt_winner(self, b):
@@ -4683,6 +4693,8 @@ class MoonBot:
                 else:
                     row.append({"text": "?" if cell == "X" else "?", "callback_data": "moon_game:menu"})
             kb["inline_keyboard"].append(row)
+        if MOON_ENV != "stable":
+            kb["inline_keyboard"].insert(5, [{"text": "?? Rutas del Continente", "callback_data": "moon_game:html5:hauler"}])
         self.api_call("sendMessage", {"chat_id": cid, "text": text, "parse_mode": "Markdown", "reply_markup": json.dumps(kb)})
 
     def handle_message_reaction(self, update):

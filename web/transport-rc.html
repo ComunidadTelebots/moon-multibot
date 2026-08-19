@@ -1,0 +1,1948 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Rutas 3D - Release Candidate v1.1.0.0</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #07101b;
+        color: #fff;
+        font: 14px system-ui;
+      }
+      canvas {
+        display: block;
+      }
+      .hud,
+      .controls {
+        position: fixed;
+        z-index: 2;
+        display: flex;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+      .hud {
+        inset: 10px 10px auto;
+      }
+      .controls {
+        left: 10px;
+        bottom: 10px;
+      }
+      .drive {
+        left: auto;
+        right: 10px;
+      }
+      .pill,
+      button {
+        padding: 9px 12px;
+        border: 1px solid #36536c;
+        border-radius: 11px;
+        background: #07101ddd;
+        color: #fff;
+      }
+      .pill b,
+      button.on {
+        color: #4ce6d0;
+      }
+      button {
+        font-weight: 700;
+      }
+      .fleet-select{max-width:190px;padding:9px 10px;border:1px solid #36536c;border-radius:11px;background:#07101ddd;color:#fff;font-weight:700}
+      .mobile {
+        display: none;
+      }
+      body:not(.controls-expanded) .hud .pill:nth-child(n+5) { display:none; }
+      body:not(.controls-expanded) .controls:not(.drive) button:not(#truck):not(#bus):not(#ambulance):not(#fireEngine):not(#recoveryTruck):not(#cam):not(#cruise):not(#parking):not(#mapButton):not(#moreControls) { display:none; }
+      #moreControls { border-color:#4ce6d0;color:#4ce6d0; }
+      .osm-attribution{position:fixed;z-index:2;right:8px;bottom:7px;padding:3px 7px;border-radius:6px;background:#07101dcc;color:#b9cbd3;font-size:10px;text-decoration:none}.osm-attribution:hover{color:#4ce6d0}
+      .map-panel {
+        position: fixed;
+        z-index: 8;
+        inset: 70px 14px 80px auto;
+        width: min(360px, calc(100vw - 28px));
+        padding: 12px;
+        border: 1px solid #4d6c82;
+        border-radius: 16px;
+        background: #07101bee;
+        box-shadow: 0 20px 60px #0009;
+        backdrop-filter: blur(12px);
+      }
+      .map-panel[hidden] { display: none; }
+      .achievement-list{display:grid;gap:7px;max-height:60vh;overflow:auto}.achievement-row{display:flex;gap:9px;align-items:center;padding:9px;border:1px solid #304656;border-radius:10px;background:#0a141d;color:#738493}.achievement-row.done{color:#eafefa;border-color:#3b9e8c;background:#0d2826}.achievement-row i{font-size:22px;font-style:normal}.achievement-toast{position:fixed;z-index:20;top:72px;left:50%;transform:translate(-50%,-20px);padding:12px 18px;border:1px solid #52dec6;border-radius:14px;background:#08211fee;opacity:0;pointer-events:none;transition:.3s}.achievement-toast.show{opacity:1;transform:translate(-50%,0)}
+      .map-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .map-tools{display:flex;align-items:center;gap:5px}.map-tools button{padding:5px 9px}.map-tools output{min-width:58px;text-align:center;color:#63e8d3;font-size:11px}
+      .map-panel h3 { margin: 0; }
+      .world-planner{display:grid;grid-template-columns:1fr 1fr;gap:8px}.world-planner select{min-width:0;padding:9px;border:1px solid #36536c;border-radius:10px;background:#07101d;color:#fff}.world-plan{margin-top:10px;padding:10px;border-radius:10px;background:#0b1720;color:#b9d8dc;line-height:1.5}.world-plan b{color:#58e4cf}
+      #routeMap { width: 100%; height: auto; border-radius: 11px; background: #0b1822; }
+      .europe-panel{width:min(780px,calc(100vw - 28px));inset:70px 14px 80px auto}.europe-panel canvas{width:100%;height:auto;border-radius:12px}.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;color:#9db0bd;font-size:11px}.map-legend i{width:18px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px}.route-output{padding:9px;border-radius:9px;background:#0b1720;color:#62e8d2;line-height:1.4}
+      .cockpit-panel { position:fixed; z-index:3; left:50%; bottom:0; width:min(940px,98vw); min-height:230px; transform:translateX(-50%); padding:12px 18px; border:1px solid #4a5963; border-bottom:0; border-radius:34px 34px 0 0; background:linear-gradient(180deg,#20272df2,#080b0ef5); box-shadow:0 -16px 55px #000b,inset 0 1px #ffffff20; backdrop-filter:blur(8px); }
+      .cockpit-panel[hidden]{display:none}.cockpit-grid{height:100%;display:grid;grid-template-columns:190px minmax(320px,1fr) 190px;align-items:center;gap:16px}.steering-wheel{width:166px;height:166px;margin:auto;border:16px solid #171a1d;border-radius:50%;box-shadow:inset 0 0 0 4px #44515a,0 8px 18px #000;position:relative;transition:transform .08s linear}.steering-wheel:before,.steering-wheel:after{content:"";position:absolute;left:50%;top:50%;width:70px;height:17px;border-radius:9px;background:#252c31;transform-origin:0 50%}.steering-wheel:before{transform:rotate(25deg)}.steering-wheel:after{transform:rotate(155deg)}.wheel-hub{position:absolute;inset:43px;border:4px solid #56636b;border-radius:50%;background:radial-gradient(circle,#34434a,#111619);display:grid;place-items:center;color:#50e5d0;font-weight:900;z-index:2}.dash-screen{border:2px solid #425765;border-radius:18px;padding:10px 14px;background:linear-gradient(145deg,#071a23,#020609);box-shadow:inset 0 0 26px #1ec6bc18}.dash-main{display:flex;align-items:end;justify-content:center;gap:8px;color:#dff}.dash-speed{font-size:56px;font-weight:800;line-height:.9}.dash-unit{color:#7f9ba8}.dash-row{display:flex;justify-content:space-between;margin-top:8px;color:#8edfd4}.dash-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px solid #29404c;font-size:10px;color:#91a9b5}.dash-status span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dash-status b{color:#d9f8f3;font-weight:650}.dash-alert{grid-column:1/-1;text-align:center;color:#58e2ce!important}.rpm-track{height:7px;margin-top:8px;border-radius:5px;background:#15262b;overflow:hidden}.rpm-track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3de1bd,#e8d64b,#ef4b48);transition:width .1s}.dash-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.dash-buttons button{padding:8px 5px;font-size:11px;background:#11191e}.dash-buttons button.on{background:#143b37;border-color:#45d8c2}.warning{color:#ff725f!important}
+      .events-panel{width:min(1050px,calc(100vw - 28px));inset:58px 14px 70px;overflow:auto}.event-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.event-kpi,.cargo-card{padding:10px;border:1px solid #294657;border-radius:11px;background:#0a1721}.event-kpi b{display:block;color:#53e5d0;font-size:22px}.event-kpi span{color:#91aab6;font-size:11px}.event-filters{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.event-filters select,.event-filters input{min-width:150px;flex:1;padding:8px;border:1px solid #36536c;border-radius:9px;background:#07101d;color:#fff}.event-table-wrap{overflow:auto;border:1px solid #233744;border-radius:11px}.event-stream{width:100%;border-collapse:collapse;font-size:11px}.event-stream th{position:sticky;top:0;background:#0b1923;color:#91aab6}.event-stream th,.event-stream td{padding:8px;border-bottom:1px solid #233744;text-align:left;vertical-align:top}.event-stream tr.warning{color:#ffc45d}.event-stream tr.critical{color:#ff776b}.event-detail{max-width:390px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cargo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:8px 0}.cargo-card b{display:block;color:#54e4cf}.event-empty{padding:28px;text-align:center;color:#8aa1ad}
+      .dash-navigation{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px;margin-top:8px;padding:7px 9px;border:1px solid #294b56;border-radius:10px;background:#082027;color:#dff}.dash-navigation small{grid-column:1/-1;color:#62ddcb;text-transform:uppercase;letter-spacing:.09em;font-size:8px}.dash-navigation b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dash-navigation output{color:#fff;font-weight:800}.dash-alert[data-level="warning"]{color:#ffd166!important}.dash-alert[data-level="critical"]{color:#ff725f!important;animation:alertPulse .72s alternate infinite}@keyframes alertPulse{to{opacity:.48}}
+      .cargo-monitor{width:min(520px,calc(100vw - 28px))}.cargo-condition-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.cargo-meter{padding:10px;border:1px solid #294657;border-radius:11px;background:#091722}.cargo-meter header{font-size:11px;color:#91aab6}.cargo-meter b{display:block;margin:4px 0;color:#55e4cf;font-size:21px}.cargo-meter progress{width:100%;accent-color:#4ce6d0}.cargo-alert{min-height:42px;margin:9px 0 0;padding:9px;border-radius:9px;background:#0b2025;color:#7cebdc}.cargo-alert.warning{background:#31230d;color:#ffd166}.cargo-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.cargo-actions button{flex:1}.cargo-actions button.on{background:#143b37;border-color:#45d8c2}
+      .operation-cinematic{position:fixed;z-index:18;left:50%;bottom:24px;width:min(430px,calc(100vw - 24px));transform:translateX(-50%);padding:13px 15px;border:1px solid #4ce6d0;border-radius:15px;background:#06131aee;box-shadow:0 18px 55px #000b;backdrop-filter:blur(12px)}.operation-cinematic[hidden]{display:none}.operation-head{display:flex;justify-content:space-between;gap:12px}.operation-head small{color:#72ddcf}.operation-cinematic progress{width:100%;height:9px;margin-top:10px;accent-color:#4ce6d0}.operation-hint{display:block;margin-top:5px;color:#9db5bf;font-size:10px}
+      /* Canva driving shell: readable telemetry without covering the road. */
+      .hud{max-width:min(850px,calc(100vw - 390px));padding:6px;border:1px solid #ffffff16;border-radius:16px;background:linear-gradient(135deg,#07111be8,#0d2029d9);box-shadow:0 14px 40px #0007;backdrop-filter:blur(14px)}
+      .pill{padding:7px 10px;border-color:#ffffff12;background:#101d27b8;color:#8ca4b1;font-size:10px;text-transform:uppercase;letter-spacing:.055em}.pill b{display:block;margin-top:2px;color:#eefdfa;font-size:12px;text-transform:none;letter-spacing:0}
+      .controls:not(.drive){left:50%;bottom:12px;max-width:calc(100vw - 230px);transform:translateX(-50%);justify-content:center;padding:6px;border:1px solid #ffffff1a;border-radius:17px;background:linear-gradient(180deg,#10202be8,#07111bef);box-shadow:0 16px 44px #000a;backdrop-filter:blur(16px)}
+      .controls:not(.drive) button,.fleet-select{min-height:38px;padding:8px 11px;border-color:#ffffff16;border-radius:11px;background:#132431;color:#dce9ed;transition:.18s transform,.18s background,.18s border-color}.controls:not(.drive) button:hover{transform:translateY(-2px);border-color:#55e7d1}.controls:not(.drive) button.on{border-color:#4ce6d0;background:#123b38;color:#64f0dc;box-shadow:inset 0 0 18px #3ee1c31a}
+      .controls.drive{right:12px;bottom:12px;gap:6px;padding:6px;border:1px solid #ffffff1a;border-radius:17px;background:#07111bef;box-shadow:0 16px 44px #000a;backdrop-filter:blur(16px)}.controls.drive button{min-width:76px;border-color:#ffffff1a;background:#142632}.controls.drive button[data-key="w"]{border-color:#4ce6d0;background:linear-gradient(135deg,#17463e,#0e2d2b);color:#72f3df}
+      .cockpit-panel.exterior{left:auto;right:12px;top:12px;bottom:auto;width:350px;min-height:0;transform:none;padding:9px;border:1px solid #ffffff20;border-radius:18px;background:linear-gradient(145deg,#07131ded,#0d222ced);box-shadow:0 18px 50px #0009}.cockpit-panel.exterior .cockpit-grid{display:block}.cockpit-panel.exterior .steering-wheel,.cockpit-panel.exterior .dash-buttons{display:none}.cockpit-panel.exterior .dash-screen{padding:10px 12px;border-color:#3d716e;background:linear-gradient(145deg,#061219,#0a2429)}.cockpit-panel.exterior .dash-main{justify-content:flex-start}.cockpit-panel.exterior .dash-speed{font-size:38px}.cockpit-panel.exterior .dash-status{grid-template-columns:repeat(3,minmax(0,1fr));font-size:8px}.cockpit-panel.exterior .dash-navigation{margin-top:6px}
+      @media (min-width:701px){.cockpit-panel{min-height:0;width:min(820px,76vw);padding:9px 14px;border-radius:25px 25px 0 0}.cockpit-grid{grid-template-columns:120px minmax(330px,1fr) 170px;gap:10px}.steering-wheel{width:104px;height:104px;border-width:10px}.wheel-hub{inset:27px;font-size:9px}.dash-speed{font-size:42px}.dash-status{grid-template-columns:repeat(3,minmax(0,1fr))}.dash-buttons button{padding:7px 4px}}
+      @media (max-width: 700px) {
+        .mobile {
+          display: flex;
+        }
+        .hud {
+          font-size: 11px;
+        }
+        .pill,
+        button {
+          padding: 8px;
+        }
+        .controls:not(.drive) {
+          bottom: 66px;
+        }
+        .controls.drive {
+          left: 10px;
+          right: 10px;
+          bottom: 10px;
+          justify-content: space-between;
+        }
+        .controls.drive button {
+          min-width: 58px;
+          min-height: 46px;
+          touch-action: none;
+        }
+        .cockpit-panel{min-height:210px;padding:7px;width:100vw;border-radius:22px 22px 0 0}.cockpit-grid{grid-template-columns:82px minmax(0,1fr) 92px;gap:5px}.steering-wheel{width:78px;height:78px;border-width:8px}.wheel-hub{inset:20px;font-size:8px}.dash-screen{padding:7px}.dash-speed{font-size:34px}.dash-row{font-size:9px}.dash-status{font-size:8px;gap:3px 6px}.dash-buttons{gap:3px}.dash-buttons button{padding:6px 1px;font-size:8px}.cockpit-panel:not([hidden]):not(.exterior)~.controls.drive{z-index:5;bottom:214px}.hud{max-width:calc(100vw - 12px);max-height:66px;overflow:auto;inset:6px 6px auto}.pill{padding:5px 7px}.controls:not(.drive){left:6px;right:6px;bottom:64px;max-width:none;transform:none;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto}.controls:not(.drive) button,.fleet-select{flex:0 0 auto}.cockpit-panel.exterior{top:76px;right:6px;width:min(310px,calc(100vw - 12px));padding:6px}.cockpit-panel.exterior .dash-status{display:none}.cockpit-panel.exterior .dash-navigation{grid-template-columns:1fr auto}.events-panel{inset:56px 6px 64px;width:auto;padding:8px}.event-kpis,.cargo-grid{grid-template-columns:repeat(2,1fr)}.event-filters>*{min-width:calc(50% - 4px)}.event-stream th:nth-child(4),.event-stream td:nth-child(4),.event-stream th:nth-child(5),.event-stream td:nth-child(5){display:none}.operation-cinematic{bottom:74px}.operation-cinematic b{font-size:13px}.operation-cinematic progress{height:12px}
+      }
+    </style>
+  </head>
+  <body>
+<div style="position:fixed;top:0;left:0;width:100%;background:rgba(0,0,0,0.8);color:#fff;text-align:center;padding:5px;z-index:9999;font-family:monospace;border-bottom:2px solid #39d98a;">EDICIÓN RELEASE CANDIDATE - v1.1.0.0</div>
+    <div class="hud">
+      <div class="pill">Vehículo <b id="vn">Aster Viento 3D</b></div>
+      <div class="pill">Vista <b id="view">Exterior</b></div>
+      <div class="pill">Ciudad <b id="city">Nova Liria</b></div>
+      <div class="pill">Carretera <b id="roadEvent">Sin incidencias</b></div>
+      <div class="pill">Trabajo <b id="workState">Conductor</b></div>
+      <div class="pill">Carga <b id="cargoState">0/3 palés</b></div>
+      <div class="pill">Conservación <b id="cargoConditionState">Sin carga</b></div>
+      <div class="pill">Empresa <b id="moneyState">35.000 €</b></div>
+      <div class="pill">Nivel <b id="levelState">1</b></div>
+      <div class="pill">Convoy <b id="convoyState">Desconectado</b></div>
+      <div class="pill">Especial <b id="specialState">Sin carga</b></div>
+      <div class="pill">Servicio <b id="nearService">En ruta</b></div>
+    </div>
+    <div class="controls">
+      <button id="truck" class="on">Camión</button
+      ><button id="bus">Autobús</button><button id="ambulance">Ambulancia</button><button id="fireEngine">Bomberos</button><button id="recoveryTruck">Grúa</button><button id="sirenButton">Sirena</button><button id="cam">Vista</button
+      ><button id="cruise">Crucero</button><button id="rest">Descansar</button
+      ><button id="parking" class="on">Freno P</button><button id="mapButton">Mapa</button
+      ><button id="moreControls">Más controles</button
+      ><button id="workMode">Ir al almacén</button><button id="toolButton">Traspaleta</button
+      ><button id="interactButton">Recoger / cargar</button><button id="rescue">Asistencia</button><button id="full">⛶</button>
+      <button id="engineButton">Arrancar motor</button>
+      <button id="contractButton">Nuevo contrato</button><button id="serviceButton">Taller / combustible</button><button id="convoyButton">Crear / unir convoy</button>
+      <button id="achievementsButton">Logros</button>
+      <button id="eventsButton">Centro de eventos</button>
+      <button id="cargoMonitorButton">Control de carga</button>
+      <button id="academyButton">Academia</button>
+      <button id="europeMapButton">Mapa de Europa</button>
+      <button id="worldMapButton">Red mundial</button>
+      <select id="fleetVehicle" class="fleet-select" aria-label="Vehículo aéreo o marítimo"><option value="">Flota aire y mar</option></select><select id="fleetLivery" class="fleet-select" aria-label="Diseño visual Canva"></select>
+      <button id="wheelButton">Volante: buscar</button>
+      <button id="specialButton">Transporte especial</button>
+      <button id="specialOperate" hidden>Preparar carga</button>
+    </div>
+    <div class="controls drive">
+      <button class="mobile" data-key="a">◀</button
+      ><button data-key="s">Freno</button><button data-key="w">Acelerar</button
+      ><button class="mobile" data-key="d">▶</button>
+    </div>
+    <a class="osm-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
+    <aside class="operation-cinematic" id="operationCinematic" hidden aria-live="assertive"><div class="operation-head"><b id="operationTitle">Cargando palé</b><small id="operationPercent">0%</small></div><progress id="operationProgress" max="100" value="0"></progress><small class="operation-hint" id="operationHint">Alineando la mercancía con el remolque</small></aside>
+    <aside class="map-panel" id="mapPanel" hidden><header><h3>Mapa de posición</h3><div class="map-tools"><button id="mapZoomOut" title="Alejar">−</button><output id="mapZoomLabel">280 m</output><button id="mapZoomIn" title="Acercar">+</button><button id="mapClose">×</button></div></header><canvas id="routeMap" width="336" height="430"></canvas></aside>
+    <aside class="map-panel" id="achievementsPanel" hidden><header><h3>Logros del conductor</h3><button id="achievementsClose">×</button></header><div class="achievement-list" id="achievementList"></div></aside><div class="achievement-toast" id="achievementToast"></div>
+    <aside class="map-panel" id="academyPanel" hidden><header><h3>Academia de conducción</h3><button id="academyClose">×</button></header><div class="achievement-list" id="academyLessons"></div><p class="route-output" id="academyState">Elige una prueba.</p></aside>
+    <aside class="map-panel europe-panel" id="europeMapPanel" hidden><header><h3>Europa · posición del camión</h3><div class="map-tools"><button id="europeToLocal">+ Local</button><button id="europeMapClose">×</button></div></header><div class="map-legend"><span><i style="background:#58798b"></i>Carretera</span><span><i style="background:#d9a33f"></i>Peaje</span><span><i style="background:#55a8d9"></i>Ferri</span><span><i style="background:#54f0cf"></i>Tu posición/ruta</span></div><canvas id="europeRoadMap" width="800" height="570"></canvas><p class="route-output" id="europeRouteOutput"></p></aside>
+    <aside class="map-panel europe-panel" id="worldPanel" hidden><header><h3>Red mundial de carga</h3><button id="worldClose">×</button></header><div class="world-planner"><select id="worldFrom"></select><select id="worldTo"></select></div><div class="map-tools" style="margin-top:8px"><button id="worldPlanButton">Calcular transporte</button><button id="worldDriveButton" disabled>Conducir tramo terrestre</button><button id="worldFlyButton" disabled>Volar tramo aéreo</button><button id="worldSailButton" disabled>Navegar tramo marítimo</button></div><div class="world-plan" id="worldPlanOutput">Selecciona dos centros logísticos.</div></aside>
+    <aside class="map-panel events-panel" id="eventsPanel" hidden aria-label="Centro maestro de eventos"><header><div><h3>Centro maestro de eventos</h3><small id="eventResultCount">0 eventos</small></div><div class="map-tools"><button id="eventExportButton">Exportar JSON</button><button id="eventsClose" aria-label="Cerrar">×</button></div></header><div class="event-kpis"><div class="event-kpi"><b id="eventKpiTotal">0</b><span>Total</span></div><div class="event-kpi"><b id="eventKpiToday">0</b><span>Últimas 24 h</span></div><div class="event-kpi"><b id="eventKpiCompleted">0</b><span>Completados</span></div><div class="event-kpi"><b id="eventKpiPending">0</b><span>Pendientes</span></div><div class="event-kpi"><b id="eventKpiCritical">0</b><span>Críticos</span></div></div><div class="event-filters"><select id="eventCategoryFilter" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option><option value="career">Carrera</option><option value="contracts">Contratos</option><option value="truck">Vehículo</option><option value="economy">Economía</option><option value="operations">Operaciones</option><option value="technical">Técnicos</option></select><select id="eventSeverityFilter" aria-label="Filtrar por severidad"><option value="all">Todas las severidades</option><option value="info">Información</option><option value="warning">Avisos</option><option value="critical">Críticos</option></select><input id="eventSearch" type="search" placeholder="Buscar evento, jugador, región…" /></div><div class="event-table-wrap"><table class="event-stream"><thead><tr><th>Fecha</th><th>Severidad</th><th>Categoría</th><th>Evento</th><th>Jugador / empresa</th><th>Detalle</th></tr></thead><tbody id="eventRows"></tbody></table><div class="event-empty" id="eventEmpty" hidden>No hay eventos para estos filtros.</div></div></aside>
+    <aside class="map-panel cargo-monitor" id="cargoMonitor" hidden aria-label="Control operativo de la mercancía"><header><div><h3>Control de la mercancía</h3><small id="cargoProfile">Carga general</small></div><button id="cargoMonitorClose" aria-label="Cerrar">×</button></header><label class="cargo-selector">Tipo de operación<select id="cargoTypeSelect" aria-label="Tipo de mercancía"><option value="standard">Carga general</option><option value="cold">Cadena de frío</option><option value="fragile">Carga frágil</option><option value="adr">Mercancía ADR</option><option value="livestock">Transporte de animales</option></select></label><div class="cargo-condition-grid"><div class="cargo-meter"><header>Integridad</header><b id="cargoIntegrity">100%</b><progress id="cargoIntegrityBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Temperatura</header><b id="cargoTemperature">18 °C</b><progress id="cargoTemperatureBar" max="100" value="50"></progress></div><div class="cargo-meter"><header>Sujeción</header><b id="cargoRestraint">100%</b><progress id="cargoRestraintBar" max="100" value="100"></progress></div><div class="cargo-meter"><header>Equipo</header><b id="cargoEquipment">Cerrado · estable</b><small id="cargoHydration"></small></div></div><p class="cargo-alert" id="cargoAlert" role="status" aria-live="polite">Mercancía estable</p><div class="cargo-actions"><button id="cargoDoorButton" aria-pressed="false">Abrir puertas</button><button id="reeferButton" class="on" aria-pressed="true">Frío activo</button><button id="secureCargoButton">Revisar sujeción</button></div></aside>
+    <section class="cockpit-panel" id="cockpitPanel" hidden>
+      <div class="cockpit-grid"><div class="steering-wheel" id="visualWheel"><div class="wheel-hub">ASTER</div></div>
+      <div class="dash-screen"><div class="dash-main"><b class="dash-speed" id="dashSpeed">0</b><span class="dash-unit">km/h</span><b id="speed" hidden>0 km/h</b></div><div class="rpm-track"><i id="dashRpmBar"></i></div><div class="dash-row"><span id="dashGear">N</span><span id="dashFuel">100% combustible</span><span id="dashLimit">90</span></div><div class="dash-navigation" aria-label="Navegación"><small>Ruta activa</small><b id="dashNavInstruction">Continúa por la vía</b><output id="dashNavDistance">-- m</output></div><div class="dash-status"><span>Motor <b id="transmissionState">N · 600 rpm</b></span><span>Firme <b id="physicsState">Asfalto seco</b></span><span>Daños <b id="damageState">0%</b></span><span>Conductor <b id="fatigueState">Descansado</b></span><span>Combustible <b id="fuelState">100%</b></span><span>Límite <b id="limitState">90 km/h</b></span><b class="dash-alert" id="assistState" role="status" aria-live="polite">AEBS listo</b></div></div>
+      <div class="dash-buttons" role="group" aria-label="Controles de cabina"><button data-cockpit="lights" aria-pressed="false">💡 Luces</button><button data-cockpit="wipers" aria-pressed="false">🌧 Limpia</button><button data-cockpit="hazard" aria-pressed="false">⚠ Emergencia</button><button data-cockpit="retarder" aria-pressed="false">R Retarder</button><button data-cockpit="cruise" aria-pressed="false">◉ Crucero</button><button data-cockpit="parking" aria-pressed="true">P Freno</button></div></div>
+    </section>
+    <script src="./transport-boot-screen.js?v=20260814-ui3"></script><script>
+      (()=>{const boot=window.TransportBoot?.mount();window.__transportBoot=boot;window.__transportBootPhase=(phase,label)=>boot?.phase(phase,label);window.__transportBootOk=()=>boot?.ready();window.__transportBootClose=()=>boot?.close();addEventListener("error",event=>boot?.fail(event.message||"Error de recurso",event.filename||event.target?.src,event.lineno),true);addEventListener("unhandledrejection",event=>boot?.fail(event.reason||"Promesa rechazada"));boot?.phase("DOM","Interfaz base preparada")})();
+    </script><script src="/games-logistics-network.js"></script><script src="/games-convoy.js"></script><script src="/games-shared-world.js"></script><script src="/games-shared-operations.js"></script><script src="/transport-achievements.js"></script><script src="/transport-route-runtime.js"></script><script type="module">
+      import * as T from "./vendor/three.module.min.js";
+      import { EUROPE_CITIES, EUROPE_ROADS } from "./transport-europe-data.js";
+      import { createTransportCareer } from "./transport-career.js";
+      import { createCompanyPanel } from "./transport-company-panel.js";
+      import { createTransportUiShell } from "./transport-ui-shell.js?v=20260815-canva1";
+      import { createTransportDrivingDock } from "./transport-driving-dock.js?v=20260815-canva1";
+      import { createRegionOperationsPanel } from "./transport-region-operations.js";
+      import { createTransportEventLog } from "./transport-event-log.js";
+      import { createCargoCondition } from "./transport-cargo-condition.js";
+      import { createTransportEnhancements, applyRealisticRendererSettings } from "./transport-enhancements.js";
+      import { createTruckPhysics } from "./transport-physics.js";
+      import { createProceduralTransportTextures } from "./transport-textures.js";
+      import { createWorldEvents } from "./transport-world-events.js";
+      import { mountEuropeRoadMap } from "./transport-europe-map.js";
+      import { createWheelInput } from "./transport-wheel-input.js";
+      import { createOriginalEuropeanCabin } from "./transport-cabin-model.js";
+      import { createBusCabinVariant } from "./transport-bus-cabin.js";
+      import { createBusAuthoredMaterials } from "./transport-bus-materials.js?v=20260815-componentfix1";
+      import { createVehicleSurfaceStates } from "./transport-vehicle-surface-states.js";
+      import { createSpecialTransport, SPECIAL_CARGOES } from "./transport-special-cargo.js";
+      import { createWorldDetail } from "./transport-world-detail.js";
+      import { loadPhotorealAtlas } from "./transport-photoreal-atlas.js";
+      import { createRouteScenery } from "./transport-route-scenery.js";
+      import { createRoadSurfaceEnhancements } from "./transport-road-surface.js";
+      import { createRoadsideServices } from "./transport-roadside-services.js";
+      import { createVehicleTextureSystem } from "./transport-vehicle-textures.js";
+      import { createDetailedTruckExterior } from "./transport-truck-exterior.js";
+      import { createOsmScenery } from "./transport-osm-scenery.js";
+      import { createEmergencyFleet } from "./transport-emergency-fleet.js";
+      import { createOsmRoutePlanner, projectRouteToWorld, coordinateAtRouteProgress } from "./transport-osm-routing.js";
+      import { createRouteNavigation } from "./transport-route-navigation.js";
+      import { createOsmCorridor } from "./transport-osm-corridor.js";
+      import { createWorldPolygonMesh } from "./transport-world-polygon-mesh.js";
+      import { createOsmRoutePois } from "./transport-osm-pois.js";
+      import { createCargoHubs } from "./transport-cargo-hubs.js";
+      import { WORLD_HUBS, findMultimodalRoute, resolveMultimodalRoads } from "./transport-world-network.js";
+      import { createMaterials as createRegionalMaterials } from "./transport-regional-materials.js";
+      import { createOsmRoadMesh } from "./transport-osm-road-mesh.js";
+      import { createDrivingAcademy } from "./transport-driving-academy.js";
+      import { createLiveEnvironment } from "./transport-live-environment.js";
+      import { createRegionalEventDirector } from "./transport-regional-events.js";
+      import { createFireEffect } from "./transport-fire-effects.js";
+      import { createEngineAudio } from "./transport-engine-audio.js";
+      import { createTransportSettingsPanel } from "./transport-settings-panel.js";
+      import { createOperationCinematics } from "./transport-operation-cinematics.js";
+      import { AIR_FLEET, SEA_FLEET, FLEET_LIVERIES, createFleetVehicle, createSeaVehicle } from "./transport-air-sea-fleet.js";
+      import { createAviationUI } from "./transport-aviation-ui.js";
+      import { createVehicleAnimationRig } from "./transport-vehicle-animation-rig.js";
+      import { applyCanvaTransportTheme } from "./transport-canva-theme.js?v=20260814-ui2";
+      import { createHudMotion } from "./transport-hud-motion.js";
+      import { createCameraSelector } from "./transport-camera-selector.js";
+      import { chaseCameraComposition } from "./transport-camera-composition.js";
+      import { createBorderOperations } from "./transport-border-operations.js";
+      import { createSaveCenter } from "./transport-save-center.js";
+      import { createAmbientLife } from "./transport-ambient-life.js";
+      import { createCityLife } from "./transport-city-life.js";
+      import { createBakedMaterialLibrary } from "./transport-baked-materials.js?v=20260815-uvfix1";
+      import { createAsterStaticModelLoader } from "./transport-aster-static-model.js?v=20260815-profile2";
+      import { createAsterStaticCabinLoader } from "./transport-aster-static-cabin.js";
+      import { createMissionRuntime, createMissionPanel } from "./transport-mission-runtime.js";
+      import { createVehicleJobSystem } from "./transport-vehicle-jobs.js";
+      import { createWeighStation } from "./transport-weigh-station.js";
+      import { createLogisticsChain, mountLogisticsChainUI } from "./transport-logistics-chain.js";
+      import { createStoryRuntime, createStoryPanel } from "./transport-story-runtime.js";
+      import { createStoryIntro } from "./transport-story-intro.js";
+      import { createDisplayControls } from "./transport-display-controls.js?v=20260815-display1";
+      import { resolveGraphicsProfile, createAdaptiveResolution, mountGraphicsProfileSelector } from "./transport-adaptive-quality.js?v=20260815-profile-ui2";
+      import { createReleaseChannelSystem } from "./transport-release-channel.js?v=20260815-release1";
+      import { applyReleaseProfile, stableEditionUrl } from "./transport-release-profile.js?v=20260815-release2";
+      import { createConvoyPanel } from "./transport-convoy-panel.js?v=20260815-alfa1";
+      window.__transportBootPhase?.("Modulos","Sistemas de simulacion cargados");
+      const canvaTheme = applyCanvaTransportTheme();
+      const hudMotion = createHudMotion({ hud:document.querySelector(".hud"), controls:document.querySelector(".controls:not(.drive)"), cockpit:document.querySelector("#cockpitPanel") });
+      const detectedGraphics = resolveGraphicsProfile({query:location.search,storage:localStorage,navigator,screen});
+      window.__transportBoot?.profile(detectedGraphics.quality);
+      const graphicsParams = new URLSearchParams(location.search),
+        graphicsMode = graphicsParams.get("graphics") || "auto",
+        graphicsQuality = detectedGraphics.quality,
+        qualityLevel = { low: 0, medium: 1, high: 2, ultra: 3 }[graphicsQuality] ?? 2,
+        pixelRatio = [0.75, 1.15, 1.75, 2.4][qualityLevel],
+        shadows = graphicsMode !== "compat" && qualityLevel > 0;
+      const S = new T.Scene();
+      const liveEnvironment = createLiveEnvironment();
+      const sharedWorldPresence = window.MoonSharedWorld?.createThreePresence ? window.MoonSharedWorld.createThreePresence({ THREE: T, scene: S }) : { update: () => {}, tick: () => {} };
+      const sharedOperations = window.MoonSharedOperations?.create ? window.MoonSharedOperations.create() : { get: () => null };
+      const wheelInput = createWheelInput();
+      const drivingAcademy = createDrivingAcademy();
+      const engineAudio = createEngineAudio(); let engineRunning = false;
+      const cargoCondition = createCargoCondition();
+      const operationCinematics = createOperationCinematics();
+      S.background = new T.Color(0x87c8ed);
+      S.fog = new T.Fog(0xa6d0e5, 90, 430);
+      const C = new T.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 4000),
+        R = new T.WebGLRenderer({ antialias: qualityLevel > 0, powerPreference: graphicsMode === "gpu" ? "high-performance" : "default" });
+      R.setPixelRatio(Math.min(devicePixelRatio, pixelRatio));
+      R.setSize(innerWidth, innerHeight);
+      R.shadowMap.enabled = shadows;
+      R.shadowMap.type = T.PCFSoftShadowMap;
+      R.shadowMap.autoUpdate = false;
+      R.outputColorSpace = T.SRGBColorSpace;
+      R.toneMapping = T.ACESFilmicToneMapping;
+      R.toneMappingExposure = qualityLevel >= 2 ? 1.15 : 1;
+      applyRealisticRendererSettings(T, R, qualityLevel);
+      let renderRecoveryLevel = 0;
+      function recoverIncompatiblePhysicalMaterials(){
+        renderRecoveryLevel += 1;
+        S.traverse(object=>{
+          if(!object?.material)return;
+          const materials=Array.isArray(object.material)?object.material:[object.material];
+          const recovered=materials.map(material=>{
+            if(!material?.isMeshPhysicalMaterial)return material;
+            if(renderRecoveryLevel===1){
+              material.transmission=0;
+              material.thickness=0;
+              material.clearcoat=0;
+              material.sheen=0;
+              material.iridescence=0;
+              material.anisotropy=0;
+              if("dispersion" in material)material.dispersion=0;
+              material.needsUpdate=true;
+              return material;
+            }
+            const standard=new T.MeshStandardMaterial({
+              name:`${material.name||"material"}_compatible`, color:material.color,
+              map:material.map, normalMap:material.normalMap, normalScale:material.normalScale,
+              roughnessMap:material.roughnessMap, roughness:material.roughness,
+              metalnessMap:material.metalnessMap, metalness:material.metalness,
+              aoMap:material.aoMap, aoMapIntensity:material.aoMapIntensity,
+              bumpMap:material.bumpMap, bumpScale:material.bumpScale,
+              emissive:material.emissive, emissiveMap:material.emissiveMap,
+              emissiveIntensity:material.emissiveIntensity, alphaMap:material.alphaMap,
+              transparent:material.transparent, opacity:material.opacity, side:material.side,
+              depthWrite:material.depthWrite, depthTest:material.depthTest
+            });
+            standard.userData={...material.userData,recoveredFromPhysical:true};
+            return standard;
+          });
+          object.material=Array.isArray(object.material)?recovered:recovered[0];
+        });
+        console.warn(`[Rutas] Recuperacion grafica nivel ${renderRecoveryLevel}: materiales fisicos compatibles`);
+      }
+      function renderFrameSafely(){
+        for(;;){
+          try{R.render(S,C);return true}
+          catch(error){
+            const recoverable=error instanceof TypeError&&/undefined|value/i.test(String(error?.message||error));
+            if(!recoverable||renderRecoveryLevel>=2)throw error;
+            recoverIncompatiblePhysicalMaterials();
+          }
+        }
+      }
+      window.__transportBootPhase?.("Render","Aceleracion grafica preparada");
+      const graphicsSelector=mountGraphicsProfileSelector({profile:detectedGraphics,onSelect:id=>{const url=new URL(location.href);url.searchParams.set("quality",id);location.replace(url)}});
+      const settingsPanel=createTransportSettingsPanel({engineAudio});
+      let performanceFrame={fps:detectedGraphics.targetFps,targetFps:detectedGraphics.targetFps,ratio:1};
+      const adaptiveResolution=createAdaptiveResolution({renderer:R,profile:detectedGraphics,devicePixelRatio,onChange:frame=>{performanceFrame=frame;graphicsSelector.update(frame)}});
+      const displayControls=createDisplayControls({trigger:document.querySelector("#full"),fullscreenRoot:document.documentElement,onResolution:height=>adaptiveResolution.setResolutionHeight(height)});
+      const career = createTransportCareer();
+      const releaseChannel = createReleaseChannelSystem({onChange:channel=>{
+        if(channel==="stable")location.assign(stableEditionUrl());
+        else applyReleaseProfile(channel);
+      }});
+      await releaseChannel.ready;
+      if(releaseChannel.channel==="stable"){
+        location.replace(stableEditionUrl());
+        await new Promise(()=>{});
+      }
+      applyReleaseProfile(releaseChannel.channel);
+      const companyPanel = createCompanyPanel({ career, onContractAccepted(job) {
+        document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`;
+        document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`;
+      }});
+      const transportUiShell = createTransportUiShell({ career });
+      const drivingDock = createTransportDrivingDock({ controls:document.querySelector(".controls:not(.drive)") });
+      const regionOperations = createRegionOperationsPanel({ controls:document.querySelector(".controls:not(.drive)"), cityElement:document.querySelector("#city") });
+      const eventLog = createTransportEventLog();
+      const regionalEventDirector = createRegionalEventDirector({ eventLog });
+      let regionalEventFrame = { id:null, effects:{ weather:null, gripMultiplier:1, waterDepth:0, windSpeed:0, speedLimit:null, trafficMultiplier:1, roadClosure:false } };
+      let renderedRegionalEventId = null;
+      const missionRuntime = createMissionRuntime();
+      const missionPanel = createMissionPanel({ runtime:missionRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog });
+      const vehicleJobs = createVehicleJobSystem({ storage:localStorage, career, eventLog, controls:document.querySelector(".controls:not(.drive)"), selectVehicle:type=>build(type) });
+      const storyRuntime = createStoryRuntime();
+      const storyIntro = createStoryIntro({ runtime:storyRuntime, eventLog });
+      const storyPanel = createStoryPanel({ runtime:storyRuntime, controls:document.querySelector(".controls:not(.drive)"), eventLog, introPlayer:storyIntro });
+      eventLog.subscribe(event => missionRuntime.handleEvent(event));
+      missionRuntime.subscribe(event => {
+        if (event.type !== "mission:completed") return;
+        const reward = event.detail.reward || {};
+        if (reward.money) career.record(reward.money, `Misión: ${event.detail.title}`, { missionId:event.detail.missionId });
+        if (reward.xp) career.addXp(reward.xp);
+        career.emit("mission:rewarded", { missionId:event.detail.missionId, reward });
+      });
+      const borderOperations = createBorderOperations({career,eventLog});
+      const logisticsChain = createLogisticsChain({eventLog});
+      const saveCenter = createSaveCenter({career,eventLog,controls:document.querySelector(".controls:not(.drive)")});
+      const eventsPanel = document.querySelector("#eventsPanel"), eventRows = document.querySelector("#eventRows"), eventEmpty = document.querySelector("#eventEmpty");
+      const eventCategory = document.querySelector("#eventCategoryFilter"), eventSeverity = document.querySelector("#eventSeverityFilter"), eventSearch = document.querySelector("#eventSearch");
+      eventCategory.add(new Option("Seguridad", "security"));
+      const eventCategoryFor = type => type.startsWith("security") ? "security" : type.startsWith("contract") ? "contracts" : type.startsWith("truck") ? "truck" : /fine|loan|garage|driver|company/.test(type) ? "economy" : "career";
+      const eventSeverityFor = type => /robbery|failed/.test(type) ? "critical" : /incident_prevented|fine|repaired|refueled/.test(type) ? "warning" : "info";
+      const formatEventDetail = detail => Object.entries(detail || {}).map(([key,value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`).join(" · ") || "—";
+      function renderEventCenter() {
+        const filters = { category:eventCategory.value, severity:eventSeverity.value, search:eventSearch.value.trim() }, rows = eventLog.query(filters), summary = eventLog.summary();
+        document.querySelector("#eventKpiTotal").textContent = summary.total; document.querySelector("#eventKpiToday").textContent = summary.today; document.querySelector("#eventKpiCompleted").textContent = summary.completed; document.querySelector("#eventKpiPending").textContent = summary.pending; document.querySelector("#eventKpiCritical").textContent = summary.critical;
+        document.querySelector("#eventResultCount").textContent = `${rows.length} evento${rows.length === 1 ? "" : "s"}`;
+        eventRows.replaceChildren(...rows.slice(0,500).map(event => { const tr=document.createElement("tr"); tr.className=event.severity; [new Date(event.at).toLocaleString("es-ES"),event.severity,event.category,event.type,`${event.player} · ${event.company}`,formatEventDetail(event.detail)].forEach((value,index)=>{const td=document.createElement("td");td.textContent=value;if(index===5){td.className="event-detail";td.title=value}tr.appendChild(td)}); return tr; }));
+        eventEmpty.hidden = rows.length > 0;
+      }
+      career.subscribe(event => eventLog.record(eventCategoryFor(event.type), event.type, event.detail, { severity:eventSeverityFor(event.type), player:event.state.profile.name, company:event.state.profile.company }));
+      eventLog.subscribe(() => { if (!eventsPanel.hidden) renderEventCenter(); });
+      [eventCategory,eventSeverity,eventSearch].forEach(control => control.addEventListener("input",renderEventCenter));
+      document.querySelector("#eventsButton").onclick=()=>{renderEventCenter();eventsPanel.hidden=false}; document.querySelector("#eventsClose").onclick=()=>eventsPanel.hidden=true;
+      document.querySelector("#eventExportButton").onclick=()=>{const blob=new Blob([eventLog.exportJson()],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=`moon-transport-events-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+      eventLog.record("technical","session:started",{vehicle:"truck",quality:graphicsQuality},{player:career.state.profile.name,company:career.state.profile.company});
+      const cargoMonitor=document.querySelector("#cargoMonitor");
+      let cargoDoorOpen=false,reeferPowered=true,lastCargoAlert="",cargoAssigned=false,cargoFrame=cargoCondition.snapshot();
+      const cargoProfileFor=job=>job?.cargo?.id==="alimentos"||job?.cargo?.id==="medicinas"?"cold":job?.cargo?.id==="electronica"?"fragile":job?.cargo?.id==="maquinaria"?"adr":"standard";
+      function renderCargoCondition(frame=cargoFrame){
+        const active=Boolean(career.activeContract||cargoAssigned),integrity=Math.round(frame.integrity),restraint=Math.round(frame.restraint);
+        document.querySelector("#cargoProfile").textContent=active?frame.label:"Sin mercancía asignada";
+        document.querySelector("#cargoIntegrity").textContent=`${integrity}%`;document.querySelector("#cargoIntegrityBar").value=integrity;
+        document.querySelector("#cargoTemperature").textContent=`${frame.temperature.toFixed(1)} °C`;document.querySelector("#cargoTemperatureBar").value=Math.max(0,Math.min(100,100-Math.abs(frame.temperature-(frame.type==="cold"?2.5:18))*4));
+        document.querySelector("#cargoRestraint").textContent=`${restraint}%`;document.querySelector("#cargoRestraintBar").value=restraint;
+        document.querySelector("#cargoEquipment").textContent=`${cargoDoorOpen?"Puertas abiertas":"Cerrado"} · ${reeferPowered?"frío activo":"frío apagado"}`;
+        document.querySelector("#cargoHydration").textContent=frame.type==="livestock"?`Hidratación ${Math.round(frame.hydration)}%`:"Monitor telemático activo";
+        const message=active?(frame.alerts.join(" · ")||"Mercancía estable"):"Acepta un contrato o carga palés";
+        const alert=document.querySelector("#cargoAlert");alert.textContent=message;alert.classList.toggle("warning",frame.alerts.length>0);
+        document.querySelector("#cargoConditionState").textContent=active?`${integrity}% · ${frame.temperature.toFixed(1)} °C`:"Sin carga";
+      }
+      document.querySelector("#cargoMonitorButton").onclick=()=>{renderCargoCondition();cargoMonitor.hidden=false};document.querySelector("#cargoMonitorClose").onclick=()=>cargoMonitor.hidden=true;
+      document.querySelector("#cargoDoorButton").onclick=()=>{cargoDoorOpen=!cargoDoorOpen;const button=document.querySelector("#cargoDoorButton");button.textContent=cargoDoorOpen?"Cerrar puertas":"Abrir puertas";button.classList.toggle("on",cargoDoorOpen);button.setAttribute("aria-pressed",String(cargoDoorOpen));eventLog.record("operations",cargoDoorOpen?"cargo:doors_opened":"cargo:doors_closed",{speed:Math.round(speed)});renderCargoCondition()};
+      document.querySelector("#reeferButton").onclick=()=>{reeferPowered=!reeferPowered;const button=document.querySelector("#reeferButton");button.textContent=reeferPowered?"Frío activo":"Frío apagado";button.classList.toggle("on",reeferPowered);button.setAttribute("aria-pressed",String(reeferPowered));eventLog.record("operations",reeferPowered?"cargo:reefer_started":"cargo:reefer_stopped",{});renderCargoCondition()};
+      document.querySelector("#secureCargoButton").onclick=()=>{if(speed>1){document.querySelector("#cargoAlert").textContent="Detén el vehículo para revisar la sujeción";return}cargoFrame=cargoCondition.secure();eventLog.record("operations","cargo:secured",{restraint:100});renderCargoCondition()};
+      document.querySelector("#cargoTypeSelect").onchange=event=>{if(speed>1){event.target.value=cargoFrame.type;document.querySelector("#cargoAlert").textContent="Detén el vehículo para cambiar la operación";return}cargoFrame=cargoCondition.select(event.target.value);cargoAssigned=true;reeferPowered=cargoFrame.type==="cold";document.querySelector("#reeferButton").hidden=cargoFrame.type!=="cold";document.querySelector("#cargoHydration").hidden=cargoFrame.type!=="livestock";eventLog.record("operations","cargo:profile_selected",{type:cargoFrame.type,label:cargoFrame.label});renderCargoCondition()};
+      renderCargoCondition();
+      const osmRoutePlanner = createOsmRoutePlanner();
+      let activeOsmRoute = null, activeWorldRoute = [], routeLaneOffset = 0;
+      const osmRoadMesh = createOsmRoadMesh({ THREE: T, scene: S, roadWidth: 15 });
+      const osmCorridor = createOsmCorridor({THREE:T,scene:S,qualityLevel});
+      const worldPolygonMesh=createWorldPolygonMesh({THREE:T,scene:S,qualityProfile:detectedGraphics?.name||(["LEGACY","LOW","MEDIUM","HIGH","ULTRA"][qualityLevel]||"MEDIUM")});
+      let worldPolygonRouteRef=null;
+      const osmRoutePois = createOsmRoutePois({THREE:T,scene:S,qualityLevel});
+      const cargoHubs = createCargoHubs({THREE:T,scene:S,qualityLevel});
+      let regionalMaterials = null, plannedWorldRoute = null;
+      const routeNavigation = createRouteNavigation();
+      let routeRuntime;
+      // HIGH/ULTRA are authored-asset modes: no decorative texture is created
+      // at runtime. Lower profiles retain the old fallback until every asset
+      // has a lightweight static replacement.
+      const textures = qualityLevel>=2 ? {maps:{},dispose(){}} : createProceduralTransportTextures(T, qualityLevel);
+      const bakedMaterials=createBakedMaterialLibrary({THREE:T,qualityLevel});
+      const vehicleTextures = createVehicleTextureSystem({
+        THREE: T, qualityLevel,
+        fleetAtlasUrl: "./generated-textures/transport-fleet-atlas-v1.png",
+        maintenanceAtlasUrl: "./generated-textures/road-maintenance-vehicles-atlas-v1.png",
+      });
+      vehicleTextures.ready.then(() => vehicleTextures.apply(S)).catch(error => console.warn("No se pudieron cargar las texturas de vehículos", error));
+      const emergencyFleet = createEmergencyFleet({ THREE:T, qualityLevel, atlasUrl:"./generated-textures/emergency-fleet-atlas-v1.png" });
+      const vehicleSurfaceStates=createVehicleSurfaceStates({THREE:T,qualityLevel});
+      emergencyFleet.ready.catch(error => console.warn("No se cargaron las texturas de emergencias", error));
+      const worldDetail = createWorldDetail({ THREE: T, qualityLevel, textureMaps: textures.maps });
+      const routeActorRoot = new T.Group(); routeActorRoot.name = "osm_route_actors"; S.add(routeActorRoot);
+      const routeActorMaterials = {
+        service: new T.MeshStandardMaterial({color:0x43d9c2,emissive:0x0b514b,emissiveIntensity:.8,roughness:.45}),
+        event: new T.MeshStandardMaterial({color:0xff8a32,emissive:0x6b2600,emissiveIntensity:.7,roughness:.62}),
+      };
+      const routeActorAdapter = {
+        create(type,actor) {
+          let object;
+          if(type==="traffic") object=worldDetail.createTrafficVehicle({index:Number(actor.id.split("-").at(-1))||0,color:[0x3c78d8,0xe04f54,0xe3ae39,0x4ca57a][(Number(actor.id.split("-").at(-1))||0)%4]});
+          else { object=new T.Group(); const mast=new T.Mesh(new T.CylinderGeometry(.13,.18,type==="services"?3.8:2.2,8),routeActorMaterials[type==="services"?"service":"event"]),sign=new T.Mesh(new T.BoxGeometry(type==="services"?2.8:1.8,type==="services"?1.4:1.1,.18),routeActorMaterials[type==="services"?"service":"event"]);mast.position.y=(type==="services"?3.8:2.2)/2;sign.position.y=type==="services"?4.25:2.35;object.add(mast,sign);object.userData.routeLabel=actor.type; }
+          object.name=`osm_${type}_${actor.id}`;routeActorRoot.add(object);return object;
+        },
+        move(object,pose){if(!object||!pose)return;object.position.set(pose.x,pose.y||0,pose.z);object.rotation.y=pose.heading||0;},
+        update(object,actor){if(object&&actor.kind==="events")object.visible=actor.distanceToPlayer<900;},
+        remove(object){object?.removeFromParent();},
+      };
+      routeRuntime = window.MoonTransportRouteRuntime.create({lanesPerDirection:2,maxTraffic:[8,18,36,56][qualityLevel],adapter:routeActorAdapter});
+      const photorealAtlas = loadPhotorealAtlas(T, "./generated-textures/europe-roadside-atlas-v1.png", qualityLevel);
+      const routeScenery = createRouteScenery({ THREE: T, scene: S, qualityLevel });
+      photorealAtlas.ready.then(maps => {
+        worldDetail.applyPhotorealTextures(maps);
+        routeScenery.applyTextures(maps);
+      }).catch(error => console.warn("No se pudo cargar el atlas visual original", error));
+      const physics = createTruckPhysics({ mass: 18000, enginePower: 390000, maxSpeedKmh: 125 });
+      document.body.prepend(R.domElement);
+      window.__transportBootPhase?.("Mundo","Construyendo carreteras y vehiculo");
+      S.add(new T.HemisphereLight(0xe8f7ff, 0x385329, 2.2));
+      const sun = new T.DirectionalLight(0xffedc4, 3);
+      sun.position.set(-70, 110, -40);
+      sun.castShadow = shadows;
+      let appliedShadowSize=qualityLevel===3?4096:qualityLevel===2?2048:1024;
+      sun.shadow.mapSize.set(appliedShadowSize,appliedShadowSize);
+      S.add(sun);
+      document.querySelector(".hud").insertAdjacentHTML("beforeend", `<div class="pill">Gráficos <b>${graphicsQuality.toUpperCase()} · ${shadows ? "GPU" : "2D"}</b></div>`);
+      const mat = (c, r = 0.65, m = 0.08) =>
+          new T.MeshStandardMaterial({ color: c, roughness: r, metalness: m }),
+        box = (w, h, d, c) => {
+          const x = new T.Mesh(new T.BoxGeometry(w, h, d), mat(c));
+          x.castShadow = x.receiveShadow = true;
+          return x;
+        };
+      const worldLength = 6000;
+      const detailedRoad = createRoadSurfaceEnhancements({ THREE: T, scene: S, qualityLevel, roadLength: worldLength });
+      const roadsideServices = createRoadsideServices({
+        THREE: T, scene: S, qualityLevel, roadLength: worldLength,
+        atlasUrl: "./generated-textures/roadside-services-atlas-v1.png",
+      });
+      roadsideServices.ready.catch(error => console.warn("No se pudo cargar el atlas de servicios", error));
+      const weighStation = createWeighStation({ controls:document.querySelector(".controls:not(.drive)"), eventLog, career });
+      const osmScenery = createOsmScenery({ THREE:T, scene:S, qualityLevel, city:"madrid" });
+      osmScenery.load().then(counts => {
+        document.querySelector("#roadEvent").title = `OSM: ${counts.trees} árboles, ${counts.gardens} jardines y ${counts.roundabouts} rotondas`;
+      }).catch(error => console.warn("OpenStreetMap no disponible; se mantiene el escenario local", error));
+      let x = box(500, 1, worldLength, 0x4d8943);
+      x.position.y = -0.6;
+      S.add(x);
+      x = box(30, 0.25, worldLength, 0x292e35);
+      x.material = new T.MeshStandardMaterial({ color: 0x404348, ...textures.maps.asphalt, roughness: 0.93, metalness: 0.02 });
+      S.add(x);
+      const roadSurface = x;
+      photorealAtlas.ready.then(maps => {
+        const asphalt = maps.asphalt.clone(); asphalt.needsUpdate = true; asphalt.repeat.set(3, 260);
+        roadSurface.material.map = asphalt; roadSurface.material.bumpMap = asphalt; roadSurface.material.bumpScale = .035; roadSurface.material.needsUpdate = true;
+        const detailedAsphalt = maps.asphalt.clone(); detailedAsphalt.needsUpdate = true; detailedAsphalt.repeat.set(4, 300);
+        const detailedGround = maps.ground.clone(); detailedGround.needsUpdate = true; detailedGround.repeat.set(2, 240);
+        detailedRoad.applyTextures({ asphalt: detailedAsphalt, shoulder: detailedGround });
+      });
+      for (const side of [-1, 1]) {
+        const shoulder = box(2.2, 0.18, worldLength, 0x686c6c);
+        shoulder.position.set(side * 16.1, -0.01, 0); S.add(shoulder);
+        const edgeLine = box(0.22, 0.035, worldLength, 0xf2f0dd);
+        edgeLine.position.set(side * 14.65, 0.16, 0); S.add(edgeLine);
+        if (qualityLevel >= 1) {
+          const rail = box(0.16, 0.22, worldLength, 0xaeb8bd);
+          rail.position.set(side * 18.1, 0.92, 0); rail.material = new T.MeshStandardMaterial({ color: 0xaeb8bd, roughness: 0.3, metalness: 0.78 }); S.add(rail);
+          for (let z = -430; z < 450; z += 7) {
+            const post = box(0.14, 1.05, 0.14, 0x7d878c); post.position.set(side * 18.1, 0.48, z); S.add(post);
+          }
+        }
+      }
+      function terrainStrip(side) {
+        const geometry = new T.PlaneGeometry(235, worldLength, qualityLevel >= 2 ? 34 : 18, qualityLevel >= 2 ? 180 : 90),
+          positions = geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          const px = positions.getX(i), py = positions.getY(i), worldX = px + side * 132;
+          // Keep the first metres beside the carriageway level, then blend into
+          // rolling terrain. This prevents the old vertical crack at the kerb.
+          const distanceFromRoad = Math.max(0, Math.abs(worldX) - 19);
+          const blend = Math.min(1, distanceFromRoad / 72);
+          const smoothBlend = blend * blend * (3 - 2 * blend);
+          const broadSlope = 2.6 + Math.sin(py * 0.018 + side) * 1.25;
+          const terrainNoise = Math.sin(py * 0.032 + side) * 1.35 + Math.sin(worldX * 0.075) * 1.1;
+          positions.setZ(i, smoothBlend * (broadSlope + terrainNoise));
+        }
+        geometry.computeVertexNormals();
+        const terrain = new T.Mesh(geometry, new T.MeshStandardMaterial({ color: side < 0 ? 0x477b3d : 0x557f3d, ...textures.maps.ground, roughness: 0.96 }));
+        terrain.rotation.x = -Math.PI / 2; terrain.position.set(side * 132, -0.12, 0); terrain.receiveShadow = true; S.add(terrain);
+      }
+      terrainStrip(-1); terrainStrip(1);
+      const vergeMaterial = new T.MeshStandardMaterial({ color: 0x4f7f3d, ...textures.maps.ground, roughness: 1 });
+      for (const side of [-1, 1]) {
+        // Slight overlap under both shoulder and terrain guarantees there is no
+        // visible seam even on low precision mobile GPUs.
+        const vergeGeometry = new T.PlaneGeometry(8.4, worldLength, 2, qualityLevel > 1 ? 180 : 80);
+        const vergePositions = vergeGeometry.attributes.position;
+        for (let i = 0; i < vergePositions.count; i++) {
+          const localX = vergePositions.getX(i), along = vergePositions.getY(i);
+          const outward = side > 0 ? localX + 4.2 : 4.2 - localX;
+          const rise = Math.max(0, outward - 1.2) / 7.2;
+          vergePositions.setZ(i, rise * (.42 + Math.sin(along * .045 + side) * .12));
+        }
+        vergeGeometry.computeVertexNormals();
+        const verge = new T.Mesh(vergeGeometry, vergeMaterial);
+        verge.name = side < 0 ? "left-continuous-grass-verge" : "right-continuous-grass-verge";
+        verge.rotation.x = -Math.PI / 2; verge.position.set(side * 20.4, .015, 0); verge.receiveShadow = true; S.add(verge);
+      }
+      if (qualityLevel > 1) {
+        const grassCount = qualityLevel > 2 ? 900 : 480, grassDummy = new T.Object3D();
+        const grassTufts = new T.InstancedMesh(new T.ConeGeometry(.055, .34, 3), new T.MeshStandardMaterial({ color: 0x65934a, roughness: 1 }), grassCount);
+        for (let i = 0; i < grassCount; i++) {
+          const side = i % 2 ? -1 : 1, offset = 18.1 + ((i * 37) % 72) / 18, z = -worldLength / 2 + ((i * 97) % Math.floor(worldLength));
+          grassDummy.position.set(side * offset, .17, z); grassDummy.rotation.y = (i * 2.17) % Math.PI; grassDummy.scale.setScalar(.65 + (i % 7) * .075); grassDummy.updateMatrix(); grassTufts.setMatrixAt(i, grassDummy.matrix);
+        }
+        grassTufts.name = "roadside-grass-tufts"; grassTufts.receiveShadow = true; S.add(grassTufts);
+      }
+      const roadsideCount = qualityLevel > 1 ? 180 : 90, roadsideDummy = new T.Object3D();
+      const roadsideTrunks = new T.InstancedMesh(new T.CylinderGeometry(.24,.38,4.5,7), mat(0x68452d,.95), roadsideCount);
+      const roadsideCrowns = new T.InstancedMesh(new T.ConeGeometry(2.5,6.5,8), mat(0x285f35,.92), roadsideCount);
+      for(let i=0;i<roadsideCount;i++){
+        const side=i%2?-1:1,z=-2850+(i/roadsideCount)*5700+(i%7)*4,x=side*(24+(i%5)*3);
+        roadsideDummy.position.set(x,2.1,z);roadsideDummy.scale.setScalar(.8+(i%4)*.09);roadsideDummy.updateMatrix();roadsideTrunks.setMatrixAt(i,roadsideDummy.matrix);
+        roadsideDummy.position.y=6;roadsideDummy.updateMatrix();roadsideCrowns.setMatrixAt(i,roadsideDummy.matrix);
+      }
+      roadsideTrunks.castShadow=roadsideCrowns.castShadow=shadows;roadsideTrunks.receiveShadow=roadsideCrowns.receiveShadow=true;S.add(roadsideTrunks,roadsideCrowns);
+      for (let z = -2900; z < 2900; z += qualityLevel > 1 ? 22 : 34) {
+        x = box(0.35, 0.05, 8, 0xf5df95);
+        x.position.set(0, 0.17, z);
+        S.add(x);
+      }
+      for (const laneX of [-5.6, 5.6])
+        for (let z = -2900; z < 2900; z += qualityLevel > 1 ? 22 : 34) {
+          const dash = box(0.16, 0.035, 7.5, 0xf4f4ed);
+          dash.position.set(laneX, 0.16, z); S.add(dash);
+        }
+      if (qualityLevel >= 2) {
+        for (let z = -390; z < 430; z += 90) for (const side of [-1, 1]) {
+          const pole = new T.Mesh(new T.CylinderGeometry(0.1, 0.16, 8, 10), mat(0x69767d, 0.35, 0.72));
+          pole.position.set(side * 21, 4, z); pole.castShadow = true; S.add(pole);
+          const arm = box(3.2, 0.12, 0.12, 0x69767d); arm.position.set(side * 19.5, 7.85, z); S.add(arm);
+          const streetLamp = new T.PointLight(0xffdf9b, 0, 28, 2);
+          streetLamp.position.set(side * 18, 7.55, z); streetLamp.userData.streetLamp = true; S.add(streetLamp);
+        }
+      }
+      for (let z = -360; z < 430; z += 120) {
+        const patch = box(5.2, 0.025, 14, 0x20252a);
+        patch.position.set(z % 240 ? -5.5 : 5.5, 0.145, z); S.add(patch);
+      }
+      function directionSignMaterial(data) {
+        const canvas = document.createElement("canvas"); canvas.width = 768; canvas.height = 352;
+        const x = canvas.getContext("2d"); x.fillStyle = "#075a9b"; x.fillRect(0, 0, canvas.width, canvas.height);
+        x.strokeStyle = "#f5f7f3"; x.lineWidth = 14; x.strokeRect(9, 9, canvas.width - 18, canvas.height - 18);
+        x.fillStyle = "#f5f7f3"; x.textAlign = "left"; x.textBaseline = "middle";
+        x.font = "700 66px system-ui"; x.fillText(data.destination, 42, 104);
+        x.font = "600 45px system-ui"; x.fillText(data.secondary, 42, 202);
+        x.textAlign = "right"; x.font = "800 72px system-ui"; x.fillText("↑", 704, 95);
+        x.font = "700 42px system-ui"; x.fillText(`${data.distance} km`, 704, 202);
+        x.fillStyle = "#ffffff"; x.fillRect(42, 269, 150, 55); x.fillStyle = "#075a9b"; x.textAlign = "center"; x.font = "800 37px system-ui"; x.fillText(data.road, 117, 297);
+        const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = qualityLevel > 1 ? 8 : 2;
+        return new T.MeshStandardMaterial({ map: texture, roughness: .42, metalness: .08 });
+      }
+      for (const data of [
+        { z: 215, side: 1, destination: "NOVA LIRIA", secondary: "Puerto Alba", distance: 3, road: "A-10" },
+        { z: -35, side: -1, destination: "VALLEVERDE", secondary: "Centro urbano", distance: 2, road: "E-27" },
+        { z: -285, side: 1, destination: "BAHÍA SOLAR", secondary: "Puerto · Logística", distance: 1, road: "A-42" },
+      ]) {
+        const sign = new T.Group();
+        for (const px of [-1.9, 1.9]) { const pole = new T.Mesh(new T.CylinderGeometry(0.09, 0.13, 4.25, 12), mat(0x8c989e, 0.3, 0.75)); pole.position.set(px, 2.13, 0); pole.castShadow = true; sign.add(pole); }
+        const board = new T.Mesh(new T.BoxGeometry(5.5, 2.55, .18), mat(0x064879, .42, .16)); board.position.y = 5.35; board.castShadow = true; sign.add(board);
+        const face = new T.Mesh(new T.PlaneGeometry(5.28, 2.32), directionSignMaterial(data)); face.position.set(0, 5.35, .101); sign.add(face);
+        sign.position.set(data.side * 20.5, 0.12, data.z); S.add(sign);
+      }
+      const cityRadius = [3, 5, 7, 9][qualityLevel], cityRows = [3, 4, 6, 8][qualityLevel];
+      for (let n = -cityRadius; n <= cityRadius; n++)
+        for (const side of [-1, 1])
+          for (let i = 0; i < cityRows; i++) {
+            const blockSeed = Math.abs(n * 37 + i * 19 + side * 11),
+              h = 11 + (blockSeed % 37) + (blockSeed % 5 === 0 ? 9 : 0),
+              width = 8 + (blockSeed % 4) * 2.4,
+              depth = 9 + ((blockSeed >> 2) % 4) * 2.6,
+              b = worldDetail.createBuilding({ width, height: h, depth, color: [0x50667b, 0xc28b58, 0x6f8799, 0x92676b][blockSeed % 4], roadSide: side, seed: blockSeed });
+            b.position.set(
+              side * (39 + (i % 3) * 13 + (blockSeed % 3) * 2),
+              0,
+              n * 76 + (i - (cityRows - 1) / 2) * 15 + (blockSeed % 7) - 3,
+            );
+            S.add(b);
+          }
+      const cityData = [
+        { name: "Nova Liria", z: 305, color: 0x31c7b7 },
+        { name: "Puerto Alba", z: 105, color: 0x42a5e8 },
+        { name: "Valleverde", z: -105, color: 0x75bc4c },
+        { name: "Bahía Solar", z: -305, color: 0xf0b84a },
+      ];
+      function cityLandmark(city, index) {
+        const group = new T.Group();
+        for (const side of [-1, 1]) {
+          const towerHeight = 28 + index * 7, tower = worldDetail.createBuilding({ width: 8 + index, height: towerHeight, depth: 8, color: city.color, roadSide: side, seed: index * 7 + side });
+          tower.position.set(side * 31, 0, city.z); group.add(tower);
+          const crown = new T.Mesh(new T.ConeGeometry(5 + index * 0.4, 7, 8), mat(0xe6eef2, 0.32, 0.5));
+          crown.position.set(side * 31, 31 + index * 7, city.z); group.add(crown);
+        }
+        const bridge = part(group, 50, 1.1, 2, 0xd7e0e5, 0, 8.5, city.z + 8);
+        bridge.material = chrome; S.add(group);
+      }
+      for (let z = -420; z < 440; z += 30)
+        for (const q of [-20, 20]) {
+          const tree = worldDetail.createTree({ seed: Math.abs(z + q) * .013, height: 8.5 + Math.abs((z * 7 + q) % 5) });
+          tree.position.set(q + Math.sin(z) * 1.6, 0, z); S.add(tree);
+        }
+      let V, specialTransport, detailedTruckExterior = null, asterStaticModel = null, asterStaticCabin = null, vehicleAnimationRig = null,
+        vehicleWheels = [], vehicleBrakeLamps = [], vehicleTurnLamps = [], vehicleExteriorSkins = [], vehicleModeledCabins = [], lastInteriorCamera = null,
+        kind = "truck",
+        view = 0,
+        cameraReady = false,
+        cameraTransitionUntil = 0,
+        cameraLook = new T.Vector3(),
+        headYaw = 0,
+        headPitch = 0,
+        speed = 0,
+        steer = 0,
+        keys = {},
+        cruiseEnabled = false,
+        cruiseTarget = 80,
+        fatigue = 0,
+        damage = 0,
+        parkingBrake = true,
+        bumpTime = 0,
+        onFoot = false,
+        workTool = "palletJack",
+        heldPallet = null,
+        operationFrame = { active:false },
+        loadedPallets = 0,
+        networkShipmentCreated = false,
+        headlightsOn = false,
+        manualWipers = false,
+        hazardsOn = false,
+        retarderOn = false,
+        sirenOn = false,
+        honking = false,
+        nearestRoadsideService = null;
+      const tire = new T.MeshStandardMaterial({ color: 0x222222, ...textures.maps.tyre, roughness: 0.92 }),
+        glass = new T.MeshPhysicalMaterial({
+          color: 0xe8f7ff,
+          roughness: 0.035,
+          metalness: 0,
+          transparent: true,
+          opacity: 0.2,
+          transmission: 0.94,
+          thickness: 0.035,
+          ior: 1.45,
+          clearcoat: 1,
+          clearcoatRoughness: 0.04,
+          depthWrite: false,
+        }),
+        chrome = mat(0xb8c3c9, 0.18, 0.88),
+        lamp = mat(0xfff0b0, 0.12, 0.25),
+        red = mat(0xe51c3a, 0.2, 0.2);
+      tire.userData.vehicleSurface = "tyre";
+      cityData.forEach(cityLandmark);
+      const depotZ = 260, depot = new T.Group();
+      part(depot, 30, 10, 32, 0x65737d, -39, 5, depotZ);
+      part(depot, 13, 7.2, 0.35, 0x18242d, -23.85, 3.6, depotZ + 7);
+      part(depot, 13, 0.4, 12, 0xe0a83b, -22.5, 0.22, depotZ + 7);
+      S.add(depot);
+      const worker = new T.Group();
+      const workerBody = new T.Mesh(new T.CapsuleGeometry(0.38, 1.05, 6, 12), mat(0xf0a33c, 0.68)); workerBody.position.y = 1.25; worker.add(workerBody);
+      const workerHead = new T.Mesh(new T.SphereGeometry(0.32, 16, 12), mat(0xd7a67f, 0.72)); workerHead.position.y = 2.25; worker.add(workerHead);
+      part(worker, 0.82, 0.65, 0.52, 0xf5d329, 0, 1.48, 0); worker.visible = false; S.add(worker);
+      const palletJack = new T.Group();
+      for (const px of [-0.36, 0.36]) part(palletJack, 0.16, 0.12, 1.8, 0xd64232, px, 0.18, -0.65);
+      part(palletJack, 0.16, 1.65, 0.16, 0xd64232, 0, 0.9, 0.32); palletJack.visible = false; S.add(palletJack);
+      const forklift = new T.Group();
+      part(forklift, 1.5, 1.05, 2.2, 0xe9a91f, 0, 0.75, 0); part(forklift, 1.35, 1.55, 0.12, 0x20282e, 0, 1.85, 0.55);
+      for (const px of [-0.55, 0.55]) part(forklift, 0.12, 0.12, 1.85, 0x49545b, px, 0.18, -1.45); forklift.visible = false; S.add(forklift);
+      const warehousePallets = [];
+      for (let i = 0; i < 3; i++) {
+        const pallet = new T.Group(); part(pallet, 2.15, 0.18, 1.45, 0x8b5a32, 0, 0.12, 0);
+        for (let y = 0; y < 3; y++) part(pallet, 0.62, 0.5, 0.62, [0x4f87c8, 0xd67a3b, 0x62a55b][i], y % 2 ? 0.4 : -0.35, 0.47 + y * 0.48, 0);
+        pallet.position.set(-32 - i * 3.2, 0, depotZ + 7); S.add(pallet); warehousePallets.push(pallet);
+      }
+      function wheel(px, pz) {
+        const w = new T.Group(),
+          t = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 0.7, 28), tire),
+          hub = new T.Mesh(new T.CylinderGeometry(0.5, 0.5, 0.73, 20), chrome);
+        t.rotation.z = hub.rotation.z = Math.PI / 2;
+        w.add(t, hub);
+        w.position.set(px, 1, pz);
+        w.userData.isWheel = true;
+        w.userData.frontWheel = pz < -3;
+        return w;
+      }
+      function part(g, w, h, d, c, px, py, pz) {
+        const b = box(w, h, d, c);
+        b.position.set(px, py, pz);
+        g.add(b);
+        return b;
+      }
+      function lights(g, width, z) {
+        for (const px of [-width, width]) {
+          let l = new T.Mesh(
+            new T.CylinderGeometry(0.34, 0.34, 0.12, 20),
+            lamp,
+          );
+          l.rotation.x = Math.PI / 2;
+          l.position.set(px, 1.65, z);
+          g.add(l);
+          const beam = new T.SpotLight(0xfff2c7, 0, 42, 0.42, 0.5, 1.4);
+          beam.position.set(px, 1.7, z - 0.25);
+          beam.target.position.set(px, 0, z - 30);
+          g.add(beam, beam.target);
+        }
+      }
+      function mirrors(g, w, z) {
+        for (const px of [-w, w]) {
+          part(g, 0.18, 0.22, 1.2, 0x1b2229, px, 3.2, z);
+          const m = part(
+            g,
+            0.16,
+            0.85,
+            0.62,
+            0x9fb7c2,
+            px + (px < 0 ? -0.18 : 0.18),
+            3.35,
+            z - 0.55,
+          );
+          m.material = chrome;
+        }
+      }
+      function interior(g, bus) {
+        const cabin = new T.Group();
+        cabin.name = "modeled-3d-cockpit";
+        const dark = mat(0x0c1115, 0.78, 0.12), trim = mat(0x30383d, 0.48, 0.32), leather = mat(0x1b2024, 0.88, 0.06), soft = mat(0x252c30, 0.96, 0.02);
+        const dashZ = bus ? -5.92 : -5.78;
+        const dashLeft = part(cabin, 2.45, 0.62, 1.18, 0x171d25, -1.02, 2.18, dashZ); dashLeft.rotation.y = -0.045;
+        const dashRight = part(cabin, 2.2, 0.58, 1.05, 0x171d25, 1.25, 2.14, dashZ + 0.12); dashRight.rotation.y = 0.08;
+        const dashTop = part(cabin, bus ? 4.85 : 4.5, 0.13, 1.5, 0x30383d, 0, 2.61, dashZ + 0.13); dashTop.material = soft; dashTop.rotation.x = -0.045;
+        const lowerDash = part(cabin, 4.25, 0.22, 0.78, 0x11171b, 0, 1.78, dashZ + 0.4); lowerDash.rotation.x = 0.13;
+        const binnacle = new T.Mesh(new T.CylinderGeometry(0.86, 0.94, 0.5, 32, 1, false, 0, Math.PI), dark);
+        binnacle.rotation.set(Math.PI / 2, 0, Math.PI / 2); binnacle.scale.set(1, 1.45, 0.72); binnacle.position.set(-0.43, 2.68, dashZ - 0.18); cabin.add(binnacle);
+        part(cabin, 0.22, 2.25, 0.35, 0x20272c, -(bus ? 2.3 : 2.12), 3.5, dashZ - 0.65);
+        part(cabin, 0.22, 2.25, 0.35, 0x20272c, bus ? 2.3 : 2.12, 3.5, dashZ - 0.65);
+        part(cabin, bus ? 4.8 : 4.4, 0.16, 1.25, 0x242b30, 0, 4.75, dashZ - 0.25);
+        for (const px of [-1.65, 1.65]) {
+          const vent = new T.Mesh(new T.TorusGeometry(0.21, 0.045, 10, 30), trim);
+          vent.position.set(px, 2.38, dashZ - 0.54); cabin.add(vent);
+          for (let v = -0.12; v <= 0.12; v += 0.08) part(cabin, 0.31, 0.018, 0.025, 0x718087, px, 2.38 + v, dashZ - 0.57);
+        }
+        const steeringRig = new T.Group(); steeringRig.position.set(-1.08, 2.55, dashZ + 0.48);
+        const steering = new T.Mesh(new T.TorusGeometry(0.54, 0.085, 14, 36), leather); steeringRig.add(steering);
+        for (const angle of [0, 2.1, 4.2]) {
+          const spoke = part(steeringRig, 0.42, 0.075, 0.08, 0x343d42, Math.cos(angle) * 0.2, Math.sin(angle) * 0.2, 0);
+          spoke.rotation.z = angle;
+        }
+        const hub = new T.Mesh(new T.CylinderGeometry(0.19, 0.19, 0.11, 24), trim); hub.rotation.x = Math.PI / 2; steeringRig.add(hub);
+        steeringRig.rotation.x = -0.18; steeringRig.userData.cockpitSteering = true; cabin.add(steeringRig); g.userData.cockpitSteering = steeringRig;
+        const column = new T.Mesh(new T.CylinderGeometry(0.08, 0.11, 0.72, 14), trim); column.rotation.x = Math.PI / 2; column.position.set(-1.08, 2.22, dashZ + 0.82); cabin.add(column);
+        for (const side of [-1, 1]) {
+          const stalk = new T.Mesh(new T.CylinderGeometry(0.025, 0.035, 0.5, 10), trim); stalk.rotation.z = Math.PI / 2; stalk.position.set(-1.08 + side * 0.42, 2.52, dashZ + 0.48); cabin.add(stalk);
+          const cap = new T.Mesh(new T.CylinderGeometry(0.055, 0.055, 0.12, 12), dark); cap.rotation.z = Math.PI / 2; cap.position.set(-1.08 + side * 0.68, 2.52, dashZ + 0.48); cabin.add(cap);
+        }
+        const instrumentCanvas = document.createElement("canvas"); instrumentCanvas.width = 512; instrumentCanvas.height = 192;
+        const instrumentTexture = new T.CanvasTexture(instrumentCanvas); instrumentTexture.colorSpace = T.SRGBColorSpace;
+        const instrument = new T.Mesh(new T.PlaneGeometry(1.62, 0.61), new T.MeshBasicMaterial({ map: instrumentTexture, toneMapped: false }));
+        instrument.position.set(-0.43, 2.48, dashZ - 0.55); cabin.add(instrument);
+        g.userData.instrument = { canvas: instrumentCanvas, context: instrumentCanvas.getContext("2d"), texture: instrumentTexture };
+        const centreConsole = part(cabin, 1.35, 1.25, 0.26, 0x161d21, 1.02, 2.12, dashZ - 0.48); centreConsole.rotation.z = -0.035;
+        const consoleScreen = part(cabin, 0.96, 0.61, 0.035, 0x071b24, 1.02, 2.4, dashZ - 0.63); consoleScreen.material = new T.MeshBasicMaterial({ color: 0x0b4650, toneMapped: false });
+        for (let line = 0; line < 4; line++) part(cabin, 0.58 - line * 0.06, 0.018, 0.02, line === 0 ? 0x63e4cf : 0x86aab1, 1.02, 2.57 - line * 0.11, dashZ - 0.66);
+        for (let i = 0; i < 8; i++) {
+          const button = new T.Mesh(new T.CylinderGeometry(0.065, 0.065, 0.045, 12), mat(i === 2 ? 0xe84b3d : 0x6f8992, 0.45, 0.25));
+          button.rotation.x = Math.PI / 2; button.position.set(0.62 + (i % 4) * 0.26, 1.86 + Math.floor(i / 4) * 0.22, dashZ - 0.59); cabin.add(button);
+        }
+        for (const px of [-1.08, 1.05]) {
+          const cushion = new T.Mesh(new T.CapsuleGeometry(0.43, 0.45, 8, 18), leather); cushion.rotation.x = Math.PI / 2; cushion.scale.z = 0.72; cushion.position.set(px, 1.05, dashZ + 2.18); cabin.add(cushion);
+          const seat = new T.Mesh(new T.CapsuleGeometry(0.45, 0.72, 8, 18), leather); seat.scale.z = 0.48; seat.position.set(px, 1.68, dashZ + 2.5); seat.rotation.x = -0.13; cabin.add(seat);
+          const head = new T.Mesh(new T.CapsuleGeometry(0.3, 0.16, 8, 16), soft); head.position.set(px, 2.48, dashZ + 2.58); cabin.add(head);
+          for (const sx of [-0.29, 0.29]) part(cabin, 0.018, 0.82, 0.02, 0xa3a8a8, px + sx, 1.72, dashZ + 2.12);
+        }
+        const selector = new T.Mesh(new T.CylinderGeometry(0.055, 0.075, 0.62, 12), trim); selector.position.set(0.25, 1.72, dashZ + 1.0); selector.rotation.z = -0.2; cabin.add(selector);
+        for (const px of [-1.35, -0.85]) { const pedal = part(cabin, 0.25, 0.06, 0.38, 0x15191c, px, 0.62, dashZ - 0.08); pedal.rotation.x = -0.35; }
+        for (const side of [-1, 1]) {
+          const doorX = side * (bus ? 2.48 : 2.27);
+          const door = part(cabin, 0.12, 1.85, 2.45, 0x1a2024, doorX, 2.0, dashZ + 1.0); door.material = soft;
+          const arm = part(cabin, 0.26, 0.24, 1.08, 0x30383d, doorX - side * 0.11, 2.05, dashZ + 0.8); arm.material = trim;
+          const handle = new T.Mesh(new T.TorusGeometry(0.16, 0.035, 8, 20, Math.PI), chrome); handle.rotation.set(0, Math.PI / 2, side * Math.PI / 2); handle.position.set(doorX - side * 0.16, 2.4, dashZ + 0.45); cabin.add(handle);
+          const mirror = part(cabin, 0.04, 0.72, 0.92, 0x8faeb8, side * (bus ? 2.78 : 2.62), 3.48, dashZ - 0.42); mirror.material = new T.MeshPhysicalMaterial({ color: 0xaac8d2, metalness: 0.86, roughness: 0.08, clearcoat: 1 });
+        }
+        const floorMat = part(cabin, 2.15, 0.035, 2.35, 0x080b0d, -0.5, 0.48, dashZ + 0.88); floorMat.material = new T.MeshStandardMaterial({ color: 0x080b0d, roughness: 1, bumpMap: textures.maps.tyre?.bumpMap });
+        const cabinGlow = new T.PointLight(0x69c8c2, qualityLevel > 1 ? 0.45 : 0.2, 5, 2); cabinGlow.position.set(0, 3.5, dashZ + 0.8); cabin.add(cabinGlow);
+        g.add(cabin);
+        for (let r = 0; r < (bus ? 6 : 1); r++)
+          for (const px of bus ? [-1.45, 1.45] : [-1.25]) {
+            part(
+              g,
+              1.05,
+              1.25,
+              0.9,
+              bus ? 0x285475 : 0x343b45,
+              px,
+              1.45,
+              r * 2 - 1,
+            );
+            part(
+              g,
+              1.05,
+              0.35,
+              0.45,
+              bus ? 0x32688f : 0x414b57,
+              px,
+              2.2,
+              r * 2 - 0.72,
+            );
+          }
+      }
+      function build(type) {
+        asterStaticModel?.dispose();asterStaticModel=null;
+        asterStaticCabin?.dispose();asterStaticCabin=null;
+        specialTransport?.dispose(); specialTransport = null;
+        if (V) { V.userData.disposeCabin?.(); S.remove(V); }
+        detailedTruckExterior = null;
+        kind = type;
+        const g = new T.Group(),
+          bus = type === "bus",
+          emergency = emergencyFleet.definitions[type],
+          fleetDescriptor = [...AIR_FLEET,...SEA_FLEET].find(item=>item.id===type),
+          seaDescriptor = SEA_FLEET.find(item=>item.id===type);
+        g.name = emergency ? `player_${type}` : bus ? "player_bus" : "player_truck";
+        if (fleetDescriptor) {
+          const model=seaDescriptor?createSeaVehicle({THREE:T,descriptor:fleetDescriptor,qualityLevel,liveryVariant:Number(document.querySelector("#fleetLivery").value)||0}):createFleetVehicle({THREE:T,descriptor:fleetDescriptor,qualityLevel,liveryVariant:Number(document.querySelector("#fleetLivery").value)||0});
+          g.add(model);g.userData.maxSpeed=seaDescriptor?65:fleetDescriptor.kind==="helicopter"?240:fleetDescriptor.kind==="glider"?180:850;g.userData.cockpitOffset=[0,seaDescriptor?3.2:1.25,-1.2];g.userData.updateAircraft=model.userData.updateAircraft||model.userData.updateVessel;g.userData.disposeCabin=()=>model.userData.dispose?.();
+        } else if (emergency) {
+          const responseVehicle = emergencyFleet.create(type); g.add(responseVehicle);
+          g.userData.cockpitOffset = responseVehicle.userData.cockpitOffset;
+          g.userData.maxSpeed = responseVehicle.userData.maxSpeed;
+        } else if (bus) {
+          const busBody = part(g, 5.3, 3.7, 13.6, 0x2389b7, 0, 2.55, 0);
+          busBody.name = "bus_body_exterior";
+          busBody.material.userData.vehicleSurface = "commercial";
+          const busRoof=part(g, 5.15, 0.55, 13.2, 0x18232c, 0, 4.65, 0);busRoof.name="bus_roof_exterior";
+          let wind = part(g, 4.5, 2, 0.12, 0x173d52, 0, 3.45, -6.87);
+          wind.material = glass;
+          for (let r = -4.9; r <= 5; r += 2.2)
+            for (const p of [-2.66, 2.66]) {
+              const w = part(g, 0.1, 1.55, 1.55, 0x173d52, p, 3.35, r);
+              w.material = glass;
+            }
+          part(g, 0.12, 2.75, 1.1, 0x152a37, 2.67, 2.55, -4.8);
+          part(g, 0.15, 3.2, 1.05, 0xd3d9dc, 2.66, 2.45, -3.55);
+          for (const z of [-4.8, 4.8])
+            for (const p of [-2.5, 2.5]) g.add(wheel(p, z));
+          lights(g, 1.65, -6.95);
+          mirrors(g, 3, -5.25);
+          for (const p of [-1.9, 1.9]) {
+            const l = part(g, 0.55, 0.55, 0.12, 0xe51c3a, p, 1.55, 6.87);
+            l.material = red;
+          }
+        } else {
+          const paint = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.paint, roughness: 0.24, metalness: 0.42, clearcoat: 0.9, clearcoatRoughness: 0.16 });
+          paint.userData.vehicleSurface = "paint";
+          const cab = part(g, 5, 3.65, 5.25, 0x19b7ad, 0, 2.75, -4.25);
+          cab.material = paint;
+          const roof = new T.Mesh(new T.SphereGeometry(1, 28, 18), paint);
+          roof.scale.set(2.48, 0.58, 2.45); roof.position.set(0, 4.7, -4.15); g.add(roof);
+          cab.visible = roof.visible = false;
+          detailedTruckExterior = createDetailedTruckExterior({ THREE: T, paint, glass, chrome, textureMaps: textures.maps, qualityLevel });
+          g.add(detailedTruckExterior);
+          asterStaticModel=createAsterStaticModelLoader({THREE:T,qualityLevel});
+          asterStaticModel.apply(detailedTruckExterior).then(ok=>{if(ok)document.querySelector("#vn").title=`Carrocería estática ${asterStaticModel.profile}`;return bakedMaterials.ready.then(()=>bakedMaterials.apply(g))}).catch(error=>console.warn("No se cargo la carroceria estatica Aster",error));
+          const trailer = part(g, 5.1, 4.35, 11.8, 0xd4dbe0, 0, 3.05, 4.5);
+          trailer.material = new T.MeshPhysicalMaterial({ color: 0xffffff, ...textures.maps.metal, roughness: 0.42, metalness: 0.28, clearcoat: 0.35 });
+          trailer.material.userData.vehicleSurface = "commercial";
+          part(g, 5.18, 0.28, 11.5, 0x159b95, 0, 1.45, 4.5);
+          part(g, 1.05, 0.28, 10.8, 0x20282e, -1.5, 0.62, 4.25);
+          part(g, 1.05, 0.28, 10.8, 0x20282e, 1.5, 0.62, 4.25);
+          for (let z = -0.25; z <= 9.3; z += 1.35) {
+            for (const side of [-1, 1]) {
+              const rib = part(g, 0.1, 4.05, 0.1, 0xaeb9c0, side * 2.58, 3.1, z);
+              rib.material = chrome;
+            }
+          }
+          const rearDoor = part(g, 4.86, 3.95, 0.16, 0xc9d2d7, 0, 3.08, 10.45);
+          rearDoor.material = new T.MeshStandardMaterial({ color: 0xd7dee2, roughness: 0.48, metalness: 0.34 });
+          part(g, 0.1, 3.72, 0.2, 0x59656b, 0, 3.08, 10.56);
+          for (const px of [-1.98, 1.98]) {
+            const lock = new T.Mesh(new T.CylinderGeometry(0.07, 0.07, 3.45, 10), chrome);
+            lock.position.set(px, 3.05, 10.61); g.add(lock);
+          }
+          let wind = part(g, 4.15, 1.75, 0.12, 0x173d52, 0, 3.55, -6.97);
+          wind.material = glass;
+          const divider = part(g, 0.09, 1.72, 0.15, 0x111820, 0, 3.55, -7.06);
+          divider.material = chrome;
+          for (const p of [-2.5, 2.5]) {
+            let side = part(g, 0.12, 1.35, 1.7, 0x173d52, p, 3.45, -4.85);
+            side.material = glass;
+          }
+          const bumper = part(g, 4.75, 0.48, 0.42, 0x9aa7ae, 0, 1.05, -7.12); bumper.material = chrome;
+          part(g, 3.65, 0.82, 0.2, 0x121a20, 0, 1.72, -7.16);
+          for (let gx = -1.55; gx <= 1.55; gx += 0.52) part(g, 0.09, 0.64, 0.1, 0x74838a, gx, 1.72, -7.28);
+          part(g, 1.3, 0.2, 0.1, 0xe6edf0, 0, 2.35, -7.2);
+          const lowerLip = part(g, 4.25, 0.28, 0.55, 0x172329, 0, 0.68, -6.95);
+          lowerLip.rotation.x = -0.12;
+          for (const px of [-1.72, 1.72]) {
+            const fogLamp = new T.Mesh(new T.CylinderGeometry(0.2, 0.2, 0.1, 18), lamp);
+            fogLamp.rotation.x = Math.PI / 2; fogLamp.position.set(px, 0.84, -7.24); g.add(fogLamp);
+          }
+          for (const p of [-2.18, 2.18]) {
+            const indicator = part(g, 0.5, 0.2, 0.13, 0xffa62b, p, 1.55, -7.31); indicator.material = mat(0xffa62b, 0.12, 0.2);
+            const step = part(g, 0.78, 0.18, 1.75, 0x56636a, p, 0.68, -3.1); step.material = chrome;
+          }
+          const visor = part(g, 4.5, 0.16, 0.72, 0x26363d, 0, 4.55, -6.85); visor.rotation.x = -0.12;
+          for (const p of [-1.25, 1.25]) {
+            const horn = new T.Mesh(new T.CylinderGeometry(0.1, 0.18, 1.15, 16), chrome);
+            horn.rotation.x = Math.PI / 2; horn.position.set(p, 5.25, -4.35); g.add(horn);
+            const wiper = part(g, 0.06, 1.55, 0.08, 0x101418, p, 3.45, -7.11); wiper.rotation.z = p < 0 ? -0.42 : 0.42;
+          }
+          for (const p of [-2.5, 2.5]) for (const z of [-4.6, 1.5, 7.5]) {
+            const guard = new T.Mesh(new T.TorusGeometry(1.13, 0.12, 10, 28, Math.PI), mat(0x273037, 0.55, 0.5));
+            guard.rotation.set(0, Math.PI / 2, 0); guard.position.set(p, 1.6, z); g.add(guard);
+          }
+          for (const p of [-2.25, 2.25]) {
+            const tank = new T.Mesh(new T.CylinderGeometry(0.62, 0.62, 3.2, 24), chrome);
+            tank.rotation.z = Math.PI / 2; tank.position.set(p, 0.95, -0.25); g.add(tank);
+            const exhaust = new T.Mesh(new T.CylinderGeometry(0.14, 0.18, 4.8, 16), chrome);
+            exhaust.position.set(p, 3.25, -1.25); g.add(exhaust);
+          }
+          const fifthWheel = new T.Mesh(new T.CylinderGeometry(1.05, 1.05, 0.22, 28), mat(0x171b1f, 0.75, 0.5));
+          fifthWheel.position.set(0, 1.45, 0.25); g.add(fifthWheel);
+          for (const side of [-1, 1]) {
+            const skirt = part(g, 0.18, 1.05, 5.1, 0x159b95, side * 2.52, 1.03, 4.2);
+            skirt.material = paint;
+          }
+          for (let z = 0; z < 9.5; z += 1.1) part(g, 5.16, 0.045, 0.055, 0xaab5bb, 0, 3.05, z);
+          for (const z of [-4.6, 1.5, 7.5])
+            for (const p of [-2.45, 2.45]) g.add(wheel(p, z));
+          lights(g, 1.55, -7.2);
+          mirrors(g, 2.9, -5.55);
+          for (const p of [-1.8, 1.8]) {
+            const l = part(g, 0.55, 0.7, 0.12, 0xe51c3a, p, 1.8, 10.42);
+            l.material = red;
+          }
+          // Keep the legacy construction above as a fallback, but remove it once
+          // the detailed exterior exists. Hidden duplicate meshes could later be
+          // re-enabled by fleet/LOD traversals and also retained all GPU geometry.
+          if (detailedTruckExterior) {
+            for (const child of [...g.children]) {
+              if (child === detailedTruckExterior) continue;
+              g.remove(child);
+              child.traverse?.(object => object.geometry?.dispose?.());
+            }
+          }
+        }
+        const modeledCabin = emergency || fleetDescriptor ? null : createOriginalEuropeanCabin({ THREE: T, bus, qualityLevel });
+        if (modeledCabin) {
+          modeledCabin.userData.isModeledCabin = true;
+          g.add(modeledCabin);
+          if (bus) modeledCabin.add(createBusCabinVariant({ THREE: T, cabin: modeledCabin, qualityLevel }));
+          g.userData.cockpitSteering = modeledCabin.userData.steering;
+          g.userData.instrument = modeledCabin.userData.instrument;
+          g.userData.navigation = modeledCabin.userData.navigation;
+          g.userData.updateCabinControls = modeledCabin.userData.updateCabinControls;
+          g.userData.cockpitOffset = modeledCabin.userData.cockpitOffset;
+          g.userData.updateMirrors = modeledCabin.userData.updateMirrors;
+          if(!bus){asterStaticCabin=createAsterStaticCabinLoader({THREE:T,qualityLevel});asterStaticCabin.apply(modeledCabin).then(()=>bakedMaterials.ready).then(()=>bakedMaterials.apply(modeledCabin)).catch(error=>console.warn("No se cargo la cabina estatica Aster",error));}
+          g.userData.disposeCabin = () => {asterStaticCabin?.dispose();modeledCabin.userData.dispose?.();};
+          if(bus){const busMaterials=createBusAuthoredMaterials({THREE:T,qualityLevel});busMaterials.ready.then(()=>busMaterials.apply(g)).catch(error=>console.warn("No se cargaron los materiales estaticos del autobus",error));const disposeCabin=g.userData.disposeCabin;g.userData.disposeCabin=()=>{disposeCabin?.();busMaterials.dispose()};}
+        }
+        g.traverse((o) => {
+          if (o.isMesh) {
+            o.castShadow = true;
+            o.receiveShadow = true;
+          }
+        });
+        V = g;
+        vehicleWheels=[];vehicleBrakeLamps=[];vehicleTurnLamps=[];vehicleExteriorSkins=[];vehicleModeledCabins=[];lastInteriorCamera=null;
+        V.traverse(object=>{if(object.userData.isWheel)vehicleWheels.push(object);if(object.material?.userData?.vehicleLamp==="brake")vehicleBrakeLamps.push(object);if(object.userData.turnSide)vehicleTurnLamps.push(object);if(object.userData.exteriorCabSkin)vehicleExteriorSkins.push(object);if(object.userData.isModeledCabin)vehicleModeledCabins.push(object)});
+        vehicleSurfaceStates.ready.then(()=>vehicleSurfaceStates.setVehicle(V)).catch(error=>console.warn("No se cargaron los estados estaticos del vehiculo",error));
+        vehicleAnimationRig = createVehicleAnimationRig(V);
+        V.position.set(0, 0, 60);
+        S.add(V);
+        vehicleTextures.apply(V);
+        bakedMaterials.ready.then(()=>{if(kind==="truck")bakedMaterials.apply(V);}).catch(error=>console.warn("No se cargaron los atlas estaticos Aster",error));
+        specialTransport = createSpecialTransport({ THREE: T, scene: S, vehicle: V, qualityLevel });
+        specialTransport.root.visible = false;
+        if (!emergency && typeof specialCargoIndex !== "undefined" && specialCargoIndex >= 0 && specialCargoIndex < SPECIAL_CARGOES.length) specialTransport.select(SPECIAL_CARGOES[specialCargoIndex].id);
+        V.traverse((object) => { if (object.isSpotLight) object.intensity = headlightsOn ? 55 : 0; });
+        cameraReady = false;
+        vn.textContent = fleetDescriptor?.name || emergency?.name || (bus ? "Nortia Urbano X8" : "Aster Viento 3D");
+        aviationUI?.setVehicle(seaDescriptor ? null : fleetDescriptor);
+        truck.classList.toggle("on", type === "truck");
+        document.querySelector("#bus").classList.toggle("on", bus);
+        document.querySelector("#ambulance").classList.toggle("on", type === "ambulance");
+        document.querySelector("#fireEngine").classList.toggle("on", type === "fire");
+        document.querySelector("#recoveryTruck").classList.toggle("on", type === "recovery");
+      }
+      function camera(dt, now) {
+        const p = V.position, bob = Math.sin(now * 0.012) * Math.min(0.045, speed * 0.00045),
+          targetPosition = new T.Vector3(), targetLook = new T.Vector3();
+        let targetFov = 65;
+        if (operationFrame.active) {
+          const orbit = operationFrame.progress * Math.PI * .75;
+          targetPosition.set(p.x + 10 + Math.sin(orbit) * 4, p.y + 4.4 + operationFrame.progress * 1.2, p.z + 13.5 + Math.cos(orbit) * 3);
+          targetLook.set(p.x, p.y + 2.1, p.z + 9.4); targetFov = 52;
+        } else if (onFoot) {
+          targetPosition.set(worker.position.x + 6, worker.position.y + 4.6, worker.position.z + 7.5);
+          targetLook.set(worker.position.x, worker.position.y + 1.1, worker.position.z - 2.5);
+          targetFov = 68;
+        } else if (view === 0) {
+          const chase = chaseCameraComposition(kind, speed, steer);
+          targetPosition.set(p.x + chase.x, p.y + chase.y, p.z + chase.z);
+          targetLook.set(p.x + chase.lookX, p.y + chase.lookY, p.z + chase.lookZ); targetFov = chase.fov;
+        } else if (view === 1) {
+          const cockpit = V.userData.cockpitOffset;
+          targetPosition.set(p.x + (cockpit?.[0] ?? -1.04), p.y + (cockpit?.[1] ?? 3.36) + bob, p.z + (cockpit?.[2] ?? -(kind === "bus" ? 4.48 : 4.24)));
+          const lookDistance = 38, forward = -Math.cos(headYaw), lateral = Math.sin(headYaw);
+          targetLook.set(targetPosition.x + lateral * lookDistance, targetPosition.y + Math.sin(headPitch) * lookDistance - 1.25, targetPosition.z + forward * Math.cos(headPitch) * lookDistance); targetFov = 62;
+        } else if (view === 2) {
+          targetPosition.set(p.x + (kind === "bus" ? 1.1 : 0.72), p.y + 3.12 + bob, p.z + (kind === "bus" ? 3.6 : -2.05));
+          targetLook.set(p.x, p.y + 2.55, p.z - 28); targetFov = kind === "bus" ? 78 : 74;
+        } else if (view === 3) {
+          const orbit = now * 0.00022;
+          targetPosition.set(p.x + Math.cos(orbit) * 19, p.y + 6.5, p.z + 5 + Math.sin(orbit) * 13);
+          targetLook.set(p.x, p.y + 2.4, p.z - 5); targetFov = 58;
+        } else if (view === 4) {
+          targetPosition.set(p.x,p.y+10.8,p.z+1);targetLook.set(p.x,p.y+1.2,p.z-22);targetFov=74;
+        } else if (view === 5) {
+          targetPosition.set(p.x,p.y+1.05,p.z-8.2);targetLook.set(p.x,p.y+1.2,p.z-42);targetFov=82;
+        } else if (view === 6) {
+          targetPosition.set(p.x+3.5,p.y+1.05,p.z-4.7);targetLook.set(p.x+2.2,p.y+.9,p.z-24);targetFov=76;
+        } else if (view === 7) {
+          targetPosition.set(p.x+7.8,p.y+3.4,p.z+5.5);targetLook.set(p.x,p.y+2.15,p.z+1.5);targetFov=63;
+        } else {
+          targetPosition.set(p.x,p.y+4.7,p.z+16.5);targetLook.set(p.x,p.y+2.5,p.z-11);targetFov=55;
+        }
+        if (!cameraReady) { C.position.copy(targetPosition); cameraLook.copy(targetLook); C.fov = targetFov; cameraReady = true; }
+        const smoothing = 1 - Math.pow(onFoot || view === 1 || view === 2 ? 0.00004 : 0.0015, dt);
+        C.position.lerp(targetPosition, smoothing); cameraLook.lerp(targetLook, smoothing); C.fov += (targetFov - C.fov) * smoothing;
+        C.updateProjectionMatrix(); C.lookAt(cameraLook);
+        const viewName = ["Persecución", "Cabina · ratón", kind === "bus" ? "Salón pasajeros" : "Interior cabina", "Cinemática", "Techo", "Parachoques", "Rueda delantera", "Lateral remolque", "Trasera remolque"][view];
+        document.querySelector("#view").textContent = now < cameraTransitionUntil ? `Cambiando a ${viewName}…` : viewName;
+        const cockpitPanel = document.querySelector("#cockpitPanel"), interiorView = view === 1 || view === 2;
+        cockpitPanel.hidden = onFoot;
+        cockpitPanel.classList.toggle("exterior", !interiorView);
+      }
+      document.querySelectorAll("[data-key]").forEach((b) => {
+        const k = b.dataset.key;
+        b.onpointerdown = (e) => {
+          e.preventDefault();
+          b.setPointerCapture?.(e.pointerId);
+          keys[k] = 1;
+        };
+        ["pointerup", "pointercancel", "lostpointercapture"].forEach((v) =>
+          b.addEventListener(v, () => (keys[k] = 0)),
+        );
+      });
+      const numberViews = [0,1,2,3,4,5,6,7,8];
+      let cameraSelector;
+      function selectCamera(next){view=next;cameraReady=false;cameraTransitionUntil=performance.now()+420;cam.textContent=`Vista ${numberViews.indexOf(view)+1}/9`;cameraSelector?.setActive(view);}
+      cameraSelector=createCameraSelector({trigger:document.querySelector("#cam"),getKind:()=>kind,onSelect:selectCamera});
+      onkeydown = (e) => { const k=e.key.toLowerCase(); if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) e.preventDefault(); if (!e.repeat && /^[1-9]$/.test(k)) selectCamera(numberViews[Number(k)-1]); if (!e.repeat && k === "c") document.querySelector("#cruise").click(); if (!e.repeat && k === "p") document.querySelector("#parking").click(); if (!e.repeat && k === "r") document.querySelector("#rescue").click(); if (!e.repeat && k === "v") cameraSelector.open(); if (!e.repeat && k === "m") cycleRouteMap(e.shiftKey ? -1 : 1); if (k === "h") honking = true; keys[k] = 1; };
+      R.domElement.addEventListener("click",()=>{if(view===1&&!onFoot&&document.pointerLockElement!==R.domElement)R.domElement.requestPointerLock?.();});
+      addEventListener("mousemove",e=>{if(document.pointerLockElement!==R.domElement||view!==1)return;headYaw=T.MathUtils.clamp(headYaw-e.movementX*.0022,-1.22,1.22);headPitch=T.MathUtils.clamp(headPitch-e.movementY*.0019,-.7,.7);});
+      R.domElement.addEventListener("auxclick",e=>{if(e.button===1){e.preventDefault();headYaw=headPitch=0;}});
+      addEventListener("keydown", (e) => {
+        if (!e.repeat && e.key.toLowerCase() === "e" && onFoot) interactCargo();
+      });
+      onkeyup = (e) => { const k=e.key.toLowerCase(); if (k === "h") honking = false; keys[k] = 0; };
+      addEventListener("blur", () => (keys = {}));
+      const wheelButton = document.querySelector("#wheelButton");
+      wheelButton.onclick = () => {
+        wheelInput.calibrate();
+        wheelButton.textContent = "Calibrando: gira y pisa pedales";
+      };
+      let specialCargoIndex = -1;
+      document.querySelector("#specialButton").onclick = () => {
+        if (speed > 1) { document.querySelector("#specialState").textContent = "Detén el vehículo"; return; }
+        specialCargoIndex = (specialCargoIndex + 1) % (SPECIAL_CARGOES.length + 1);
+        const cargo = specialCargoIndex < SPECIAL_CARGOES.length ? specialTransport.select(SPECIAL_CARGOES[specialCargoIndex].id) : specialTransport.select(null);
+        cargoAssigned=Boolean(cargo||career.activeContract||loadedPallets);if(cargo)cargoFrame=cargoCondition.select("adr");renderCargoCondition();
+        vehicleTextures.apply(S);
+        document.querySelector("#specialButton").classList.toggle("on", Boolean(cargo));
+        document.querySelector("#specialButton").textContent = cargo ? `Especial: ${cargo.name}` : "Transporte especial";
+        document.querySelector("#specialState").textContent = cargo ? `${cargo.mass / 1000} t · ${cargo.width} m ancho` : "Sin carga";
+        document.querySelector("#specialOperate").hidden = !cargo;
+        document.querySelector("#specialOperate").disabled = false;
+        document.querySelector("#specialOperate").textContent = cargo ? "Preparar hidráulica" : "Preparar carga";
+      };
+      document.querySelector("#specialOperate").onclick = () => {
+        if (speed > 1) { document.querySelector("#specialState").textContent = "Detén el vehículo para operar"; return; }
+        const operation = specialTransport.advanceStage(); if (!operation) return;
+        document.querySelector("#specialOperate").textContent = operation.ready ? "Carga inspeccionada ✓" : operation.label;
+        document.querySelector("#specialOperate").disabled = operation.ready;
+        document.querySelector("#specialState").textContent = operation.ready ? "Lista · cadenas, presión y señalización verificadas" : operation.label;
+      };
+      truck.onclick = () => build("truck");
+      const chooseVehicle = type => { build(type); eventLog.record("operations","vehicle:selected",{vehicle:type}); };
+      document.querySelector("#bus").onclick = () => chooseVehicle("bus");
+      document.querySelector("#ambulance").onclick = () => chooseVehicle("ambulance");
+      document.querySelector("#fireEngine").onclick = () => chooseVehicle("fire");
+        document.querySelector("#recoveryTruck").onclick = () => chooseVehicle("recovery");
+      const fleetVehicle=document.querySelector("#fleetVehicle"),fleetLivery=document.querySelector("#fleetLivery");
+      fleetVehicle.innerHTML='<option value="">Flota aire y mar</option><optgroup label="Aeronaves">'+AIR_FLEET.map(v=>`<option value="${v.id}">${v.name}</option>`).join("")+'</optgroup><optgroup label="Barcos">'+SEA_FLEET.map(v=>`<option value="${v.id}">${v.name}</option>`).join("")+'</optgroup>';
+      fleetLivery.innerHTML=FLEET_LIVERIES.map((v,i)=>`<option value="${i}">${v.name}</option>`).join("");
+      fleetVehicle.onchange=()=>{if(fleetVehicle.value)chooseVehicle(fleetVehicle.value)};
+      fleetLivery.onchange=()=>{if(fleetVehicle.value)build(fleetVehicle.value)};
+      let aviationVerticalSpeed=0, aviationRouteStart=0;
+      const aviationUI=createAviationUI({
+        fleetSelect: fleetVehicle,
+        onFlightMode(active){
+          aviationRouteStart=physicalDistance;
+          if(!active){aviationVerticalSpeed=0;V.position.y=0;}
+          document.querySelector("#workState").textContent=active?"Plan de vuelo activo":"En plataforma";
+        }
+      });
+      document.querySelector("#sirenButton").onclick = () => {
+        sirenOn = !sirenOn;
+        document.querySelector("#sirenButton").classList.toggle("on", sirenOn);
+        document.querySelector("#sirenButton").textContent = sirenOn ? "Sirena activa" : "Sirena";
+        eventLog.record("operations",sirenOn?"siren:enabled":"siren:disabled",{vehicle:kind});
+      };
+      document.querySelector("#moreControls").onclick = () => {
+        document.body.classList.toggle("controls-expanded");
+        document.querySelector("#moreControls").textContent = document.body.classList.contains("controls-expanded") ? "Menos controles" : "Más controles";
+      };
+      document.querySelector("#cruise").onclick = () => {
+        cruiseEnabled = !cruiseEnabled;
+        cruiseTarget = Math.max(45, Math.round(speed || 80));
+        document.querySelector("#cruise").classList.toggle("on", cruiseEnabled);
+        document.querySelector("#cruise").textContent = cruiseEnabled ? `Crucero ${cruiseTarget}` : "Crucero";
+      };
+      document.querySelector("#parking").onclick = () => {
+        parkingBrake = !parkingBrake;
+        engineAudio.triggerAirBrake(parkingBrake ? .85 : .45);
+        document.querySelector("#parking").classList.toggle("on", parkingBrake);
+        document.querySelector("#parking").textContent = parkingBrake ? "Freno P activo" : "Freno P";
+      };
+      document.querySelectorAll("[data-cockpit]").forEach((button) => button.onclick = () => {
+        const action = button.dataset.cockpit;
+        if (action === "lights") {
+          headlightsOn = !headlightsOn;
+          V.traverse((object) => { if (object.isSpotLight) object.intensity = headlightsOn ? 55 : 0; });
+          button.classList.toggle("on", headlightsOn);
+        } else if (action === "wipers") {
+          manualWipers = !manualWipers; button.classList.toggle("on", manualWipers);
+        } else if (action === "hazard") {
+          hazardsOn = !hazardsOn; button.classList.toggle("on", hazardsOn);
+        } else if (action === "retarder") {
+          retarderOn = !retarderOn; button.classList.toggle("on", retarderOn);
+        } else if (action === "cruise") document.querySelector("#cruise").click();
+        else if (action === "parking") document.querySelector("#parking").click();
+      });
+      const cockpitControlState = () => ({ lights:headlightsOn, wipers:manualWipers, hazard:hazardsOn, retarder:retarderOn, cruise:cruiseEnabled, parking:parkingBrake });
+      function syncCockpitControls() {
+        const state = cockpitControlState();
+        document.querySelectorAll("[data-cockpit]").forEach(button => {
+          const active = Boolean(state[button.dataset.cockpit]);
+          button.classList.toggle("on", active); button.setAttribute("aria-pressed", String(active));
+        });
+      }
+      function syncWorkTool() {
+        palletJack.visible = onFoot && workTool === "palletJack";
+        forklift.visible = onFoot && workTool === "forklift";
+        const tool = workTool === "forklift" ? forklift : palletJack;
+        tool.position.set(worker.position.x, 0, worker.position.z - 1.45);
+        tool.rotation.y = worker.rotation.y;
+        if (heldPallet) {
+          heldPallet.visible = true;
+          heldPallet.position.set(worker.position.x, workTool === "forklift" ? 0.7 : 0.15, worker.position.z - 2.4);
+          heldPallet.rotation.y = worker.rotation.y;
+        }
+      }
+      document.querySelector("#workMode").onclick = () => {
+        if (!onFoot) {
+          speed = 0; steer = 0; parkingBrake = true; cruiseEnabled = false;
+          V.position.set(-11, 0, depotZ); V.rotation.set(0, 0, 0);
+          worker.position.set(-18, 0, depotZ + 7); worker.visible = true; onFoot = true;
+          document.querySelector("#workMode").textContent = "Volver a conducir";
+          document.querySelector("#workState").textContent = "Operario · WASD y E";
+          document.querySelector("#cruise").classList.remove("on");
+          document.querySelector("#parking").classList.add("on");
+          document.querySelector("#parking").textContent = "Freno P activo";
+        } else if (!heldPallet) {
+          onFoot = false; worker.visible = false; palletJack.visible = false; forklift.visible = false;
+          document.querySelector("#workMode").textContent = "Ir al almacén";
+          document.querySelector("#workState").textContent = loadedPallets === warehousePallets.length ? "Carga completa" : "Conductor";
+        } else {
+          document.querySelector("#workState").textContent = "Primero entrega el palé";
+        }
+        cameraReady = false; syncWorkTool();
+      };
+      document.querySelector("#toolButton").onclick = () => {
+        if (!onFoot || heldPallet) return;
+        workTool = workTool === "palletJack" ? "forklift" : "palletJack";
+        document.querySelector("#toolButton").textContent = workTool === "forklift" ? "Carretilla" : "Traspaleta";
+        syncWorkTool();
+      };
+      function interactCargo() {
+        if (!onFoot || operationCinematics.active) return;
+        if (!heldPallet) {
+          const available = warehousePallets.filter((p) => !p.userData.loaded)
+            .sort((a, b) => a.position.distanceTo(worker.position) - b.position.distanceTo(worker.position))[0];
+          if (!available || available.position.distanceTo(worker.position) > 4.2) {
+            document.querySelector("#workState").textContent = "Acércate a un palé"; return;
+          }
+          heldPallet = available;
+          document.querySelector("#workState").textContent = "Lleva el palé detrás del camión";
+        } else {
+          const loadingPoint = new T.Vector3(V.position.x, 0, V.position.z + 10.5);
+          if (worker.position.distanceTo(loadingPoint) > 5) {
+            document.querySelector("#workState").textContent = "Ve detrás del remolque"; return;
+          }
+          operationFrame = operationCinematics.start({ now:performance.now(), pallet:heldPallet, tool:workTool });
+          cameraReady = false;
+          document.querySelector("#workState").textContent = "Operación de carga en curso";
+        }
+        syncWorkTool();
+      }
+      document.querySelector("#interactButton").onclick = interactCargo;
+      const mapPanel = document.querySelector("#mapPanel"), mapCanvas = document.querySelector("#routeMap"), mapCtx = mapCanvas.getContext("2d"), mapZoomRanges = [70, 140, 280, 560, 1120];
+      let mapZoomIndex = 2;
+      function openEuropeTracking() { mapPanel.hidden = true; europeMapPanel.hidden = false; europeMap.setVehicleProgress(physicalDistance / 1000); }
+      function setMapZoom(next) { if (next >= mapZoomRanges.length) { openEuropeTracking(); return; } mapZoomIndex = Math.max(0, next); document.querySelector("#mapZoomLabel").textContent = `${mapZoomRanges[mapZoomIndex]} m`; drawRouteMap(); }
+      function cycleRouteMap(direction = 1) { if (!europeMapPanel.hidden) { if (direction < 0) { europeMapPanel.hidden = true; mapPanel.hidden = false; setMapZoom(mapZoomRanges.length - 1); } else europeMap.setVehicleProgress(physicalDistance / 1000); return; } if (mapPanel.hidden) { mapPanel.hidden = false; drawRouteMap(); } else setMapZoom(mapZoomIndex + direction); }
+      document.querySelector("#mapButton").onclick = () => { mapPanel.hidden ? cycleRouteMap(0) : mapPanel.hidden = true; };
+      document.querySelector("#mapZoomIn").onclick = () => setMapZoom(mapZoomIndex - 1);
+      document.querySelector("#mapZoomOut").onclick = () => setMapZoom(mapZoomIndex + 1);
+      document.querySelector("#mapClose").onclick = () => (mapPanel.hidden = true);
+      const europeMapPanel=document.querySelector("#europeMapPanel");
+      async function activateRoadRoute(route,fromLabel,toLabel){activeOsmRoute=route;activeWorldRoute=projectRouteToWorld(route);osmRoadMesh.setRoute(activeWorldRoute,{junctions:route.steps});routeRuntime.setRoute(activeWorldRoute,{qualityLevel});routeNavigation.setRoute(route);osmCorridor.setRoute(route,activeWorldRoute);osmCorridor.load().then(counts=>{regionalMaterials?.applyTo(osmCorridor.root);document.querySelector("#roadEvent").title=`OSM ruta: ${counts.buildings} edificios · ${counts.areas} terrenos · ${counts.trees} árboles`}).catch(error=>console.warn("Corredor OSM no disponible",error));osmRoutePois.load(route,activeWorldRoute).then(items=>document.querySelector("#nearService").title=`${items.length} servicios reales de OpenStreetMap`).catch(error=>console.warn("POI OSM no disponibles; se mantienen servicios simulados",error));cargoHubs.setRoute(route,activeWorldRoute);cargoHubs.load().then(items=>document.querySelector("#cargoState").title=`${items.length} hubs de carga 3D`).catch(error=>console.warn("Hubs OSM no disponibles; se usa terminal procedural",error));regionalMaterials?.dispose();regionalMaterials=createRegionalMaterials({THREE:T,coordinates:{lon:route.coordinates[0][0],lat:route.coordinates[0][1]},qualityLevel});osmRoadMesh.applyMaterials(regionalMaterials);regionalMaterials.applyTo(osmCorridor.root);regionalMaterials.applyTo(cargoHubs.root);physicalDistance=0;routeLaneOffset=0;traffic3d.forEach(vehicle=>vehicle.visible=false);roadsideServices.root.visible=false;const start=routeRuntime.sampleAt(0,0);if(start&&V){V.position.set(start.x,0,start.z);V.rotation.y=start.heading;cameraReady=false}document.querySelector("#workState").textContent=`Ruta OSM ${fromLabel} → ${toLabel}`;return route;}
+      const europeMap=mountEuropeRoadMap(document.querySelector("#europeRoadMap"),document.querySelector("#europeRouteOutput"),{onRouteSelected:async(from,to)=>{const route=await osmRoutePlanner.route(from,to);await activateRoadRoute(route,from.toUpperCase(),to.toUpperCase());document.querySelector("#city").textContent=EUROPE_CITIES.find(city=>city.id===from)?.name||from;return route;}});
+      document.querySelector("#europeMapButton").onclick=()=>{achievementsPanel.hidden=true;openEuropeTracking()};
+      document.querySelector("#europeToLocal").onclick=()=>{europeMapPanel.hidden=true;mapPanel.hidden=false;setMapZoom(mapZoomRanges.length-1)};
+      document.querySelector("#europeMapClose").onclick=()=>europeMapPanel.hidden=true;
+      const worldPanel=document.querySelector("#worldPanel"),worldFrom=document.querySelector("#worldFrom"),worldTo=document.querySelector("#worldTo"),worldOutput=document.querySelector("#worldPlanOutput"),worldDrive=document.querySelector("#worldDriveButton"),worldFly=document.querySelector("#worldFlyButton"),worldSail=document.querySelector("#worldSailButton");
+      const logisticsUI=mountLogisticsChainUI({chain:logisticsChain,controls:document.querySelector(".controls:not(.drive)"),getPlan:()=>plannedWorldRoute,getCargo:()=>({name:specialTransport?.state?.cargo?.name||career.activeContract?.cargo?.name||career.activeContract?.cargo||cargoFrame.label||"Carga general",type:cargoFrame.type,massKg:specialTransport?.state?.cargo?.mass||12000,units:Math.max(1,loadedPallets||1),temperature:cargoFrame.temperature}),getCondition:()=>({integrity:cargoFrame.integrity,temperature:cargoFrame.temperature,restraint:cargoFrame.restraint}),onActivateLeg:order=>{const leg=order?.legs?.[order.currentLeg];if(!leg)return;if(leg.mode==="air")activateMultimodalLeg("air","cargo_plane");else if(leg.mode==="sea")activateMultimodalLeg("sea","container_ship");else if(leg.mode==="road")worldDrive.click()}});
+      const worldOptions=WORLD_HUBS.map(hub=>`<option value="${hub.id}">${hub.name} · ${hub.countryCode}</option>`).join("");worldFrom.innerHTML=worldOptions;worldTo.innerHTML=worldOptions;worldFrom.value="madrid";worldTo.value="new_york";
+      document.querySelector("#worldMapButton").onclick=()=>{europeMapPanel.hidden=true;worldPanel.hidden=false};document.querySelector("#worldClose").onclick=()=>worldPanel.hidden=true;
+      document.querySelector("#worldPlanButton").onclick=async()=>{const plan=findMultimodalRoute(worldFrom.value,worldTo.value);if(!plan){worldOutput.textContent="No existe conexión con los modos disponibles.";return}worldOutput.textContent="Resolviendo tramos terrestres…";try{plannedWorldRoute=await resolveMultimodalRoads(plan)}catch{plannedWorldRoute=plan}const modeLabel={road:"Carretera",rail:"Ferrocarril",sea:"Barco",air:"Avión"};worldOutput.innerHTML=plannedWorldRoute.legs.map((leg,index)=>`<b>${index+1}. ${modeLabel[leg.mode]||leg.mode}</b> · ${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`).join("<br>")+`<br><b>Total ${Math.round(plannedWorldRoute.distanceKm)} km · ${plannedWorldRoute.durationHours.toFixed(1)} h</b>`;const customsLeg=plannedWorldRoute.legs.find(leg=>leg.from.countryCode!==leg.to.countryCode)||plannedWorldRoute.legs[0];borderOperations.inspect(customsLeg,{cargo:specialTransport?.state?.cargo?.name||career.activeContract?.cargo||"Carga general",adr:specialCargoIndex>=0});borderOperations.render(worldOutput);worldDrive.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="road"&&leg.coordinates);worldFly.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="air");worldSail.disabled=!plannedWorldRoute.legs.some(leg=>leg.mode==="sea")};
+      worldDrive.onclick=async()=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode==="road"&&item.coordinates);if(!leg)return;borderOperations.clear();await activateRoadRoute({coordinates:leg.coordinates,steps:[],distanceKm:leg.distanceKm,durationHours:leg.durationHours},leg.from.name,leg.to.name);document.querySelector("#city").textContent=leg.from.name;worldPanel.hidden=true};
+      const activateMultimodalLeg=(mode,vehicleType)=>{const leg=plannedWorldRoute?.legs.find(item=>item.mode===mode);if(!leg)return;borderOperations.clear();build(vehicleType);fleetVehicle.value=vehicleType;document.querySelector("#city").textContent=leg.from.name;document.querySelector("#workState").textContent=`${leg.from.name} → ${leg.to.name} · ${Math.round(leg.distanceKm)} km`;cargoAssigned=true;worldPanel.hidden=true;eventLog.record("operations",`multimodal:${mode}_started`,{from:leg.from.name,to:leg.to.name,distanceKm:Math.round(leg.distanceKm),vehicle:vehicleType})};
+      worldFly.onclick=()=>activateMultimodalLeg("air","cargo_plane");
+      worldSail.onclick=()=>activateMultimodalLeg("sea","container_ship");
+      function drawRouteMap() {
+        if (!V) return;
+        const w = mapCanvas.width, h = mapCanvas.height, cx = w / 2, cy = h / 2, range = mapZoomRanges[mapZoomIndex], scale = (Math.min(w, h) - 42) / (range * 2);
+        const mapX = x => cx + (x - V.position.x) * scale, mapY = z => cy + (z - V.position.z) * scale;
+        mapCtx.clearRect(0, 0, w, h); mapCtx.fillStyle = "#0b1822"; mapCtx.fillRect(0, 0, w, h);
+        mapCtx.strokeStyle = "#172832"; mapCtx.lineWidth = 1;
+        const gridStep = range <= 140 ? 25 : range <= 560 ? 100 : 250;
+        for (let offset = -range; offset <= range; offset += gridStep) { mapCtx.beginPath(); mapCtx.moveTo(0, mapY(V.position.z + offset)); mapCtx.lineTo(w, mapY(V.position.z + offset)); mapCtx.stroke(); mapCtx.beginPath(); mapCtx.moveTo(mapX(V.position.x + offset), 0); mapCtx.lineTo(mapX(V.position.x + offset), h); mapCtx.stroke(); }
+        mapCtx.strokeStyle = "#354b59"; mapCtx.lineWidth = 30 * scale; mapCtx.beginPath(); mapCtx.moveTo(mapX(0), mapY(V.position.z - range * 1.1)); mapCtx.lineTo(mapX(0), mapY(V.position.z + range * 1.1)); mapCtx.stroke();
+        for (const laneX of [-7.5, 0, 7.5]) { mapCtx.strokeStyle = laneX ? "#e8e6d0" : "#f0cf5d"; mapCtx.lineWidth = Math.max(1, .16 * scale); mapCtx.setLineDash(laneX ? [] : [10 * scale, 8 * scale]); mapCtx.beginPath(); mapCtx.moveTo(mapX(laneX), 0); mapCtx.lineTo(mapX(laneX), h); mapCtx.stroke(); }
+        mapCtx.setLineDash([]); mapCtx.font = "600 11px system-ui"; mapCtx.textBaseline = "middle";
+        cityData.forEach((city) => { const x = mapX(0), y = mapY(city.z); if (y < -20 || y > h + 20) return; mapCtx.fillStyle = `#${city.color.toString(16).padStart(6,"0")}`; mapCtx.beginPath(); mapCtx.arc(x, y, 6, 0, Math.PI * 2); mapCtx.fill(); mapCtx.fillStyle = "#dce9f5"; mapCtx.textAlign = "left"; mapCtx.fillText(`${city.name} · ${Math.round(Math.abs(city.z - V.position.z))} m`, x + 11, y); });
+        const markers = [{ x: roadworks.position.x, z: roadworks.position.z + 70, color: "#ff9d32", label: "Obras" }, { x: 0, z: -250, color: "#a9b7c3", label: "Túnel" }];
+        roadsideServices.services.forEach(service => markers.push({ x: service.side * 39, z: service.z, color: service.type === "fuel" ? "#47dfc7" : service.type === "workshop" ? "#f1ad45" : "#69aaf2", label: service.type === "fuel" ? "Gasolinera" : service.type === "workshop" ? "Taller" : "Descanso" }));
+        traffic3d.forEach((vehicle) => markers.push({ x: vehicle.position.x, z: vehicle.position.z, color: "#e8eef2", label: "Tráfico" }));
+        markers.forEach((marker) => { const x = mapX(marker.x), y = mapY(marker.z); if (x < 0 || x > w || y < 0 || y > h) return; mapCtx.fillStyle = marker.color; mapCtx.fillRect(x - 4, y - 6, 8, 12); if (range <= 280) { mapCtx.fillStyle = "#b9cbd3"; mapCtx.textAlign = "left"; mapCtx.fillText(marker.label, x + 7, y); } });
+        mapCtx.save(); mapCtx.translate(cx, cy); mapCtx.rotate(-V.rotation.y); mapCtx.fillStyle = "#55f0c8"; mapCtx.shadowColor = "#55f0c8"; mapCtx.shadowBlur = 10; mapCtx.beginPath(); mapCtx.moveTo(0, -13); mapCtx.lineTo(-8, 10); mapCtx.lineTo(0, 6); mapCtx.lineTo(8, 10); mapCtx.closePath(); mapCtx.fill(); mapCtx.restore();
+        mapCtx.shadowBlur = 0; mapCtx.fillStyle = "#071017dd"; mapCtx.fillRect(8, 8, w - 16, 38); mapCtx.fillStyle = "#e7fbf7"; mapCtx.textAlign = "left"; mapCtx.font = "700 12px system-ui"; mapCtx.fillText(`PK ${(physicalDistance / 1000).toFixed(2)} · X ${V.position.x.toFixed(1)} · Z ${V.position.z.toFixed(1)} · ${Math.round(((V.rotation.y * 180 / Math.PI) + 360) % 360)}°`, 16, 22);
+        mapCtx.fillStyle = "#8faab4"; mapCtx.font = "11px system-ui"; mapCtx.fillText(`${document.querySelector("#city").textContent} · seguimiento GPS activo`, 16, 38);
+        const scaleMeters = range <= 140 ? 25 : range <= 560 ? 100 : 250, scalePixels = scaleMeters * scale;
+        mapCtx.strokeStyle = "#ffffff"; mapCtx.lineWidth = 2; mapCtx.beginPath(); mapCtx.moveTo(16, h - 18); mapCtx.lineTo(16 + scalePixels, h - 18); mapCtx.stroke(); mapCtx.fillStyle = "#ffffff"; mapCtx.fillText(`${scaleMeters} m`, 16, h - 29);
+      }
+      function updateCareerHud() {
+        document.querySelector("#moneyState").textContent = `${Math.round(career.state.economy.money).toLocaleString("es-ES")} €`;
+        document.querySelector("#levelState").textContent = `${career.state.progress.level} · ${career.state.progress.xp} XP`;
+        document.querySelector("#fuelState").textContent = `${Math.round(career.state.truck.fuel)}%`;
+      }
+      document.querySelector("#contractButton").onclick = () => {
+        try { const job = career.generateContracts(3)[0]; career.acceptContract(job.id); cargoAssigned=true; cargoFrame=cargoCondition.select(cargoProfileFor(job)); document.querySelector("#cargoState").textContent = `${job.cargo.name} · ${job.distanceKm} km`; document.querySelector("#workState").textContent = `${job.from.name} → ${job.to.name}`; renderCargoCondition(); }
+        catch (error) { document.querySelector("#workState").textContent = error.message; }
+        updateCareerHud();
+      };
+      document.querySelector("#contractButton").onclick = () => companyPanel.open();
+      document.querySelector("#serviceButton").onclick = () => {
+        if (speed > 1) { document.querySelector("#workState").textContent = "Detén el camión para entrar al taller"; return; }
+        if (!nearestRoadsideService || nearestRoadsideService.distance > 72 || !["workshop", "fuel"].includes(nearestRoadsideService.type)) { document.querySelector("#workState").textContent = "Acércate a un taller o gasolinera"; return; }
+        if (nearestRoadsideService.type === "fuel") { career.refuel(); document.querySelector("#workState").textContent = "Depósito lleno"; }
+        else { career.repair(100); document.querySelector("#workState").textContent = "Reparación completada"; }
+        updateCareerHud();
+      };
+      const achievementsPanel = document.querySelector("#achievementsPanel"), achievementList = document.querySelector("#achievementList");
+      function renderAchievements() { achievementList.innerHTML = (window.TransportAchievements?.list ? window.TransportAchievements.list() : []).map(item => `<div class="achievement-row ${item.unlocked ? "done" : ""}"><i>${item.icon}</i><span><b>${item.name}</b><small style="display:block">${item.unlocked ? "Desbloqueado" : "Pendiente"}</small></span></div>`).join(""); }
+      document.querySelector("#achievementsButton").onclick = () => { renderAchievements(); achievementsPanel.hidden = false; };
+      document.querySelector("#achievementsClose").onclick = () => achievementsPanel.hidden = true;
+      const academyPanel = document.querySelector("#academyPanel"), academyState = document.querySelector("#academyState"), academyLessons = document.querySelector("#academyLessons");
+      function renderAcademy() { academyLessons.innerHTML = drivingAcademy.lessons.map(item => `<button data-lesson="${item.id}">${item.name}<small style="display:block">${item.duration} s · máximo ${item.maxSpeed} km/h · mejor ${"★".repeat(drivingAcademy.best[item.id] || 0)}${"☆".repeat(3 - (drivingAcademy.best[item.id] || 0))}</small></button>`).join(""); academyLessons.querySelectorAll("[data-lesson]").forEach(button => button.onclick = () => { const lesson = drivingAcademy.start(button.dataset.lesson); academyState.textContent = `${lesson.name}: conduce ${lesson.duration} s sin colisiones, excesos ni maniobras bruscas.`; academyPanel.hidden = true; }); }
+      document.querySelector("#academyButton").onclick = () => { renderAcademy(); academyPanel.hidden = false; };
+      document.querySelector("#academyClose").onclick = () => academyPanel.hidden = true;
+      document.querySelector("#engineButton").onclick = async () => { engineRunning=!engineRunning; await engineAudio.setRunning(engineRunning); document.querySelector("#engineButton").textContent=engineRunning?"Apagar motor":"Arrancar motor"; document.querySelector("#engineButton").classList.toggle("on",engineRunning); eventLog.record("operations",engineRunning?"engine:started":"engine:stopped",{vehicle:kind}); if(!engineRunning){cruiseEnabled=false;document.querySelector("#cruise").classList.remove("on")} };
+      window.TransportAchievements?.onUnlock?.(items => { const toast=document.querySelector("#achievementToast"); toast.textContent=`${items[0].icon} Logro: ${items[0].name}`; toast.classList.add("show"); setTimeout(()=>toast.classList.remove("show"),3200); renderAchievements(); });
+      const convoyPanel = createConvoyPanel({ convoy: window.MoonConvoy || { state: { players: [], ai: [] }, onChange: () => {} }, eventLog });
+      document.querySelector("#convoyButton").onclick = () => convoyPanel.open();
+      convoyPanel.radioSystem?.onMessage?.(msg => {
+        if (msg.type === "message") {
+          const assist = document.querySelector("#assistState");
+          if (assist) {
+            assist.textContent = `📻 [CH ${msg.channel}] ${msg.text.slice(0, 32)}`;
+            assist.style.color = "#55ead9";
+          }
+        }
+      });
+      window.MoonConvoy?.onChange?.(state => {
+        document.querySelector("#convoyState").textContent = state?.joined ? `${state.room} · ${state.players?.length || 0} jugadores · ${state.ai?.length || 0} IA · ${state.mode === "online" ? `${state.ping} ms` : "LAN"}` : "Desconectado";
+        if(releaseChannel.includes("alpha")){
+          sharedWorldPresence?.update?.(state, state?.you);
+          const operation = sharedOperations?.get?.(state); if (operation) document.querySelector("#convoyState").title = `${operation.name} · ${operation.ready}/${operation.roles.length} medios en destino · ${operation.remaining} s`;
+        }else sharedWorldPresence?.update?.({players:[],ai:[]}, state?.you);
+      });
+      updateCareerHud();
+      document.querySelector("#rest").onclick = () => {
+        if (speed > 1) { document.querySelector("#fatigueState").textContent = "Detén el vehículo"; return; }
+        if (!nearestRoadsideService || nearestRoadsideService.type !== "rest" || nearestRoadsideService.distance > 72) { document.querySelector("#fatigueState").textContent = "Busca un área de descanso"; return; }
+        fatigue = 0; parkingBrake = true; cruiseEnabled = false;
+        document.querySelector("#cruise").classList.remove("on"); document.querySelector("#cruise").textContent = "Crucero";
+        document.querySelector("#fatigueState").textContent = "Descanso completado";
+      };
+      document.querySelector("#rescue").onclick = () => {
+        speed = 0; steer = 0; V.position.x = -5.5; V.rotation.set(0, 0, 0); parkingBrake = true;
+        damage = Math.max(0, damage - 15); cruiseEnabled = false;
+        document.querySelector("#assistState").textContent = "Vehículo recuperado";
+        eventLog.record("operations","vehicle:recovered",{damage:Math.round(damage),city:document.querySelector("#city").textContent},{severity:"warning"});
+      };
+      let last = performance.now(), careerKmBuffer = 0, physicalDistance = 0, lastWorldFine = 0, cockpitDrawAt = 0, cargoDrawAt = 0, europeMapDrawAt = 0;
+      function loop(now) {
+        const dt = Math.min(0.04, (now - last) / 1000);
+        last = now;
+        const previousOperation = operationFrame;
+        operationFrame = operationCinematics.update(now);
+        const operationPanel = document.querySelector("#operationCinematic");
+        operationPanel.hidden = !operationFrame.active;
+        if (operationFrame.active) {
+          const phases = { align:"Alineando la mercancía con el remolque", lift:"Elevando y entrando en la caja", secure:"Asegurando el palé y comprobando anclajes" };
+          const percent = Math.round(operationFrame.progress * 100);
+          document.querySelector("#operationProgress").value = percent;
+          document.querySelector("#operationPercent").textContent = `${percent}%`;
+          document.querySelector("#operationHint").textContent = phases[operationFrame.phase] || "Completando operación";
+          if (heldPallet) {
+            const loadingPoint = new T.Vector3(V.position.x, .45, V.position.z + 8.8);
+            heldPallet.visible = true; heldPallet.position.lerp(loadingPoint, Math.min(1, dt * 2.2));
+          }
+        } else if (previousOperation.active && heldPallet) {
+          heldPallet.userData.loaded = true; heldPallet.visible = false; heldPallet = null; loadedPallets++; cargoAssigned=true; cameraReady=false;
+          document.querySelector("#cargoState").textContent = `${loadedPallets}/${warehousePallets.length} palés`;
+          document.querySelector("#workState").textContent = loadedPallets === warehousePallets.length ? "Carga completa · vuelve a conducir" : "Palé asegurado · recoge otro";
+          eventLog.record("operations","cargo:pallet-loaded",{ loaded:loadedPallets, total:warehousePallets.length, tool:previousOperation.tool });
+          if (loadedPallets === warehousePallets.length && !networkShipmentCreated) {
+            const shipment = window.MoonLogistics?.create("Rutas del Continente 3D"); networkShipmentCreated = true;
+            if (shipment) document.querySelector("#cargoState").textContent = `${shipment.cargo} · lista para ferrocarril`;
+          }
+          syncWorkTool();
+        }
+        const wheel = wheelInput.poll();
+        let accelerating = engineRunning && (keys.w || keys.arrowup), braking = keys.s || keys.arrowdown,
+          left = keys.a || keys.arrowleft, right = keys.d || keys.arrowright;
+        if (wheel.connected && !onFoot) {
+          accelerating = Math.max(Number(accelerating), wheel.throttle);
+          braking = Math.max(Number(braking), wheel.brake);
+          if (wheel.actions.view) cam.click();
+          if (wheel.actions.cruise) document.querySelector("#cruise").click();
+          if (wheel.actions.parking) document.querySelector("#parking").click();
+          if (wheel.actions.retarder) document.querySelector('[data-cockpit="retarder"]').click();
+          wheelButton.textContent = wheel.calibrating ? "Calibrando: gira y pisa pedales" : `Volante: ${wheel.profile}`;
+          wheelButton.classList.add("on");
+        } else {
+          wheelButton.textContent = "Volante: buscar";
+          wheelButton.classList.remove("on");
+        }
+        const convoyNow = typeof window.MoonConvoy?.now === "function" ? window.MoonConvoy.now() : Date.now();
+        const routeProgress = activeOsmRoute ? Math.min(1, physicalDistance / Math.max(1, routeRuntime.length)) : 0;
+        const regionalCoordinate = activeOsmRoute ? coordinateAtRouteProgress(activeOsmRoute, routeProgress) : { lat:40.4168, lon:-3.7038 };
+        regionalEventFrame = regionalEventDirector.update({ at:convoyNow, coordinates:regionalCoordinate, weather:liveWeatherState?.weather||currentWeather(), temperature:liveWeatherState?.temperature, precipitation:liveWeatherState?.precipitation, windSpeed:liveWeatherState?.windSpeed, wildfire:liveWeatherState?.wildfire, source:liveWeatherState?.source||"calendar" });
+        if (regionalEventFrame.id !== renderedRegionalEventId) {
+          renderedRegionalEventId = regionalEventFrame.id;
+          regionalMaterials?.applyWeather(regionalEventFrame.effects.weather || currentWeather(), regionalEventFrame.id ? 1 : 0);
+          applyWeatherVisuals();
+        }
+        const worldState = worldEvents.update({ position: V.position, speed, dt, weather: regionalEventFrame.effects.weather||currentWeather(), synchronizedTime: convoyNow / 1000, defaultSpeedLimit:regionalEventFrame.effects.speedLimit||90 });
+        nearestRoadsideService = activeOsmRoute ? (osmRoutePois.nearest(V.position) || routeRuntime.actors.services.map(service=>({...service,type:service.type,distance:Math.hypot(V.position.x-service.pose.x,V.position.z-service.pose.z)})).sort((a,b)=>a.distance-b.distance)[0]||null) : roadsideServices.update(V.position);
+        weighStation.update({ service:nearestRoadsideService, speed, cargoMassKg:cargoAssigned ? ({standard:12000,cold:15000,fragile:9000,adr:17500,livestock:13500}[cargoFrame.type] || 12000) : 0, restraint:cargoFrame.restraint });
+        const serviceNames = { workshop: "Taller", fuel: "Gasolinera", rest: "Descanso", charging: "Carga eléctrica" };
+        document.querySelector("#nearService").textContent = nearestRoadsideService && nearestRoadsideService.distance < 420
+          ? `${nearestRoadsideService.name || serviceNames[nearestRoadsideService.type] || "Servicio"} · ${Math.round(nearestRoadsideService.distance)} m`
+          : "En ruta";
+        const specialFrame = (specialTransport && typeof specialTransport.update === "function")
+          ? (specialTransport.update({ dt, speed, laneOffset: V.position.x }) || { active: false, cargo: { mass: 0, height: 1.65 }, ready: true, maxSpeed: 90, stageLabel: "" })
+          : { active: false, cargo: { mass: 0, height: 1.65 }, ready: true, maxSpeed: 90, stageLabel: "" };
+        if(releaseChannel.includes("alpha")){
+          window.MoonConvoy?.update?.({ game: "truck", vehicle: kind, x: V.position.x, y: V.position.z, z: V.position.z, altitude: V.position.y, speed, heading: V.rotation.y, cargo: career.activeContract?.cargo?.name || "", engine:engineRunning, headlights:headlightsOn, braking:Boolean(braking), indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0, hazards:hazardsOn, siren:sirenOn, weather:worldState.localWeather });
+          sharedWorldPresence?.tick?.(dt);
+          const sharedMission = sharedOperations?.get?.(window.MoonConvoy?.state || {}, Date.now()); if (sharedMission && window.MoonConvoy?.state?.joined) document.querySelector("#specialState").textContent = sharedMission.complete ? `${sharedMission.name} · COMPLETADA` : `${sharedMission.name} · ${sharedMission.ready}/${sharedMission.roles.length} · ${sharedMission.remaining}s`;
+        }
+        window.TransportAchievements?.update?.({ distance: career.state.progress.distanceKm, speed, loaded: loadedPallets, rain: isWetWeather(), night: currentWeather() === "night", convoyPlayers: window.MoonConvoy?.state?.players?.length || 0, damage: Math.round(damage) });
+        if (worldState.totalFines > lastWorldFine) {
+          const fineDelta = worldState.totalFines - lastWorldFine; career.applyFine({ amount: fineDelta, reason: "Exceso de velocidad" }); lastWorldFine = worldState.totalFines; updateCareerHud();
+        }
+        if (onFoot && !operationFrame.active) {
+          const walkSpeed = workTool === "forklift" ? 3.5 : 5;
+          const moveX = (right ? 1 : 0) - (left ? 1 : 0), moveZ = (braking ? 1 : 0) - (accelerating ? 1 : 0);
+          worker.position.x = T.MathUtils.clamp(worker.position.x + moveX * walkSpeed * dt, -49, -6);
+          worker.position.z = T.MathUtils.clamp(worker.position.z + moveZ * walkSpeed * dt, depotZ - 17, depotZ + 19);
+          if (moveX || moveZ) worker.rotation.y = Math.atan2(-moveX, -moveZ);
+          speed = 0; syncWorkTool();
+        } else if (onFoot) {
+          speed = 0;
+        }
+        if (!onFoot && (accelerating || braking)) { parkingBrake = false; document.querySelector("#parking").classList.remove("on"); document.querySelector("#parking").textContent = "Freno P"; }
+        const threats = traffic3d
+          .filter(o => o.visible)
+          .map((o) => ({ o, gap: V.position.z - o.position.z, lateral: Math.abs(V.position.x - o.position.x) }))
+          .filter((item) => item.gap > 0 && item.lateral < 2.8)
+          .sort((a, b) => a.gap - b.gap), nearest = threats[0];
+        const osmThreat = activeOsmRoute ? routeRuntime.actors.threat : null;
+        let desired = cruiseEnabled ? cruiseTarget : 0;
+        if (cruiseEnabled && osmThreat) desired = Math.min(desired, Math.max(12, osmThreat.distance * .95));
+        if (cruiseEnabled && nearest && nearest.gap < 75) desired = Math.min(desired, Math.max(18, nearest.gap * 1.05));
+        const emergency = nearest && nearest.gap < Math.max(9, speed * 0.18) || osmThreat?.level === "critical";
+        let physicalFrame = null;
+        if (emergency) {
+          speed = Math.max(0, speed - 95 * dt); cruiseEnabled = false;
+          physics.reset(speed);
+          document.querySelector("#cruise").classList.remove("on");
+          document.querySelector("#assistState").textContent = "AEBS frenando";
+        } else {
+          const cruiseThrottle = engineRunning && cruiseEnabled && speed < desired ? 0.72 : 0;
+          const roadGrade = Math.sin(V.position.z * 0.0028) * 0.035
+            + Math.sin(V.position.z * 0.00073) * 0.018;
+          physicalFrame = physics.update({
+            throttle: !onFoot && engineRunning ? Math.max(Number(accelerating) || 0, cruiseThrottle) : 0,
+            brake: !onFoot ? Math.max(Number(braking) || 0, cruiseEnabled && speed > desired + 2 ? 0.42 : 0) : 0,
+            engineRunning,
+            retarder: retarderOn ? 1 : 0,
+            steering: wheel.connected ? wheel.steering : (left ? -1 : right ? 1 : 0), parkingBrake, wetness: (regionalEventFrame.effects.weather==="storm"||isWetWeather()) ? 1 : (regionalEventFrame.effects.weather==="snow"||currentWeather()==="snow") ? .55 : 0,
+            offroad: Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2, damage, distance: physicalDistance,
+            surface: Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "gravel" : "asphalt",
+            waterDepth: regionalEventFrame.effects.waterDepth || (isWetWeather() ? 0.004 + Math.max(0, Math.sin(V.position.z * .013)) * .006 : 0),
+            gripMultiplier: regionalEventFrame.effects.gripMultiplier || 1,
+            cargoMass: specialFrame?.active ? (specialFrame.cargo?.mass || 18000) : (career.activeContract ? 18000 : loadedPallets * 1200),
+            cargoHeight: specialFrame?.active ? ((specialFrame.cargo?.height || 3.0) * .52) : 1.65,
+            windSpeed: regionalEventFrame.effects.windSpeed || (currentWeather() === "storm" ? 34 : isWetWeather() ? 18 : 5), windAngle: Math.sin(now * 0.00017),
+            roadGrade,
+            vehicleType: kind,
+          }, dt);
+          speed = physicalFrame.speedKmh; physicalDistance += physicalFrame.forwardMeters;
+          document.querySelector("#assistState").textContent = cruiseEnabled && nearest && nearest.gap < 75 ? `ACC · ${Math.round(nearest.gap)} m` : cruiseEnabled ? `ACC ${cruiseTarget} km/h` : "AEBS listo";
+        }
+        speed = T.MathUtils.clamp(speed, 0, specialFrame?.active ? specialFrame.maxSpeed : V.userData.maxSpeed || (kind === "bus" ? 92 : 112));
+        const activeAircraft=AIR_FLEET.find(item=>item.id===kind);
+        if(activeAircraft){
+          const airborne=aviationUI.isActive(), helicopter=activeAircraft.kind==="helicopter";
+          const takeoffSpeed=activeAircraft.kind==="glider"?35:90;
+          const targetAltitude=airborne?(helicopter?68:Math.max(0,(speed-takeoffSpeed)*.72)):0;
+          aviationVerticalSpeed+=(T.MathUtils.clamp((targetAltitude-V.position.y)*.34,-9,12)-aviationVerticalSpeed)*Math.min(1,dt*1.7);
+          V.position.y=Math.max(0,V.position.y+aviationVerticalSpeed*dt);
+          V.rotation.z+=(steer*(airborne?.24:.04)-V.rotation.z)*Math.min(1,dt*2.6);
+          V.rotation.x+=(T.MathUtils.clamp(-aviationVerticalSpeed*.018,-.16,.12)-V.rotation.x)*Math.min(1,dt*2.2);
+          V.userData.updateAircraft?.({time:now,dt,speed,airborne,steering:steer,verticalSpeed:aviationVerticalSpeed});
+          aviationUI.update({speedKmh:speed,altitudeMeters:V.position.y,verticalSpeed:aviationVerticalSpeed,progress:(physicalDistance-aviationRouteStart)/2400});
+        }
+        const steerInput = wheel.connected && !onFoot ? wheel.steering : (left ? -1 : right ? 1 : 0);
+        if (!onFoot) steer += (steerInput - steer) * Math.min(1, dt * 4.5);
+        else steer *= Math.pow(0.28, dt);
+        if (activeOsmRoute && !onFoot) {
+          routeLaneOffset = T.MathUtils.clamp(routeLaneOffset + (physicalFrame?.lateralMovement || steer * speed * dt * .025), -10, 10);
+          const routePose = routeRuntime.sampleAt(Math.min(physicalDistance, routeRuntime.length), routeLaneOffset);
+          if (routePose) { V.position.x=routePose.x; V.position.z=routePose.z; V.rotation.y=routePose.heading; }
+          routeRuntime.update(dt,{playerDistance:physicalDistance,playerSpeed:speed/3.6,playerDirection:1,playerLateral:routeLaneOffset,playerLength:kind==="bus"?13:16.5});
+          osmCorridor.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[450,700,1100,1600][qualityLevel]});
+          if(activeOsmRoute&&activeWorldRoute!==worldPolygonRouteRef){worldPolygonRouteRef=activeWorldRoute;worldPolygonMesh.setRoute(activeOsmRoute,activeWorldRoute);worldPolygonMesh.applyMaterials(regionalMaterials);}
+          worldPolygonMesh.update(dt,{playerPosition:V.position,camera:C,visibilityDistance:[700,1200,2200,4200,5200][qualityLevel]||2200});
+          const cargoHub=cargoHubs.update(dt,{playerPosition:V.position,camera:C});
+          if(cargoHub?.distance<180){document.querySelector("#cargoState").textContent=`${cargoHub.name} · ${cargoHub.type}`;if(cargoHub.active)document.querySelector("#workState").textContent="Zona de transferencia de carga";}
+        } else {
+          V.position.x = T.MathUtils.clamp(V.position.x + (physicalFrame?.lateralMovement || steer * speed * dt * .025),-17.5,17.5);
+          if (!onFoot) V.position.z -= physicalFrame?.forwardMeters || speed * dt / 3.6;
+        }
+        if (!onFoot && speed > 0) {
+          careerKmBuffer += speed * dt / 3600;
+          if (careerKmBuffer >= 0.15) { career.addDistance(careerKmBuffer); careerKmBuffer = 0; updateCareerHud(); }
+          if (career.state.truck.fuel <= 0.1) { speed = 0; document.querySelector("#assistState").textContent = "Sin combustible"; }
+        }
+        fatigue = Math.min(100, fatigue + speed * dt * 0.00065);
+        if (fatigue > 82) {
+          steer += Math.sin(now * 0.0017) * dt * 0.08;
+          document.querySelector("#fatigueState").textContent = `Crítica ${Math.round(fatigue)}%`;
+        } else document.querySelector("#fatigueState").textContent = fatigue > 55 ? `Cansancio ${Math.round(fatigue)}%` : `Descanso ${Math.round(100 - fatigue)}%`;
+        let collisionThisFrame = false;
+        if (nearest && nearest.gap < 4.5 && nearest.lateral < 2.4) {
+          collisionThisFrame = true;
+          speed *= 0.18; damage = Math.min(100, damage + 8);
+          document.querySelector("#assistState").textContent = "Colisión detectada"; wheelInput.pulse(0.8, 220);
+        }
+        const lessonFrame = drivingAcademy.update(dt, { speed, acceleration: physicalFrame?.acceleration, lateralG: physicalFrame?.lateralG, collision: collisionThisFrame, interior: view === 1 || view === 2 });
+        if (lessonFrame) academyState.textContent = lessonFrame.done ? `${lessonFrame.name}: ${"★".repeat(lessonFrame.stars)}${"☆".repeat(3 - lessonFrame.stars)} · ${lessonFrame.score} puntos` : `${lessonFrame.name} · ${Math.ceil(lessonFrame.duration - lessonFrame.elapsed)} s · excesos ${lessonFrame.speeding.toFixed(1)} s · golpes ${lessonFrame.collisions}`;
+        if (Math.random() < dt * 0.055 && speed > 35) { bumpTime = 0.42; navigator.vibrate?.(35); wheelInput.pulse(0.22, 45); }
+        if (bumpTime > 0) { bumpTime -= dt; V.position.y = Math.abs(Math.sin(bumpTime * 34)) * 0.12; }
+        else V.position.y += ((physicalFrame?.suspension || 0) - V.position.y) * Math.min(1, dt * 12);
+        if(cargoAssigned){
+          const ambient=Number(liveWeatherState?.temperature??(weatherMode===2?9:weatherMode===1?13:22));
+          cargoFrame=cargoCondition.update({ambientTemperature:ambient,doorOpen:cargoDoorOpen,reeferPowered,longitudinalG:(physicalFrame?.acceleration||0)/9.81,lateralG:physicalFrame?.lateralG||0,vibration:(Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?.55:.08)+(bumpTime>0?.7:0),speed},dt);
+          const alertKey=cargoFrame.alerts.join("|");if(alertKey&&alertKey!==lastCargoAlert){eventLog.record("operations","cargo:condition_warning",{alerts:cargoFrame.alerts,integrity:Math.round(cargoFrame.integrity),temperature:Number(cargoFrame.temperature.toFixed(1)),restraint:Math.round(cargoFrame.restraint)},{severity:cargoFrame.integrity<60?"critical":"warning"})}lastCargoAlert=alertKey;
+          if(now>=cargoDrawAt){cargoDrawAt=now+250;renderCargoCondition(cargoFrame)}
+        }
+        document.querySelector("#damageState").textContent = `${Math.round(damage)}%`;
+        document.querySelector("#physicsState").textContent = physicalFrame?.aquaplaning > .12 ? `Aquaplaning · ${Math.round(physicalFrame.aquaplaning * 100)}%` : Math.abs(activeOsmRoute ? routeLaneOffset : V.position.x) > 7.2 ? "Arcén · baja adherencia" : isWetWeather() ? `Mojado · ${Math.round((physicalFrame?.grip || .68) * 100)}% agarre` : currentWeather() === "snow" ? `Nieve · ${Math.round((physicalFrame?.grip || .58) * 100)}% agarre` : `${(physicalFrame?.lateralG || 0).toFixed(2)} g`;
+        document.querySelector("#transmissionState").textContent = engineRunning ? `${physicalFrame?.shifting ? "CAMBIO" : `${physicalFrame?.gear || physics.gear}ª`} · ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm · aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar · frenos ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°` : `Motor apagado · aire ${(physicalFrame?.airPressureBar ?? physics.airPressureBar).toFixed(1)} bar`;
+        engineAudio.update({rpm:engineRunning?(physicalFrame?.rpm||physics.rpm):0,load:Number(accelerating)||0,running:engineRunning,speed,surface:Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?"gravel":"asphalt",weather:currentWeather(),windSpeed:liveWeatherState?.windSpeed||(currentWeather()==="storm"?34:isWetWeather()?18:5),braking:Boolean(braking),indicator:hazardsOn?0:Math.abs(steer)>.22?Math.sign(steer):0,hazards:hazardsOn});
+        document.querySelector("#limitState").textContent = worldState.currentSpeedLimit ? `${worldState.currentSpeedLimit} km/h${worldState.speeding ? " · EXCESO" : ""}` : "Semáforo rojo";
+        if (physicalFrame?.rolloverWarning) document.querySelector("#assistState").textContent = "Riesgo de vuelco · reduce velocidad";
+        else if (physicalFrame?.lowAirPressure) document.querySelector("#assistState").textContent = `⚠ Presión de aire baja · ${physicalFrame.airPressureBar.toFixed(1)} bar`;
+        else if (physicalFrame?.absActive) document.querySelector("#assistState").textContent = `ABS actuando · ${Math.round(physicalFrame.absPressure * 100)}% presión`;
+        else if (physicalFrame?.tractionLimited) document.querySelector("#assistState").textContent = "Control de tracción actuando";
+        if (specialFrame?.active) {
+          document.querySelector("#specialState").textContent = specialFrame.ready ? `${specialFrame.cargo?.name || "Especial"} · ${(specialFrame.cargo?.mass || 0) / 1000} t · escolta ${specialFrame.escortCount}` : specialFrame.stageLabel;
+          if (!specialFrame.ready) document.querySelector("#assistState").textContent = "Completa la preparación antes de circular";
+          if (specialFrame.restricted) document.querySelector("#assistState").textContent = "Carga especial: centra el convoy y reduce velocidad";
+        }
+        document.querySelector("#dashSpeed").textContent = Math.round(speed);
+        const activeAssist=document.querySelector("#assistState"),assistText=activeAssist.textContent;
+        const assistLevel=/colisión|sin combustible|vuelco|frenando/i.test(assistText)?"critical":/exceso|actuando|reduce|preparación|especial/i.test(assistText)?"warning":"info";
+        activeAssist.dataset.level=assistLevel;
+        hudMotion.update({speed,limit:worldState.currentSpeedLimit||90,alertLevel:assistLevel});
+        document.querySelector("#dashGear").textContent = `D${physicalFrame?.gear || physics.gear}`;
+        document.querySelector("#dashFuel").textContent = `${Math.round(career.state.truck.fuel)}% combustible`;
+        document.querySelector("#dashLimit").textContent = worldState.currentSpeedLimit ? `Límite ${worldState.currentSpeedLimit}` : "STOP";
+        document.querySelector("#dashRpmBar").style.width = `${Math.min(100, (physicalFrame?.rpm || physics.rpm) / 23)}%`;
+        document.querySelector("#visualWheel").style.transform = `rotate(${steer * 135}deg)`;
+        if (V.userData.cockpitSteering) V.userData.cockpitSteering.rotation.z = -steer * 1.75;
+        V.userData.updateCabinControls?.({
+          speed, rpm: physicalFrame?.rpm || physics.rpm, steering: steer,
+          headlights: headlightsOn, hazards: hazardsOn, wipers: manualWipers || isWetWeather() || currentWeather() === "snow",
+          parking: parkingBrake, retarder: retarderOn, time: now,
+        });
+        if (V.userData.instrument && now >= cockpitDrawAt) {
+          cockpitDrawAt = now + 80;
+          const { canvas, context: x, texture } = V.userData.instrument;
+          const gearLabel = physicalFrame?.shifting ? "↕" : `D${physicalFrame?.gear || physics.gear}`;
+          x.clearRect(0, 0, canvas.width, canvas.height);
+          const gradient = x.createLinearGradient(0, 0, 0, canvas.height); gradient.addColorStop(0, "#12313a"); gradient.addColorStop(1, "#020709");
+          x.fillStyle = gradient; x.fillRect(0, 0, canvas.width, canvas.height);
+          x.strokeStyle = worldState.speeding ? "#ff5b50" : "#45ead2"; x.lineWidth = 5; x.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+          x.textAlign = "center"; x.fillStyle = "#eafffb"; x.font = "700 82px system-ui"; x.fillText(Math.round(speed), 250, 98);
+          x.font = "600 22px system-ui"; x.fillStyle = "#8edfd4"; x.fillText(`km/h     ${gearLabel}     ${Math.round(physicalFrame?.rpm || physics.rpm)} rpm`, 250, 137);
+          x.font = "500 18px system-ui"; x.fillStyle = worldState.speeding ? "#ff756b" : "#b4c8cd";
+          x.fillText(`LÍMITE ${worldState.currentSpeedLimit || 0}  ·  COMBUSTIBLE ${Math.round(career.state.truck.fuel)}%  ·  FRENO ${Math.round(physicalFrame?.brakeTemperature || physics.brakeTemperature)}°`, 250, 169);
+          texture.needsUpdate = true;
+          if (V.userData.navigation) {
+            const { canvas: navCanvas, context: nav, texture: navTexture } = V.userData.navigation;
+            nav.fillStyle = "#071218"; nav.fillRect(0, 0, navCanvas.width, navCanvas.height);
+            nav.strokeStyle = "#203942"; nav.lineWidth = 2;
+            for (let grid = 32; grid < navCanvas.width; grid += 48) { nav.beginPath(); nav.moveTo(grid, 0); nav.lineTo(grid, navCanvas.height); nav.stroke(); nav.beginPath(); nav.moveTo(0, grid); nav.lineTo(navCanvas.width, grid); nav.stroke(); }
+            nav.strokeStyle = "#42dbc5"; nav.lineWidth = 28; nav.lineCap = "round"; nav.beginPath();
+            if(activeOsmRoute&&activeWorldRoute.length){const centerIndex=Math.min(activeWorldRoute.length-1,Math.floor(Math.min(1,physicalDistance/Math.max(1,routeRuntime.length))*(activeWorldRoute.length-1))),start=Math.max(0,centerIndex-12),end=Math.min(activeWorldRoute.length-1,centerIndex+45),pose=routeRuntime.sampleAt(Math.min(physicalDistance,routeRuntime.length),0),heading=pose?.heading||0,cos=Math.cos(-heading),sin=Math.sin(-heading),scale=.42;for(let i=start;i<=end;i++){const dx=activeWorldRoute[i].x-(pose?.x||0),dz=activeWorldRoute[i].z-(pose?.z||0),x=192+(dx*cos-dz*sin)*scale,y=255+(dx*sin+dz*cos)*scale;(i===start?nav.moveTo(x,y):nav.lineTo(x,y));}nav.stroke()}else{nav.moveTo(192,420);nav.bezierCurveTo(185,300,245,236,170,120);nav.bezierCurveTo(138,70,185,42,230,-20);nav.stroke()}
+            nav.fillStyle = "#f5fbfa"; nav.beginPath(); nav.moveTo(192, 230); nav.lineTo(172, 274); nav.lineTo(192, 264); nav.lineTo(212, 274); nav.closePath(); nav.fill();
+            nav.fillStyle = "#9db4bc"; nav.font = "600 23px system-ui"; nav.textAlign = "center"; nav.fillText(`${document.querySelector("#city").textContent} · ${Math.max(1, Math.round((V.position.z + 2800) / 100))} km`, 192, 354);
+            navTexture.needsUpdate = true;
+          }
+        }
+        document.querySelector("#dashLimit").classList.toggle("warning", worldState.speeding || !worldState.currentSpeedLimit);
+        if (hazardsOn) document.querySelector('[data-cockpit="hazard"]').style.opacity = Math.sin(now * 0.012) > 0 ? "1" : ".35";
+        const indicatorPulse = Math.sin(now * .009) > 0;
+        for(const object of vehicleBrakeLamps)object.material.emissiveIntensity=braking?4.8:1.15;
+        for(const object of vehicleTurnLamps)object.visible=Boolean(hazardsOn||Math.abs(steer)>.22&&Math.sign(steer)===object.userData.turnSide)&&indicatorPulse;
+        detailedTruckExterior?.userData.updateExterior?.({time:now,wipersOn:manualWipers||isWetWeather()||currentWeather()==="snow",headlightsOn});
+        if (!mapPanel.hidden) drawRouteMap();
+        if (!europeMapPanel.hidden && now >= europeMapDrawAt) { europeMapDrawAt = now + 180; europeMap.setVehicleProgress(physicalDistance / 1000); }
+        if (!activeOsmRoute && V.position.z < -2800) { V.position.z = 2800; physicalDistance += 5600; cameraReady = false; }
+        V.rotation.z = physicalFrame?.suspensionRoll ?? physicalFrame?.bodyRoll ?? steer * 0.07;
+        V.rotation.x = physicalFrame?.suspensionPitch ?? 0;
+        document.querySelector("#speed").textContent =
+          Math.round(speed) + " km/h";
+        if (!activeOsmRoute) document.querySelector("#city").textContent = [
+          "Nova Liria",
+          "Puerto Alba",
+          "Valleverde",
+          "Bahía Solar",
+        ][Math.max(0, Math.floor((420 - V.position.z) / 205) % 4)];
+        regionOperations.update({ city:document.querySelector("#city").textContent, distance:physicalDistance, service:nearestRoadsideService, roadState:document.querySelector("#roadEvent").textContent, now });
+        let navigationFrame = null;
+        if (activeOsmRoute) {
+          const progress=Math.min(1,physicalDistance/Math.max(1,routeRuntime.length)),gpsCoordinate=coordinateAtRouteProgress(activeOsmRoute,progress);
+          navigationFrame=routeNavigation.update(gpsCoordinate,{speedKmh:speed});
+          document.querySelector("#dashNavInstruction").textContent=navigationFrame.arrived?"Destino alcanzado":navigationFrame.offRoute?"Recalculando ruta":navigationFrame.nextInstruction;
+          document.querySelector("#dashNavDistance").textContent=navigationFrame.arrived?"✓":`${Math.round(navigationFrame.distanceToManeuverMeters||navigationFrame.distanceRemainingMeters)} m`;
+        } else {
+          document.querySelector("#dashNavInstruction").textContent="Continúa por la vía";
+          document.querySelector("#dashNavDistance").textContent=`${Math.max(1,Math.round((V.position.z+2800)/100))} km`;
+        }
+        const alertElement=document.querySelector("#assistState");
+        const contextualAlert = physicalFrame?.rolloverWarning ? ["critical","Riesgo de vuelco · reduce velocidad"]
+          : emergency ? ["critical","AEBS · frenada de emergencia"]
+          : navigationFrame?.offRoute ? ["warning","Fuera de ruta · recalculando"]
+          : worldState.speeding ? ["warning",`Exceso de velocidad · límite ${worldState.currentSpeedLimit}`]
+          : physicalFrame?.aquaplaning > .12 ? ["warning","Aquaplaning · reduce velocidad"]
+          : physicalFrame?.absActive ? ["warning","ABS actuando"]
+          : physicalFrame?.tractionLimited ? ["warning","Control de tracción actuando"]
+          : specialFrame?.active && (!specialFrame.ready || specialFrame.restricted) ? ["warning",specialFrame.ready?"Carga especial · centra el convoy":"Completa la preparación de la carga"]
+          : navigationFrame?.arrived ? ["normal","Destino alcanzado"] : ["normal","AEBS listo"];
+        alertElement.dataset.level=contextualAlert[0]; alertElement.textContent=contextualAlert[1];
+        syncCockpitControls();
+        vehicleAnimationRig?.update({dt,time:now,steering:steer,speed,suspension:physicalFrame?.suspension||0,parking:parkingBrake,siren:sirenOn});
+        vehicleSurfaceStates.update({speed,weather:currentWeather(),surface:Math.abs(activeOsmRoute?routeLaneOffset:V.position.x)>7.2?"gravel":"asphalt",distanceKm:physicalDistance/1000});
+        for(const part of vehicleWheels){
+          const rollingParts = part.userData.rollingParts;
+          if (rollingParts) rollingParts.rotation.x -= speed * dt * 0.045;
+          else part.rotation.x -= speed * dt * 0.045;
+          if (part.userData.frontWheel) part.rotation.y += (steer * 0.32 - part.rotation.y) * Math.min(1, dt * 9);
+        }
+        if (onFoot) {
+          const walking = accelerating || braking || left || right;
+          worker.position.y = walking ? Math.abs(Math.sin(now * 0.012)) * 0.08 : 0;
+          worker.rotation.z = walking ? Math.sin(now * 0.012) * 0.035 : 0;
+          palletJack.rotation.z = walking && workTool === "palletJack" ? Math.sin(now * 0.014) * 0.025 : 0;
+        }
+        camera(dt, now);
+        const interiorCamera=!onFoot&&(view===1||view===2);
+        if(interiorCamera!==lastInteriorCamera){for(const object of vehicleExteriorSkins)object.visible=!interiorCamera;for(const object of vehicleModeledCabins)object.visible=interiorCamera;lastInteriorCamera=interiorCamera}
+        emergencyFleet.update(V, now, sirenOn);
+        enhancements.update({ time: now, speed, steering: steer, weather: currentWeather(), dayPhase: currentWeather() === "night" ? 0.78 : 0.34, wipers: isWetWeather() || currentWeather() === "snow" || manualWipers, cameraPosition: C.position });
+        V?.userData.updateMirrors?.(R, S, now, view === 1 || view === 2);
+        if(shadows&&now>=shadowRefreshAt){const stressed=performanceFrame.fps<detectedGraphics.targetFps*.72,desiredShadowSize=stressed?(qualityLevel===3?2048:1024):(qualityLevel===3?4096:qualityLevel===2?2048:1024);if(desiredShadowSize!==appliedShadowSize){appliedShadowSize=desiredShadowSize;sun.shadow.mapSize.set(appliedShadowSize,appliedShadowSize);sun.shadow.map?.dispose();sun.shadow.map=null}shadowRefreshAt=now+1000/Math.max(1,detectedGraphics.shadowHz);R.shadowMap.needsUpdate=true}
+        renderFrameSafely();
+        requestAnimationFrame(loop);
+      }
+      build("truck");
+      requestAnimationFrame(()=>window.__transportBootOk?.());
+      const enhancements = createTransportEnhancements({ THREE: T, scene: S, renderer: R, sun, vehicle: V, qualityLevel, roadWidth: 30 });
+      const worldEvents = createWorldEvents({ THREE: T, scene: S, qualityLevel });
+      const ambientLife = createAmbientLife({ THREE: T, scene: S, qualityLevel, roadHalfWidth: 15 });
+      const cityLife = createCityLife({ THREE: T, scene: S, qualityLevel });
+      onresize = () => {
+        C.aspect = innerWidth / innerHeight;
+        C.updateProjectionMatrix();
+        R.setSize(innerWidth, innerHeight);
+        adaptiveResolution.resize();
+      };
+      requestAnimationFrame(loop);
+      const traffic3d = [];
+      for (let i = 0; i < [3, 5, 9, 14][qualityLevel]; i++) {
+        const c = [0xe34d64, 0x4c7ee8, 0xf1b84b, 0x54bd82, 0xa9afb5, 0x704b91][i % 6],
+          g = worldDetail.createTrafficVehicle({ index: i, color: c });
+        const direction = i % 3 === 0 ? 1 : -1,
+          lanes = direction === -1 ? [-8, -3.2] : [3.2, 8];
+        const laneX = lanes[i % lanes.length];
+        g.position.set(laneX, 0, 30 - i * 90);
+        g.rotation.y = direction === 1 ? Math.PI : 0;
+        g.userData.direction = direction;
+        g.userData.laneX = laneX;
+        g.userData.roadSpeedKmh = direction === -1 ? 66 + (i % 3) * 9 : 78 + (i % 2) * 12;
+        g.userData.cruiseSpeedKmh = g.userData.roadSpeedKmh;
+        g.userData.laneChangeCooldown = i * .7;
+        g.userData.indicatorUntil = 0;
+        S.add(g);
+        traffic3d.push(g);
+      }
+      function createCone(parent, px, pz) {
+        const cone = new T.Mesh(new T.ConeGeometry(0.28, 0.85, 12), mat(0xff6b18, 0.55));
+        cone.position.set(px, 0.43, pz); cone.castShadow = true; parent.add(cone);
+        const band = new T.Mesh(new T.CylinderGeometry(0.2, 0.24, 0.12, 12), mat(0xf4f4ed, 0.35));
+        band.position.set(px, 0.47, pz); parent.add(band);
+      }
+      const roadworks = new T.Group();
+      roadworks.userData.kind = "Obras: carril derecho cerrado";
+      for (let z = 35; z <= 125; z += 7) createCone(roadworks, -8 + Math.min(4.5, (z - 35) * 0.05), z);
+      const serviceTruck = part(roadworks, 2.8, 1.4, 5.2, 0xf3b51b, -7.1, 1.1, 67);
+      serviceTruck.material.userData.vehicleSurface = "machinery";
+      const serviceChassis = part(roadworks, 2.55, .28, 5.9, 0x252b2f, -7.1, .63, 67); serviceChassis.material.userData.vehicleSurface = "heavySteel";
+      const serviceCabin = part(roadworks, 2.55, 1.65, 2.25, 0xf3b51b, -7.1, 2.02, 65.55); serviceCabin.material.userData.vehicleSurface = "machinery";
+      const serviceRoof = part(roadworks, 2.65, .22, 2.35, 0xe8edf0, -7.1, 2.94, 65.55); serviceRoof.material.userData.vehicleSurface = "utility";
+      const serviceWindow = part(roadworks, 2.12, .72, .08, 0x254b5b, -7.1, 2.28, 64.39); serviceWindow.material = glass;
+      const serviceBed = part(roadworks, 2.7, .75, 2.55, 0xaeb6b8, -7.1, 1.58, 68.25); serviceBed.material.userData.vehicleSurface = "utility";
+      for (const px of [-8.28, -5.92]) {
+        const locker = part(roadworks, .18, .62, 2.15, 0xc5cbcc, px, 1.42, 68.2); locker.material.userData.vehicleSurface = "utility";
+      }
+      const serviceBumper = part(roadworks, 2.72, .32, .26, 0x343c40, -7.1, .75, 64.28); serviceBumper.material.userData.vehicleSurface = "heavySteel";
+      const serviceChevron = part(roadworks, 2.62, .95, .06, 0xffffff, -7.1, 1.15, 69.63);
+      serviceChevron.material.userData.vehicleSurface = "chevron";
+      for (const px of [-8.15, -6.05]) for (const pz of [65.55, 68.25]) {
+        const serviceWheel = new T.Mesh(new T.CylinderGeometry(.48, .48, .3, 18), tire);
+        serviceWheel.rotation.z = Math.PI / 2; serviceWheel.position.set(px, .52, pz); serviceWheel.userData.isWheel = true; roadworks.add(serviceWheel);
+      }
+      const arrowBoard = part(roadworks, 2.6, 1.65, 0.18, 0x111820, -7.1, 3.45, 69.45);
+      const serviceLightbar = part(roadworks, 1.35, .13, .3, 0xffa51f, -7.1, 3.15, 65.4); serviceLightbar.material = new T.MeshStandardMaterial({ color:0xffa51f, emissive:0xff7600, emissiveIntensity:2.4 });
+      for (let n = 0; n < 5; n++) {
+        const light = new T.PointLight(n % 2 ? 0xff7a18 : 0xffd34d, qualityLevel >= 2 ? 10 : 0, 8);
+        light.position.set(-8 + n * 0.45, 3.45, 69.28); roadworks.add(light);
+      }
+      roadworks.position.z = -20; S.add(roadworks);
+      const tunnel = new T.Group();
+      tunnel.userData.kind = "Túnel Sierra Norte";
+      for (let z = -330; z <= -170; z += 8) {
+        for (const side of [-1, 1]) part(tunnel, 1.1, 9, 7.8, 0x4b535b, side * 15.1, 4.5, z);
+        part(tunnel, 31.2, 1.1, 7.8, 0x555d64, 0, 9.25, z);
+        if (qualityLevel >= 1) {
+          const lampMesh = part(tunnel, 0.3, 0.12, 5, 0xffe6a3, 0, 8.55, z);
+          lampMesh.material = new T.MeshStandardMaterial({ color: 0xffe6a3, emissive: 0xffd36a, emissiveIntensity: qualityLevel >= 2 ? 4 : 2 });
+        }
+      }
+      S.add(tunnel);
+      const rainGeo = new T.BufferGeometry(),
+        rainPos = new Float32Array([240, 540, 1200, 2400][qualityLevel]);
+      for (let i = 0; i < rainPos.length; i += 3) {
+        rainPos[i] = (Math.random() - 0.5) * 90;
+        rainPos[i + 1] = Math.random() * 45;
+        rainPos[i + 2] = (Math.random() - 0.5) * 180;
+      }
+      rainGeo.setAttribute("position", new T.BufferAttribute(rainPos, 3));
+      const rain = new T.Points(
+        rainGeo,
+        new T.PointsMaterial({
+          color: 0xb9e7ff,
+          size: 0.12,
+          transparent: true,
+          opacity: 0.65,
+        }),
+      );
+      rain.visible = false;
+      S.add(rain);
+      const snowGeo = new T.BufferGeometry(),
+        snowPos = new Float32Array([180, 420, 900, 1600][qualityLevel]);
+      for (let i = 0; i < snowPos.length; i += 3) {
+        snowPos[i] = (Math.random() - .5) * 105;
+        snowPos[i + 1] = Math.random() * 42;
+        snowPos[i + 2] = (Math.random() - .5) * 180;
+      }
+      snowGeo.setAttribute("position", new T.BufferAttribute(snowPos, 3));
+      const snow = new T.Points(snowGeo, new T.PointsMaterial({ color:0xffffff, size:.3, transparent:true, opacity:.82, depthWrite:false }));
+      snow.visible = false; S.add(snow);
+      const lightning = new T.DirectionalLight(0xd9e8ff, 0);
+      lightning.position.set(-35, 55, 18); S.add(lightning);
+      const liveFire = createFireEffect({ THREE:T, scene:S, qualityLevel });
+      let weatherMode = 0, weatherSelection = 0, liveWeatherState = null, nextLightningAt = 0, lightningUntil = 0;
+      function currentWeather() {
+        if (regionalEventFrame?.effects?.weather) return regionalEventFrame.effects.weather;
+        if (liveWeatherState?.weather) return String(liveWeatherState.weather).toLowerCase();
+        return weatherMode === 2 ? "night" : weatherMode === 1 ? "rain" : "clear";
+      }
+      function isWetWeather() { return ["rain","storm","thunderstorm"].includes(currentWeather()); }
+      const weatherButton = document.createElement("button");
+      weatherButton.textContent = "Clima: despejado";
+      function applyWeatherVisuals() {
+        const weather = currentWeather(), storm = weather === "storm" || weather === "thunderstorm";
+        rain.visible = weather === "rain" || storm;
+        snow.visible = weather === "snow";
+        const palette = {
+          night:[0x050916,0x091126,.45,90,430], rain:[0x526b78,0x607682,1.3,65,330],
+          storm:[0x18232d,0x31414b,.55,38,220], thunderstorm:[0x18232d,0x31414b,.55,38,220],
+          snow:[0xb9c8d0,0xd9e1e5,1.75,42,280], fog:[0xa8b2b4,0xb7c0c1,1.2,12,125],
+          clear:[0x87c8ed,0xa6d0e5,3,90,430]
+        }[weather] || [0x87c8ed,0xa6d0e5,3,90,430];
+        S.background.set(palette[0]); S.fog.color.set(palette[1]); S.fog.near=palette[3]; S.fog.far=palette[4]; sun.intensity=palette[2];
+        S.traverse((object) => {
+          if (object.userData.streetLamp) object.intensity = weather === "night" ? 18 : (isWetWeather() || weather === "fog" || weather === "snow") ? 4 : 0;
+        });
+      }
+      weatherButton.onclick = async () => {
+        weatherSelection = (weatherSelection + 1) % 4;
+        if (weatherSelection === 3) {
+          const progress = activeOsmRoute ? Math.min(1, physicalDistance / Math.max(1, routeRuntime.length)) : 0;
+          const coordinate = activeOsmRoute ? coordinateAtRouteProgress(activeOsmRoute, progress) : { lat:40.4168, lon:-3.7038 };
+          liveEnvironment.setLocation(coordinate); weatherButton.textContent = "Clima real: cargando…";
+          liveWeatherState = await liveEnvironment.load(true);
+          weatherMode = ["rain","snow","storm","thunderstorm","fog"].includes(liveWeatherState.weather) ? 1 : 0;
+          weatherButton.textContent = `Real: ${liveWeatherState.weather} · ${Math.round(liveWeatherState.temperature || 0)}°C${liveWeatherState.wildfire ? " · incendio cercano" : ""}`;
+        } else {
+          liveEnvironment.disable(); liveWeatherState = null; weatherMode = weatherSelection;
+          weatherButton.textContent = ["Clima: despejado","Clima: lluvia","Hora: noche"][weatherMode];
+        }
+        applyWeatherVisuals();
+      };
+      document.querySelector(".controls").appendChild(weatherButton);
+      let lastTrafficFrame = performance.now(), lastWorldUpdate = lastTrafficFrame, shadowRefreshAt = 0;
+      function worldLoop(now = performance.now()) {
+        const renderDt=Math.min(.05,Math.max(.001,(now-lastTrafficFrame)/1000));lastTrafficFrame=now;adaptiveResolution.sample(renderDt);
+        const worldInterval=1000/Math.max(1,detectedGraphics.worldHz);
+        if(now-lastWorldUpdate<worldInterval){requestAnimationFrame(worldLoop);return}
+        const trafficDt=Math.min(.1,Math.max(.001,(now-lastWorldUpdate)/1000));lastWorldUpdate=now;
+        if (V) {
+          ambientLife.update({ vehicle: V, camera: C, biome: document.querySelector("#city")?.textContent === "Valleverde" ? "alpine" : "rural", time: now, dt: trafficDt, hornActive: Boolean(honking || keys?.["h"] || keys?.["H"]), hour: new Date().getHours() });
+          const cityName=document.querySelector("#city")?.textContent||"";
+          cityLife.update({vehicle:V,hour:new Date().getHours(),day:new Date().getDay(),settlement:cityName==="Valleverde"?"village":"city",ambientRoot:ambientLife.root});
+          const firePosition = V.position.clone().add(new T.Vector3(55,0,-95)); liveFire.update(trafficDt, liveWeatherState, firePosition);
+          for (let i = 0; i < traffic3d.length; i++) {
+            const o = traffic3d[i];
+            o.userData.laneChangeCooldown = Math.max(0, o.userData.laneChangeCooldown - trafficDt);
+            let nearestAhead = Infinity;
+            for (let j = 0; j < traffic3d.length; j++) {
+              if (i === j) continue;
+              const other = traffic3d[j];
+              if (other.userData.direction !== o.userData.direction || Math.abs(other.position.x - o.userData.laneX) > 1.8) continue;
+              const gap = o.userData.direction * (other.position.z - o.position.z);
+              if (gap > 0 && gap < nearestAhead) nearestAhead = gap;
+            }
+            const previousSpeed = o.userData.roadSpeedKmh;
+            const safeGap = 17 + previousSpeed * .42;
+            let targetSpeed = o.userData.cruiseSpeedKmh * (regionalEventFrame.effects.trafficMultiplier || 1);
+            if (nearestAhead < safeGap) {
+              const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
+              const alternateLane = lanes.find((lane) => lane !== o.userData.laneX);
+              const laneClear = traffic3d.every((other) => other === o || other.userData.direction !== o.userData.direction ||
+                Math.abs(other.position.x - alternateLane) > 1.8 || Math.abs(other.position.z - o.position.z) > 32);
+              if (laneClear && o.userData.laneChangeCooldown <= 0) {
+                o.userData.laneX = alternateLane;
+                o.userData.indicatorUntil = now + 2500;
+                o.userData.laneChangeCooldown = 8 + Math.random() * 5;
+              } else targetSpeed = Math.max(24, previousSpeed - (safeGap - nearestAhead) * 1.6);
+            }
+            const speedStep = (targetSpeed < previousSpeed ? 18 : 7) * trafficDt;
+            o.userData.roadSpeedKmh += Math.max(-speedStep, Math.min(speedStep, targetSpeed - previousSpeed));
+            const movement = o.userData.direction * o.userData.roadSpeedKmh / 3.6 * trafficDt;
+            o.position.z += movement;
+            const lateralError = o.userData.laneX - o.position.x;
+            o.position.x += lateralError * Math.min(1, trafficDt * 1.7);
+            const brakingTraffic = previousSpeed - o.userData.roadSpeedKmh > .04;
+            const indicatingTraffic = now < o.userData.indicatorUntil && Math.floor(now / 360) % 2 === 0;
+            o.traverse((part) => {
+              if (part.userData.isWheel) part.rotation.x -= Math.abs(movement) * 1.25;
+              if (part.userData.brakeLamp && part.material?.emissive) {
+                part.material.emissive.setHex(brakingTraffic ? 0xff1808 : 0x270000);
+                part.material.emissiveIntensity = brakingTraffic ? 2.8 : .35;
+              }
+              if (part.userData.turnSide && part.material?.emissive) {
+                const isLaneSide = Math.sign(lateralError) === (part.userData.turnSide === "left" ? -1 : 1);
+                part.material.emissiveIntensity = indicatingTraffic && isLaneSide ? 3.2 : .15;
+              }
+            });
+            if (o.position.z > V.position.z + 110 || o.position.z < V.position.z - 650) {
+              o.position.z = V.position.z - 260 - Math.random() * 360;
+              const lanes = o.userData.direction === -1 ? [-8, -3.2] : [3.2, 8];
+              o.userData.laneX = lanes[Math.floor(Math.random() * lanes.length)];
+              o.position.x = o.userData.laneX;
+              o.userData.roadSpeedKmh = o.userData.cruiseSpeedKmh;
+            }
+          }
+          const workDistance = roadworks.position.z + 70 - V.position.z,
+            tunnelDistance = -170 - V.position.z,
+            wildlifeHazard = ambientLife.evaluateNearestHazard?.(V.position),
+            eventLabel = document.querySelector("#roadEvent");
+          if (workDistance < 35 && workDistance > -125) eventLabel.textContent = "⚠ Obras · reduzca velocidad";
+          else if (workDistance >= 35 && workDistance < 190) eventLabel.textContent = `Obras a ${Math.round(workDistance)} m`;
+          else if (tunnelDistance >= 0 && tunnelDistance < 220) eventLabel.textContent = `Túnel a ${Math.round(tunnelDistance)} m`;
+          else if (tunnelDistance < 0 && tunnelDistance > -175) eventLabel.textContent = "Túnel Sierra Norte";
+          else if (wildlifeHazard && wildlifeHazard.warning) eventLabel.textContent = `🦌 ${wildlifeHazard.recommendedAction}`;
+          else eventLabel.textContent = regionalEventFrame.id ? regionalEventFrame.label : "Sin incidencias";
+          if (workDistance < -150) roadworks.position.z = V.position.z - 520 - Math.random() * 260;
+          rain.position.set(V.position.x, 0, V.position.z - 30);
+          if (rain.visible) {
+            const a = rain.geometry.attributes.position.array;
+            for (let i = 1; i < a.length; i += 3) {
+              a[i] -= 0.65;
+              if (a[i] < 0) a[i] = 45;
+            }
+            rain.geometry.attributes.position.needsUpdate = true;
+          }
+          snow.position.set(V.position.x, 0, V.position.z - 30);
+          if (snow.visible) {
+            const a = snow.geometry.attributes.position.array;
+            for (let i = 0; i < a.length; i += 3) {
+              a[i] += Math.sin(now * .0015 + i) * .018; a[i + 1] -= .12; a[i + 2] += .035;
+              if (a[i + 1] < 0) { a[i + 1] = 42; a[i] = (Math.random() - .5) * 105; }
+            }
+            snow.geometry.attributes.position.needsUpdate = true;
+          }
+          const storm = currentWeather() === "storm" || currentWeather() === "thunderstorm";
+          if (storm && now >= nextLightningAt) { lightningUntil = now + 90 + Math.random() * 130; nextLightningAt = now + 2800 + Math.random() * 6500; }
+          lightning.intensity = storm && now < lightningUntil ? 5.5 : 0;
+        }
+        requestAnimationFrame(worldLoop);
+      }
+      requestAnimationFrame(worldLoop);
+    </script>
+    <script>
+      var vn = document.querySelector("#vn"),
+        truck = document.querySelector("#truck"),
+        cam = document.querySelector("#cam"),
+        full = document.querySelector("#full");
+      const mode2d = document.createElement("button");
+      mode2d.textContent = "Cambiar a 2D";
+      mode2d.onclick = () => {
+        try {
+          parent.document.querySelector('[data-game="hauler"]').click();
+        } catch (e) {
+          location.href = "/hub-games.html?game=hauler";
+        }
+      };
+      document.querySelector(".controls").appendChild(mode2d);
+    </script>
+  </body>
+</html>
