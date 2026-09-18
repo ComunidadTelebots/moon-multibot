@@ -5411,6 +5411,12 @@ class MoonBot:
                 self.send_msg(cid, "?? Solo el dueño del bot.")
             return True
 
+        # Right to Updates: handle only voting deep links; preserve all other commands.
+        if raw_cmd == "/start" and args and args[0].startswith("rtu_"):
+            if not self._run_plugin_command(cid, uid, text, rk):
+                self.send_msg(cid, "La verificación de votos no está disponible en este bot.")
+            return True
+
         if raw_cmd in ["/start", "/inicio", "/panel", "/menu"] and (self.bot_username or "").lower() == "cintiabot":
             command_language = self._command_languages.get(str(cid), "es")
             kb = {"inline_keyboard": [
