@@ -7154,7 +7154,7 @@ def patch_bot_instances():
             bot.router_queue = queue.Queue()
             
         original_api_call = bot.api_call
-                def patched_api_call(m, p=None, silent=False):
+        def patched_api_call(m, p=None, silent=False):
             # En Sub-Bots, interceptamos getUpdates...
             if MOON_ENV != "stable" and m == "getUpdates":
                 try:
