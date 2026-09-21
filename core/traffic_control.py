@@ -6,10 +6,11 @@ import re
 import threading
 from contextlib import contextmanager
 from pathlib import Path
+from core.bot_endpoint import canonical_bot_url
 
 
 def identity(url):
-    return hashlib.sha256(url.encode()).hexdigest()[:12]
+    return hashlib.sha256(canonical_bot_url(url).encode()).hexdigest()[:12]
 
 
 class TrafficControl:

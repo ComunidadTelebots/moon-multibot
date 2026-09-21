@@ -5,6 +5,7 @@ import hashlib
 import math
 import threading
 import time
+from core.bot_endpoint import canonical_bot_url
 
 
 KEYS = ('updates', 'received', 'sent', 'calls', 'errors', 'limited', 'timeouts',
@@ -42,6 +43,7 @@ class OperationsTelemetry:
                 bucket[key] = max(bucket[key], value) if key == 'retry_after_max' else bucket[key] + value
 
     def telegram(self, base_url, method, data, elapsed_ms, timeout=False):
+        base_url = canonical_bot_url(base_url)
         data = data if isinstance(data, dict) else {}
         ok = data.get('ok') is True
         limited = data.get('error_code') == 429

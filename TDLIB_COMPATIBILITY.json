@@ -2,7 +2,7 @@
   "schema": 1,
   "ready_for_full_migration": false,
   "summary": {
-    "methods": 60,
+    "methods": 59,
     "call_sites": 181,
     "dynamic_calls": 5,
     "parse_errors": 0
@@ -26,7 +26,6 @@
     "editEphemeralMessageReplyMarkup",
     "editEphemeralMessageText",
     "editMessageText",
-    "editRichMessage",
     "forwardMessage",
     "getChat",
     "getChatAdministrators",
@@ -135,238 +134,238 @@
     },
     {
       "file": "core/routes_public.py",
-      "line": 1016,
+      "line": 1017,
       "method": "getChat",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1019,
+      "line": 1020,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1084,
+      "line": 1085,
       "method": "getChat",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1089,
+      "line": 1090,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 2693,
+      "line": 2694,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 2701,
+      "line": 2702,
       "method": "getChat",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 3134,
+      "line": 3135,
       "method": "sendPhoto",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4147,
+      "line": 4148,
       "method": "restrictChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4211,
+      "line": 4212,
       "method": "getChatAdministrators",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1123,
+      "line": 1124,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 2225,
+      "line": 2226,
       "method": "unbanChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 2974,
+      "line": 2975,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 3168,
+      "line": 3169,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4185,
+      "line": 4186,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4241,
+      "line": 4242,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1287,
+      "line": 1288,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4411,
+      "line": 4412,
       "method": "answerChatJoinRequestQuery",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "core/routes_public.py",
-      "line": 4414,
-      "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
       "line": 4415,
+      "method": "banChatMember",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "core/routes_public.py",
+      "line": 4416,
       "method": "declineChatJoinRequest",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 638,
+      "line": 639,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 659,
+      "line": 660,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1299,
+      "line": 1300,
       "method": "unbanChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 2874,
+      "line": 2875,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4525,
+      "line": 4526,
       "method": "answerChatJoinRequestQuery",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4267,
+      "line": 4268,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4547,
+      "line": 4548,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 4549,
+      "line": 4550,
       "method": "declineChatJoinRequest",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1317,
+      "line": 1318,
       "method": "restrictChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1321,
+      "line": 1322,
       "method": "restrictChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 1344,
+      "line": 1345,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 928,
+      "line": 929,
       "method": "getChat",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 942,
+      "line": 943,
       "method": "getChatMemberCount",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 945,
+      "line": 946,
       "method": "getChatAdministrators",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "core/routes_public.py",
-      "line": 977,
+      "line": 978,
       "method": "getChat",
       "entry": "api_call",
       "status": "requires_adapter"
@@ -415,618 +414,611 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 1064,
+      "line": 1065,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 1263,
+      "line": 1264,
       "method": "setMyDescription",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3372,
+      "line": 3373,
       "method": "getMe",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3401,
+      "line": 3402,
       "method": null,
       "entry": "telegram_api_call",
       "status": "dynamic_review_required"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3519,
+      "line": 3520,
       "method": "sendRichMessage",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3529,
+      "line": 3530,
       "method": "sendMessage",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3540,
+      "line": 3541,
       "method": "sendRichMessageDraft",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3552,
-      "method": "editRichMessage",
-      "entry": "call_api",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 3560,
+      "line": 3553,
       "method": "editMessageText",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3570,
+      "line": 3561,
+      "method": "editMessageText",
+      "entry": "call_api",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 3571,
       "method": "sendMessageDraft",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3581,
+      "line": 3582,
       "method": "editEphemeralMessageText",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3589,
+      "line": 3590,
       "method": "editEphemeralMessageMedia",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3599,
+      "line": 3600,
       "method": "editEphemeralMessageCaption",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3603,
+      "line": 3604,
       "method": "editEphemeralMessageReplyMarkup",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3609,
+      "line": 3610,
       "method": "deleteEphemeralMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3615,
+      "line": 3616,
       "method": "answerInlineQuery",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3948,
+      "line": 3949,
       "method": null,
       "entry": "call_api",
       "status": "dynamic_review_required"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3969,
+      "line": 3970,
       "method": "sendPhoto",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3986,
+      "line": 3987,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4030,
+      "line": 4031,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4077,
+      "line": 4078,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4085,
+      "line": 4086,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4097,
+      "line": 4098,
       "method": "sendAudio",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4100,
+      "line": 4101,
       "method": "sendVideo",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4103,
+      "line": 4104,
       "method": "sendLocation",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4106,
+      "line": 4107,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4109,
+      "line": 4110,
       "method": "editMessageText",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4112,
+      "line": 4113,
       "method": "pinChatMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4120,
+      "line": 4121,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4123,
+      "line": 4124,
       "method": "getManagedBotToken",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4126,
+      "line": 4127,
       "method": "replaceManagedBotToken",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4393,
+      "line": 4394,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4431,
+      "line": 4432,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4515,
+      "line": 4516,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4607,
+      "line": 4608,
       "method": "restrictChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4615,
+      "line": 4616,
       "method": "promoteChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4618,
+      "line": 4619,
       "method": "setChatTitle",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4621,
+      "line": 4622,
       "method": "getChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4651,
+      "line": 4652,
       "method": "unpinChatMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4654,
+      "line": 4655,
       "method": "unpinAllChatMessages",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4657,
+      "line": 4658,
       "method": "unbanChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4660,
+      "line": 4661,
       "method": "sendChatAction",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4663,
+      "line": 4664,
       "method": "sendVoice",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4666,
+      "line": 4667,
       "method": "sendSticker",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4669,
+      "line": 4670,
       "method": "forwardMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4675,
+      "line": 4676,
       "method": "copyMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4700,
+      "line": 4701,
       "method": "sendPoll",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4703,
+      "line": 4704,
       "method": "getChat",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4706,
+      "line": 4707,
       "method": "getChatMemberCount",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4714,
+      "line": 4715,
       "method": "answerCallbackQuery",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4719,
+      "line": 4720,
       "method": "setMessageReaction",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4725,
+      "line": 4726,
       "method": "setChatMemberTag",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4729,
+      "line": 4730,
       "method": "savePreparedKeyboardButton",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4733,
+      "line": 4734,
       "method": "answerGuestQuery",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4741,
+      "line": 4742,
       "method": "deleteMessageReaction",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4746,
+      "line": 4747,
       "method": "deleteAllMessageReactions",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4750,
+      "line": 4751,
       "method": "sendLivePhoto",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4754,
+      "line": 4755,
       "method": "getManagedBotAccessSettings",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4757,
+      "line": 4758,
       "method": "setManagedBotAccessSettings",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4761,
+      "line": 4762,
       "method": "getUserPersonalChatMessages",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4937,
+      "line": 4938,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5545,
+      "line": 5546,
       "method": "restrictChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5553,
+      "line": 5554,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5848,
+      "line": 5849,
       "method": "sendChatJoinRequestWebApp",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5865,
+      "line": 5866,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3098,
+      "line": 3099,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3471,
+      "line": 3472,
       "method": "sendMessage",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3563,
+      "line": 3564,
       "method": "editMessageText",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3788,
+      "line": 3789,
       "method": "deleteMessage",
       "entry": "call_api",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4001,
+      "line": 4002,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4339,
+      "line": 4340,
       "method": "getChatAdministrators",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4355,
+      "line": 4356,
       "method": "answerChatJoinRequestQuery",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4358,
+      "line": 4359,
       "method": "declineChatJoinRequest",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4359,
+      "line": 4360,
       "method": "banChatMember",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4465,
+      "line": 4466,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4547,
+      "line": 4548,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4584,
+      "line": 4585,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4636,
+      "line": 4637,
       "method": "getChatAdministrators",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4991,
+      "line": 4992,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5169,
+      "line": 5170,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5475,
+      "line": 5476,
       "method": "getChatAdministrators",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5559,
+      "line": 5560,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5597,
+      "line": 5598,
       "method": "sendChatJoinRequestWebApp",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5875,
+      "line": 5876,
       "method": "sendChatJoinRequestWebApp",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 1718,
+      "line": 1719,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 1785,
+      "line": 1786,
       "method": "sendDocument",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 3475,
+      "line": 3476,
       "method": "sendMessage",
       "entry": "call_api",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 3937,
-      "method": "setMyCommands",
-      "entry": "api_call",
       "status": "requires_adapter"
     },
     {
@@ -1038,7 +1030,7 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 3942,
+      "line": 3939,
       "method": "setMyCommands",
       "entry": "api_call",
       "status": "requires_adapter"
@@ -1052,252 +1044,259 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 3954,
-      "method": "sendDocument",
-      "entry": "telegram_api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 4263,
-      "method": "sendMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5389,
-      "method": "unbanChatMember",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5506,
-      "method": "getChat",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5508,
-      "method": "getChatMemberCount",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5524,
-      "method": "sendMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5602,
-      "method": "approveChatJoinRequest",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5924,
-      "method": "getUpdates",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 215,
-      "method": "setChatPermissions",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 936,
-      "method": "getChat",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 941,
-      "method": "getChatAdministrators",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 944,
-      "method": "getChatMemberCount",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 1331,
-      "method": "getMe",
-      "entry": "telegram_api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 3940,
+      "line": 3944,
       "method": "setMyCommands",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5917,
-      "method": "getMe",
-      "entry": "api_call",
+      "line": 3955,
+      "method": "sendDocument",
+      "entry": "telegram_api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4527,
-      "method": "banChatMember",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5644,
-      "method": "getChatMemberCount",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5648,
-      "method": "getChat",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6139,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6202,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6241,
-      "method": "getFile",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6289,
-      "method": "getFile",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6495,
-      "method": "getFile",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6531,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6607,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6613,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6620,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 221,
-      "method": "getChatMember",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6024,
-      "method": "banChatSenderChat",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6215,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6586,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 5997,
-      "method": "getChatMemberCount",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6021,
-      "method": "deleteMessage",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6330,
-      "method": "getFile",
-      "entry": "api_call",
-      "status": "requires_adapter"
-    },
-    {
-      "file": "moon_multibot.py",
-      "line": 6452,
+      "line": 4264,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6458,
+      "line": 5390,
+      "method": "unbanChatMember",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5507,
+      "method": "getChat",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5509,
+      "method": "getChatMemberCount",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5525,
+      "method": "sendMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5603,
+      "method": "approveChatJoinRequest",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5925,
+      "method": "getUpdates",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 216,
+      "method": "setChatPermissions",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 937,
+      "method": "getChat",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 942,
+      "method": "getChatAdministrators",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 945,
+      "method": "getChatMemberCount",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 1332,
+      "method": "getMe",
+      "entry": "telegram_api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 3941,
+      "method": "setMyCommands",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5918,
+      "method": "getMe",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 4528,
+      "method": "banChatMember",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5645,
+      "method": "getChatMemberCount",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5649,
+      "method": "getChat",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6140,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6203,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6242,
+      "method": "getFile",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6290,
+      "method": "getFile",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6496,
+      "method": "getFile",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6532,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6608,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6614,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6621,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 222,
+      "method": "getChatMember",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6025,
+      "method": "banChatSenderChat",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6216,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6587,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 5998,
+      "method": "getChatMemberCount",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6022,
+      "method": "deleteMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6331,
+      "method": "getFile",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6453,
+      "method": "sendMessage",
+      "entry": "api_call",
+      "status": "requires_adapter"
+    },
+    {
+      "file": "moon_multibot.py",
+      "line": 6459,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
@@ -1318,7 +1317,7 @@
     },
     {
       "file": "plugins/image_analysis.py",
-      "line": 17,
+      "line": 18,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"

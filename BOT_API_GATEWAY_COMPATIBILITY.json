@@ -1,0 +1,7 @@
+{
+  "official_commit": "e3e9dd8e5b3d7ab8537cd5a10dc31d5ffa8f82d1",
+  "static_methods": 59,
+  "missing_methods": [],
+  "dynamic_calls_need_review": 5,
+  "runtime_plugin_compatibility_verified": false
+}

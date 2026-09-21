@@ -73,3 +73,15 @@ Repetir la prueba con `--restart` verifica reapertura; `--receive` espera hasta
 duplicados, recuperación de red ni recuperación tras caída abrupta basándose en
 este reinicio limpio. Tampoco valida plugins, moderación, envío multimedia o
 distribución entre Docker. Estos flujos siguen pendientes de adaptar e integrar.
+
+## Prueba del gateway y del plugin (22 de septiembre de 2026)
+
+Se verificó la identidad de @Ctbapptestbot en el servidor oficial local y cuatro
+contratos de lectura. El comando privado /calculadora 2+2 atravesó el gateway
+sobre TDLib, la cola SQLite y el plugin existente de calculadora. Telegram
+confirmó una respuesta «Resultado: 4». La cola terminó con una tarea completada,
+sin tareas pendientes ni inciertas. No se migraron los demás bots.
+
+La ruta para conservar el contrato de los plugins está documentada en
+`deploy/telegram-gateway/README.md`. Esta prueba no certifica todos los plugins:
+el bucle principal de Moonbot todavía no consume la cola persistente.

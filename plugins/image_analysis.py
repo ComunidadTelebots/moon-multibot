@@ -1,3 +1,4 @@
+from core.bot_endpoint import bot_file_url
 import pytesseract
 from PIL import Image
 import requests
@@ -20,7 +21,7 @@ def handle_command(bot, cid, uid, text, rank):
                 return True
             
             file_path = file_info["result"]["file_path"]
-            download_url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+            download_url = bot_file_url(bot.token, file_path)
             
             # Descargar imagen
             response = requests.get(download_url)

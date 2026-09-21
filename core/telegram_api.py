@@ -15,6 +15,7 @@ def create_telegram_session():
     session.mount("https://api.telegram.org/", HTTPAdapter(
         pool_connections=1, pool_maxsize=32, max_retries=0, pool_block=False,
     ))
+    session.mount('http://', HTTPAdapter(pool_connections=4, pool_maxsize=32, max_retries=0))
     return session
 
 RICH_MARKDOWN_MODES = {"richmarkdown", "rich_markdown", "rich-markdown"}

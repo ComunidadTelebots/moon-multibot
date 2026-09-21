@@ -1,3 +1,4 @@
+from core.bot_endpoint import bot_api_url, bot_file_url, uses_local_api
 import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from core.plugin_security import validate_plugin_filename
@@ -1065,7 +1066,7 @@ def web_telegram_file_proxy(file_id):
     if not f_info.get("ok"): return "File not found", 404
     
     path = f_info["result"]["file_path"]
-    url = f"https://api.telegram.org/file/bot{bot.token}/{path}"
+    url = bot_file_url(bot.token, path)
     
     try:
         r = requests.get(url, stream=True, timeout=10)
@@ -1328,7 +1329,7 @@ def web_bots():
                         "username": getattr(active, "bot_username", "Moonbot"),
                     }
                 else:
-                    me = telegram_api_call(requests.Session(), f"https://api.telegram.org/bot{tk}/", "getMe", {}, timeout=12)
+                    me = telegram_api_call(requests.Session(), bot_api_url(tk), "getMe", {}, timeout=12)
                     profile = me.get("result", {}) if me.get("ok") else {}
                     global_bot_names_cache[tk] = {
                         "name": profile.get("first_name") or "Token inválido",
@@ -3351,7 +3352,7 @@ def submit_community_proxy(server, port, secret, by=""):
 
 class MoonBot:
     def __init__(self, token):
-        self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", create_telegram_session(), []
+        self.token, self.url, self.session, self.plugins = token, bot_api_url(token), create_telegram_session(), []
         self.db = db
         self.ia = ia_nativa
         self.ia_nativa = ia_nativa
@@ -3384,7 +3385,7 @@ class MoonBot:
 
         # TDLib bot client (opcional) â€” autentica con bot token, sesiÃ³n propia
         self._tdlib = None
-        if TDLIB_API_ID and TDLIB_API_HASH:
+        if TDLIB_API_ID and TDLIB_API_HASH and not uses_local_api(token):
             bot_dir = f"tdlib_data/bot_{bot_public_id(token)}"
             self._tdlib = TDLibClient(
                 TDLIB_API_ID, TDLIB_API_HASH, db,
@@ -3549,7 +3550,7 @@ class MoonBot:
         payload = {"chat_id": chat_id, "message_id": message_id, "rich_message": rich_message}
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
-        result = self.call_api("editRichMessage", payload, silent=True)
+        result = self.call_api("editMessageText", payload, silent=True)
         if result.get("ok"):
             return result
         fallback = fallback_text if fallback_text is not None else markdown if markdown is not None else html
@@ -4034,7 +4035,7 @@ class MoonBot:
         path = os.path.join("downloads", f"scan-{msg['message_id']}-{filename}")
         try:
             response = requests.get(
-                f"https://api.telegram.org/file/bot{self.token}/{info['result']['file_path']}",
+                bot_file_url(self.token, info["result"]["file_path"]),
                 timeout=45,
             )
             response.raise_for_status()
@@ -5674,7 +5675,7 @@ class MoonBot:
                 data = image_gen.fetch_bytes(photo) if photo else None
                 if data:
                     response = requests.post(
-                        f"https://api.telegram.org/bot{bot.token}/sendPhoto",
+                        bot_api_url(bot.token) + "sendPhoto",
                         data={"chat_id": str(cid), "caption": (m.get("text") or "")[:1024]},
                         files={"photo": ("imagen.jpg", data)}, timeout=45,
                     )
@@ -6241,7 +6242,7 @@ class MoonBot:
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.jpg")
-                            url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                            url = bot_file_url(self.token, f_info["result"]["file_path"])
                             try:
                                 r = requests.get(url, timeout=30)
                                 r.raise_for_status()
@@ -6289,7 +6290,7 @@ class MoonBot:
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.mp4")
-                            url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                            url = bot_file_url(self.token, f_info["result"]["file_path"])
                             r = requests.get(url)
                             with open(path, 'wb') as f_out: f_out.write(r.content)
                             
@@ -6332,7 +6333,7 @@ class MoonBot:
                                     os.makedirs("downloads", exist_ok=True)
                                     safe_token = re.sub(r"[^a-zA-Z0-9_-]", "_", str(document.get("file_unique_id") or file_id))[:120]
                                     path = os.path.join("downloads", f"script_{safe_token}{extension}")
-                                    url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                                    url = bot_file_url(self.token, f_info["result"]["file_path"])
                                     try:
                                         response = requests.get(url, timeout=20)
                                         response.raise_for_status()
@@ -6493,7 +6494,7 @@ class MoonBot:
                     if text.startswith("/"): db.set(f"COOLDOWN_{uid}", time.time())
                     if "photo" in msg:
                         f = self.api_call("getFile", {"file_id": msg["photo"][-1]["file_id"]})
-                        if f.get("ok"): global_media_list.append(f"https://api.telegram.org/file/bot{self.token}/{f['result']['file_path']}")
+                        if f.get("ok"): global_media_list.append(bot_file_url(self.token, f["result"]["file_path"]))
                     # Karma & Engagement System
                     sent = analyze_sentiment(text)
                     if uid not in global_user_stats: 
