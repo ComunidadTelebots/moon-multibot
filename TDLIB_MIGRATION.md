@@ -55,3 +55,21 @@ No lee el almacén de bots ni envía mensajes. Las sesiones son temporales. El
 registro nativo se desactiva antes de iniciar clientes para evitar que escriba
 parámetros de autenticación. No incluir el archivo de configuración en imágenes,
 commits ni argumentos que contengan valores de credenciales.
+
+## Validación local del 22 de septiembre de 2026
+
+Con TDLib 1.8.64 en un contenedor temporal:
+
+- Dos clientes sin red: 32 consultas concurrentes `getOption(version)` con
+  correlación de cliente/petición correcta y sin peticiones pendientes al finalizar.
+- `@Ctbapptestbot`: autenticación real y verificación de identidad con `getMe`.
+- Parada y reapertura de la sesión temporal, conservando la identidad del bot.
+- Recepción real de `/tdlib_probe` a través de `updateNewMessage` y el callback
+  opcional `on_update`. No se registraron remitente, chat ni contenido.
+- Cierre confirmado con `authorizationStateClosed`. Cero mensajes enviados.
+
+Repetir la prueba con `--restart` verifica reapertura; `--receive` espera hasta
+180 segundos el mensaje de prueba, sin contestarlo. No afirmar entrega sin
+duplicados, recuperación de red ni recuperación tras caída abrupta basándose en
+este reinicio limpio. Tampoco valida plugins, moderación, envío multimedia o
+distribución entre Docker. Estos flujos siguen pendientes de adaptar e integrar.

@@ -2,7 +2,7 @@
 
 Responses bypass callback queues so a callback can safely use send_await.
 The queues preserve update order within each account. They are not the
-durable, cross-Docker work queue used for distributed business processing.
+durable, cross-Docker work queue still needed for distributed processing.
 """
 import json
 import queue

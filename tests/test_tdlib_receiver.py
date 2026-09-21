@@ -16,6 +16,19 @@ def client(identifier):
 
 
 class ReceiverTests(unittest.TestCase):
+    def test_bot_raw_updates_are_opt_in_and_responses_do_not_reach_callback(self):
+        current = client(10)
+        current._bot_token = 'test-only'
+        callback = Mock()
+        update = {'@type': 'updateNewMessage', 'message': {'id': 1}}
+        current._dispatch(update)
+        current.on_update = callback
+        current._dispatch(update)
+        callback.assert_called_once_with(update)
+        current._pending['1'] = (threading.Event(), [None])
+        current._dispatch({'@extra': '1', '@type': 'user'})
+        callback.assert_called_once()
+
     def test_same_request_id_cannot_cross_accounts(self):
         router = TDLibReceiver()
         first, second = client(10), client(20)
@@ -66,3 +79,11 @@ class ReceiverTests(unittest.TestCase):
         self.assertIsNone(current.send_await(query, timeout=0))
         self.assertEqual(query, {'@type': 'getMe'})
         self.assertEqual(current._pending, {})
+
+    def test_timeout_response_cannot_complete_a_new_request(self):
+        current = client(10)
+        current.send_await({'@type': 'getMe'}, timeout=0)
+        current._pending['2'] = (threading.Event(), [None])
+        current._dispatch({'@extra': '1', '@type': 'user', 'id': 100})
+        self.assertFalse(current._pending['2'][0].is_set())
+        self.assertIsNone(current._pending['2'][1][0])

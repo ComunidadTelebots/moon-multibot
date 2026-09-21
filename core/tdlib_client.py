@@ -36,6 +36,9 @@ class TDLibClient:
 
         # Userbot (solo relevante en modo cuenta de usuario)
         self.on_message = None
+        # Raw, ordered TDLib updates for the future Bot API compatibility adapter.
+        # Opt-in: existing bots continue using their existing polling pipeline.
+        self.on_update = None
         self.userbot_enabled = False
         self._me = {}
 
@@ -90,6 +93,10 @@ class TDLibClient:
             return True
         if self._client_id is not None and self._auth_state != 'authorizationStateClosed':
             return False
+        if self._stop_requested.is_set() and self._watchdog_thread is not None:
+            self._watchdog_thread.join(timeout=1)
+            if self._watchdog_thread.is_alive():
+                return False
         self._stop_requested.clear()
         self._events = queue.Queue(maxsize=4096)
         os.makedirs(self._db_dir, exist_ok=True)
@@ -212,6 +219,8 @@ class TDLibClient:
         t = event.get("@type", "")
         if t == "updateAuthorizationState":
             self._handle_auth(event["authorization_state"])
+        elif self._bot_token and self.on_update and t.startswith('update'):
+            self.on_update(event)
         elif t == "updateNewMessage" and not self._bot_token:
             self._handle_new_message(event["message"])
 
