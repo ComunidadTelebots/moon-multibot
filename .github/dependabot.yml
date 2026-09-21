@@ -1,15 +1,18 @@
 version: 2
 updates:
   - package-ecosystem: pip
+    target-branch: alpha
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
   - package-ecosystem: docker
+    target-branch: alpha
     directory: /
     schedule:
       interval: monthly
   - package-ecosystem: github-actions
+    target-branch: alpha
     directory: /
     schedule:
       interval: monthly

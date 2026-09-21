@@ -7,6 +7,7 @@ on:
       - "**.py"
       - "web/hub.html"
       - "requirements.txt"
+      - "Dockerfile"
       - ".github/workflows/ci.yml"
   pull_request:
     branches: [master, alpha]
@@ -21,12 +22,16 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
       - uses: actions/setup-node@v7
         with:
@@ -62,3 +67,19 @@ jobs:
 
       - name: Validate Hub JavaScript
         run: node --check /tmp/hub-inline.js
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build Python 3.14 image without publishing
+        run: docker buildx build --load --tag moonbot-ci:local .
+      - name: Verify Python dependencies and TDLib shared library
+        run: >-
+          docker run --rm --entrypoint python moonbot-ci:local -c
+          'import ctypes, requests, flask, telethon, sklearn, cryptography;
+          ctypes.CDLL("/usr/local/lib/libtdjson.so");
+          from core.cdn_discovery import CdnDiscovery;
+          print("Python dependencies and TDLib loaded")'
