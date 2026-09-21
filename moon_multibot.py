@@ -1266,6 +1266,14 @@ def web_settings_legacy():
 # rutas audit/logs/faq y users/media/bans/stats movidas a core/routes_ops.py y core/routes_users.py
 global_bot_names_cache = {}
 
+@app.route('/api/telemetry/tdlib-migration')
+def tdlib_migration_status():
+    if not check_jwt(request):
+        return jsonify({'ok': False}), 401
+    from core.tdlib_migration import migration_snapshot
+    return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
+
+
 @app.route("/api/internal/traffic", methods=['GET', 'POST'])
 def internal_traffic_control():
     import hmac

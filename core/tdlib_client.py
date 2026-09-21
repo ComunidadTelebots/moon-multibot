@@ -1,11 +1,13 @@
 import datetime
 import json
 import os
+import queue
 import threading
 from ctypes import CDLL, CFUNCTYPE, c_char_p, c_double, c_int
 from ctypes.util import find_library
 
 from core.config import TDLIB_PATH as TDLIB_SO
+from core.tdlib_receiver import receiver
 
 
 class TDLibClient:
@@ -21,6 +23,12 @@ class TDLibClient:
         self._running = False
         self._auth_state = "not_loaded"
         self._pending = {}
+        self._pending_lock = threading.Lock()
+        self._events = queue.Queue(maxsize=4096)
+        self._stop_requested = threading.Event()
+        self._watchdog_thread = None
+        self._receiver_events = 0
+        self._receiver_overflows = 0
         self._extra_counter = 0
         self._extra_lock = threading.Lock()
         self._tdjson = None
@@ -74,41 +82,52 @@ class TDLibClient:
     def start(self):
         if not self._tdjson:
             return False
+        if self._running:
+            return True
+        if self._client_id is not None and self._auth_state != 'authorizationStateClosed':
+            return False
+        self._stop_requested.clear()
+        self._events = queue.Queue(maxsize=4096)
         os.makedirs(self._db_dir, exist_ok=True)
         os.makedirs(self._db_dir + "_files", exist_ok=True)
         self._client_id = self._tdjson.td_create_client_id()
         self._running = True
         self._restart_count = 0
+        receiver.register(self)
         if not self._bot_token:
             self.userbot_enabled = bool(self._db.get("TDLIB_USERBOT_ENABLED", False))
         threading.Thread(target=self._receive_loop, daemon=True,
                          name=f"tdlib-{'bot' if self._bot_token else 'user'}").start()
-        threading.Thread(target=self._watchdog, daemon=True,
-                         name=f"tdlib-watchdog-{'bot' if self._bot_token else 'user'}").start()
+        if self._watchdog_thread is None or not self._watchdog_thread.is_alive():
+            self._watchdog_thread = threading.Thread(target=self._watchdog, daemon=True,
+                                                     name='tdlib-watchdog')
+            self._watchdog_thread.start()
         self.send({"@type": "getOption", "name": "version"})
         return True
 
     def stop(self):
+        self._stop_requested.set()
         self._running = False
+        self._fail_pending()
         if self._tdjson and self._client_id is not None:
             self.send({"@type": "close"})
 
     def _watchdog(self):
-        import time as _time
-        _time.sleep(30)
-        while True:
-            _time.sleep(60)
+        while not self._stop_requested.wait(60):
             if not self._tdjson:
                 break
-            if not self._running and self._auth_state != "not_started":
+            if not self._running and self._auth_state == "authorizationStateClosed":
                 backoff = min(300, 30 * (2 ** min(self._restart_count, 4)))
                 self._log("TDLIB", f"Watchdog: cliente caído (auth={self._auth_state}), reiniciando en {backoff}s…")
-                _time.sleep(backoff)
+                if self._stop_requested.wait(backoff):
+                    return
                 self._restart_count += 1
                 try:
                     self._client_id = self._tdjson.td_create_client_id()
                     self._running = True
                     self._auth_state = "not_started"
+                    self._events = queue.Queue(maxsize=4096)
+                    receiver.register(self)
                     threading.Thread(target=self._receive_loop, daemon=True,
                                      name=f"tdlib-{'bot' if self._bot_token else 'user'}-r{self._restart_count}").start()
                     self.send({"@type": "getOption", "name": "version"})
@@ -135,35 +154,55 @@ class TDLibClient:
         return json.loads(result) if result else None
 
     def send_await(self, query: dict, timeout: float = 15.0):
+        if not self._running or self._stop_requested.is_set():
+            return None
+        query = dict(query)
         extra = self._next_extra()
         query["@extra"] = extra
         event = threading.Event()
         holder = [None]
-        self._pending[extra] = (event, holder)
-        self.send(query)
-        event.wait(timeout)
-        self._pending.pop(extra, None)
+        with self._pending_lock:
+            self._pending[extra] = (event, holder)
+        try:
+            self.send(query)
+            event.wait(timeout)
+        finally:
+            with self._pending_lock:
+                self._pending.pop(extra, None)
         return holder[0]
+
+    def _resolve_response(self, event):
+        with self._pending_lock:
+            pending = self._pending.get(event.get('@extra'))
+            if pending is None:
+                return False
+            signal, holder = pending
+            holder[0] = event
+            signal.set()
+            return True
+
+    def _fail_pending(self):
+        with self._pending_lock:
+            for signal, holder in self._pending.values():
+                holder[0] = None
+                signal.set()
 
     # ── Loop receptor ─────────────────────────────────────────────
 
     def _receive_loop(self):
-        while self._running:
-            raw = self._tdjson.td_receive(1.0)
-            if not raw:
+        events = self._events
+        while self._running and events is self._events:
+            try:
+                event = events.get(timeout=0.5)
+            except queue.Empty:
                 continue
             try:
-                event = json.loads(raw)
+                self._dispatch(event)
             except Exception:
-                continue
-            self._dispatch(event)
+                self._log('ERROR', 'TDLib: error al procesar un evento')
 
     def _dispatch(self, event: dict):
-        extra = event.get("@extra")
-        if extra and extra in self._pending:
-            ev, holder = self._pending[extra]
-            holder[0] = event
-            ev.set()
+        if self._resolve_response(event):
             return
 
         t = event.get("@type", "")
@@ -337,6 +376,10 @@ class TDLibClient:
             "mode": "bot" if self._bot_token else "user",
             "userbot_enabled": self.userbot_enabled,
             "me": self._me,
+            "receiver": {"mode": "shared", "events": self._receiver_events,
+                         "queued": self._events.qsize(), "capacity": self._events.maxsize,
+                         "overflows": self._receiver_overflows,
+                         "manual_stop": self._stop_requested.is_set()},
         }
 
     def get_history(self, chat_id: int, limit: int = 100) -> list:
