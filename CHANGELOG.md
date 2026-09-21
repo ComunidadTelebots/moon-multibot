@@ -1,3 +1,8 @@
+## v18.23.17-alpha.2
+
+- Retiene hasta 32 conexiones Telegram para ráfagas concurrentes, sin reintentos HTTP adicionales.
+- Devuelve el último 429 sin una espera inútil, conservando retry_after para el llamador.
+
 # Changelog - Moon Multibot
 
 ## v18.23.17-alpha.1
