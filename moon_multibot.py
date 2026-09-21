@@ -5915,6 +5915,11 @@ class MoonBot:
                     # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
+                    try:
+                        from core.message_analytics import analytics as message_analytics
+                        message_analytics.record(msg)
+                    except Exception:
+                        add_web_log("WARN", "No se pudo registrar la analítica de mensajes")
                     if self.telegram_events.record_community_message(msg):
                         continue
                     if u.get("message") and self.enforce_pending_join_captcha(msg):

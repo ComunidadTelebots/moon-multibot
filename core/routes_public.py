@@ -4698,3 +4698,16 @@ def public_house_ads_manage():
         communities = [{**community, "items": community["items"][:16]} for community in grouped.values() if community["items"]]
         return jsonify({"ok": True, "ads": _house_ads_payload(), "communities": communities})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/internal/message-ranking")
+def internal_message_ranking():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    from core.message_analytics import analytics
+    try:
+        return jsonify(analytics.ranking(int(request.args.get("days", "7")), request.args.get("kind", "all")))
+    except ValueError:
+        return jsonify({"ok": False, "error": "invalid_filters"}), 400
+    except Exception:
+        return jsonify({"ok": False, "error": "analytics_unavailable"}), 503
