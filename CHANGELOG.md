@@ -1,4 +1,20 @@
+## v18.23.17-alpha.3
+
+- Añade descubrimiento CDN opcional con sesión MTProto en memoria, renovación por caducidad y endpoint JWT.
+
+## v18.23.17-alpha.2
+
+- Retiene hasta 32 conexiones Telegram para ráfagas concurrentes, sin reintentos HTTP adicionales.
+- Devuelve el último 429 sin una espera inútil, conservando retry_after para el llamador.
+
 # Changelog - Moon Multibot
+
+## v18.23.17-alpha.1
+
+- Publica `/api/telemetry/operations` con el JWT administrativo existente y contrato v1 para el panel de todosobreall.tech.
+- Cuenta entregas de Telegram, envíos confirmados, intentos API, errores 429, timeouts y tráfico HTTP de Moonbot.
+- Conserva ventanas acotadas de 60 segundos y 60 minutos sin almacenar textos, tokens ni chats.
+- Mantiene el comportamiento de reintentos y deduplica las últimas 10.000 entregas por bot/update.
 
 ## v18.23.16
 

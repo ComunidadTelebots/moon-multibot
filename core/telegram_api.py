@@ -1,9 +1,20 @@
 import re
 import time
 import requests
+from requests.adapters import HTTPAdapter
+from core.operations_telemetry import telemetry
 
 
 TELEGRAM_BOT_API_VERSION = "10.2"
+
+
+def create_telegram_session():
+    """Retain burst connections without adding automatic POST retries."""
+    session = requests.Session()
+    session.mount("https://api.telegram.org/", HTTPAdapter(
+        pool_connections=1, pool_maxsize=32, max_retries=0, pool_block=False,
+    ))
+    return session
 
 RICH_MARKDOWN_MODES = {"richmarkdown", "rich_markdown", "rich-markdown"}
 RICH_MESSAGE_MAX_CHARS = 32768
@@ -166,6 +177,7 @@ def telegram_api_call(session, base_url, method, params=None, files=None, timeou
     method = normalize_method(method)
     params = params or {}
     for attempt in range(_retries):
+        attempt_started = time.monotonic()
         try:
             if files:
                 response = session.post(base_url + method, data=params, files=files, timeout=timeout)
@@ -174,29 +186,37 @@ def telegram_api_call(session, base_url, method, params=None, files=None, timeou
             try:
                 data = response.json()
             except ValueError:
+                telemetry.telegram(base_url, method, {}, (time.monotonic() - attempt_started) * 1000)
                 return {
                     "ok": False,
                     "description": f"Telegram returned non-JSON response ({response.status_code})",
                 }
             if not isinstance(data, dict):
+                telemetry.telegram(base_url, method, {}, (time.monotonic() - attempt_started) * 1000)
                 return {"ok": False, "description": "Telegram returned an invalid payload"}
+            telemetry.telegram(base_url, method, data, (time.monotonic() - attempt_started) * 1000)
             # Manejo de rate limit 429: esperar retry_after y reintentar
             if not data.get("ok") and data.get("error_code") == 429:
+                if attempt == _retries - 1:
+                    return data
                 retry_after = data.get("parameters", {}).get("retry_after", 5)
                 time.sleep(retry_after)
                 continue
             return data
         except requests.exceptions.ConnectionError:
+            telemetry.telegram(base_url, method, {}, (time.monotonic() - attempt_started) * 1000)
             if attempt < _retries - 1:
                 time.sleep(2 ** attempt)
                 continue
             return {"ok": False, "description": "Connection error after retries"}
         except requests.exceptions.Timeout:
+            telemetry.telegram(base_url, method, {}, (time.monotonic() - attempt_started) * 1000, timeout=True)
             if attempt < _retries - 1:
                 time.sleep(2 ** attempt)
                 continue
             return {"ok": False, "description": "Timeout after retries"}
         except requests.exceptions.RequestException as exc:
+            telemetry.telegram(base_url, method, {}, (time.monotonic() - attempt_started) * 1000)
             return {"ok": False, "description": str(exc)}
     return {"ok": False, "description": "Max retries exceeded"}
 

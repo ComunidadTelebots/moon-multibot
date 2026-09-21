@@ -34,6 +34,7 @@ from core.config import (
 )
 from core.db import DBManager
 from core.telegram_api import (
+    create_telegram_session,
     DEFAULT_ALLOWED_UPDATES,
     TELEGRAM_BOT_API_VERSION,
     build_input_rich_message,
@@ -902,6 +903,11 @@ def web_login():
         return jsonify({"ok": True, "token": tk})
     _record_login_failure(rate_key)
     return jsonify({"ok": False}), 401
+
+from core.operations_telemetry import install_http_telemetry
+install_http_telemetry(app, check_jwt)
+from core.cdn_discovery import install_cdn_discovery
+install_cdn_discovery(app, check_jwt)
 
 @app.route("/health")
 def health_check():
@@ -3306,7 +3312,7 @@ def submit_community_proxy(server, port, secret, by=""):
 
 class MoonBot:
     def __init__(self, token):
-        self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", requests.Session(), []
+        self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", create_telegram_session(), []
         self.db = db
         self.ia = ia_nativa
         self.ia_nativa = ia_nativa
@@ -5866,6 +5872,9 @@ class MoonBot:
                     _poll_failures += 1
                     self.runtime_poll_failures = _poll_failures
                     backoff = min(300, 5 * (2 ** min(_poll_failures - 1, 5)))
+                    retry_after = (res.get("parameters") or {}).get("retry_after", 0)
+                    if isinstance(retry_after, (int, float)) and retry_after > 0:
+                        backoff = max(backoff, retry_after)
                     add_web_log("ERROR", f"Error getUpdates: {res.get('description')} â€” reintentando en {backoff}s (intento {_poll_failures})")
                     time.sleep(backoff); continue
                 _poll_failures = 0
