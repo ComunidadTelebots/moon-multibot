@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from core import routes_public
@@ -71,7 +72,7 @@ class ContextualFeaturePermissionTests(unittest.TestCase):
         self.assertFalse(payload["kwargs"]["is_master"])
 
     def test_hub_sends_only_server_selected_group_context(self):
-        source = (routes_public.__file__.replace("core\\routes_public.py", "web\\hub.html"))
+        source = Path(routes_public.__file__).resolve().parent.parent / "web" / "hub.html"
         with open(source, encoding="utf-8") as handle:
             html = handle.read()
         self.assertIn('b={...b,group_id:roleFeatureSelectedGroup}', html)
