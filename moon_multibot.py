@@ -903,6 +903,9 @@ def web_login():
     _record_login_failure(rate_key)
     return jsonify({"ok": False}), 401
 
+from core.operations_telemetry import install_http_telemetry
+install_http_telemetry(app, check_jwt)
+
 @app.route("/health")
 def health_check():
     return jsonify({"ok": True, "uptime": int(time.time() - start_time), "bots": len(active_bots)})

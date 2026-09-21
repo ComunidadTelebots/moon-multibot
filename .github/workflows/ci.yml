@@ -2,14 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, alpha]
     paths:
       - "**.py"
       - "web/hub.html"
       - "requirements.txt"
       - ".github/workflows/ci.yml"
   pull_request:
-    branches: [master]
+    branches: [master, alpha]
 
 permissions:
   contents: read
@@ -33,7 +33,7 @@ jobs:
           node-version: "24"
 
       - name: Install validation tools
-        run: pip install ruff requests
+        run: pip install ruff requests flask
 
       # Prioriza errores que pueden romper la ejecución. El estilo histórico se
       # corregirá por lotes sin convertir deuda antigua en falsos negativos.
