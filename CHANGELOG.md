@@ -1,3 +1,7 @@
+## v18.23.17-alpha.3
+
+- Añade descubrimiento CDN opcional con sesión MTProto en memoria, renovación por caducidad y endpoint JWT.
+
 ## v18.23.17-alpha.2
 
 - Retiene hasta 32 conexiones Telegram para ráfagas concurrentes, sin reintentos HTTP adicionales.

@@ -906,6 +906,8 @@ def web_login():
 
 from core.operations_telemetry import install_http_telemetry
 install_http_telemetry(app, check_jwt)
+from core.cdn_discovery import install_cdn_discovery
+install_cdn_discovery(app, check_jwt)
 
 @app.route("/health")
 def health_check():
