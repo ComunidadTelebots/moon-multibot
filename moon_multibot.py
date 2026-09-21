@@ -1,4 +1,5 @@
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+from core.bot_endpoint import bot_api_url, bot_file_url, uses_local_api
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from core.plugin_security import validate_plugin_filename
 from core.auth_security import dashboard_password_matches
@@ -32,6 +33,7 @@ from core.config import (
     TDLIB_API_HASH,
     DB_PATH,
 )
+from core.traffic_control import traffic_control, identity as traffic_identity, guard_bot_send
 from core.db import DBManager
 from core.telegram_api import (
     create_telegram_session,
@@ -1064,7 +1066,7 @@ def web_telegram_file_proxy(file_id):
     if not f_info.get("ok"): return "File not found", 404
     
     path = f_info["result"]["file_path"]
-    url = f"https://api.telegram.org/file/bot{bot.token}/{path}"
+    url = bot_file_url(bot.token, path)
     
     try:
         r = requests.get(url, stream=True, timeout=10)
@@ -1265,6 +1267,44 @@ def web_settings_legacy():
 # rutas audit/logs/faq y users/media/bans/stats movidas a core/routes_ops.py y core/routes_users.py
 global_bot_names_cache = {}
 
+@app.route('/api/telemetry/tdlib-migration')
+def tdlib_migration_status():
+    if not check_jwt(request):
+        return jsonify({'ok': False}), 401
+    from core.tdlib_migration import migration_snapshot
+    return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
+
+
+@app.route("/api/internal/traffic", methods=['GET', 'POST'])
+def internal_traffic_control():
+    import hmac
+    expected = os.getenv('MOON_ADMIN_API_KEY', '').strip()
+    supplied = request.headers.get('X-Moon-Admin-Key', '')
+    if not expected or not hmac.compare_digest(expected, supplied):
+        return jsonify({'ok': False}), 401
+    if not traffic_control.enabled:
+        return jsonify({'ok': False, 'error': 'Configure MOON_NODE_ID'}), 503
+    known = {traffic_identity(bot.url): bot for bot in active_bots}
+    try:
+        if request.method == 'POST':
+            body = request.get_json(silent=True) or {}
+            bot_id = body.get('id')
+            if bot_id not in known or body.get('action') not in ('pause', 'resume'):
+                return jsonify({'ok': False, 'error': 'Unknown bot or action'}), 400
+            # TDLib has its own connection lifecycle: whole-container control is required.
+            if getattr(known[bot_id], '_tdlib', None) is not None:
+                return jsonify({'ok': False, 'error': 'Use container control for TDLib bots'}), 409
+            traffic_control.change(bot_id, body['action'] == 'pause', body.get('revision'), body.get('offset'))
+        rows = [{**traffic_control.status(bot_id), 'name': str(getattr(bot, 'bot_display_name', 'Moonbot'))[:100],
+                 'controllable': getattr(bot, '_tdlib', None) is None}
+                for bot_id, bot in known.items()]
+        return jsonify({'ok': True, 'node': traffic_control.node, 'bots': rows})
+    except ValueError:
+        return jsonify({'ok': False, 'error': 'State changed or invalid request'}), 409
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Traffic state unavailable'}), 503
+
+
 @app.route("/api/bots", methods=['GET', 'POST', 'DELETE'])
 def web_bots():
     if not check_jwt(request): return jsonify({"ok": False}), 401
@@ -1289,7 +1329,7 @@ def web_bots():
                         "username": getattr(active, "bot_username", "Moonbot"),
                     }
                 else:
-                    me = telegram_api_call(requests.Session(), f"https://api.telegram.org/bot{tk}/", "getMe", {}, timeout=12)
+                    me = telegram_api_call(requests.Session(), bot_api_url(tk), "getMe", {}, timeout=12)
                     profile = me.get("result", {}) if me.get("ok") else {}
                     global_bot_names_cache[tk] = {
                         "name": profile.get("first_name") or "Token inválido",
@@ -3312,7 +3352,7 @@ def submit_community_proxy(server, port, secret, by=""):
 
 class MoonBot:
     def __init__(self, token):
-        self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", create_telegram_session(), []
+        self.token, self.url, self.session, self.plugins = token, bot_api_url(token), create_telegram_session(), []
         self.db = db
         self.ia = ia_nativa
         self.ia_nativa = ia_nativa
@@ -3345,7 +3385,7 @@ class MoonBot:
 
         # TDLib bot client (opcional) â€” autentica con bot token, sesiÃ³n propia
         self._tdlib = None
-        if TDLIB_API_ID and TDLIB_API_HASH:
+        if TDLIB_API_ID and TDLIB_API_HASH and not uses_local_api(token):
             bot_dir = f"tdlib_data/bot_{bot_public_id(token)}"
             self._tdlib = TDLibClient(
                 TDLIB_API_ID, TDLIB_API_HASH, db,
@@ -3369,6 +3409,7 @@ class MoonBot:
             add_web_log("ERROR", f"Telegram API Fail ({method}, Bot API {TELEGRAM_BOT_API_VERSION}): {data.get('description')}")
         return data
 
+    @guard_bot_send
     def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None,
                  receiver_user_id=None, callback_query_id=None, message_thread_id=None,
                  direct_messages_topic_id=None, disable_notification=False,
@@ -3509,7 +3550,7 @@ class MoonBot:
         payload = {"chat_id": chat_id, "message_id": message_id, "rich_message": rich_message}
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
-        result = self.call_api("editRichMessage", payload, silent=True)
+        result = self.call_api("editMessageText", payload, silent=True)
         if result.get("ok"):
             return result
         fallback = fallback_text if fallback_text is not None else markdown if markdown is not None else html
@@ -3994,7 +4035,7 @@ class MoonBot:
         path = os.path.join("downloads", f"scan-{msg['message_id']}-{filename}")
         try:
             response = requests.get(
-                f"https://api.telegram.org/file/bot{self.token}/{info['result']['file_path']}",
+                bot_file_url(self.token, info["result"]["file_path"]),
                 timeout=45,
             )
             response.raise_for_status()
@@ -5634,7 +5675,7 @@ class MoonBot:
                 data = image_gen.fetch_bytes(photo) if photo else None
                 if data:
                     response = requests.post(
-                        f"https://api.telegram.org/bot{bot.token}/sendPhoto",
+                        bot_api_url(bot.token) + "sendPhoto",
                         data={"chat_id": str(cid), "caption": (m.get("text") or "")[:1024]},
                         files={"photo": ("imagen.jpg", data)}, timeout=45,
                     )
@@ -5866,7 +5907,21 @@ class MoonBot:
         offset = 0
         _poll_failures = 0
         while self.running:
+            admission = traffic_control.admit(self.url)
+            if not admission.__enter__():
+                admission.__exit__(None, None, None)
+                time.sleep(0.25)
+                continue
             try:
+                offset = traffic_control.offset(self.url, offset)
+                if self.bot_id is None:
+                    profile_response = self.api_call("getMe")
+                    if profile_response.get("ok"):
+                        profile = profile_response.get("result", {})
+                        self.bot_id = profile.get("id")
+                        self.bot_username = profile.get("username", self.bot_username)
+                        self.bot_display_name = profile.get("first_name") or self.bot_username
+                        self.can_manage_bots = bool(profile.get("can_manage_bots", False))
                 res = self.api_call("getUpdates", build_get_updates_payload(offset, allowed_updates=DEFAULT_ALLOWED_UPDATES))
                 if not res.get("ok"):
                     _poll_failures += 1
@@ -5915,6 +5970,11 @@ class MoonBot:
                     # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
+                    try:
+                        from core.message_analytics import analytics as message_analytics
+                        message_analytics.record(msg)
+                    except Exception:
+                        add_web_log("WARN", "No se pudo registrar la analítica de mensajes")
                     if self.telegram_events.record_community_message(msg):
                         continue
                     if u.get("message") and self.enforce_pending_join_captcha(msg):
@@ -6182,7 +6242,7 @@ class MoonBot:
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.jpg")
-                            url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                            url = bot_file_url(self.token, f_info["result"]["file_path"])
                             try:
                                 r = requests.get(url, timeout=30)
                                 r.raise_for_status()
@@ -6230,7 +6290,7 @@ class MoonBot:
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.mp4")
-                            url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                            url = bot_file_url(self.token, f_info["result"]["file_path"])
                             r = requests.get(url)
                             with open(path, 'wb') as f_out: f_out.write(r.content)
                             
@@ -6273,7 +6333,7 @@ class MoonBot:
                                     os.makedirs("downloads", exist_ok=True)
                                     safe_token = re.sub(r"[^a-zA-Z0-9_-]", "_", str(document.get("file_unique_id") or file_id))[:120]
                                     path = os.path.join("downloads", f"script_{safe_token}{extension}")
-                                    url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                                    url = bot_file_url(self.token, f_info["result"]["file_path"])
                                     try:
                                         response = requests.get(url, timeout=20)
                                         response.raise_for_status()
@@ -6434,7 +6494,7 @@ class MoonBot:
                     if text.startswith("/"): db.set(f"COOLDOWN_{uid}", time.time())
                     if "photo" in msg:
                         f = self.api_call("getFile", {"file_id": msg["photo"][-1]["file_id"]})
-                        if f.get("ok"): global_media_list.append(f"https://api.telegram.org/file/bot{self.token}/{f['result']['file_path']}")
+                        if f.get("ok"): global_media_list.append(bot_file_url(self.token, f["result"]["file_path"]))
                     # Karma & Engagement System
                     sent = analyze_sentiment(text)
                     if uid not in global_user_stats: 
@@ -6640,6 +6700,12 @@ class MoonBot:
                 logger.error(f"FATAL ERROR in Message Loop: {str(e)}")
                 add_web_log("ERROR", f"Fallo en bucle de mensajes: {str(e)}")
                 time.sleep(5)
+            finally:
+                try:
+                    traffic_control.checkpoint(self.url, offset)
+                finally:
+                    admission.__exit__(None, None, None)
+
 
 def health_monitor():
     last_alert_time = 0

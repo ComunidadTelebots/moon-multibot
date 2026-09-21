@@ -23,6 +23,7 @@ class TelemetryTest(unittest.TestCase):
         self.assertEqual(result['total']['received'], 1)
         self.assertEqual(result['total']['updates'], 3)
         self.assertEqual(result['total']['calls'], 2)
+        self.assertEqual(result['bots'][0]['last60s']['latency_ms'], 40)
         self.assertNotIn('SECRET', json.dumps(result))
         self.assertNotIn('PRIVATE', json.dumps(result))
 
@@ -50,6 +51,20 @@ class TelemetryTest(unittest.TestCase):
         self.now += 3600
         self.assertEqual(len(self.telemetry.snapshot()['history']), 60)
         self.assertEqual(len(self.telemetry.minutes), 0)
+
+    def test_per_bot_counts_expire_and_are_bounded(self):
+        for bot in ('first-secret', 'second-secret'):
+            self.telemetry.telegram(bot, 'getUpdates', {'ok': True, 'result': [{'update_id': 1, 'message': {}}]}, 1)
+        snapshot = self.telemetry.snapshot()
+        self.assertEqual(len(snapshot['bots']), 2)
+        self.assertEqual(sum(row['last60s']['received'] for row in snapshot['bots']), 2)
+        self.assertNotIn('secret', json.dumps(snapshot))
+        self.now += 61
+        self.assertTrue(all(row['last60s']['calls'] == 0 for row in self.telemetry.snapshot()['bots']))
+        for index in range(70):
+            self.telemetry.telegram(str(index), 'getMe', {'ok': True}, 1)
+        self.assertEqual(len(self.telemetry.snapshot()['bots']), 64)
+        self.assertTrue(self.telemetry.snapshot()['bots_truncated'])
 
     def test_http_endpoint_requires_existing_authentication(self):
         app = Flask(__name__)

@@ -5,6 +5,7 @@ import hashlib
 import math
 import threading
 import time
+from core.bot_endpoint import canonical_bot_url
 
 
 KEYS = ('updates', 'received', 'sent', 'calls', 'errors', 'limited', 'timeouts',
@@ -24,6 +25,8 @@ class OperationsTelemetry:
         self.seconds = {}
         self.minutes = {}
         self.seen = OrderedDict()
+        self.bots = OrderedDict()
+        self.bots_truncated = False
 
     def _prune(self):
         now = self.clock()
@@ -40,6 +43,7 @@ class OperationsTelemetry:
                 bucket[key] = max(bucket[key], value) if key == 'retry_after_max' else bucket[key] + value
 
     def telegram(self, base_url, method, data, elapsed_ms, timeout=False):
+        base_url = canonical_bot_url(base_url)
         data = data if isinstance(data, dict) else {}
         ok = data.get('ok') is True
         limited = data.get('error_code') == 429
@@ -65,6 +69,18 @@ class OperationsTelemetry:
                 results = data.get('result')
                 results = results if isinstance(results, list) else [results]
                 sent = sum(isinstance(row, dict) and 'message_id' in row for row in results)
+            bot_id = hashlib.sha256(base_url.encode()).hexdigest()[:12]
+            buckets = self.bots.setdefault(bot_id, {})
+            self.bots.move_to_end(bot_id)
+            if len(self.bots) > 64:
+                self.bots.popitem(last=False)
+                self.bots_truncated = True
+            second = int(self.clock())
+            buckets = {key: value for key, value in buckets.items() if key > second - 60}
+            bucket = buckets.setdefault(second, dict(received=0, sent=0, calls=0, errors=0, limited=0, latency_ms=0))
+            for key, value in dict(received=received, sent=sent, calls=1, errors=int(not ok), limited=int(limited), latency_ms=max(0, elapsed_ms)).items():
+                bucket[key] += value
+            self.bots[bot_id] = buckets
             self._add(calls=1, errors=int(not ok), limited=int(limited), timeouts=int(timeout),
                       retry_after_max=retry, latency_ms=max(0, elapsed_ms), updates=updates, received=received, sent=sent)
 
@@ -82,7 +98,12 @@ class OperationsTelemetry:
             minute = int(self.clock() // 60)
             history = [{'at': timestamp(key * 60), **self.minutes.get(key, dict.fromkeys(KEYS, 0))}
                        for key in range(max(int(self.started // 60), minute - 59), minute + 1)]
-            return {'ok': True, 'schema': 1, 'since': timestamp(self.started),
+            bots = []
+            for bot_id, buckets in self.bots.items():
+                recent_bot = {key: sum(row.get(key, 0) for at, row in buckets.items() if at > int(self.clock()) - 60)
+                              for key in ('received', 'sent', 'calls', 'errors', 'limited', 'latency_ms')}
+                bots.append({'id': bot_id, 'last60s': recent_bot})
+            return {'bots': bots, 'bots_truncated': self.bots_truncated, 'ok': True, 'schema': 1, 'since': timestamp(self.started),
                     'total': dict(self.total), 'last60s': recent, 'history': history}
 
 

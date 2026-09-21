@@ -10,6 +10,7 @@ consumir la API desde el navegador.
 """
 
 import hmac
+from core.bot_endpoint import bot_api_url, bot_file_url
 import hashlib
 import html
 import json
@@ -1091,7 +1092,7 @@ def internal_group_photo(cid):
     if not file_path or ".." in file_path:
         return jsonify({"ok": False, "error": "photo_unavailable"}), 502
     try:
-        photo_url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+        photo_url = bot_file_url(bot.token, file_path)
         with urllib.request.urlopen(photo_url, timeout=8) as upstream:
             content = upstream.read(5 * 1024 * 1024 + 1)
             content_type = upstream.headers.get_content_type()
@@ -1125,7 +1126,7 @@ def internal_group_media(cid, file_id):
         if not file_path or ".." in file_path:
             continue
         try:
-            url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+            url = bot_file_url(bot.token, file_path)
             with urllib.request.urlopen(url, timeout=12) as upstream:
                 content = upstream.read(20 * 1024 * 1024 + 1)
                 content_type = upstream.headers.get_content_type()
@@ -3123,7 +3124,7 @@ def group_sendphoto():
         import requests
         try:
             resp = requests.post(
-                f"https://api.telegram.org/bot{bot.token}/sendPhoto",
+                bot_api_url(bot.token) + "sendPhoto",
                 data={"chat_id": str(chat_id), "caption": caption},
                 files={"photo": ("imagen.jpg", data)}, timeout=45,
             )
@@ -4698,3 +4699,27 @@ def public_house_ads_manage():
         communities = [{**community, "items": community["items"][:16]} for community in grouped.values() if community["items"]]
         return jsonify({"ok": True, "ads": _house_ads_payload(), "communities": communities})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
+
+
+@bp.route("/api/internal/message-ranking")
+def internal_message_ranking():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    from core.message_analytics import analytics
+    try:
+        return jsonify(analytics.ranking(int(request.args.get("days", "7")), request.args.get("kind", "all")))
+    except ValueError:
+        return jsonify({"ok": False, "error": "invalid_filters"}), 400
+    except Exception:
+        return jsonify({"ok": False, "error": "analytics_unavailable"}), 503
+
+
+@bp.route("/api/internal/peer-latency")
+def internal_peer_latency():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False}), 401
+    from core.peer_latency import peer_latency
+    try:
+        return jsonify(peer_latency().snapshot())
+    except Exception:
+        return jsonify({"ok": False, "error": "peer_monitor_unavailable"}), 503
