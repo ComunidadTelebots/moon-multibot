@@ -1,3 +1,4 @@
+from core.traffic_control import guard_api
 import re
 import time
 import requests
@@ -173,6 +174,7 @@ def build_input_rich_message(markdown=None, html=None, blocks=None, media=None,
     return payload
 
 
+@guard_api
 def telegram_api_call(session, base_url, method, params=None, files=None, timeout=35, _retries=3):
     method = normalize_method(method)
     params = params or {}

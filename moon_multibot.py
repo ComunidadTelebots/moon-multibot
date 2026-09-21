@@ -1,4 +1,4 @@
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from core.plugin_security import validate_plugin_filename
 from core.auth_security import dashboard_password_matches
@@ -32,6 +32,7 @@ from core.config import (
     TDLIB_API_HASH,
     DB_PATH,
 )
+from core.traffic_control import traffic_control, identity as traffic_identity, guard_bot_send
 from core.db import DBManager
 from core.telegram_api import (
     create_telegram_session,
@@ -1264,6 +1265,36 @@ def web_settings_legacy():
 
 # rutas audit/logs/faq y users/media/bans/stats movidas a core/routes_ops.py y core/routes_users.py
 global_bot_names_cache = {}
+
+@app.route("/api/internal/traffic", methods=['GET', 'POST'])
+def internal_traffic_control():
+    import hmac
+    expected = os.getenv('MOON_ADMIN_API_KEY', '').strip()
+    supplied = request.headers.get('X-Moon-Admin-Key', '')
+    if not expected or not hmac.compare_digest(expected, supplied):
+        return jsonify({'ok': False}), 401
+    if not traffic_control.enabled:
+        return jsonify({'ok': False, 'error': 'Configure MOON_NODE_ID'}), 503
+    known = {traffic_identity(bot.url): bot for bot in active_bots}
+    try:
+        if request.method == 'POST':
+            body = request.get_json(silent=True) or {}
+            bot_id = body.get('id')
+            if bot_id not in known or body.get('action') not in ('pause', 'resume'):
+                return jsonify({'ok': False, 'error': 'Unknown bot or action'}), 400
+            # TDLib has its own connection lifecycle: whole-container control is required.
+            if getattr(known[bot_id], '_tdlib', None) is not None:
+                return jsonify({'ok': False, 'error': 'Use container control for TDLib bots'}), 409
+            traffic_control.change(bot_id, body['action'] == 'pause', body.get('revision'), body.get('offset'))
+        rows = [{**traffic_control.status(bot_id), 'name': str(getattr(bot, 'bot_display_name', 'Moonbot'))[:100],
+                 'controllable': getattr(bot, '_tdlib', None) is None}
+                for bot_id, bot in known.items()]
+        return jsonify({'ok': True, 'node': traffic_control.node, 'bots': rows})
+    except ValueError:
+        return jsonify({'ok': False, 'error': 'State changed or invalid request'}), 409
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Traffic state unavailable'}), 503
+
 
 @app.route("/api/bots", methods=['GET', 'POST', 'DELETE'])
 def web_bots():
@@ -3369,6 +3400,7 @@ class MoonBot:
             add_web_log("ERROR", f"Telegram API Fail ({method}, Bot API {TELEGRAM_BOT_API_VERSION}): {data.get('description')}")
         return data
 
+    @guard_bot_send
     def send_msg(self, chat_id, text, parse_mode="Markdown", business_connection_id=None,
                  receiver_user_id=None, callback_query_id=None, message_thread_id=None,
                  direct_messages_topic_id=None, disable_notification=False,
@@ -5866,7 +5898,21 @@ class MoonBot:
         offset = 0
         _poll_failures = 0
         while self.running:
+            admission = traffic_control.admit(self.url)
+            if not admission.__enter__():
+                admission.__exit__(None, None, None)
+                time.sleep(0.25)
+                continue
             try:
+                offset = traffic_control.offset(self.url, offset)
+                if self.bot_id is None:
+                    profile_response = self.api_call("getMe")
+                    if profile_response.get("ok"):
+                        profile = profile_response.get("result", {})
+                        self.bot_id = profile.get("id")
+                        self.bot_username = profile.get("username", self.bot_username)
+                        self.bot_display_name = profile.get("first_name") or self.bot_username
+                        self.can_manage_bots = bool(profile.get("can_manage_bots", False))
                 res = self.api_call("getUpdates", build_get_updates_payload(offset, allowed_updates=DEFAULT_ALLOWED_UPDATES))
                 if not res.get("ok"):
                     _poll_failures += 1
@@ -6645,6 +6691,12 @@ class MoonBot:
                 logger.error(f"FATAL ERROR in Message Loop: {str(e)}")
                 add_web_log("ERROR", f"Fallo en bucle de mensajes: {str(e)}")
                 time.sleep(5)
+            finally:
+                try:
+                    traffic_control.checkpoint(self.url, offset)
+                finally:
+                    admission.__exit__(None, None, None)
+
 
 def health_monitor():
     last_alert_time = 0
