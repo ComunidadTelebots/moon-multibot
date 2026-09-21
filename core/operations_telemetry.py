@@ -75,8 +75,8 @@ class OperationsTelemetry:
                 self.bots_truncated = True
             second = int(self.clock())
             buckets = {key: value for key, value in buckets.items() if key > second - 60}
-            bucket = buckets.setdefault(second, dict(received=0, sent=0, calls=0, errors=0, limited=0))
-            for key, value in dict(received=received, sent=sent, calls=1, errors=int(not ok), limited=int(limited)).items():
+            bucket = buckets.setdefault(second, dict(received=0, sent=0, calls=0, errors=0, limited=0, latency_ms=0))
+            for key, value in dict(received=received, sent=sent, calls=1, errors=int(not ok), limited=int(limited), latency_ms=max(0, elapsed_ms)).items():
                 bucket[key] += value
             self.bots[bot_id] = buckets
             self._add(calls=1, errors=int(not ok), limited=int(limited), timeouts=int(timeout),
@@ -99,7 +99,7 @@ class OperationsTelemetry:
             bots = []
             for bot_id, buckets in self.bots.items():
                 recent_bot = {key: sum(row.get(key, 0) for at, row in buckets.items() if at > int(self.clock()) - 60)
-                              for key in ('received', 'sent', 'calls', 'errors', 'limited')}
+                              for key in ('received', 'sent', 'calls', 'errors', 'limited', 'latency_ms')}
                 bots.append({'id': bot_id, 'last60s': recent_bot})
             return {'bots': bots, 'bots_truncated': self.bots_truncated, 'ok': True, 'schema': 1, 'since': timestamp(self.started),
                     'total': dict(self.total), 'last60s': recent, 'history': history}

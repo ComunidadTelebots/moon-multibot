@@ -1,10 +1,18 @@
 import tempfile
 import unittest
+import os
+from unittest.mock import patch
 from pathlib import Path
 from core.traffic_control import TrafficControl, identity
 
 
 class TrafficControlTest(unittest.TestCase):
+    def test_node_identity_for_ping_does_not_enable_traffic_control(self):
+        with patch.dict(os.environ, {'MOON_NODE_ID': 'peer', 'MOON_TRAFFIC_CONTROL_ENABLED': 'false'}):
+            self.assertFalse(TrafficControl().enabled)
+        with patch.dict(os.environ, {'MOON_NODE_ID': 'peer', 'MOON_TRAFFIC_CONTROL_ENABLED': 'true'}):
+            self.assertTrue(TrafficControl().enabled)
+
     def test_pause_drains_and_persists_checkpoint_without_token(self):
         with tempfile.TemporaryDirectory() as folder:
             path = str(Path(folder) / 'traffic.json')

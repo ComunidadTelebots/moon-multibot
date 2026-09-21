@@ -23,6 +23,7 @@ class TelemetryTest(unittest.TestCase):
         self.assertEqual(result['total']['received'], 1)
         self.assertEqual(result['total']['updates'], 3)
         self.assertEqual(result['total']['calls'], 2)
+        self.assertEqual(result['bots'][0]['last60s']['latency_ms'], 40)
         self.assertNotIn('SECRET', json.dumps(result))
         self.assertNotIn('PRIVATE', json.dumps(result))
 

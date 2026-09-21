@@ -15,7 +15,7 @@ def identity(url):
 class TrafficControl:
     def __init__(self, filename=None, node=None, default_paused=None):
         self.node = node if node is not None else os.getenv('MOON_NODE_ID', '')
-        self.enabled = bool(re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', self.node))
+        self.enabled = bool(re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', self.node)) and (node is not None or os.getenv('MOON_TRAFFIC_CONTROL_ENABLED', 'false').lower() == 'true')
         self.path = Path(filename or f'data/traffic-{self.node or "unconfigured"}.json')
         self.default_paused = default_paused if default_paused is not None else os.getenv('MOON_TRAFFIC_DEFAULT_PAUSED', 'true').lower() != 'false'
         self.lock = threading.RLock()

@@ -4711,3 +4711,14 @@ def internal_message_ranking():
         return jsonify({"ok": False, "error": "invalid_filters"}), 400
     except Exception:
         return jsonify({"ok": False, "error": "analytics_unavailable"}), 503
+
+
+@bp.route("/api/internal/peer-latency")
+def internal_peer_latency():
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False}), 401
+    from core.peer_latency import peer_latency
+    try:
+        return jsonify(peer_latency().snapshot())
+    except Exception:
+        return jsonify({"ok": False, "error": "peer_monitor_unavailable"}), 503
