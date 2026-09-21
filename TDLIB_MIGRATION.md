@@ -39,3 +39,19 @@ certifican una sesión real ni todos los plugins. La copia local señalada por e
 usuario no se modifica ni se inicia como parte del inventario.
 
 Referencia: https://github.com/tdlib/td/blob/master/td/telegram/td_json_client.h
+
+## Comprobación con biblioteca real
+
+`tools/tdlib-smoke.Dockerfile` construye una imagen mínima, sin arrancar Moonbot.
+Montar el archivo de configuración en `/run/secrets/tdlib.env` en solo lectura.
+Por defecto se ejecuta sin red: dos clientes consultan la versión y verifican
+que sus respuestas lleguen al cliente correcto, y ambos confirman el cierre.
+Validado localmente con TDLib 1.8.64. Esto no valida credenciales ni plugins.
+
+Para una prueba autenticada, configurar `TDLIB_TEST_BOT_TOKEN` en el archivo
+local y ejecutar `python tdlib_smoke.py --bot NOMBRE_DEL_BOT` con red. Solo se usa
+ese token; se confirma el nombre mediante getMe antes de autenticar por TDLib.
+No lee el almacén de bots ni envía mensajes. Las sesiones son temporales. El
+registro nativo se desactiva antes de iniciar clientes para evitar que escriba
+parámetros de autenticación. No incluir el archivo de configuración en imágenes,
+commits ni argumentos que contengan valores de credenciales.

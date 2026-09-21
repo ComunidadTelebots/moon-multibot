@@ -59,6 +59,10 @@ class TDLibClient:
         lib.td_send.argtypes = [c_int, c_char_p]
         lib.td_execute.restype = c_char_p
         lib.td_execute.argtypes = [c_char_p]
+        # Native debug logs can include request payloads and auth parameters.
+        # Disable the native stream before creating or authenticating clients.
+        lib.td_execute(json.dumps({'@type': 'setLogStream', 'log_stream': {'@type': 'logStreamEmpty'}}).encode())
+        lib.td_execute(json.dumps({'@type': 'setLogVerbosityLevel', 'new_verbosity_level': 0}).encode())
 
         log_cb_type = CFUNCTYPE(None, c_int, c_char_p)
 
