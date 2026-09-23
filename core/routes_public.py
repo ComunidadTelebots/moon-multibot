@@ -4588,6 +4588,14 @@ def public_global():
 
 @bp.route("/api/public/stats/language-map")
 def public_language_map():
+    origin = str(request.args.get('origin') or '').strip()
+    if origin:
+        if origin not in ('private', 'group', 'channel'):
+            return jsonify({'ok': False, 'error': 'Origen no válido'}), 400
+        from core.language_map import aggregate_language_counts, ORIGIN_KEY
+        counts = (_db.get(ORIGIN_KEY, {}) if _db else {}).get(origin, {})
+        data = aggregate_language_counts(counts)
+        return jsonify({'ok': True, **data, 'origin': origin, 'metric': 'message_observations'})
     chat_id = str(request.args.get("chat_id") or "").strip()
     key = f"TELEGRAM_GROUP_LANGUAGES_{chat_id}" if chat_id else "TELEGRAM_USER_LANGUAGES"
     data = aggregate_language_map(_db.get(key, {}) if _db else {})

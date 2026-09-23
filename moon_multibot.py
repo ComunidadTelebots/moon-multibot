@@ -5971,6 +5971,11 @@ class MoonBot:
                     msg = u.get("message") or u.get("channel_post") or u.get("business_message")
                     if not msg: continue
                     try:
+                        from core.language_map import record_language_origin
+                        record_language_origin(db, msg)
+                    except Exception:
+                        add_web_log('WARN', 'No se pudo registrar el origen lingüístico')
+                    try:
                         from core.message_analytics import analytics as message_analytics
                         message_analytics.record(msg)
                     except Exception:

@@ -1,6 +1,29 @@
 """Privacy-preserving Telegram language distribution helpers."""
 
 from collections import Counter
+import re
+import threading
+
+_origin_lock = threading.Lock()
+ORIGIN_KEY = 'TELEGRAM_LANGUAGE_ORIGINS'
+
+
+def record_language_origin(db, message):
+    """Count received message observations, without user/chat IDs or content."""
+    kind = (message.get('chat') or {}).get('type')
+    origin = {'private': 'private', 'group': 'group', 'supergroup': 'group', 'channel': 'channel'}.get(kind)
+    if not origin:
+        return
+    code = normalize_language((message.get('from') or {}).get('language_code'))
+    if not re.fullmatch(r'[a-z]{2,3}(?:-[a-z0-9]{2,8})*', code):
+        code = 'und'
+    with _origin_lock:
+        state = db.get(ORIGIN_KEY, {})
+        bucket = state.setdefault(origin, {})
+        if code not in bucket and len(bucket) >= 256:
+            code = 'und'
+        bucket[code] = int(bucket.get(code, 0)) + 1
+        db.set(ORIGIN_KEY, state)
 
 
 LANGUAGE_REGIONS = {
@@ -42,6 +65,11 @@ def normalize_language(code):
 
 def aggregate_language_map(user_languages):
     counts = Counter(normalize_language(value) for value in (user_languages or {}).values())
+    return aggregate_language_counts(counts)
+
+
+def aggregate_language_counts(counts):
+    counts = Counter(counts)
     total = sum(counts.values())
     points = []
     for code, users in counts.most_common():
