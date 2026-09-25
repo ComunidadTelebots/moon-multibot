@@ -66,6 +66,15 @@ class TelemetryTest(unittest.TestCase):
         self.assertEqual(len(self.telemetry.snapshot()['bots']), 64)
         self.assertTrue(self.telemetry.snapshot()['bots_truncated'])
 
+    def test_concurrent_http_counters_preserve_totals_and_expire(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(lambda _: self.telemetry.http(200), range(10000)))
+        self.assertEqual(self.telemetry.snapshot()['last60s']['http'], 10000)
+        self.now += 60
+        self.assertEqual(self.telemetry.snapshot()['last60s']['http'], 0)
+        self.assertEqual(self.telemetry.snapshot()['total']['http'], 10000)
+
     def test_http_endpoint_requires_existing_authentication(self):
         app = Flask(__name__)
         install_http_telemetry(app, lambda req: req.headers.get('Authorization') == 'Bearer TEST')

@@ -27,9 +27,14 @@ class OperationsTelemetry:
         self.seen = OrderedDict()
         self.bots = OrderedDict()
         self.bots_truncated = False
+        self._pruned_second = None
 
     def _prune(self):
         now = self.clock()
+        second = int(now)
+        if self._pruned_second == second:
+            return
+        self._pruned_second = second
         self.seconds = {k: v for k, v in self.seconds.items() if k > int(now) - 60}
         self.minutes = {k: v for k, v in self.minutes.items() if k > int(now // 60) - 60}
 
@@ -76,7 +81,9 @@ class OperationsTelemetry:
                 self.bots.popitem(last=False)
                 self.bots_truncated = True
             second = int(self.clock())
-            buckets = {key: value for key, value in buckets.items() if key > second - 60}
+            if second not in buckets:
+                for expired in [key for key in buckets if key <= second - 60]:
+                    del buckets[expired]
             bucket = buckets.setdefault(second, dict(received=0, sent=0, calls=0, errors=0, limited=0, latency_ms=0))
             for key, value in dict(received=received, sent=sent, calls=1, errors=int(not ok), limited=int(limited), latency_ms=max(0, elapsed_ms)).items():
                 bucket[key] += value

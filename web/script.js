@@ -347,11 +347,17 @@ function startPolling() {
     window.pollingTimer = setInterval(fetchData, 2000);
 }
 
+let statusPending = false;
+let statusFailures = 0;
+let statusNextAt = 0;
 function fetchData() {
-    if(!authToken) return;
-    fetch('/api/status', { headers: { 'Authorization': authToken } })
-    .then(res => res.json()).then(data => {
-        if (!data.ok) return;
+    if(!authToken || document.hidden || statusPending || Date.now() < statusNextAt) return;
+    if (window.MOON_CONFIG?.currentTab && window.MOON_CONFIG.currentTab !== 'dashboard') return;
+    statusPending = true;
+    return fetch('/api/status', { headers: { 'Authorization': authToken }, signal: AbortSignal.timeout(10000) })
+    .then(res => { if (!res.ok) throw new Error('Status unavailable'); return res.json(); }).then(data => {
+        if (!data.ok) throw new Error('Status unavailable');
+        statusFailures = 0;
 
         // Dashboard Stats
         const cpuVal = document.getElementById("cpuVal");
@@ -400,7 +406,11 @@ function fetchData() {
             perfChart.update('none'); // Update without animation for performance
         }
     }).catch(err => {
+        statusFailures = Math.min(statusFailures + 1, 4);
         console.error('Error fetching data:', err);
+    }).finally(() => {
+        statusPending = false;
+        statusNextAt = Date.now() + Math.min(30000, 2000 * (2 ** statusFailures)) + Math.random() * 500;
     });
 }
 
@@ -1146,10 +1156,10 @@ function refreshAuditHistory() {
         }
     });
 }
-setInterval(refreshAuditStatus, 3000);
-setInterval(refreshAuditHistory, 10000);
-setInterval(fetchIAFeeders, 2000);
-setInterval(fetchInlineStats, 15000);
+setInterval(() => { if (!document.hidden && window.MOON_CONFIG?.currentTab === 'ia') refreshAuditStatus(); }, 3000);
+setInterval(() => { if (!document.hidden && window.MOON_CONFIG?.currentTab === 'ia') refreshAuditHistory(); }, 10000);
+setInterval(() => { if (!document.hidden && window.MOON_CONFIG?.currentTab === 'ia') fetchIAFeeders(); }, 2000);
+setInterval(() => { if (!document.hidden && window.MOON_CONFIG?.currentTab === 'ia') fetchInlineStats(); }, 15000);
 fetchInlineStats();
 
 function removeIAFeeder(id) {
@@ -3429,9 +3439,10 @@ function scanDocker() {
 }
 
 // Integración en Polling
-setInterval(fetchVisionStats, 5000);
-setInterval(fetchSecurityBlacklist, 10000);
+setInterval(() => { if (!document.hidden && window.MOON_CONFIG?.currentTab === 'ia') fetchVisionStats(); }, 5000);
+setInterval(() => { if (!document.hidden && window.MOON_CONFIG?.currentTab === 'moderation') fetchSecurityBlacklist(); }, 10000);
 setInterval(() => { 
+    if (document.hidden) return;
     if(window.MOON_CONFIG.currentTab === 'business') loadBusinessTab(); 
     if(window.MOON_CONFIG.currentTab === 'proxies') loadProxiesTab();
 }, 5000);
