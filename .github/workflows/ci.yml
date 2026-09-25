@@ -2,15 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [master, alpha]
+    branches: [master, alpha, dev]
     paths:
       - "**.py"
       - "web/hub.html"
+      - "web/script.js"
+      - "tests/**.cjs"
       - "requirements.txt"
       - "Dockerfile"
       - ".github/workflows/ci.yml"
   pull_request:
-    branches: [master, alpha]
+    branches: [master, alpha, dev]
 
 permissions:
   contents: read
@@ -55,6 +57,9 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -m unittest discover -s tests -v
+
+      - name: Test dashboard polling
+        run: node --test tests/dashboard_polling.test.cjs tests/hub_version_switcher.test.cjs
 
       - name: Extract Hub JavaScript
         run: |
