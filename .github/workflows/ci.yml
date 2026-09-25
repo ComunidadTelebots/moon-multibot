@@ -59,7 +59,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Test dashboard polling
-        run: node --test tests/dashboard_polling.test.cjs
+        run: node --test tests/dashboard_polling.test.cjs tests/hub_version_switcher.test.cjs
 
       - name: Extract Hub JavaScript
         run: |
