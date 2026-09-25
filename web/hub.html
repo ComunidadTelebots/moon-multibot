@@ -16,7 +16,7 @@
   function hubAnalyticsAllowed(){const saved=hubStoredConsent();return saved?saved.analytics===true:!hubRequiresConsent();}
   let hubFirstPartyTracked=false;
   function hubTrackVisit(){
-    if(hubFirstPartyTracked||!hubAnalyticsAllowed()||navigator.doNotTrack==='1'||navigator.globalPrivacyControl)return;
+    if(hubFirstPartyTracked||hubStoredConsent()?.analytics!==true||navigator.doNotTrack==='1'||navigator.globalPrivacyControl)return;
     hubFirstPartyTracked=true;
     fetch('https://todosobreall.tech/hcgi/api/visitor-analytics/pageview',{
       method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},keepalive:true,
