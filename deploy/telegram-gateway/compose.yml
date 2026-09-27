@@ -1,0 +1,41 @@
+name: moonbot-telegram
+services:
+  telegram-gateway:
+    image: ${MOON_GATEWAY_IMAGE:?Set the verified gateway image}
+    container_name: moonbot-telegram-gateway
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cpus: 0.8
+    mem_limit: 1g
+    pids_limit: 256
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - telegram-state:/var/lib/telegram-bot-api
+      - ${MOON_TDLIB_SECRET_FILE:?Set the private credential file}:/run/secrets/tdlib.env:ro
+    networks:
+      telegram:
+        aliases:
+          - telegram-gateway
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('127.0.0.1',8081),2).close()"]
+      interval: 15s
+      timeout: 3s
+      retries: 4
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+networks:
+  telegram:
+    name: moon-telegram
+volumes:
+  telegram-state:
