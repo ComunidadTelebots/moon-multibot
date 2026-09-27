@@ -48,7 +48,7 @@ class ChannelRssTests(unittest.TestCase):
         self.bot.send_msg.return_value={'ok':True}
         with patch('core.personal_rss_runtime.time.sleep'):
             self.s.cycle()
-        self.bot.send_msg.assert_called_once_with('-99','Title\nhttps://example.com',parse_mode=None)
+        self.bot.send_msg.assert_called_once_with('-99','Title\nhttps://example.com\n\nDescubre más noticias en nuestra WebApp: https://t.me/CintiaBot?startapp=rss',parse_mode=None)
         self.assertIsNone(self.db.get('PERSONAL_RSS_DAILY_-99'))
         self.admin=False
         self.s.cycle();self.bot.send_msg.assert_called_once()

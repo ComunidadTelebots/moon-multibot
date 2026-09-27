@@ -19,3 +19,11 @@ The Hub and web expose a category catalog and private/channel destination select
 Nine initial RSS/Atom sources were validated from the VPS, spanning technology, news, international affairs, sports, science, culture, economics, weather and space. Sources: https://www.rtve.es/rss/ and https://cneos.jpl.nasa.gov/feed/ plus TodoSobreAllTech's own RSS. Only the original headline and link are sent. Shared feed reads are cached for 5 minutes with a bounded cache.
 
 RSS.app expansion: seven existing public project feeds were validated from Hostinger and added, bringing the catalog to 16 sources. The reader supports RSS/Atom XML and JSON Feed 1/1.1 with bounded items and original links. Known self-channel mirrors are rejected for that destination on add/enable, including TodoSobreAllTech news to its own Telegram channel. This is not a claim to detect every possible indirect syndication loop. The Hub styling inherits --bg/--ink/--teal/--cyan instead of assuming a white Telegram background.
+
+## Integrated reader and explicit sharing
+
+The dashboard and Hub read up to 50 cached feed entries with plain-text summaries (500 characters), dates and original links. Reading never sends Telegram messages or consumes the private daily allowance. Unlinked authenticated web accounts can browse catalog sources; personal and channel sources retain their ownership checks.
+
+Publishing an article requires an explicit confirmation and live channel publishing permissions for both the authenticated user and the bot. The server resolves article content from the selected source, ignores supplied message text/URLs, escapes HTML and adds an ordinary Telegram URL button opening https://t.me/CintiaBot?startapp=rss. Scheduled channel deliveries also include this WebApp link; private deliveries are unchanged. No message is sent merely by deploying this feature.
+
+Manual publications retain up to 500 URL digests per channel. Confirmed duplicates are skipped, and ambiguous sends remain pending for operator review instead of automatic retry. This is bounded, single-process deduplication, not a distributed exactly-once guarantee. Known self-channel mirrors remain blocked. Reader HTML is never embedded or executed.

@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import http.client
 import json
+from html.parser import HTMLParser
 import ipaddress
 import socket
 import time
@@ -18,6 +19,19 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         PersonalRssManager.validate_url(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def plain_summary(value):
+    class Text(HTMLParser):
+        def __init__(self): super().__init__(); self.parts=[]; self.hidden=0
+        def handle_starttag(self,tag,attrs):
+            if tag in ("script","style"): self.hidden+=1
+        def handle_endtag(self,tag):
+            if tag in ("script","style"): self.hidden=max(0,self.hidden-1)
+        def handle_data(self,data):
+            if not self.hidden:self.parts.append(data)
+    parser=Text();parser.feed(str(value or "")[:20000])
+    return " ".join(" ".join(parser.parts).split())[:500]
 
 
 class PersonalRssManager:
@@ -264,7 +278,9 @@ class PersonalRssManager:
             link = urljoin(final_url, link.strip()) if link else final_url
             uid = self._child_text(node, {"guid", "id"}) or link or title
             output.append({"id": hashlib.sha256(uid.encode("utf-8", "ignore")).hexdigest(),
-                           "title": title[:300], "url": link[:2000]})
+                           "title": title[:300], "url": link[:2000],
+                           "summary": plain_summary(self._child_text(node, {"description", "summary", "content"})),
+                           "published_at": self._child_text(node, {"pubdate", "published", "updated"})[:80]})
         if not output:
             raise ValueError("No se encontraron entradas RSS o Atom")
         if len(self.fetch_cache) >= 128:
@@ -289,7 +305,9 @@ class PersonalRssManager:
                 continue
             uid = str(item.get("id") or link)
             output.append({"id": hashlib.sha256(uid.encode()).hexdigest(),
-                           "title": str(item.get("title") or "Nueva publicación")[:300], "url": link[:2000]})
+                           "title": str(item.get("title") or "Nueva publicación")[:300], "url": link[:2000],
+                           "summary": plain_summary(item.get("summary") or item.get("content_text") or item.get("content_html")),
+                           "published_at": str(item.get("date_published") or item.get("date_modified") or "")[:80]})
         return output
 
     @staticmethod

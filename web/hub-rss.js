@@ -45,6 +45,28 @@
     for(const channel of channels){const option=el('option',channel.name,select);option.value=channel.id;}
     select.value=target;select.onchange=()=>{if(!busy){target=select.value;load();}};
   }
+  function reader(data){
+    const area=el('section');area.setAttribute('aria-label','Lector RSS integrado');el('h3','Leer noticias aquí',area);el('p','Lee sin consumir mensajes de Telegram. Comparte en tus canales con un enlace a nuestra WebApp.',area);
+    const select=el('select',null,area);select.setAttribute('aria-label','Fuente del lector');el('option','Selecciona una fuente',select).value='';
+    const sources=[...data.catalog,...data.feeds.map(f=>({...f,id:target==='me'?`own:${f.id}`:`channel:${target}:${f.id}`,title:`Suscripción · ${f.title||f.url}`}))];
+    for(const source of sources)el('option',source.title,select).value=source.id;
+    const actions=el('div',null,area);const status=el('p','',area);status.setAttribute('role','status');const results=el('div',null,area);results.style.maxHeight='60vh';results.style.overflow='auto';
+    const readerRequest=async(body)=>{const r=await fetch('/api/public/rss/reader',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,initData:window.Telegram?.WebApp?.initData||''})});const payload=await r.json();if(!r.ok||!payload.ok)throw new Error(payload.error||'No se pudo completar la operación');return payload;};
+    select.onchange=()=>results.replaceChildren();
+    button('Ver noticias',async()=>{
+      if(!select.value||busy)return;busy=true;status.textContent='Cargando noticias…';results.replaceChildren();const sourceId=select.value;select.disabled=true;
+      try{const news=await readerRequest({action:'read',source_id:sourceId});status.textContent=`${news.entries.length} noticias · ${news.source.title}`;
+        const dest=el('select',null,results);dest.setAttribute('aria-label','Canal para compartir noticias');el('option','Compartir en un canal…',dest).value='';for(const channel of channels)el('option',channel.name,dest).value=channel.id;
+        if(!channels.length)el('p','Para publicar, añade el bot como administrador del canal con permiso de publicación.',results);
+        for(const entry of news.entries){const card=el('article',null,results);el('p',entry.published_at||news.source.title,card);el('b',entry.title,card);if(entry.summary)el('p',entry.summary,card);const link=el('a','Leer original',card);link.href=entry.url;link.target='_blank';link.rel='noopener noreferrer';
+          const send=button('Publicar en canal + WebApp',async()=>{if(busy)return;if(!dest.value){status.textContent='Selecciona un canal para publicar.';return;}const name=channels.find(c=>c.id===dest.value)?.name;
+            if(!confirm(`Publicar en ${name}:\n\n${entry.title}\n${entry.url}\n\nIncluye un botón para abrir el lector RSS de la WebApp.`))return;
+            busy=true;send.disabled=true;try{const result=await readerRequest({action:'share',source_id:sourceId,entry_id:entry.id,channel_id:dest.value});status.textContent=result.already_sent?'Ya estaba publicada en ese canal.':'Publicada con enlace a la WebApp.';}catch(error){status.textContent=error.message;}finally{busy=false;send.disabled=false;}
+          },card);send.disabled=!channels.length;
+        }
+      }catch(error){status.textContent=error.message;}finally{busy=false;select.disabled=false;}
+    },actions);
+  }
   function render(data){
     dialog.replaceChildren();header();
     el('p',target==='me'?'Recibe novedades en tu chat privado. Las nuevas fuentes se guardan pausadas.':'Publica novedades en el canal seleccionado. Las nuevas fuentes se guardan pausadas.');
@@ -54,6 +76,7 @@
     if(q.delivery_uncertain)el('p','Entrega pendiente de revisión por el administrador. No se reintentará automáticamente para evitar duplicados.');
     const a=el('a','Abrir @TodoSobreAllTech');a.href='https://t.me/TodoSobreAllTech';a.target='_blank';a.rel='noopener noreferrer';
     button('Comprobar suscripción',()=>load({action:'verify_membership'}));}
+    reader(data);
     el('h3','Explorar RSS por categoría');const search=el('input');search.placeholder='Buscar fuente o tema';search.setAttribute('aria-label','Buscar RSS');const category=el('select');category.setAttribute('aria-label','Categoría RSS');const all=el('option','Todas las categorías',category);all.value='all';
     for(const name of [...new Set(data.catalog.map(i=>i.category))].sort()){const option=el('option',name,category);option.value=name;}
     const catalog=el('div');catalog.className='rss-catalog';function showCatalog(){catalog.replaceChildren();for(const name of [...new Set(data.catalog.map(i=>i.category))].sort()){
@@ -69,5 +92,6 @@
     button('Actualizar',()=>load());
   }
   launch.onclick=async()=>{dialog.hidden=false;dialog.focus();dialog.replaceChildren();header();try{const r=await fetch('/api/public/rss/destinations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:window.Telegram?.WebApp?.initData||''})});const data=await r.json();channels=data.channels||[];catalogFallback=data.catalog||[];}catch{channels=[];}dialog.replaceChildren();header();load();};
+  if(window.Telegram?.WebApp?.initDataUnsafe?.start_param==='rss') launch.onclick();
   dialog.addEventListener('keydown',e=>{if(e.key==='Escape'){dialog.hidden=true;launch.focus();}if(e.key==='Tab'){const nodes=[...dialog.querySelectorAll('button:not(:disabled),input,a,select')];const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 })();

@@ -119,7 +119,11 @@ class PersonalRssService:
                             self.db.set(f"PERSONAL_RSS_DAILY_{uid}", quota)
                         marker = f"PERSONAL_RSS_INFLIGHT_{uid}"
                         self.db.set(marker, {"feed_id": entry["feed_id"], "entry_id": entry["id"]})
-                        result = target_bot.send_msg(uid, f"{entry['title']}\n{entry['url']}"[:4000], parse_mode=None)
+                        message = f"{entry['title']}\n{entry['url']}"[:3600]
+                        if not private:
+                            from core.rss_reader import WEBAPP_URL
+                            message += "\n\nDescubre más noticias en nuestra WebApp: " + WEBAPP_URL
+                        result = target_bot.send_msg(uid, message, parse_mode=None)
                         if isinstance(result, dict) and result.get("ok"):
                             self.manager.mark_published(uid, entry["feed_id"], entry)
                             self.db.set(marker, None)
@@ -172,6 +176,8 @@ def register_personal_rss(app, public):
         response.headers["Cache-Control"] = "no-cache"
         return response
     register_channel_routes(app, service, public, authorized)
+    from core.rss_reader import register_reader_routes
+    register_reader_routes(app, service, public, authorized)
     @app.get("/api/internal/rss/health")
     def rss_health():
         if not authorized(): return jsonify(ok=False), 401
