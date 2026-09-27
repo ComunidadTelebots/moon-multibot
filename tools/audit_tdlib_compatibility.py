@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def inventory(root):
-    findings, errors = [], []
+    findings, errors, direct_http = [], [], []
     for path in sorted(Path(root).rglob('*.py')):
         relative = path.relative_to(root)
         if any(part.startswith('.') or part in {'tests', 'tools', 'venv', '__pycache__', 'node_modules'} for part in relative.parts):
@@ -16,6 +16,11 @@ def inventory(root):
             errors.append({'file': relative.as_posix(), 'error': type(error).__name__})
             continue
         for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and 'api.telegram.org/' in node.value:
+                if '/file/bot' in node.value or '/bot' in node.value:
+                    direct_http.append({'file': relative.as_posix(), 'line': node.lineno,
+                                        'kind': 'file_download' if '/file/bot' in node.value else 'bot_request',
+                                        'status': 'routing_review_required'})
             if not isinstance(node, ast.Call):
                 continue
             name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
@@ -31,8 +36,8 @@ def inventory(root):
     return {'schema': 1, 'ready_for_full_migration': False,
             'summary': {'methods': len(methods), 'call_sites': len(findings),
                         'dynamic_calls': sum(row['method'] is None for row in findings),
-                        'parse_errors': len(errors)},
-            'methods': methods, 'findings': findings, 'errors': errors,
+                        'parse_errors': len(errors), 'direct_http_calls': len(direct_http)},
+            'methods': methods, 'findings': findings, 'errors': errors, 'direct_http': direct_http,
             'limitations': ['Static calls only; runtime-loaded plugins and direct HTTP need separate review.',
                             'Presence of a TDLib method does not prove Bot API payload/response compatibility.']}
 

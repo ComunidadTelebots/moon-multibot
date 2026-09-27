@@ -5,7 +5,8 @@
     "methods": 59,
     "call_sites": 181,
     "dynamic_calls": 5,
-    "parse_errors": 0
+    "parse_errors": 0,
+    "direct_http_calls": 1
   },
   "methods": [
     "answerCallbackQuery",
@@ -1177,63 +1178,63 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 6140,
+      "line": 6145,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6203,
+      "line": 6208,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6242,
+      "line": 6247,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6290,
+      "line": 6295,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6496,
+      "line": 6501,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6532,
+      "line": 6537,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6608,
+      "line": 6613,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6614,
+      "line": 6619,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6621,
+      "line": 6626,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
@@ -1247,56 +1248,56 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 6025,
+      "line": 6030,
       "method": "banChatSenderChat",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6216,
+      "line": 6221,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6587,
+      "line": 6592,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 5998,
+      "line": 6003,
       "method": "getChatMemberCount",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6022,
+      "line": 6027,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6331,
+      "line": 6336,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6453,
+      "line": 6458,
       "method": "sendMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 6459,
+      "line": 6464,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
@@ -1331,13 +1332,21 @@
     },
     {
       "file": "voice_transcription_service.py",
-      "line": 24,
+      "line": 26,
       "method": "getFile",
       "entry": "api_call",
       "status": "requires_adapter"
     }
   ],
   "errors": [],
+  "direct_http": [
+    {
+      "file": "scripts/parse_backups.py",
+      "line": 92,
+      "kind": "bot_request",
+      "status": "routing_review_required"
+    }
+  ],
   "limitations": [
     "Static calls only; runtime-loaded plugins and direct HTTP need separate review.",
     "Presence of a TDLib method does not prove Bot API payload/response compatibility."

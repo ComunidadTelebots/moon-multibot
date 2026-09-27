@@ -12,14 +12,27 @@ def migration_snapshot(bots, configured):
         summary = report['summary']
     except (OSError, ValueError, KeyError):
         summary = None
+    bots = list(bots)
     rows = []
-    for bot in list(bots)[:200]:
+    for bot in bots[:200]:
         client = getattr(bot, '_tdlib', None)
-        status = client.get_status() if client else {}
-        local = uses_local_api(bot.token) if getattr(bot, 'token', None) else False
+        error = None
+        try:
+            status = client.get_status() if client else {}
+            if not isinstance(status, dict):
+                raise ValueError('Invalid status')
+        except Exception:
+            status = {}
+            error = 'session_status_unavailable'
+        try:
+            local = uses_local_api(bot.token) if getattr(bot, 'token', None) else False
+        except ValueError:
+            local = None
+            error = 'invalid_gateway_configuration'
         rows.append({'id': identity(bot.url), 'loaded': status.get('loaded', False),
                      'ready': status.get('ready', False), 'running': status.get('running', False),
-                     'receiver': status.get('receiver'), 'incoming': 'local_bot_api_tdlib' if local else 'bot_api',
+                     'receiver': status.get('receiver'), 'incoming': 'unknown' if local is None else 'local_bot_api_tdlib' if local else 'bot_api',
+                     'issue': error,
                      'auth_state': status.get('auth_state', 'not_configured')})
     inbox = {'enabled': False}
     inbox_path = os.getenv('MOON_INBOX_PATH', '')

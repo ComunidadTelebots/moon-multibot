@@ -30,6 +30,25 @@ class VoiceServiceTests(unittest.TestCase):
         self.assertFalse(result["ok"]); self.assertIsNone(result["text"])
         self.assertEqual(result["error"]["code"], "PROVIDER_UNAVAILABLE")
 
+    def test_gateway_voice_download_uses_the_selected_bot_server(self):
+        bot = Bot()
+        bot.token = "123:test"
+        with tempfile.TemporaryDirectory() as folder, mock.patch.dict(os.environ, {
+            "OPENAI_API_KEY": "x", "MOON_LOCAL_BOT_IDS": "123",
+            "MOON_BOT_API_URL": "http://telegram-gateway:8081",
+        }), mock.patch("voice_transcription_service.requests.get", side_effect=RuntimeError("offline")) as download:
+            transcribe_telegram_voice(bot, VOICE, {"enabled": True}, temp_directory=folder)
+            self.assertEqual(download.call_args.args[0], "http://telegram-gateway:8081/file/bot123:test/voice/file.ogg")
+            self.assertEqual(os.listdir(folder), [])
+
+    def test_unsafe_gateway_file_path_never_downloads(self):
+        bot = Bot()
+        bot.api_call = lambda *args, **kwargs: {"ok": True, "result": {"file_path": "../private"}}
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "x"}), mock.patch("voice_transcription_service.requests.get") as download:
+            result = transcribe_telegram_voice(bot, VOICE, {"enabled": True})
+            self.assertFalse(result["ok"])
+            download.assert_not_called()
+
     def test_failed_download_always_removes_temporary_file(self):
         bot = Bot()
         with tempfile.TemporaryDirectory() as folder, mock.patch.dict(os.environ, {"OPENAI_API_KEY": "x"}), mock.patch("voice_transcription_service.requests.get", side_effect=RuntimeError("offline")):

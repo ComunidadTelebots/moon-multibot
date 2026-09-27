@@ -5,6 +5,8 @@ import tempfile
 
 import requests
 
+from core.bot_endpoint import bot_file_url
+
 from voice_transcription_pipeline import VoicePipelineError, build_voice_download_plan, normalize_transcription_result
 
 
@@ -26,7 +28,7 @@ def transcribe_telegram_voice(bot, voice, config, api_key=None, temp_directory=N
         if not remote_path:
             raise VoicePipelineError("TELEGRAM_FILE_UNAVAILABLE", "Telegram no pudo preparar la nota de voz.")
         downloaded = 0
-        with requests.get(f"https://api.telegram.org/file/bot{bot.token}/{remote_path}", stream=True, timeout=(5, 30)) as response:
+        with requests.get(bot_file_url(bot.token, remote_path), stream=True, timeout=(5, 30)) as response:
             response.raise_for_status()
             with open(path, "xb") as target:
                 for chunk in response.iter_content(64 * 1024):
