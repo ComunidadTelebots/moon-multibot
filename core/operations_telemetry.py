@@ -1,12 +1,12 @@
 """Bounded process counters. Never retain message bodies, tokens or chat IDs."""
-from collections import OrderedDict
-from datetime import datetime, timezone
 import hashlib
 import math
 import threading
 import time
-from core.bot_endpoint import canonical_bot_url
+from collections import OrderedDict
+from datetime import datetime, timezone
 
+from core.bot_endpoint import canonical_bot_url
 
 KEYS = ('updates', 'received', 'sent', 'calls', 'errors', 'limited', 'timeouts',
         'http', 'http_errors', 'retry_after_max', 'latency_ms')
@@ -84,8 +84,8 @@ class OperationsTelemetry:
             if second not in buckets:
                 for expired in [key for key in buckets if key <= second - 60]:
                     del buckets[expired]
-            bucket = buckets.setdefault(second, dict(received=0, sent=0, calls=0, errors=0, limited=0, latency_ms=0))
-            for key, value in dict(received=received, sent=sent, calls=1, errors=int(not ok), limited=int(limited), latency_ms=max(0, elapsed_ms)).items():
+            bucket = buckets.setdefault(second, {'received': 0, 'sent': 0, 'calls': 0, 'errors': 0, 'limited': 0, 'latency_ms': 0})
+            for key, value in {'received': received, 'sent': sent, 'calls': 1, 'errors': int(not ok), 'limited': int(limited), 'latency_ms': max(0, elapsed_ms)}.items():
                 bucket[key] += value
             self.bots[bot_id] = buckets
             self._add(calls=1, errors=int(not ok), limited=int(limited), timeouts=int(timeout),
@@ -117,6 +117,30 @@ class OperationsTelemetry:
 telemetry = OperationsTelemetry()
 
 
+class ObservedSession:
+    """Observe each HTTP attempt without changing transport or retry behavior."""
+    def __init__(self, session, base_url, method, counters=None):
+        self.session, self.base_url, self.method = session, base_url, method
+        self.counters = counters or telemetry
+
+    def post(self, *args, **kwargs):
+        import requests
+        started, data, timed_out = time.monotonic(), {}, False
+        try:
+            response = self.session.post(*args, **kwargs)
+            try:
+                data = response.json()
+            except ValueError:
+                pass
+            return response
+        except requests.Timeout:
+            timed_out = True
+            raise
+        finally:
+            self.counters.telegram(self.base_url, self.method, data,
+                                   (time.monotonic() - started) * 1000, timeout=timed_out)
+
+
 def install_http_telemetry(app, check_jwt):
     from flask import jsonify, request
 
@@ -130,5 +154,19 @@ def install_http_telemetry(app, check_jwt):
         if not check_jwt(request):
             return jsonify({'ok': False}), 401
         response = jsonify(telemetry.snapshot())
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.get('/api/telemetry/resources')
+    def resources_snapshot():
+        if not check_jwt(request):
+            return jsonify({'ok': False}), 401
+        import psutil
+        memory = psutil.virtual_memory()
+        response = jsonify({'ok': True, 'cpu': psutil.cpu_percent(), 'ram': memory.percent,
+                            'ram_used': round(memory.used / 1024**3, 2),
+                            'ram_total': round(memory.total / 1024**3, 2),
+                            'disk': psutil.disk_usage('.').percent,
+                            'uptime': str(int(time.time() - telemetry.started)) + ' s'})
         response.headers['Cache-Control'] = 'no-store'
         return response
