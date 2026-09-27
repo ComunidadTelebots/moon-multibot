@@ -145,6 +145,7 @@ def register_governor(app):
         supplied = request.headers.get('X-Moon-Admin-Key', '').strip()
         if not expected or not supplied or not hmac.compare_digest(expected.encode(), supplied.encode()):
             return jsonify({'ok': False}), 401
-        response = jsonify({'ok': True, **governor.snapshot()})
+        from core.managed_family import family_snapshot
+        response = jsonify({'ok': True, **governor.snapshot(), 'family': family_snapshot()})
         response.headers['Cache-Control'] = 'no-store'
         return response

@@ -11,6 +11,7 @@ DEPRECATED_METHOD_ALIASES = {
 }
 
 DEFAULT_ALLOWED_UPDATES = [
+    "managed_bot",
     "message",
     "edited_message",
     "channel_post",

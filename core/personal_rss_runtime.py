@@ -190,5 +190,8 @@ def register_personal_rss(app, public):
                     break
             except Exception: pass
         return jsonify(ok=True, scheduler_alive=service.thread.is_alive(), membership_verification_ready=can_verify, catalog_sources=len(CATALOG))
+    from core.managed_family import install_family
+    from token_manager import token_manager
+    install_family(public._db, service.get_bots, token_manager.encrypt_token)
     service.start()
     return service
