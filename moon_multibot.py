@@ -4219,7 +4219,7 @@ class MoonBot:
                     channel_stats.record_post(msg["chat"]["id"], msg["message_id"])
                 except Exception:
                     pass
-                    
+
             b_conn_id = u.get("business_message", {}).get("business_connection_id")
             self.last_msg_id = msg.get("message_id")
 
@@ -4259,7 +4259,7 @@ class MoonBot:
                         add_web_log("IA", f"âš ï¸ SPAM detectado en auditorÃ­a de {cid}. Penalizando fuente.")
                     else:
                         audit["score"] += (unique_words * 2) + (len(text) // 10)
-                            
+
                     if len(audit["messages"]) >= 15:
                         audit["status"] = "finished"
                         audit["final_score"] = min(100, (audit["score"] // 15) * 5)
@@ -4280,7 +4280,7 @@ class MoonBot:
                         db.set("ACTIVE_AUDITS", active_audits)
                         add_web_log("SUCCESS", f"AuditorÃ­a Finalizada y Guardada: {audit.get('name', cid)} ({audit['final_score']}%)")
                         # No retornamos aquÃ­ para que tambiÃ©n aprenda o procese si es necesario
-                    
+
             # DetecciÃ³n AutomÃ¡tica de Fuentes Potenciales (Feeders sugeridos)
             if cid.startswith("-"):
                 feeder_groups = db.get("IA_FEEDERS", [])
@@ -4292,7 +4292,7 @@ class MoonBot:
                         # Auto-AuditorÃ­a: Comenzar a analizar de inmediato de forma silenciosa
                         if cid not in active_audits:
                             _start_audit_logic(cid)
-                    
+
             # Karma & RPG System
             user_id = str(uid)
             user_data = db.get(f"USER_{user_id}", {"karma": 0, "level": 1, "exp": 0, "titles": []})
@@ -4304,13 +4304,13 @@ class MoonBot:
                 uname_safe = re.sub(r"([_*`\\[\\]()~>#+\\-=|{}.!])", r"\\\\\\1", str(uname or "Usuario"))
                 self.send_msg(cid, f"🆙 **LEVEL UP!** {uname_safe} ha subido al nivel `{user_data['level']}`.")
             db.set(f"USER_{user_id}", user_data)
-                    
+
             # Advanced Link Filter (Low Karma Check)
             if "http" in text.lower() and user_data["karma"] < 10:
                 self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
                 self.send_msg(cid, f"ðŸš« **FILTRO DE SPAM:** {uname}, necesitas al menos 10 puntos de Karma para enviar enlaces.")
                 continue
-                    
+
             # Anti-Raid 2.0 (Mass Join Detection)
             if "new_chat_members" in msg:
                 join_security_hit = False
@@ -4332,10 +4332,10 @@ class MoonBot:
                     self.send_msg(cid, "ðŸš¨ **ANTI-RAID 2.0 ACTIVADO:** Detectada entrada masiva. Bloqueando acceso temporalmente...")
                     add_web_log("SECURITY", f"Anti-Raid activado en chat {cid} (Entrada: {join_count} usuarios)")
                     continue
-                    
+
             # Debug message
             add_web_log("DEBUG", f"Procesando mensaje de {uname} en {global_chat_names.get(cid, cid)}: {text[:20]}")
-                    
+
             # Global History Log (Captured before any filtering)
             history = db.get("GLOBAL_HISTORY", [])
             history.append({
@@ -4349,7 +4349,7 @@ class MoonBot:
             db.set("GLOBAL_HISTORY", history)
             global global_msg_log
             global_msg_log = history
-                    
+
             # Mute Check - Usuarios silenciados por admin
             muted_list = db.get(f"MUTED_{cid}", [])
             uname_at = f"@{user.get('username', '')}" if user.get('username') else ""
@@ -4389,7 +4389,7 @@ class MoonBot:
             if "photo" in msg:
                 file_id = msg["photo"][-1]["file_id"]
                 self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando estructura binaria de la imagen...")
-                        
+
                 f_info = self.api_call("getFile", {"file_id": file_id})
                 if f_info.get("ok"):
                     path = os.path.join("downloads", f"{file_id}.jpg")
@@ -4397,7 +4397,7 @@ class MoonBot:
                     # Descarga con requests (estÃ¡ndar en el proyecto)
                     r = requests.get(url)
                     with open(path, 'wb') as f_out: f_out.write(r.content)
-                            
+
                     # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
                     f_hash = self.get_file_hash(path)
                     self.last_media_hash = f_hash
@@ -4407,7 +4407,7 @@ class MoonBot:
                         try: os.remove(path)
                         except: pass
                         continue
-                            
+
                     self.send_msg(cid, f"ðŸŒŒ **PercepciÃ³n IA:** {visual_data}")
                     ia_nativa.learn(visual_data, source=global_chat_names.get(cid, cid))
                     # Incremento para Dashboard
@@ -4420,14 +4420,14 @@ class MoonBot:
             if "video" in msg:
                 file_id = msg["video"]["file_id"]
                 self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando secuencia binaria de video...")
-                        
+
                 f_info = self.api_call("getFile", {"file_id": file_id})
                 if f_info.get("ok"):
                     path = os.path.join("downloads", f"{file_id}.mp4")
                     url = bot_file_url(self.token, f_info['result']['file_path'])
                     r = requests.get(url)
                     with open(path, 'wb') as f_out: f_out.write(r.content)
-                            
+
                     # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
                     f_hash = self.get_file_hash(path)
                     self.last_media_hash = f_hash
@@ -4457,7 +4457,7 @@ class MoonBot:
                 if random.random() > 0.5:
                     self.send_msg(cid, "âœ… AcciÃ³n ejecutada mediante voz: [Limpieza de Cache]")
                     add_web_log("ADMIN", "Limpieza de cache ejecutada por voz.")
-                    
+
             # Command Cooldowns
             last_cmd = db.get(f"COOLDOWN_{uid}", 0)
             if text.startswith("/") and time.time() - last_cmd < 1:
@@ -4469,12 +4469,12 @@ class MoonBot:
                     global_media_list.append(bot_file_url(self.token, f['result']['file_path']))
             # Karma & Engagement System
             sent = analyze_sentiment(text)
-            if uid not in global_user_stats: 
+            if uid not in global_user_stats:
                 global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
             global_user_stats[uid]["count"] += 1
             if sent == "positive": global_user_stats[uid]["karma"] += 1
             elif sent == "negative": global_user_stats[uid]["karma"] -= 1
-                    
+
             # Engagement formula: messages * karma_factor
             global_user_stats[uid]["engagement"] = min(100, (global_user_stats[uid]["count"] * 2) + global_user_stats[uid]["karma"])
             if cid not in global_chat_history:
@@ -4503,7 +4503,7 @@ class MoonBot:
 
             # 2. Caso EstÃ¡ndar (Grupos/Privados)
             should_reply = False
-                    
+
             # DetecciÃ³n de Media para el Dashboard
             media_info = None
             if "photo" in msg:
@@ -4528,7 +4528,7 @@ class MoonBot:
                 "media": media_info
             })
             global_chat_names[cid] = msg["chat"].get("title", uname)
-                    
+
             # Last Seen tracking
             vistos = db.get("U_FILE", {})
             vistos[cid] = {"last_seen": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "name": global_chat_names[cid]}
@@ -4557,7 +4557,7 @@ class MoonBot:
                 if not any(d in text.lower() for d in safe_domains):
                     add_audit_log(f"Link sospechoso detectado: {text}")
                     # Simulate deep scan
-                    
+
             # FAQ Learning + Auto-respuesta si la pregunta se repite 3+ veces
             if text.endswith("?"):
                 faq_key = text.lower().strip()
@@ -4571,20 +4571,20 @@ class MoonBot:
             if any('\u0600' <= char <= '\u06FF' for char in text):
                 self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
                 continue
-                    
+
             # Group Link Detection
             if "t.me/joinchat" in text or "t.me/+" in text:
                 self.send_msg(cid, "âš ï¸ Enlaces de grupos no permitidos.")
                 self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
                 continue
-                    
+
             # Profanity Filter
             bad_words = ["spam", "scam", "crypto-offer"] # Example list
             if any(w in text.lower() for w in bad_words):
                 self.send_msg(cid, "âš ï¸ Lenguaje no permitido.")
                 self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
                 continue
-                    
+
 
             # 1. Caso Business (Modo Secretaria)
             b_cfg = db.get("BUSINESS_CONFIG", {"ia_auto": False})
@@ -4597,19 +4597,19 @@ class MoonBot:
 
             # 2. IA Nativa (Auto-learning y respuesta)
             ia_nativa.learn(text, source=global_chat_names.get(cid, cid))
-                    
+
             # Track language usage
             lang = ia_nativa.detect_lang(text)
             lang_counts = db.get("IA_LANG_COUNTS", {})
             lang_counts[lang] = lang_counts.get(lang, 0) + 1
             db.set("IA_LANG_COUNTS", lang_counts)
-                    
+
             rk = self.get_user_rank(cid, uid)
 
             # 1. Modo Escucha (Bloquea IA y Aprendizaje, pero NO comandos arriba)
             if listen_mode and uid != str(MASTER_ID):
                 continue
-                    
+
             # 2. Modo Alimentador IA (Aprende pero no responde, a menos que sea comando arriba)
             feeder_groups = db.get("IA_FEEDERS", [])
             if cid in feeder_groups and not text.startswith("/"):
@@ -4620,7 +4620,7 @@ class MoonBot:
             is_ia_call = (self.bot_username in text)
             is_master_natural = (uid == str(MASTER_ID) and not text.startswith("/"))
             natural_translation = ia_nativa.parse_translation_request(text)
-                    
+
             if is_ia_call or is_master_natural or natural_translation:
                 cfg = db.get(f"CONFIG_{cid}", {"ia_mood": "friendly"})
                 clean_text = text.replace(f"@{self.bot_username}", "").strip()
@@ -4634,7 +4634,7 @@ class MoonBot:
                 ia_nativa.remember_context(cid, resp, role="bot")
                 self.send_msg(cid, f"ðŸŒŒ [Moon IA]: {resp}")
                 continue
-                    
+
             # Karma Badges assignment
             k = global_user_stats[uid].get("karma", 0)
             if k > 50: global_user_stats[uid]["badge"] = "ðŸ† Leyenda"
@@ -4655,14 +4655,14 @@ class MoonBot:
                     add_web_log("ERROR", f"Error getUpdates: {res.get('description')} â€” reintentando en {backoff}s (intento {_poll_failures})")
                     time.sleep(backoff); continue
                 _poll_failures = 0
-                
-                if not res.get("result"): 
+
+                if not res.get("result"):
                     # Solo logueamos cada 10 intentos vacÃ­os para no saturar
                     if random.random() < 0.1: add_web_log("DEBUG", "Esperando nuevos mensajes de Telegram...")
                     if not governor_worker:
                         self.run_periodic_maintenance()
                     continue
-                
+
                 for u in res["result"]:
                     if governor_worker:
                         offset = governor_worker.submit(u)
