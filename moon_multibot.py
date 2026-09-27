@@ -1,4 +1,5 @@
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+from core.bot_endpoint import bot_api_url, bot_file_url, uses_local_api
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from dotenv import load_dotenv
 from collections import Counter
@@ -602,7 +603,7 @@ def web_telegram_file_proxy(file_id):
     if not f_info.get("ok"): return "File not found", 404
     
     path = f_info["result"]["file_path"]
-    url = f"https://api.telegram.org/file/bot{bot.token}/{path}"
+    url = bot_file_url(bot.token, path)
     
     try:
         r = requests.get(url, stream=True, timeout=10)
@@ -2660,7 +2661,7 @@ def submit_community_proxy(server, port, secret, by=""):
 
 class MoonBot:
     def __init__(self, token):
-        self.token, self.url, self.session, self.plugins = token, f"https://api.telegram.org/bot{token}/", requests.Session(), []
+        self.token, self.url, self.session, self.plugins = token, bot_api_url(token), requests.Session(), []
         self.db = db
         self.ia = ia_nativa
         self.ia_nativa = ia_nativa
@@ -2678,7 +2679,7 @@ class MoonBot:
 
         # TDLib bot client (opcional) â€” autentica con bot token, sesiÃ³n propia
         self._tdlib = None
-        if TDLIB_API_ID and TDLIB_API_HASH:
+        if (TDLIB_API_ID and TDLIB_API_HASH) and not uses_local_api(self.token):
             bot_dir = f"tdlib_data/bot_{bot_public_id(token)}"
             self._tdlib = TDLibClient(
                 TDLIB_API_ID, TDLIB_API_HASH, db,
@@ -3038,10 +3039,10 @@ class MoonBot:
         return self.api_call("banChatMember", {"chat_id": cid, "user_id": uid})
 
     def get_managed_bot_token(self, bot_id):
-        return self.api_call("getManagedBotToken", {"bot_id": bot_id})
+        return self.api_call("getManagedBotToken", {'user_id': bot_id})
 
     def replace_managed_bot_token(self, bot_id):
-        return self.api_call("replaceManagedBotToken", {"bot_id": bot_id})
+        return self.api_call("replaceManagedBotToken", {'user_id': bot_id})
 
     def record_managed_bot_update(self, update):
         return self.telegram_events.record_managed_bot_update(update)
@@ -3453,10 +3454,10 @@ class MoonBot:
 
     # API 10.0: configuraciÃ³n de acceso de bots administrados
     def get_managed_bot_access_settings(self, bot_id):
-        return self.api_call("getManagedBotAccessSettings", {"bot_id": bot_id})
+        return self.api_call("getManagedBotAccessSettings", {'user_id': bot_id})
 
     def set_managed_bot_access_settings(self, bot_id, **kwargs):
-        return self.api_call("setManagedBotAccessSettings", {"bot_id": bot_id, **kwargs})
+        return self.api_call("setManagedBotAccessSettings", {'user_id': bot_id, **kwargs})
 
     # API 10.0: mensajes del chat personal de usuario
     def get_user_personal_chat_messages(self, user_id, limit=100):
@@ -4111,7 +4112,7 @@ class MoonBot:
                 data = image_gen.fetch_bytes(photo) if photo else None
                 if data:
                     requests.post(
-                        f"https://api.telegram.org/bot{bot.token}/sendPhoto",
+                        bot_api_url(bot.token) + 'sendPhoto',
                         data={"chat_id": str(cid), "caption": (m.get("text") or "")[:1024]},
                         files={"photo": ("imagen.jpg", data)}, timeout=45,
                     )
@@ -4408,7 +4409,7 @@ class MoonBot:
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.jpg")
-                            url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                            url = bot_file_url(self.token, f_info['result']['file_path'])
                             # Descarga con requests (estÃ¡ndar en el proyecto)
                             r = requests.get(url)
                             with open(path, 'wb') as f_out: f_out.write(r.content)
@@ -4439,7 +4440,7 @@ class MoonBot:
                         f_info = self.api_call("getFile", {"file_id": file_id})
                         if f_info.get("ok"):
                             path = os.path.join("downloads", f"{file_id}.mp4")
-                            url = f"https://api.telegram.org/file/bot{self.token}/{f_info['result']['file_path']}"
+                            url = bot_file_url(self.token, f_info['result']['file_path'])
                             r = requests.get(url)
                             with open(path, 'wb') as f_out: f_out.write(r.content)
                             
@@ -4480,7 +4481,7 @@ class MoonBot:
                     if text.startswith("/"): db.set(f"COOLDOWN_{uid}", time.time())
                     if "photo" in msg:
                         f = self.api_call("getFile", {"file_id": msg["photo"][-1]["file_id"]})
-                        if f.get("ok"): global_media_list.append(f"https://api.telegram.org/file/bot{self.token}/{f['result']['file_path']}")
+                        if f.get("ok"): global_media_list.append(bot_file_url(self.token, f['result']['file_path']))
                     # Karma & Engagement System
                     sent = analyze_sentiment(text)
                     if uid not in global_user_stats: 
@@ -4678,6 +4679,14 @@ def health_monitor():
             time.sleep(60)
 
 proxy_bot = None
+
+
+@app.route('/api/telemetry/tdlib-migration')
+def tdlib_migration_status():
+    from core.tdlib_migration import migration_snapshot, migration_authorized
+    if not migration_authorized(request, check_jwt):
+        return jsonify({'ok': False}), 401
+    return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
 if __name__ == "__main__":
     start_time, bots_data = time.time(), []
