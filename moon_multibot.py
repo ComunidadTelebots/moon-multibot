@@ -4706,6 +4706,8 @@ def tdlib_migration_status():
         return jsonify({'ok': False}), 401
     return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
+from core.bot_governor import register_governor
+register_governor(app)
 from core.operations_telemetry import install_http_telemetry
 from core.tdlib_migration import migration_authorized
 install_http_telemetry(app, lambda req: migration_authorized(req, check_jwt))

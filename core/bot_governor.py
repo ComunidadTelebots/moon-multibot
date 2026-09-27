@@ -130,3 +130,18 @@ class BotGovernor:
 
 
 governor = BotGovernor()
+
+
+def register_governor(app):
+    from flask import jsonify, request
+    import hmac
+
+    @app.get('/api/internal/governor')
+    def governor_status():
+        expected = os.getenv('MOON_ADMIN_API_KEY', '').strip()
+        supplied = request.headers.get('X-Moon-Admin-Key', '').strip()
+        if not expected or not supplied or not hmac.compare_digest(expected.encode(), supplied.encode()):
+            return jsonify({'ok': False}), 401
+        response = jsonify({'ok': True, **governor.snapshot()})
+        response.headers['Cache-Control'] = 'no-store'
+        return response
