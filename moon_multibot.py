@@ -4708,6 +4708,9 @@ def tdlib_migration_status():
 
 from core.bot_governor import register_governor
 register_governor(app)
+from core.personal_rss_runtime import register_personal_rss
+import core.routes_public as _rss_public
+personal_rss_service = register_personal_rss(app, _rss_public)
 from core.operations_telemetry import install_http_telemetry
 from core.tdlib_migration import migration_authorized
 install_http_telemetry(app, lambda req: migration_authorized(req, check_jwt))
