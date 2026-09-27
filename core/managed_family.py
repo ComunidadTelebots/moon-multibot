@@ -37,6 +37,9 @@ class ManagedFamily:
                             key='MANAGED_CHILD_SECRET_'+str(identity)
                             self.db.set(key,{'token':self.encrypt(token),'encrypted':True})
                             row.update(id=str(identity),status='registered_standby')
+                            if parent.lower() == 'cintiabot' and identity == 8777193547:
+                                from core.managed_group_onboarding import prepare_group
+                                prepare_group(bot, self.db)
                             ids=sorted({str(x) for x in self.db.get('CHATS_'+bot.token,[]) if str(x).startswith('-')})
                             row['total_groups']=len(ids)
                             old=self.db.get('MANAGED_CHILD_PERMISSIONS_'+str(identity),{}) or {}
