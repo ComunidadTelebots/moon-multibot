@@ -1401,9 +1401,11 @@ def web_bots():
         return jsonify({"ok": True})
     return jsonify({"ok": True})
 
-def _managed_bot_manager():
+def _managed_bot_manager(manager_id=None):
     """Devuelve una instancia autorizada para administrar bots, sin exponer tokens."""
     capable = [bot for bot in active_bots if getattr(bot, "can_manage_bots", False)]
+    if manager_id is not None:
+        return next((bot for bot in capable if str(bot.bot_id) == str(manager_id)), None)
     return capable[0] if capable else None
 
 def _managed_registry():
@@ -1443,6 +1445,7 @@ def _connect_managed_bot(manager, managed_bot_user_id, metadata=None):
         registry = _managed_registry()
         registry.setdefault(managed_bot_user_id, {}).update({
             "bot_id": managed_bot_user_id, "username": metadata.get("username") or instance.bot_username,
+            "manager_bot_id": str(manager.bot_id), "manager_username": manager.bot_username,
             "name": metadata.get("name") or instance.bot_username, "status": "connected",
             "connected_at": datetime.datetime.now().isoformat(),
             "token_preview": mask_bot_token(token),
@@ -1470,6 +1473,9 @@ def web_managed_bots():
     return jsonify({
         "ok": True, "capable": bool(manager),
         "manager_username": getattr(manager, "bot_username", "") if manager else "",
+        "managers": [{"id": str(bot.bot_id), "username": bot.bot_username}
+                     for bot in active_bots if getattr(bot, "can_manage_bots", False)],
+        "creation_requires_confirmation": True,
         "auto_connect": bool(db.get("AUTO_CONNECT_MANAGED_BOTS", True)),
         "bots": bots,
     })
@@ -1485,12 +1491,16 @@ def web_managed_bots_action():
         db.set("AUTO_CONNECT_MANAGED_BOTS", enabled)
         add_audit_log(f"Autoconexión de managed bots: {'ON' if enabled else 'OFF'}")
         return jsonify({"ok": True, "auto_connect": enabled})
-    manager = _managed_bot_manager()
-    if not manager:
-        return jsonify({"ok": False, "msg": "Activa can_manage_bots para el bot gestor en BotFather y reinícialo."}), 409
     managed_bot_user_id = str(data.get("bot_id", ""))
     registry = _managed_registry()
     metadata = registry.get(managed_bot_user_id, {}) if isinstance(registry.get(managed_bot_user_id), dict) else {}
+    stored = next((item for item in bots_data if str(item.get("managed_bot_id", "")) == managed_bot_user_id), {})
+    manager_id = metadata.get("manager_bot_id") or stored.get("manager_bot_id") or data.get("manager_id")
+    if not manager_id and sum(bool(getattr(bot, "can_manage_bots", False)) for bot in active_bots) > 1:
+        return jsonify({"ok": False, "msg": "Selecciona el bot gestor para esta operación."}), 409
+    manager = _managed_bot_manager(manager_id)
+    if not manager:
+        return jsonify({"ok": False, "msg": "El gestor seleccionado no está disponible o no tiene Bot Management Mode."}), 409
     if action == "connect":
         ok, message = _connect_managed_bot(manager, managed_bot_user_id, metadata)
         return jsonify({"ok": ok, "msg": message}), (200 if ok else 400)
@@ -4134,6 +4144,12 @@ class MoonBot:
         bot_data = managed.get("bot") or {}
         owner = managed.get("user") or {}
         managed_bot_user_id = str(bot_data.get("id", ""))
+        if managed_bot_user_id:
+            registry = _managed_registry()
+            registry.setdefault(managed_bot_user_id, {}).update({
+                "manager_bot_id": str(self.bot_id), "manager_username": self.bot_username,
+            })
+            db.set("MANAGED_BOTS", registry)
         if not managed_bot_user_id or not db.get("AUTO_CONNECT_MANAGED_BOTS", True):
             return True
         ok, message = _connect_managed_bot(self, managed_bot_user_id, {

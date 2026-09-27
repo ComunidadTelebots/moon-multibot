@@ -2062,13 +2062,16 @@
         : `<span class="banned">Falta el permiso can_manage_bots.</span><br>Actívalo para el bot gestor en BotFather y reinicia Moonbot.`}</div>
       <label style="display:flex;gap:8px;align-items:center;margin:12px 0"><input id="masterManagedAuto" type="checkbox" ${managed&&managed.auto_connect?"checked":""}> Conectar automáticamente los bots nuevos</label>
       <div class="gsec">Crear mediante Telegram</div>
+      <p class="muted">Telegram te pedirá confirmar la creación. Moonbot puede obtener después el token; crear un bot no mueve automáticamente las conversaciones ni reparte la carga.</p>
+      <label for="masterManagedManager">Bot principal que lo gestionará</label>
+      <select id="masterManagedManager">${((managed&&managed.managers)||[]).map(manager=>`<option value="${escAttr(manager.id)}" data-username="${escAttr(manager.username)}">@${escHtml(manager.username)}</option>`).join("")}</select>
       <input id="masterManagedUsername" placeholder="usuario_sugerido_bot">
       <input id="masterManagedName" placeholder="Nombre visible" style="margin-top:8px">
       <button class="btn ghost" id="masterCreateManaged" style="margin-top:9px">${svg('plus')} Crear en Telegram</button>
       <div class="gsec">Bots detectados</div>
       ${managedBots.length?managedBots.map(bot=>`<div class="casbox">
         <b>@${escHtml(bot.username||bot.bot_id)}</b> <span class="rbadge">${escHtml(bot.status||"detectado")}</span><br>
-        <span class="k">${escHtml(bot.name||"")} · ID ${escHtml(bot.bot_id)}</span>
+        <span class="k">${escHtml(bot.name||"")} · ID ${escHtml(bot.bot_id)} · Gestor: ${escHtml(bot.manager_username?"@"+bot.manager_username:bot.manager_bot_id||"por identificar")}</span>
         <div class="btnrow" style="margin-top:9px">
           ${bot.status!=="connected"?`<button class="minibtn" data-managed-action="connect" data-managed-id="${escAttr(bot.bot_id)}">Conectar</button>`:""}
           <button class="minibtn" data-managed-action="access_set" data-managed-id="${escAttr(bot.bot_id)}" data-managed-restricted="${bot.is_access_restricted?"1":"0"}">${bot.is_access_restricted?"Permitir acceso":"Restringir acceso"}</button>
@@ -2091,13 +2094,16 @@
     const name=(document.getElementById("masterManagedName").value||"").trim();
     if(!managed||!managed.capable){showToast("Activa can_manage_bots en BotFather");return;}
     if(!/^[A-Za-z][A-Za-z0-9_]{3,30}bot$/i.test(username)){showToast("El usuario debe terminar en bot");return;}
-    openTg(`https://t.me/newbot/${encodeURIComponent(managed.manager_username)}/${encodeURIComponent(username)}?name=${encodeURIComponent(name||username)}`);
+    const selected=document.getElementById("masterManagedManager")?.selectedOptions[0];
+    const managerUsername=selected?.dataset.username||managed.manager_username;
+    openTg(`https://t.me/newbot/${encodeURIComponent(managerUsername)}/${encodeURIComponent(username)}?name=${encodeURIComponent(name||username)}`);
   }
   async function managedBotMiniAction(action,bot_id,extra={}){
     if((action==="rotate"||action==="disconnect")&&!await masterConfirm(action==="rotate"
       ?"¿Rotar el token? El anterior dejará de funcionar inmediatamente."
       :"¿Desconectar este bot? Seguirá existiendo en Telegram."))return;
-    const result=await masterApi("/api/managed-bots/action",{method:"POST",body:JSON.stringify({action,bot_id,...extra})});
+    const manager_id=document.getElementById("masterManagedManager")?.value||undefined;
+    const result=await masterApi("/api/managed-bots/action",{method:"POST",body:JSON.stringify({action,bot_id,manager_id,...extra})});
     showToast(result&&result.ok?"Bot actualizado":(result&&result.msg)||"No se pudo completar");
     if(result&&result.ok)loadMasterBots();
   }
