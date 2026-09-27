@@ -725,28 +725,28 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 4517,
+      "line": 4518,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4584,
+      "line": 4585,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4590,
+      "line": 4591,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
     },
     {
       "file": "moon_multibot.py",
-      "line": 4597,
+      "line": 4598,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"
@@ -760,7 +760,7 @@
     },
     {
       "file": "moon_multibot.py",
-      "line": 4563,
+      "line": 4564,
       "method": "deleteMessage",
       "entry": "api_call",
       "status": "requires_adapter"

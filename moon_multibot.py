@@ -4481,7 +4481,8 @@ class MoonBot:
                     if text.startswith("/"): db.set(f"COOLDOWN_{uid}", time.time())
                     if "photo" in msg:
                         f = self.api_call("getFile", {"file_id": msg["photo"][-1]["file_id"]})
-                        if f.get("ok"): global_media_list.append(bot_file_url(self.token, f['result']['file_path']))
+                        if f.get("ok"):
+                            global_media_list.append(bot_file_url(self.token, f['result']['file_path']))
                     # Karma & Engagement System
                     sent = analyze_sentiment(text)
                     if uid not in global_user_stats: 
