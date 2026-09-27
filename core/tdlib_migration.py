@@ -1,9 +1,19 @@
 """Read-only migration readiness; never publishes credentials or message content."""
 import json
+import hmac
 import os
 from pathlib import Path
 from core.traffic_control import identity
 from core.bot_endpoint import uses_local_api
+
+
+def migration_authorized(request, jwt_validator):
+    """Read-only telemetry uses the existing private service key or dashboard JWT."""
+    expected = os.getenv('MOON_ADMIN_API_KEY', '').strip()
+    supplied = request.headers.get('X-Moon-Admin-Key', '').strip()
+    if expected and supplied and hmac.compare_digest(expected.encode(), supplied.encode()):
+        return True
+    return bool(jwt_validator(request))
 
 
 def migration_snapshot(bots, configured):

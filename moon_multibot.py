@@ -1269,9 +1269,9 @@ global_bot_names_cache = {}
 
 @app.route('/api/telemetry/tdlib-migration')
 def tdlib_migration_status():
-    if not check_jwt(request):
+    from core.tdlib_migration import migration_snapshot, migration_authorized
+    if not migration_authorized(request, check_jwt):
         return jsonify({'ok': False}), 401
-    from core.tdlib_migration import migration_snapshot
     return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
 

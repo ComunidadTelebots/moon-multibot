@@ -4,11 +4,23 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest import mock
-from core.tdlib_migration import migration_snapshot
+from core.tdlib_migration import migration_snapshot, migration_authorized
 from tools.audit_tdlib_compatibility import inventory
 
 
 class MigrationTests(unittest.TestCase):
+    def test_read_only_service_auth_fails_closed_and_retains_jwt(self):
+        jwt = mock.Mock(return_value=False)
+        with mock.patch.dict('os.environ', {'MOON_ADMIN_API_KEY': 'service-secret'}):
+            self.assertTrue(migration_authorized(SimpleNamespace(headers={'X-Moon-Admin-Key': 'service-secret'}), jwt))
+            jwt.assert_not_called()
+            for headers in ({}, {'X-Moon-Admin-Key': 'wrong'}, {'X-Moon-Admin-Key': 'ñ'}):
+                self.assertFalse(migration_authorized(SimpleNamespace(headers=headers), jwt))
+            jwt.return_value = True
+            self.assertTrue(migration_authorized(SimpleNamespace(headers={}), jwt))
+        with mock.patch.dict('os.environ', {'MOON_ADMIN_API_KEY': ''}):
+            self.assertFalse(migration_authorized(SimpleNamespace(headers={}), lambda _: False))
+
     def test_audit_captures_direct_wrapped_dynamic_and_broken_files_without_execution(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
