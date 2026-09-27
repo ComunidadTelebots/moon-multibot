@@ -2,6 +2,7 @@ import pytesseract
 from PIL import Image
 import requests
 import io
+from core.bot_endpoint import bot_file_url
 
 def handle_command(bot, cid, uid, text, rank):
     t_lower = text.lower()
@@ -20,10 +21,10 @@ def handle_command(bot, cid, uid, text, rank):
                 return True
             
             file_path = file_info["result"]["file_path"]
-            download_url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+            download_url = bot_file_url(bot.token, file_path)
             
             # Descargar imagen
-            response = requests.get(download_url)
+            response = requests.get(download_url, timeout=(5, 30))
             if response.status_code != 200:
                 bot.send_msg(cid, "❌ Error descargando imagen.")
                 return True
@@ -47,8 +48,8 @@ def handle_command(bot, cid, uid, text, rank):
             
             # Aprender en IA local
             bot.ia.learn(extracted_text or "Imagen sin texto detectable", source="Análisis Imagen")
-        except Exception as e:
-            bot.send_msg(cid, f"❌ Error en análisis: {str(e)}")
+        except Exception:
+            bot.send_msg(cid, "❌ No se pudo analizar la imagen. Revisa la conexión y el servicio OCR.")
         
         return True
     

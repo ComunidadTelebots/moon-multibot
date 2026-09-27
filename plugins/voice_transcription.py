@@ -2,6 +2,7 @@ import speech_recognition as sr
 import requests
 import os
 import json
+from core.bot_endpoint import bot_file_url
 
 # Cargar lista blanca de APIs
 try:
@@ -29,10 +30,10 @@ def handle_command(bot, cid, uid, text, rank):
                     return True
                 
                 file_path = file_info["result"]["file_path"]
-                download_url = f"https://api.telegram.org/file/bot{bot.token}/{file_path}"
+                download_url = bot_file_url(bot.token, file_path)
                 
                 # Descargar archivo
-                response = requests.get(download_url)
+                response = requests.get(download_url, timeout=(5, 30))
                 if response.status_code != 200:
                     bot.send_msg(cid, "❌ Error descargando archivo.")
                     return True
@@ -57,8 +58,8 @@ def handle_command(bot, cid, uid, text, rank):
                 
                 # Limpiar
                 os.remove(temp_file)
-            except Exception as e:
-                bot.send_msg(cid, f"❌ Error: {str(e)}")
+            except Exception:
+                bot.send_msg(cid, "❌ No se pudo transcribir el archivo. Revisa la conexión y el servicio de voz.")
         else:
             # Simulación local
             import random

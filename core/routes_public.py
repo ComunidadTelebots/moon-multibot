@@ -8,6 +8,7 @@ protegidos por check_jwt.
 CORS abierto para que canales.todosobreall.tech (y el propio panel) puedan
 consumir la API desde el navegador.
 """
+from core.bot_endpoint import bot_api_url, bot_file_url, uses_local_api
 
 import hmac
 import hashlib
@@ -388,7 +389,7 @@ def group_sendphoto():
         import requests
         try:
             resp = requests.post(
-                f"https://api.telegram.org/bot{bot.token}/sendPhoto",
+                bot_api_url(bot.token) + 'sendPhoto',
                 data={"chat_id": str(chat_id), "caption": caption},
                 files={"photo": ("imagen.jpg", data)}, timeout=45,
             )
