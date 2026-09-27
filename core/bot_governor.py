@@ -81,7 +81,8 @@ class BotWorker:
         self.thread.start()
 
     def snapshot(self):
-        return {'id': self.identity, 'processing_workers': 1,
+        from core.receiver_network import receiver_network
+        return {'name': getattr(self, 'name', None), 'network': receiver_network.read(getattr(self, 'endpoint', None)),'id': self.identity, 'processing_workers': 1,
                 'running': bool(self.thread and self.thread.is_alive()),
                 'error': self.error, **self.queue.stats()}
 
@@ -116,6 +117,8 @@ class BotGovernor:
             except Exception:
                 owner.close()
                 raise
+            worker.name = str(getattr(bot, 'bot_username', ''))[:64]
+            worker.endpoint = bot.url
             worker.owner = owner
             self.workers[identity] = worker
             worker.start()
