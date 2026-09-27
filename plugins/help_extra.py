@@ -12,6 +12,7 @@ HELP_TEXT = """Comandos extra instalados:
 /id
 /welcome, /setwelcome <mensaje>
 /tutorial
+/utilidades (conversiones, fechas, JSON y SHA-256)
 """
 
 

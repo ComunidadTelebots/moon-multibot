@@ -54,6 +54,8 @@ def migration_snapshot(bots, configured):
             inbox = {'enabled': True, **PersistentInbox(inbox_path).stats()}
         except Exception:
             inbox = {'enabled': True, 'error': 'Cola no disponible'}
+    from core.bot_governor import governor
     return {'ok': True, 'schema': 1, 'configured': bool(configured), 'inbox': inbox,
+            'governor': governor.snapshot(),
             'ready_for_full_migration': False, 'audit': summary, 'bots': rows,
             'bots_truncated': len(bots) > 200}

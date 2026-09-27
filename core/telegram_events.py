@@ -11,7 +11,7 @@ class TelegramEventStore:
         return self.business_connections
 
     def record_managed_bot_update(self, update):
-        managed = update.get("managed_bot")
+        managed = update.get("managed_bot") or (update.get("message") or {}).get("managed_bot_created")
         if not managed:
             return False
         events = self.db.get("MANAGED_BOT_UPDATES", [])

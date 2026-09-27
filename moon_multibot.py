@@ -4187,9 +4187,464 @@ class MoonBot:
                             add_web_log("ERROR", "Fallo al enviar backup de aprendizaje.")
                 threading.Thread(target=_learning_backup, daemon=True).start()
 
-    def run(self):
+    def _process_update(self, update):
         global listen_mode
-        offset = 0
+        for u in [update]:
+            if self.handle_inline_query(u):
+                continue
+            if self.handle_chosen_inline_result(u):
+                continue
+            if self.handle_callback_query(u):
+                continue
+            if self.handle_message_reaction(u):
+                continue
+            if u.get("message_reaction_count"):
+                continue
+            if self.record_managed_bot_update(u):
+                continue
+            if self.record_business_update(u):
+                continue
+            if self.handle_guest_update(u):
+                continue
+            if self.handle_channel_membership(u):
+                continue
+            if self.handle_join_request(u):
+                continue
+            # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
+            msg = u.get("message") or u.get("channel_post") or u.get("business_message")
+            if not msg: continue
+            # Directorio de canales: cuenta posts publicados (frecuencia).
+            if u.get("channel_post"):
+                try:
+                    channel_stats.record_post(msg["chat"]["id"], msg["message_id"])
+                except Exception:
+                    pass
+
+            b_conn_id = u.get("business_message", {}).get("business_connection_id")
+            self.last_msg_id = msg.get("message_id")
+
+            cid = str(msg["chat"]["id"])
+            # Registrar chat para este bot especÃ­fico
+            bot_chats = db.get(f"CHATS_{self.token}", [])
+            if cid not in bot_chats:
+                bot_chats.append(cid)
+                db.set(f"CHATS_{self.token}", bot_chats)
+            cid, text, user = str(msg["chat"]["id"]), msg.get("text", ""), msg.get("from", {})
+            add_web_log("DEBUG", f"Nuevo mensaje detectado: CID={cid}, User={user.get('first_name')}")
+            if not isinstance(text, str): text = str(text) if text is not None else ""
+            if user.get("is_bot"): continue # Ignorar otros bots
+            uid, uname = str(user.get("id", cid)), user.get("first_name", "Chat")
+            add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | Verificando Permisos...")
+
+            # Cortafuegos temprano: no dar karma, aprendizaje ni proceso a usuarios baneados.
+            if self.enforce_existing_ban(cid, uid, uname, msg.get("message_id")):
+                continue
+            if self.enforce_cas_ban(cid, uid, uname, msg.get("message_id")):
+                continue
+            if self.enforce_banned_words(cid, text, uid, uname, msg.get("message_id")):
+                continue
+
+            # Sistema de AuditorÃ­a IA (EvaluaciÃ³n de Calidad)
+            if cid in active_audits:
+                audit = active_audits[cid]
+                if audit["status"] == "listening":
+                    audit["messages"].append(text)
+                    # PuntuaciÃ³n: Longitud de palabras + variedad
+                    words = text.split()
+                    unique_words = len(set(words))
+                    # Penalizar SPAM en tiempo real
+                    spam_triggers = ["gane", "euros", "bancaria", "billetera", "rentabilidad"]
+                    if any(t in text.lower() for t in spam_triggers):
+                        audit["score"] -= 100 # PenalizaciÃ³n crÃ­tica
+                        add_web_log("IA", f"âš ï¸ SPAM detectado en auditorÃ­a de {cid}. Penalizando fuente.")
+                    else:
+                        audit["score"] += (unique_words * 2) + (len(text) // 10)
+
+                    if len(audit["messages"]) >= 15:
+                        audit["status"] = "finished"
+                        audit["final_score"] = min(100, (audit["score"] // 15) * 5)
+                        all_text = " ".join(audit["messages"][:15])
+                        audit["report"] = {
+                            "time": datetime.datetime.now().strftime("%d/%m %H:%M"),
+                            "chat": audit.get("name", cid),
+                            "cid": cid,
+                            "score": audit["final_score"],
+                            "avg_len": len(all_text) // 15,
+                            "unique_words": len(set(all_text.split())),
+                            "verdict": "RECOMENDADO" if audit["final_score"] > 60 else "NO RECOMENDADO"
+                        }
+                        # Guardar en Historial
+                        hist = db.get("IA_AUDIT_HISTORY", [])
+                        hist.append(audit["report"])
+                        db.set("IA_AUDIT_HISTORY", hist[-50:])
+                        db.set("ACTIVE_AUDITS", active_audits)
+                        add_web_log("SUCCESS", f"AuditorÃ­a Finalizada y Guardada: {audit.get('name', cid)} ({audit['final_score']}%)")
+                        # No retornamos aquÃ­ para que tambiÃ©n aprenda o procese si es necesario
+
+            # DetecciÃ³n AutomÃ¡tica de Fuentes Potenciales (Feeders sugeridos)
+            if cid.startswith("-"):
+                feeder_groups = db.get("IA_FEEDERS", [])
+                if cid not in feeder_groups:
+                    potentials = db.get("POTENTIAL_FEEDERS", {})
+                    if cid not in potentials:
+                        potentials[cid] = {"name": global_chat_names.get(cid, cid), "last": datetime.datetime.now().strftime("%H:%M:%S")}
+                        db.set("POTENTIAL_FEEDERS", potentials)
+                        # Auto-AuditorÃ­a: Comenzar a analizar de inmediato de forma silenciosa
+                        if cid not in active_audits:
+                            _start_audit_logic(cid)
+
+            # Karma & RPG System
+            user_id = str(uid)
+            user_data = db.get(f"USER_{user_id}", {"karma": 0, "level": 1, "exp": 0, "titles": []})
+            user_data["karma"] += 1
+            user_data["exp"] += 10
+            if user_data["exp"] >= user_data["level"] * 100:
+                user_data["level"] += 1
+                user_data["exp"] = 0
+                uname_safe = re.sub(r"([_*`\\[\\]()~>#+\\-=|{}.!])", r"\\\\\\1", str(uname or "Usuario"))
+                self.send_msg(cid, f"🆙 **LEVEL UP!** {uname_safe} ha subido al nivel `{user_data['level']}`.")
+            db.set(f"USER_{user_id}", user_data)
+
+            # Advanced Link Filter (Low Karma Check)
+            if "http" in text.lower() and user_data["karma"] < 10:
+                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+                self.send_msg(cid, f"ðŸš« **FILTRO DE SPAM:** {uname}, necesitas al menos 10 puntos de Karma para enviar enlaces.")
+                continue
+
+            # Anti-Raid 2.0 (Mass Join Detection)
+            if "new_chat_members" in msg:
+                join_security_hit = False
+                for member in msg.get("new_chat_members", []):
+                    if member.get("is_bot"):
+                        continue
+                    member_uid = str(member.get("id", ""))
+                    member_name = member.get("first_name", member_uid)
+                    if member_uid and self.enforce_existing_ban(cid, member_uid, member_name, msg.get("message_id")):
+                        join_security_hit = True
+                        continue
+                    if member_uid and self.enforce_cas_ban(cid, member_uid, member_name, msg.get("message_id")):
+                        join_security_hit = True
+                        continue
+                if join_security_hit:
+                    continue
+                join_count = len(msg["new_chat_members"])
+                if join_count > 5:
+                    self.send_msg(cid, "ðŸš¨ **ANTI-RAID 2.0 ACTIVADO:** Detectada entrada masiva. Bloqueando acceso temporalmente...")
+                    add_web_log("SECURITY", f"Anti-Raid activado en chat {cid} (Entrada: {join_count} usuarios)")
+                    continue
+
+            # Debug message
+            add_web_log("DEBUG", f"Procesando mensaje de {uname} en {global_chat_names.get(cid, cid)}: {text[:20]}")
+
+            # Global History Log (Captured before any filtering)
+            history = db.get("GLOBAL_HISTORY", [])
+            history.append({
+                "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                "chat": global_chat_names.get(cid, cid),
+                "cid": cid,
+                "user": f"{uname} (@{user.get('username', '??')})",
+                "text": text or "[Contenido Multimedia]"
+            })
+            if len(history) > 300: history.pop(0) # Aumentado para auditorÃ­a retrospectiva
+            db.set("GLOBAL_HISTORY", history)
+            global global_msg_log
+            global_msg_log = history
+
+            # Mute Check - Usuarios silenciados por admin
+            muted_list = db.get(f"MUTED_{cid}", [])
+            uname_at = f"@{user.get('username', '')}" if user.get('username') else ""
+            if uid in muted_list or (uname_at and uname_at in muted_list):
+                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]}, silent=True)
+                continue
+
+            # Anti-Flood Control (en memoria, sin ops SQLite)
+            if str(uid) != str(MASTER_ID):
+                flood_key = f"{cid}_{uid}"
+                now_t = time.time()
+                times = flood_cache.get(flood_key, [])
+                times = [t for t in times if now_t - t < 10]
+                times.append(now_t)
+                flood_cache[flood_key] = times
+                flood_limit = int(db.get("GLOBAL_SETTINGS", {}).get("flood_limit", 6))
+                if len(times) > flood_limit:
+                    self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]}, silent=True)
+                    if len(times) == flood_limit + 1:
+                        self.send_msg(cid, f"ðŸŒŠ **ANTI-FLOOD:** {uname}, demasiados mensajes seguidos. Espera un momento.")
+                    continue
+
+            if maintenance_mode and uid != str(MASTER_ID):
+                self.send_msg(cid, "âš ï¸ El bot estÃ¡ en modo mantenimiento. IntÃ©ntalo mÃ¡s tarde.")
+                continue
+
+            # Voice Transcription Simulation
+            if "voice" in msg:
+                voice_log.append({"time": datetime.datetime.now().strftime("%H:%M"), "user": uname})
+                self.send_msg(cid, "ðŸŽ™ï¸ [Voz detectada]: Procesando audio... (Simulado)")
+                # Simulated transcription
+                trans = "Parece que estÃ¡s hablando de " + random.choice(["tecnologÃ­a", "el grupo", "el bot", "la luna"])
+                self.send_msg(cid, f"ðŸ“ **TranscripciÃ³n:** {trans}")
+                ia_nativa.learn(trans, source=global_chat_names.get(cid, cid))
+
+            # Neural Vision: PercepciÃ³n Binaria Nativa
+            if "photo" in msg:
+                file_id = msg["photo"][-1]["file_id"]
+                self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando estructura binaria de la imagen...")
+
+                f_info = self.api_call("getFile", {"file_id": file_id})
+                if f_info.get("ok"):
+                    path = os.path.join("downloads", f"{file_id}.jpg")
+                    url = bot_file_url(self.token, f_info['result']['file_path'])
+                    # Descarga con requests (estÃ¡ndar en el proyecto)
+                    r = requests.get(url)
+                    with open(path, 'wb') as f_out: f_out.write(r.content)
+
+                    # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
+                    f_hash = self.get_file_hash(path)
+                    self.last_media_hash = f_hash
+                    caption = msg.get("caption", "")
+                    visual_data = self.analyze_image(path)
+                    if self.check_security_blacklist(f_hash, cid, uid, uname, caption, visual_data):
+                        try: os.remove(path)
+                        except: pass
+                        continue
+
+                    self.send_msg(cid, f"ðŸŒŒ **PercepciÃ³n IA:** {visual_data}")
+                    ia_nativa.learn(visual_data, source=global_chat_names.get(cid, cid))
+                    # Incremento para Dashboard
+                    db.set("STATS_PHOTOS", db.get("STATS_PHOTOS", 0) + 1)
+                    try: os.remove(path)
+                    except: pass
+                continue
+
+            # Neural Vision: PercepciÃ³n de Video Nativa (100% Antigravity Core)
+            if "video" in msg:
+                file_id = msg["video"]["file_id"]
+                self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando secuencia binaria de video...")
+
+                f_info = self.api_call("getFile", {"file_id": file_id})
+                if f_info.get("ok"):
+                    path = os.path.join("downloads", f"{file_id}.mp4")
+                    url = bot_file_url(self.token, f_info['result']['file_path'])
+                    r = requests.get(url)
+                    with open(path, 'wb') as f_out: f_out.write(r.content)
+
+                    # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
+                    f_hash = self.get_file_hash(path)
+                    self.last_media_hash = f_hash
+                    caption = msg.get("caption", "")
+                    video_data = self.analyze_video(path)
+                    if self.check_security_blacklist(f_hash, cid, uid, uname, caption, video_data):
+                        try: os.remove(path)
+                        except: pass
+                        continue
+
+                    self.send_msg(cid, f"ðŸŒŒ **PercepciÃ³n IA (Video):** {video_data}")
+                    ia_nativa.learn(video_data, source=global_chat_names.get(cid, cid))
+                    # Incremento para Dashboard
+                    db.set("STATS_VIDEOS", db.get("STATS_VIDEOS", 0) + 1)
+                    try: os.remove(path)
+                    except: pass
+                continue
+
+            # Smart AFK System
+            if str(MASTER_ID) in text and db.get("ADMIN_AFK", False):
+                self.send_msg(cid, "ðŸ’¤ **MODO AFK:** El administrador no estÃ¡ disponible ahora mismo. He registrado tu menciÃ³n.")
+                add_web_log("INFO", f"MenciÃ³n AFK registrada de {uname} en {global_chat_names.get(cid, cid)}")
+
+            # Admin Voice Commands (Simulated)
+            if "voice" in msg and uid == str(MASTER_ID):
+                self.send_msg(cid, "ðŸŽ™ï¸ **COMANDO DE VOZ DETECTADO:** Analizando instrucciones del Master...")
+                if random.random() > 0.5:
+                    self.send_msg(cid, "âœ… AcciÃ³n ejecutada mediante voz: [Limpieza de Cache]")
+                    add_web_log("ADMIN", "Limpieza de cache ejecutada por voz.")
+
+            # Command Cooldowns
+            last_cmd = db.get(f"COOLDOWN_{uid}", 0)
+            if text.startswith("/") and time.time() - last_cmd < 1:
+                continue # 1 second cooldown
+            if text.startswith("/"): db.set(f"COOLDOWN_{uid}", time.time())
+            if "photo" in msg:
+                f = self.api_call("getFile", {"file_id": msg["photo"][-1]["file_id"]})
+                if f.get("ok"):
+                    global_media_list.append(bot_file_url(self.token, f['result']['file_path']))
+            # Karma & Engagement System
+            sent = analyze_sentiment(text)
+            if uid not in global_user_stats:
+                global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
+            global_user_stats[uid]["count"] += 1
+            if sent == "positive": global_user_stats[uid]["karma"] += 1
+            elif sent == "negative": global_user_stats[uid]["karma"] -= 1
+
+            # Engagement formula: messages * karma_factor
+            global_user_stats[uid]["engagement"] = min(100, (global_user_stats[uid]["count"] * 2) + global_user_stats[uid]["karma"])
+            if cid not in global_chat_history:
+                global_chat_history[cid] = db.get(f"CHAT_HIST_{cid}", [])
+
+            # Cargar configuraciÃ³n local
+            cfg = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "welcome": False, "anti_link": False, "clean_join": False, "ia_mood": "friendly", "anti_flood": False})
+
+            # Anti-Flood Logic
+            if cfg.get("anti_flood") and uid != str(MASTER_ID):
+                now = time.time()
+                f_key = f"FLOOD_{cid}_{uid}"
+                history = db.get(f_key, [])
+                history = [t for t in history if now - t < 3]
+                history.append(now)
+                db.set(f_key, history)
+                if len(history) > 5:
+                    self.send_msg(cid, f"ðŸŒŠ **ANTI-FLOOD:** @{uname} silenciado por inundar el chat.")
+                    self.restrict_user(cid, uid, until=int(now)+600) # 10 min
+                    continue
+
+            # User Join tracking & Auto-Delete (Clean Join)
+            if "new_chat_members" in msg and cfg.get("clean_join"):
+                add_audit_log(f"Entrada de usuario limpiada en {global_chat_names.get(cid, cid)}")
+                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+
+            # 2. Caso EstÃ¡ndar (Grupos/Privados)
+            should_reply = False
+
+            # DetecciÃ³n de Media para el Dashboard
+            media_info = None
+            if "photo" in msg:
+                media_info = {"type": "photo", "file_id": msg["photo"][-1]["file_id"]}
+            elif "video" in msg:
+                media_info = {"type": "video", "file_id": msg["video"].get("file_id")}
+            elif "voice" in msg:
+                media_info = {"type": "voice", "file_id": msg["voice"].get("file_id")}
+            elif "sticker" in msg:
+                media_info = {"type": "sticker", "file_id": msg["sticker"].get("file_id")}
+            elif "document" in msg:
+                media_info = {"type": "document", "file_id": msg["document"].get("file_id"), "name": msg["document"].get("file_name")}
+
+            _append_chat_hist(cid, {
+                "time": datetime.datetime.now().strftime("%H:%M"),
+                "sender": uname,
+                "bot_id": str(self.bot_id),
+                "message_id": msg.get("message_id"),
+                "outgoing": False,
+                "uid": uid,
+                "text": text,
+                "media": media_info
+            })
+            global_chat_names[cid] = msg["chat"].get("title", uname)
+
+            # Last Seen tracking
+            vistos = db.get("U_FILE", {})
+            vistos[cid] = {"last_seen": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "name": global_chat_names[cid]}
+            db.set("U_FILE", vistos)
+
+            # PROCESAMIENTO DE COMANDOS (Si empieza por /)
+            if text.startswith("/"):
+                rk = self.get_user_rank(cid, uid)
+                if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
+                    continue
+                if not self._run_plugin_command(cid, uid, text, rk):
+                    self.send_msg(cid, "Comando no reconocido. Usa /ayuda o /helpplus.")
+                continue # NUNCA pasar un comando a la IA
+
+            # Anti-Link per Group
+            if "http" in (text or "").lower() and cfg.get("anti_link"):
+                safe_domains = ["google.com", "github.com", "wikipedia.org"]
+                if not any(d in text.lower() for d in safe_domains):
+                    self.send_msg(cid, f"ðŸš« @{uname}, los enlaces no estÃ¡n permitidos en este canal.")
+                    self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+                    continue
+
+            # Deep Link Scanning & Safe Search
+            if "http" in text:
+                safe_domains = ["google.com", "github.com", "wikipedia.org"]
+                if not any(d in text.lower() for d in safe_domains):
+                    add_audit_log(f"Link sospechoso detectado: {text}")
+                    # Simulate deep scan
+
+            # FAQ Learning + Auto-respuesta si la pregunta se repite 3+ veces
+            if text.endswith("?"):
+                faq_key = text.lower().strip()
+                faq_db = db.get("FAQ_DB", {})
+                faq_db[faq_key] = faq_db.get(faq_key, 0) + 1
+                db.set("FAQ_DB", faq_db)
+                faq_answers = db.get("FAQ_ANSWERS", {})
+                if faq_db[faq_key] >= 3 and faq_key in faq_answers:
+                    self.send_msg(cid, f"ðŸ“š **FAQ:** {faq_answers[faq_key]}")
+                    continue
+            if any('\u0600' <= char <= '\u06FF' for char in text):
+                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+                continue
+
+            # Group Link Detection
+            if "t.me/joinchat" in text or "t.me/+" in text:
+                self.send_msg(cid, "âš ï¸ Enlaces de grupos no permitidos.")
+                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+                continue
+
+            # Profanity Filter
+            bad_words = ["spam", "scam", "crypto-offer"] # Example list
+            if any(w in text.lower() for w in bad_words):
+                self.send_msg(cid, "âš ï¸ Lenguaje no permitido.")
+                self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
+                continue
+
+
+            # 1. Caso Business (Modo Secretaria)
+            b_cfg = db.get("BUSINESS_CONFIG", {"ia_auto": False})
+            b_conn_id = msg.get("business_connection_id")
+            if b_conn_id and b_cfg.get("ia_auto"):
+                add_web_log("BUSINESS", f"ðŸ¤– IA Business respondiendo a {uname}...")
+                ia_res = ia_nativa.generate(text, chat_id=cid)
+                self.send_msg(cid, ia_res, business_connection_id=b_conn_id)
+                continue
+
+            # 2. IA Nativa (Auto-learning y respuesta)
+            ia_nativa.learn(text, source=global_chat_names.get(cid, cid))
+
+            # Track language usage
+            lang = ia_nativa.detect_lang(text)
+            lang_counts = db.get("IA_LANG_COUNTS", {})
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
+            db.set("IA_LANG_COUNTS", lang_counts)
+
+            rk = self.get_user_rank(cid, uid)
+
+            # 1. Modo Escucha (Bloquea IA y Aprendizaje, pero NO comandos arriba)
+            if listen_mode and uid != str(MASTER_ID):
+                continue
+
+            # 2. Modo Alimentador IA (Aprende pero no responde, a menos que sea comando arriba)
+            feeder_groups = db.get("IA_FEEDERS", [])
+            if cid in feeder_groups and not text.startswith("/"):
+                add_web_log("IA", f"ðŸ§  Aprendiendo en silencio de {global_chat_names.get(cid, cid)}")
+                continue
+
+            # 3. ActivaciÃ³n IA por MenciÃ³n o Master (Fuera de Comandos)
+            is_ia_call = (self.bot_username in text)
+            is_master_natural = (uid == str(MASTER_ID) and not text.startswith("/"))
+            natural_translation = ia_nativa.parse_translation_request(text)
+
+            if is_ia_call or is_master_natural or natural_translation:
+                cfg = db.get(f"CONFIG_{cid}", {"ia_mood": "friendly"})
+                clean_text = text.replace(f"@{self.bot_username}", "").strip()
+                ia_nativa.remember_context(cid, clean_text, role="user")
+                reply_text = ""
+                if msg.get("reply_to_message"):
+                    reply_text = msg["reply_to_message"].get("text") or msg["reply_to_message"].get("caption", "")
+                resp = ia_nativa.answer_translation_request(clean_text, fallback_text=reply_text)
+                if not resp:
+                    resp = ia_nativa.generate(clean_text, chat_id=cid, mood_override=cfg.get("ia_mood"))
+                ia_nativa.remember_context(cid, resp, role="bot")
+                self.send_msg(cid, f"ðŸŒŒ [Moon IA]: {resp}")
+                continue
+
+            # Karma Badges assignment
+            k = global_user_stats[uid].get("karma", 0)
+            if k > 50: global_user_stats[uid]["badge"] = "ðŸ† Leyenda"
+            elif k > 20: global_user_stats[uid]["badge"] = "â­ Colaborador"
+            else: global_user_stats[uid]["badge"] = "ðŸ‘¤ Miembro"
+
+    def run(self):
+        from core.bot_governor import governor
+        governor_worker = governor.register(self)
+        offset = governor_worker.offset() if governor_worker else 0
         _poll_failures = 0
         while True:
             try:
@@ -4200,468 +4655,24 @@ class MoonBot:
                     add_web_log("ERROR", f"Error getUpdates: {res.get('description')} â€” reintentando en {backoff}s (intento {_poll_failures})")
                     time.sleep(backoff); continue
                 _poll_failures = 0
-                
-                if not res.get("result"): 
+
+                if not res.get("result"):
                     # Solo logueamos cada 10 intentos vacÃ­os para no saturar
                     if random.random() < 0.1: add_web_log("DEBUG", "Esperando nuevos mensajes de Telegram...")
-                    self.run_periodic_maintenance()
+                    if not governor_worker:
+                        self.run_periodic_maintenance()
                     continue
-                
+
                 for u in res["result"]:
-                    offset = u["update_id"]
-                    if self.handle_inline_query(u):
-                        continue
-                    if self.handle_chosen_inline_result(u):
-                        continue
-                    if self.handle_callback_query(u):
-                        continue
-                    if self.handle_message_reaction(u):
-                        continue
-                    if u.get("message_reaction_count"):
-                        continue
-                    if self.record_managed_bot_update(u):
-                        continue
-                    if self.record_business_update(u):
-                        continue
-                    if self.handle_guest_update(u):
-                        continue
-                    if self.handle_channel_membership(u):
-                        continue
-                    if self.handle_join_request(u):
-                        continue
-                    # DetecciÃ³n de Mensajes (EstÃ¡ndar, Canal o Business)
-                    msg = u.get("message") or u.get("channel_post") or u.get("business_message")
-                    if not msg: continue
-                    # Directorio de canales: cuenta posts publicados (frecuencia).
-                    if u.get("channel_post"):
-                        try:
-                            channel_stats.record_post(msg["chat"]["id"], msg["message_id"])
-                        except Exception:
-                            pass
-                    
-                    b_conn_id = u.get("business_message", {}).get("business_connection_id")
-                    self.last_msg_id = msg.get("message_id")
-
-                    cid = str(msg["chat"]["id"])
-                    # Registrar chat para este bot especÃ­fico
-                    bot_chats = db.get(f"CHATS_{self.token}", [])
-                    if cid not in bot_chats:
-                        bot_chats.append(cid)
-                        db.set(f"CHATS_{self.token}", bot_chats)
-                    cid, text, user = str(msg["chat"]["id"]), msg.get("text", ""), msg.get("from", {})
-                    add_web_log("DEBUG", f"Nuevo mensaje detectado: CID={cid}, User={user.get('first_name')}")
-                    if not isinstance(text, str): text = str(text) if text is not None else ""
-                    if user.get("is_bot"): continue # Ignorar otros bots
-                    uid, uname = str(user.get("id", cid)), user.get("first_name", "Chat")
-                    add_web_log("DEBUG", f"Deteccion de ID: Usuario={uid} | Nombre={uname} | Verificando Permisos...")
-
-                    # Cortafuegos temprano: no dar karma, aprendizaje ni proceso a usuarios baneados.
-                    if self.enforce_existing_ban(cid, uid, uname, msg.get("message_id")):
-                        continue
-                    if self.enforce_cas_ban(cid, uid, uname, msg.get("message_id")):
-                        continue
-                    if self.enforce_banned_words(cid, text, uid, uname, msg.get("message_id")):
-                        continue
-
-                    # Sistema de AuditorÃ­a IA (EvaluaciÃ³n de Calidad)
-                    if cid in active_audits:
-                        audit = active_audits[cid]
-                        if audit["status"] == "listening":
-                            audit["messages"].append(text)
-                            # PuntuaciÃ³n: Longitud de palabras + variedad
-                            words = text.split()
-                            unique_words = len(set(words))
-                            # Penalizar SPAM en tiempo real
-                            spam_triggers = ["gane", "euros", "bancaria", "billetera", "rentabilidad"]
-                            if any(t in text.lower() for t in spam_triggers):
-                                audit["score"] -= 100 # PenalizaciÃ³n crÃ­tica
-                                add_web_log("IA", f"âš ï¸ SPAM detectado en auditorÃ­a de {cid}. Penalizando fuente.")
-                            else:
-                                audit["score"] += (unique_words * 2) + (len(text) // 10)
-                            
-                            if len(audit["messages"]) >= 15:
-                                audit["status"] = "finished"
-                                audit["final_score"] = min(100, (audit["score"] // 15) * 5)
-                                all_text = " ".join(audit["messages"][:15])
-                                audit["report"] = {
-                                    "time": datetime.datetime.now().strftime("%d/%m %H:%M"),
-                                    "chat": audit.get("name", cid),
-                                    "cid": cid,
-                                    "score": audit["final_score"],
-                                    "avg_len": len(all_text) // 15,
-                                    "unique_words": len(set(all_text.split())),
-                                    "verdict": "RECOMENDADO" if audit["final_score"] > 60 else "NO RECOMENDADO"
-                                }
-                                # Guardar en Historial
-                                hist = db.get("IA_AUDIT_HISTORY", [])
-                                hist.append(audit["report"])
-                                db.set("IA_AUDIT_HISTORY", hist[-50:])
-                                db.set("ACTIVE_AUDITS", active_audits)
-                                add_web_log("SUCCESS", f"AuditorÃ­a Finalizada y Guardada: {audit.get('name', cid)} ({audit['final_score']}%)")
-                                # No retornamos aquÃ­ para que tambiÃ©n aprenda o procese si es necesario
-                    
-                    # DetecciÃ³n AutomÃ¡tica de Fuentes Potenciales (Feeders sugeridos)
-                    if cid.startswith("-"):
-                        feeder_groups = db.get("IA_FEEDERS", [])
-                        if cid not in feeder_groups:
-                            potentials = db.get("POTENTIAL_FEEDERS", {})
-                            if cid not in potentials:
-                                potentials[cid] = {"name": global_chat_names.get(cid, cid), "last": datetime.datetime.now().strftime("%H:%M:%S")}
-                                db.set("POTENTIAL_FEEDERS", potentials)
-                                # Auto-AuditorÃ­a: Comenzar a analizar de inmediato de forma silenciosa
-                                if cid not in active_audits:
-                                    _start_audit_logic(cid)
-                    
-                    # Karma & RPG System
-                    user_id = str(uid)
-                    user_data = db.get(f"USER_{user_id}", {"karma": 0, "level": 1, "exp": 0, "titles": []})
-                    user_data["karma"] += 1
-                    user_data["exp"] += 10
-                    if user_data["exp"] >= user_data["level"] * 100:
-                        user_data["level"] += 1
-                        user_data["exp"] = 0
-                        uname_safe = re.sub(r"([_*`\\[\\]()~>#+\\-=|{}.!])", r"\\\\\\1", str(uname or "Usuario"))
-                        self.send_msg(cid, f"🆙 **LEVEL UP!** {uname_safe} ha subido al nivel `{user_data['level']}`.")
-                    db.set(f"USER_{user_id}", user_data)
-                    
-                    # Advanced Link Filter (Low Karma Check)
-                    if "http" in text.lower() and user_data["karma"] < 10:
-                        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
-                        self.send_msg(cid, f"ðŸš« **FILTRO DE SPAM:** {uname}, necesitas al menos 10 puntos de Karma para enviar enlaces.")
-                        continue
-                    
-                    # Anti-Raid 2.0 (Mass Join Detection)
-                    if "new_chat_members" in msg:
-                        join_security_hit = False
-                        for member in msg.get("new_chat_members", []):
-                            if member.get("is_bot"):
-                                continue
-                            member_uid = str(member.get("id", ""))
-                            member_name = member.get("first_name", member_uid)
-                            if member_uid and self.enforce_existing_ban(cid, member_uid, member_name, msg.get("message_id")):
-                                join_security_hit = True
-                                continue
-                            if member_uid and self.enforce_cas_ban(cid, member_uid, member_name, msg.get("message_id")):
-                                join_security_hit = True
-                                continue
-                        if join_security_hit:
-                            continue
-                        join_count = len(msg["new_chat_members"])
-                        if join_count > 5:
-                            self.send_msg(cid, "ðŸš¨ **ANTI-RAID 2.0 ACTIVADO:** Detectada entrada masiva. Bloqueando acceso temporalmente...")
-                            add_web_log("SECURITY", f"Anti-Raid activado en chat {cid} (Entrada: {join_count} usuarios)")
-                            continue
-                    
-                    # Debug message
-                    add_web_log("DEBUG", f"Procesando mensaje de {uname} en {global_chat_names.get(cid, cid)}: {text[:20]}")
-                    
-                    # Global History Log (Captured before any filtering)
-                    history = db.get("GLOBAL_HISTORY", [])
-                    history.append({
-                        "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                        "chat": global_chat_names.get(cid, cid),
-                        "cid": cid,
-                        "user": f"{uname} (@{user.get('username', '??')})",
-                        "text": text or "[Contenido Multimedia]"
-                    })
-                    if len(history) > 300: history.pop(0) # Aumentado para auditorÃ­a retrospectiva
-                    db.set("GLOBAL_HISTORY", history)
-                    global global_msg_log
-                    global_msg_log = history
-                    
-                    # Mute Check - Usuarios silenciados por admin
-                    muted_list = db.get(f"MUTED_{cid}", [])
-                    uname_at = f"@{user.get('username', '')}" if user.get('username') else ""
-                    if uid in muted_list or (uname_at and uname_at in muted_list):
-                        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]}, silent=True)
-                        continue
-
-                    # Anti-Flood Control (en memoria, sin ops SQLite)
-                    if str(uid) != str(MASTER_ID):
-                        flood_key = f"{cid}_{uid}"
-                        now_t = time.time()
-                        times = flood_cache.get(flood_key, [])
-                        times = [t for t in times if now_t - t < 10]
-                        times.append(now_t)
-                        flood_cache[flood_key] = times
-                        flood_limit = int(db.get("GLOBAL_SETTINGS", {}).get("flood_limit", 6))
-                        if len(times) > flood_limit:
-                            self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]}, silent=True)
-                            if len(times) == flood_limit + 1:
-                                self.send_msg(cid, f"ðŸŒŠ **ANTI-FLOOD:** {uname}, demasiados mensajes seguidos. Espera un momento.")
-                            continue
-
-                    if maintenance_mode and uid != str(MASTER_ID):
-                        self.send_msg(cid, "âš ï¸ El bot estÃ¡ en modo mantenimiento. IntÃ©ntalo mÃ¡s tarde.")
-                        continue
-
-                    # Voice Transcription Simulation
-                    if "voice" in msg:
-                        voice_log.append({"time": datetime.datetime.now().strftime("%H:%M"), "user": uname})
-                        self.send_msg(cid, "ðŸŽ™ï¸ [Voz detectada]: Procesando audio... (Simulado)")
-                        # Simulated transcription
-                        trans = "Parece que estÃ¡s hablando de " + random.choice(["tecnologÃ­a", "el grupo", "el bot", "la luna"])
-                        self.send_msg(cid, f"ðŸ“ **TranscripciÃ³n:** {trans}")
-                        ia_nativa.learn(trans, source=global_chat_names.get(cid, cid))
-
-                    # Neural Vision: PercepciÃ³n Binaria Nativa
-                    if "photo" in msg:
-                        file_id = msg["photo"][-1]["file_id"]
-                        self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando estructura binaria de la imagen...")
-                        
-                        f_info = self.api_call("getFile", {"file_id": file_id})
-                        if f_info.get("ok"):
-                            path = os.path.join("downloads", f"{file_id}.jpg")
-                            url = bot_file_url(self.token, f_info['result']['file_path'])
-                            # Descarga con requests (estÃ¡ndar en el proyecto)
-                            r = requests.get(url)
-                            with open(path, 'wb') as f_out: f_out.write(r.content)
-                            
-                            # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
-                            f_hash = self.get_file_hash(path)
-                            self.last_media_hash = f_hash
-                            caption = msg.get("caption", "")
-                            visual_data = self.analyze_image(path)
-                            if self.check_security_blacklist(f_hash, cid, uid, uname, caption, visual_data):
-                                try: os.remove(path)
-                                except: pass
-                                continue
-                            
-                            self.send_msg(cid, f"ðŸŒŒ **PercepciÃ³n IA:** {visual_data}")
-                            ia_nativa.learn(visual_data, source=global_chat_names.get(cid, cid))
-                            # Incremento para Dashboard
-                            db.set("STATS_PHOTOS", db.get("STATS_PHOTOS", 0) + 1)
-                            try: os.remove(path)
-                            except: pass
-                        continue
-
-                    # Neural Vision: PercepciÃ³n de Video Nativa (100% Antigravity Core)
-                    if "video" in msg:
-                        file_id = msg["video"]["file_id"]
-                        self.send_msg(cid, "ðŸ‘ï¸ [Ojo Moon]: Analizando secuencia binaria de video...")
-                        
-                        f_info = self.api_call("getFile", {"file_id": file_id})
-                        if f_info.get("ok"):
-                            path = os.path.join("downloads", f"{file_id}.mp4")
-                            url = bot_file_url(self.token, f_info['result']['file_path'])
-                            r = requests.get(url)
-                            with open(path, 'wb') as f_out: f_out.write(r.content)
-                            
-                            # 1. VerificaciÃ³n de Seguridad (Huella Digital y Caption)
-                            f_hash = self.get_file_hash(path)
-                            self.last_media_hash = f_hash
-                            caption = msg.get("caption", "")
-                            video_data = self.analyze_video(path)
-                            if self.check_security_blacklist(f_hash, cid, uid, uname, caption, video_data):
-                                try: os.remove(path)
-                                except: pass
-                                continue
-
-                            self.send_msg(cid, f"ðŸŒŒ **PercepciÃ³n IA (Video):** {video_data}")
-                            ia_nativa.learn(video_data, source=global_chat_names.get(cid, cid))
-                            # Incremento para Dashboard
-                            db.set("STATS_VIDEOS", db.get("STATS_VIDEOS", 0) + 1)
-                            try: os.remove(path)
-                            except: pass
-                        continue
-
-                    # Smart AFK System
-                    if str(MASTER_ID) in text and db.get("ADMIN_AFK", False):
-                        self.send_msg(cid, "ðŸ’¤ **MODO AFK:** El administrador no estÃ¡ disponible ahora mismo. He registrado tu menciÃ³n.")
-                        add_web_log("INFO", f"MenciÃ³n AFK registrada de {uname} en {global_chat_names.get(cid, cid)}")
-
-                    # Admin Voice Commands (Simulated)
-                    if "voice" in msg and uid == str(MASTER_ID):
-                        self.send_msg(cid, "ðŸŽ™ï¸ **COMANDO DE VOZ DETECTADO:** Analizando instrucciones del Master...")
-                        if random.random() > 0.5:
-                            self.send_msg(cid, "âœ… AcciÃ³n ejecutada mediante voz: [Limpieza de Cache]")
-                            add_web_log("ADMIN", "Limpieza de cache ejecutada por voz.")
-                    
-                    # Command Cooldowns
-                    last_cmd = db.get(f"COOLDOWN_{uid}", 0)
-                    if text.startswith("/") and time.time() - last_cmd < 1:
-                        continue # 1 second cooldown
-                    if text.startswith("/"): db.set(f"COOLDOWN_{uid}", time.time())
-                    if "photo" in msg:
-                        f = self.api_call("getFile", {"file_id": msg["photo"][-1]["file_id"]})
-                        if f.get("ok"):
-                            global_media_list.append(bot_file_url(self.token, f['result']['file_path']))
-                    # Karma & Engagement System
-                    sent = analyze_sentiment(text)
-                    if uid not in global_user_stats: 
-                        global_user_stats[uid] = {"name": uname, "count": 0, "karma": 0, "engagement": 0, "notes": ""}
-                    global_user_stats[uid]["count"] += 1
-                    if sent == "positive": global_user_stats[uid]["karma"] += 1
-                    elif sent == "negative": global_user_stats[uid]["karma"] -= 1
-                    
-                    # Engagement formula: messages * karma_factor
-                    global_user_stats[uid]["engagement"] = min(100, (global_user_stats[uid]["count"] * 2) + global_user_stats[uid]["karma"])
-                    if cid not in global_chat_history:
-                        global_chat_history[cid] = db.get(f"CHAT_HIST_{cid}", [])
-
-                    # Cargar configuraciÃ³n local
-                    cfg = db.get(f"CONFIG_{cid}", {"ia_learning": False, "auto_mod": True, "welcome": False, "anti_link": False, "clean_join": False, "ia_mood": "friendly", "anti_flood": False})
-
-                    # Anti-Flood Logic
-                    if cfg.get("anti_flood") and uid != str(MASTER_ID):
-                        now = time.time()
-                        f_key = f"FLOOD_{cid}_{uid}"
-                        history = db.get(f_key, [])
-                        history = [t for t in history if now - t < 3]
-                        history.append(now)
-                        db.set(f_key, history)
-                        if len(history) > 5:
-                            self.send_msg(cid, f"ðŸŒŠ **ANTI-FLOOD:** @{uname} silenciado por inundar el chat.")
-                            self.restrict_user(cid, uid, until=int(now)+600) # 10 min
-                            continue
-
-                    # User Join tracking & Auto-Delete (Clean Join)
-                    if "new_chat_members" in msg and cfg.get("clean_join"):
-                        add_audit_log(f"Entrada de usuario limpiada en {global_chat_names.get(cid, cid)}")
-                        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
-
-                    # 2. Caso EstÃ¡ndar (Grupos/Privados)
-                    should_reply = False
-                    
-                    # DetecciÃ³n de Media para el Dashboard
-                    media_info = None
-                    if "photo" in msg:
-                        media_info = {"type": "photo", "file_id": msg["photo"][-1]["file_id"]}
-                    elif "video" in msg:
-                        media_info = {"type": "video", "file_id": msg["video"].get("file_id")}
-                    elif "voice" in msg:
-                        media_info = {"type": "voice", "file_id": msg["voice"].get("file_id")}
-                    elif "sticker" in msg:
-                        media_info = {"type": "sticker", "file_id": msg["sticker"].get("file_id")}
-                    elif "document" in msg:
-                        media_info = {"type": "document", "file_id": msg["document"].get("file_id"), "name": msg["document"].get("file_name")}
-
-                    _append_chat_hist(cid, {
-                        "time": datetime.datetime.now().strftime("%H:%M"),
-                        "sender": uname,
-                        "bot_id": str(self.bot_id),
-                        "message_id": msg.get("message_id"),
-                        "outgoing": False,
-                        "uid": uid,
-                        "text": text,
-                        "media": media_info
-                    })
-                    global_chat_names[cid] = msg["chat"].get("title", uname)
-                    
-                    # Last Seen tracking
-                    vistos = db.get("U_FILE", {})
-                    vistos[cid] = {"last_seen": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "name": global_chat_names[cid]}
-                    db.set("U_FILE", vistos)
-
-                    # PROCESAMIENTO DE COMANDOS (Si empieza por /)
-                    if text.startswith("/"):
-                        rk = self.get_user_rank(cid, uid)
-                        if self.process_command(cid, uid, uname, text, rk, msg["message_id"], msg):
-                            continue
-                        if not self._run_plugin_command(cid, uid, text, rk):
-                            self.send_msg(cid, "Comando no reconocido. Usa /ayuda o /helpplus.")
-                        continue # NUNCA pasar un comando a la IA
-
-                    # Anti-Link per Group
-                    if "http" in (text or "").lower() and cfg.get("anti_link"):
-                        safe_domains = ["google.com", "github.com", "wikipedia.org"]
-                        if not any(d in text.lower() for d in safe_domains):
-                            self.send_msg(cid, f"ðŸš« @{uname}, los enlaces no estÃ¡n permitidos en este canal.")
-                            self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
-                            continue
-
-                    # Deep Link Scanning & Safe Search
-                    if "http" in text:
-                        safe_domains = ["google.com", "github.com", "wikipedia.org"]
-                        if not any(d in text.lower() for d in safe_domains):
-                            add_audit_log(f"Link sospechoso detectado: {text}")
-                            # Simulate deep scan
-                    
-                    # FAQ Learning + Auto-respuesta si la pregunta se repite 3+ veces
-                    if text.endswith("?"):
-                        faq_key = text.lower().strip()
-                        faq_db = db.get("FAQ_DB", {})
-                        faq_db[faq_key] = faq_db.get(faq_key, 0) + 1
-                        db.set("FAQ_DB", faq_db)
-                        faq_answers = db.get("FAQ_ANSWERS", {})
-                        if faq_db[faq_key] >= 3 and faq_key in faq_answers:
-                            self.send_msg(cid, f"ðŸ“š **FAQ:** {faq_answers[faq_key]}")
-                            continue
-                    if any('\u0600' <= char <= '\u06FF' for char in text):
-                        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
-                        continue
-                    
-                    # Group Link Detection
-                    if "t.me/joinchat" in text or "t.me/+" in text:
-                        self.send_msg(cid, "âš ï¸ Enlaces de grupos no permitidos.")
-                        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
-                        continue
-                    
-                    # Profanity Filter
-                    bad_words = ["spam", "scam", "crypto-offer"] # Example list
-                    if any(w in text.lower() for w in bad_words):
-                        self.send_msg(cid, "âš ï¸ Lenguaje no permitido.")
-                        self.api_call("deleteMessage", {"chat_id": cid, "message_id": msg["message_id"]})
-                        continue
-                    
-
-                    # 1. Caso Business (Modo Secretaria)
-                    b_cfg = db.get("BUSINESS_CONFIG", {"ia_auto": False})
-                    b_conn_id = msg.get("business_connection_id")
-                    if b_conn_id and b_cfg.get("ia_auto"):
-                        add_web_log("BUSINESS", f"ðŸ¤– IA Business respondiendo a {uname}...")
-                        ia_res = ia_nativa.generate(text, chat_id=cid)
-                        self.send_msg(cid, ia_res, business_connection_id=b_conn_id)
-                        continue
-
-                    # 2. IA Nativa (Auto-learning y respuesta)
-                    ia_nativa.learn(text, source=global_chat_names.get(cid, cid))
-                    
-                    # Track language usage
-                    lang = ia_nativa.detect_lang(text)
-                    lang_counts = db.get("IA_LANG_COUNTS", {})
-                    lang_counts[lang] = lang_counts.get(lang, 0) + 1
-                    db.set("IA_LANG_COUNTS", lang_counts)
-                    
-                    rk = self.get_user_rank(cid, uid)
-
-                    # 1. Modo Escucha (Bloquea IA y Aprendizaje, pero NO comandos arriba)
-                    if listen_mode and uid != str(MASTER_ID):
-                        continue
-                    
-                    # 2. Modo Alimentador IA (Aprende pero no responde, a menos que sea comando arriba)
-                    feeder_groups = db.get("IA_FEEDERS", [])
-                    if cid in feeder_groups and not text.startswith("/"):
-                        add_web_log("IA", f"ðŸ§  Aprendiendo en silencio de {global_chat_names.get(cid, cid)}")
-                        continue
-
-                    # 3. ActivaciÃ³n IA por MenciÃ³n o Master (Fuera de Comandos)
-                    is_ia_call = (self.bot_username in text)
-                    is_master_natural = (uid == str(MASTER_ID) and not text.startswith("/"))
-                    natural_translation = ia_nativa.parse_translation_request(text)
-                    
-                    if is_ia_call or is_master_natural or natural_translation:
-                        cfg = db.get(f"CONFIG_{cid}", {"ia_mood": "friendly"})
-                        clean_text = text.replace(f"@{self.bot_username}", "").strip()
-                        ia_nativa.remember_context(cid, clean_text, role="user")
-                        reply_text = ""
-                        if msg.get("reply_to_message"):
-                            reply_text = msg["reply_to_message"].get("text") or msg["reply_to_message"].get("caption", "")
-                        resp = ia_nativa.answer_translation_request(clean_text, fallback_text=reply_text)
-                        if not resp:
-                            resp = ia_nativa.generate(clean_text, chat_id=cid, mood_override=cfg.get("ia_mood"))
-                        ia_nativa.remember_context(cid, resp, role="bot")
-                        self.send_msg(cid, f"ðŸŒŒ [Moon IA]: {resp}")
-                        continue
-                    
-                    # Karma Badges assignment
-                    k = global_user_stats[uid].get("karma", 0)
-                    if k > 50: global_user_stats[uid]["badge"] = "ðŸ† Leyenda"
-                    elif k > 20: global_user_stats[uid]["badge"] = "â­ Colaborador"
-                    else: global_user_stats[uid]["badge"] = "ðŸ‘¤ Miembro"
+                    if governor_worker:
+                        offset = governor_worker.submit(u)
+                    else:
+                        offset = u["update_id"]
+                        self._process_update(u)
 
                 # --- Tareas PeriÃ³dicas de Mantenimiento ---
-                self.run_periodic_maintenance()
+                if not governor_worker:
+                    self.run_periodic_maintenance()
 
             except Exception as e:
                 logger.error(f"FATAL ERROR in Message Loop: {str(e)}")
@@ -4695,6 +4706,11 @@ def tdlib_migration_status():
         return jsonify({'ok': False}), 401
     return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
+from core.bot_governor import register_governor
+register_governor(app)
+from core.personal_rss_runtime import register_personal_rss
+import core.routes_public as _rss_public
+personal_rss_service = register_personal_rss(app, _rss_public)
 from core.operations_telemetry import install_http_telemetry
 from core.tdlib_migration import migration_authorized
 install_http_telemetry(app, lambda req: migration_authorized(req, check_jwt))
