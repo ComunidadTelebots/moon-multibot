@@ -8,6 +8,8 @@ import time
 import requests
 from flask import jsonify, request
 
+from core.operations_telemetry import ObservedSession
+
 ACTION_LOCK = threading.Lock()
 
 
@@ -72,7 +74,7 @@ def apply_message_action(bots, db, body, transport=None):
             if transport:
                 result = transport(bot, methods[action], params)
             else:
-                result = requests.post(f"{bot.url.rstrip('/')}/{methods[action]}", json=params, timeout=(5, 20)).json()
+                result = ObservedSession(requests, bot.url, methods[action]).post(f"{bot.url.rstrip('/')}/{methods[action]}", json=params, timeout=(5, 20)).json()
         except (requests.RequestException, ValueError):
             event['status'] = 'unknown'
             db.set('WEB_MESSAGE_ACTIONS', audit)

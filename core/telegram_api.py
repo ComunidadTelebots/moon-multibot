@@ -1,6 +1,8 @@
 import time
+
 import requests
 
+from core.operations_telemetry import ObservedSession
 
 TELEGRAM_BOT_API_VERSION = "10.1"
 
@@ -45,6 +47,7 @@ def normalize_method(method):
 
 def telegram_api_call(session, base_url, method, params=None, files=None, timeout=35, _retries=3):
     method = normalize_method(method)
+    session = ObservedSession(session, base_url, method)
     params = params or {}
     for attempt in range(_retries):
         try:

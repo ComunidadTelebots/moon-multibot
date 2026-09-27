@@ -4695,6 +4695,10 @@ def tdlib_migration_status():
         return jsonify({'ok': False}), 401
     return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
+from core.operations_telemetry import install_http_telemetry
+from core.tdlib_migration import migration_authorized
+install_http_telemetry(app, lambda req: migration_authorized(req, check_jwt))
+
 from core.bot_conversations import register_bot_conversations
 register_bot_conversations(app, lambda: active_bots, db, global_chat_history)
 
