@@ -2728,6 +2728,9 @@ class MoonBot:
             _append_chat_hist(cid_str, {
                 "time": datetime.datetime.now().strftime("%H:%M"),
                 "sender": "Bot",
+                "bot_id": str(self.bot_id),
+                "message_id": (result.get("result", {}).get("message_id") if result and result.get("ok") else None),
+                "outgoing": True,
                 "uid": self.bot_username,
                 "text": (safe_text or "")[:1000],
                 "media": None
@@ -4536,6 +4539,9 @@ class MoonBot:
                     _append_chat_hist(cid, {
                         "time": datetime.datetime.now().strftime("%H:%M"),
                         "sender": uname,
+                        "bot_id": str(self.bot_id),
+                        "message_id": msg.get("message_id"),
+                        "outgoing": False,
                         "uid": uid,
                         "text": text,
                         "media": media_info
@@ -4690,7 +4696,7 @@ def tdlib_migration_status():
     return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
 from core.bot_conversations import register_bot_conversations
-register_bot_conversations(app, lambda: active_bots, db)
+register_bot_conversations(app, lambda: active_bots, db, global_chat_history)
 
 if __name__ == "__main__":
     start_time, bots_data = time.time(), []
