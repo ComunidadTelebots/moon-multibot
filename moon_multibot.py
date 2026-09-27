@@ -4689,6 +4689,9 @@ def tdlib_migration_status():
         return jsonify({'ok': False}), 401
     return jsonify(migration_snapshot(active_bots, bool(TDLIB_API_ID and TDLIB_API_HASH)))
 
+from core.bot_conversations import register_bot_conversations
+register_bot_conversations(app, lambda: active_bots, db)
+
 if __name__ == "__main__":
     start_time, bots_data = time.time(), []
     # Cargar bots con soporte para encriptaciÃ³n
