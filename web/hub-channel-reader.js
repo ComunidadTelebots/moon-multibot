@@ -48,10 +48,11 @@
   function render(){list.replaceChildren();const q=search.value.trim().toLocaleLowerCase(),rows=posts.filter(p=>String(p.text).toLocaleLowerCase().includes(q));status.textContent=`${rows.length} noticias`;rows.forEach(post=>{const card=element('article','','iv-card'),text=String(post.text||'');card.append(element('div',post.date?new Date(post.date).toLocaleDateString():'AllTech','iv-meta'),element('h3',post.title),button('Leer noticia en el Hub →',()=>article(post.id),'iv-more'));list.append(card);});if(!rows.length)list.append(element('p',posts.length?'No hay noticias que coincidan.':'El canal no ha proporcionado titulares para estas publicaciones. No se muestran tarjetas con nombres genéricos.','iv-empty'));}
   async function load(){status.textContent='Cargando noticias…';list.replaceChildren();try{const data=await get('/api/public/network/instant/alltech');if(!data.ok)throw new Error();const all=data.posts||[];posts=all.map(p=>({...p,title:String(p.title||p.text||'').replace(/https?:\/\/\S+/g,'').trim()})).filter(p=>p.title);render();const omitted=all.length-posts.length;if(omitted)status.textContent+=' · '+omitted+' publicaciones sin titular disponible';if(data.stale)status.textContent+=' · Copia guardada';}catch(e){if(e.name==='AbortError'||e.message==='aborted')return;status.textContent='No se pueden cargar las noticias. Pulsa Actualizar.';}}
   async function article(id){
-    if(!/^[1-9]\d{0,11}$/.test(String(id)))return;
+    if(!/^(?:[1-9]\d{0,11}|news_[a-f0-9]{16})$/.test(String(id)))return;
     list.replaceChildren();status.textContent='Preparando artículo…';
     const back=button('← Todas las noticias',()=>{controller?.abort();if(posts.length)render();else load();},'iv-back');list.append(back);
-    try{const data=await get('/api/public/network/instant/alltech/article/'+id);if(!data.ok){status.textContent='Lectura no disponible';list.append(element('p',data.error,'iv-empty'));return;}
+    try{const data=await get(String(id).startsWith('news_')?'/api/public/network/instant/news/'+id.slice(5):'/api/public/network/instant/alltech/article/'+id);if(!data.ok){status.textContent='Lectura no disponible';list.append(element('p',data.error,'iv-empty'));return;}
+      if(data.embedded){const url=safeUrl(data.url);if(!url||url.origin!=='https://noticiasweb3.todosobreall.tech')throw new Error();const frame=element('iframe');frame.title=data.title||'Noticia de Noticiasweb3';frame.src=url.href;frame.style.cssText='width:100%;height:70dvh;border:0;border-radius:14px';list.append(frame);status.textContent='Noticia del archivo · dentro del Hub';return;}
       status.textContent='Lectura dentro del Hub';const card=element('article','','iv-article');card.append(element('h2',data.title));
       const details=element('dl','','iv-details'),rawDate=String(data.published_at||''),localDate=rawDate.match(/^(\d{2}\/\d{2}\/\d{4})[ T](\d{2}:\d{2})(?::\d{2})?$/),date=new Date(rawDate),validDate=rawDate&&!Number.isNaN(date.getTime()),hasTime=/T\d{2}:\d{2}/.test(rawDate),hasZone=/(Z|[+-]\d{2}:?\d{2})$/i.test(rawDate);
       const dateLabel=localDate?localDate[1]:validDate?(hasTime&&hasZone?date.toLocaleDateString('es-ES',{timeZone:'Europe/Madrid'}):rawDate.slice(0,10).split('-').reverse().join('/')):'No disponible';
@@ -68,5 +69,5 @@
   const params=new URLSearchParams(window.location.search);
   const start=telegram()?.initDataUnsafe?.start_param||params.get('tgWebAppStartParam')||'';
   const articleStart=start.match(/^alltech_([1-9]\d{0,11})$/);
-  if(articleStart)showReader(articleStart[1]);else if(params.get('channel')==='alltech')showReader(params.get('article'));
+  if(/^news_[a-f0-9]{16}$/.test(start))showReader(start);else if(articleStart)showReader(articleStart[1]);else if(params.get('channel')==='alltech')showReader(params.get('article'));
 })();

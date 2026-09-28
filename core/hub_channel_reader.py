@@ -69,3 +69,21 @@ def alltech_article(post_id):
     response = jsonify(result)
     response.headers['Cache-Control'] = 'no-store'
     return response, 200 if result['ok'] else 422
+
+@bp.get('/api/public/network/instant/news/<news_id>')
+def legacy_news_article(news_id):
+    import re
+    if not re.fullmatch(r'[a-f0-9]{16}', news_id):
+        return jsonify(ok=False, error='Identificador no válido'), 400
+    try:
+        url = 'http://todosobrealltech-api:3001/noticias/rss/resolve/' + news_id
+        with urllib.request.urlopen(url, timeout=25) as response:
+            raw = response.read(2 * 1024 * 1024 + 1)
+            if len(raw) > 2 * 1024 * 1024:
+                raise ValueError('Article too large')
+            data = json.loads(raw)
+        result = jsonify(data)
+        result.headers['Cache-Control'] = 'no-store'
+        return result
+    except (OSError, ValueError):
+        return jsonify(ok=False, error='No se puede recuperar esta noticia del archivo ahora. Reintenta en unos segundos.'), 503
