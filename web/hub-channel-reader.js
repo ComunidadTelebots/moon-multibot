@@ -61,6 +61,6 @@
     } finally {clearTimeout(timer);}
   }
   window.MoonHubChannelReader={open:showReader};
-  document.addEventListener('click',event=>{const anchor=event.target.closest?.('a[href]');if(!anchor)return;const url=safeUrl(anchor.href);if(url && ['t.me','www.t.me','telegram.me','www.telegram.me'].includes(url.hostname.toLowerCase())){event.preventDefault();open(url.href);}});
+  document.addEventListener('click',event=>{if(event.defaultPrevented)return;const anchor=event.target.closest?.('a[href]');if(!anchor)return;const url=safeUrl(anchor.href);if(url && ['t.me','www.t.me','telegram.me','www.telegram.me'].includes(url.hostname.toLowerCase())){event.preventDefault();open(url.href);}});
   if(new URLSearchParams(window.location.search).get('channel')==='alltech')showReader();
 })();
