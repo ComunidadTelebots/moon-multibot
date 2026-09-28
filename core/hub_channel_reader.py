@@ -87,3 +87,15 @@ def legacy_news_article(news_id):
         return result
     except (OSError, ValueError):
         return jsonify(ok=False, error='No se puede recuperar esta noticia del archivo ahora. Reintenta en unos segundos.'), 503
+
+
+@bp.get('/api/public/network/instant/news')
+def news_archive_list():
+    try:
+        with urllib.request.urlopen('http://todosobrealltech-api:3001/noticias/rss/reader', timeout=20) as response:
+            data = json.loads(response.read(1024 * 1024))
+        result = jsonify(data)
+        result.headers['Cache-Control'] = 'no-store'
+        return result
+    except (OSError, ValueError):
+        return jsonify(ok=False, error='No se puede recuperar el listado de noticias. Pulsa Actualizar.'), 503
