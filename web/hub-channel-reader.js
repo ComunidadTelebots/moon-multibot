@@ -7,11 +7,13 @@
   function open(value) {
     const url = safeUrl(value);
     if (!url) return false;
-    if (url.origin === window.location.origin && url.pathname === '/hub.html' && url.searchParams.get('channel') === 'alltech') { showReader(); return true; }
+    if (url.origin === window.location.origin && url.pathname === '/hub.html' && url.searchParams.get('channel') === 'alltech') { showReader(url.searchParams.get('article')); return true; }
     const tg = telegram();
     if (['t.me', 'www.t.me', 'telegram.me', 'www.telegram.me'].includes(url.hostname.toLowerCase())) {
       url.protocol = 'https:'; url.hostname = 't.me'; url.port = '';
       if (url.pathname.startsWith('/s/')) url.pathname = url.pathname.slice(2);
+      const alltechPost=url.pathname.match(/^\/TodoSobreAllTech\/([1-9]\d{0,11})\/?$/i);
+      if(alltechPost){showReader(alltechPost[1]);return true;}
       try { if (tg?.openTelegramLink) { tg.openTelegramLink(url.href); return true; } } catch {}
     } else {
       try { if (tg?.openLink) { tg.openLink(url.href, { try_instant_view: false }); return true; } } catch {}
@@ -20,47 +22,47 @@
     return true;
   }
   window.MoonHubLinks = { open, safeUrl };
-  let dialog, list, status, search, controller, previousFocus;
-  function element(tag, text, className) { const node = document.createElement(tag); if (text) node.textContent = text; if (className) node.className = className; return node; }
-  function closeReader() { controller?.abort(); dialog?.close(); previousFocus?.focus(); }
-  function showReader() {
-    if (!dialog) {
-      const style = element('style');
-      style.textContent = `.alltech-reader{width:min(680px,calc(100vw - 28px));max-height:88dvh;margin:auto;box-shadow:0 24px 80px #0008;box-sizing:border-box;border:1px solid #6579a4;border-radius:20px;padding:22px;color:var(--ink,#e7efff);background:var(--card-solid,var(--bg,#111a2d))}.alltech-reader::backdrop{background:#0009}.alltech-reader header{display:flex;justify-content:space-between;gap:12px}.alltech-reader h2{margin:0;font-size:22px}.alltech-reader button,.alltech-reader input{font:inherit;border:1px solid #6579a4;border-radius:10px;padding:10px;background:var(--bg,#111a2d);color:inherit}.alltech-reader input{box-sizing:border-box;width:100%;margin:14px 0}.alltech-reader article{padding:16px 0;border-top:1px solid #8190ad55}.alltech-reader article p{margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}.alltech-reader a{color:var(--accent,#60c8ff)}.alltech-reader small{opacity:.75}.alltech-reader-nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0}`;
-      document.head.append(style);
-      dialog = element('dialog', '', 'alltech-reader'); dialog.setAttribute('aria-label', 'Canal AllTech · lector del Hub');
-      const header = element('header'); header.append(element('h2', 'Canal TodoSobreAllTech'));
-      const close = element('button', 'Cerrar ×'); close.type='button'; close.onclick=closeReader; header.append(close); dialog.append(header);
-      dialog.append(element('p', 'Publicaciones del canal sin salir del Hub.'));
-      const nav=element('div','','alltech-reader-nav'), channel=element('a','Abrir canal en Telegram ↗'); channel.href='https://t.me/TodoSobreAllTech';channel.onclick=event=>{event.preventDefault();open(channel.href);};
-      const reload=element('button','Actualizar');reload.type='button';reload.onclick=load;nav.append(channel,reload);dialog.append(nav);
-      search=element('input');search.type='search';search.placeholder='Buscar publicaciones';search.setAttribute('aria-label','Buscar publicaciones de AllTech');dialog.append(search);
-      status=element('p');status.setAttribute('role','status');list=element('section');dialog.append(status,list);
-      dialog.addEventListener('cancel',()=>{controller?.abort();previousFocus?.focus();});document.body.append(dialog);
+
+  let dialog, list, status, search, controller, previousFocus, posts=[];
+  function element(tag,text,className){const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n;}
+  function closeReader(){controller?.abort();dialog?.close();previousFocus?.focus();}
+  function button(text,action,cls){const b=element('button',text,cls);b.type='button';b.onclick=action;return b;}
+  function showReader(postId){
+    if(!dialog){
+      const style=element('style');style.textContent=`
+      .alltech-reader{width:min(760px,calc(100vw - 24px));height:90dvh;max-height:90dvh;margin:auto;padding:0;border:1px solid var(--line,#34445c);border-radius:20px;color:var(--ink,#e9f0fb);background:var(--card-solid,#0d1424);box-shadow:0 24px 80px #0008;overflow:auto}
+      .alltech-reader::backdrop{background:#000a}.alltech-reader *{box-sizing:border-box}.alltech-reader .iv-shell{padding:14px 12px 36px}.alltech-reader .iv-top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line,#34445c)}
+      .alltech-reader button{font:inherit;cursor:pointer}.alltech-reader .iv-back{border:0;background:transparent;color:#2aabee;font-weight:700;padding:8px 0}.alltech-reader .iv-hero{padding:18px;border-radius:20px;background:linear-gradient(145deg,#2381cc,#17639f);color:#fff;box-shadow:0 10px 30px #1267ab38;margin-bottom:12px}.alltech-reader .iv-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.78}.alltech-reader .iv-hero h2{font-size:25px;margin:6px 0}.alltech-reader .iv-hero p{font-size:13px;line-height:1.45;opacity:.9;margin:0}
+      .alltech-reader .iv-tools{display:flex;gap:8px;margin:12px 0}.alltech-reader .iv-search{flex:1;min-width:0;border:1px solid var(--line,#34445c);border-radius:13px;padding:11px 13px;background:var(--card,#ffffff09);color:inherit;font:inherit}.alltech-reader .iv-feed{display:grid;gap:10px}.alltech-reader .iv-card,.alltech-reader .iv-article{border:1px solid var(--line,#34445c);background:var(--card,#ffffff09);border-radius:17px;padding:15px;box-shadow:0 5px 18px #0001}.alltech-reader .iv-meta{color:var(--muted,#98a9c2);font-size:11px;margin-bottom:7px}.alltech-reader .iv-card h3{font-size:17px;line-height:1.3;margin:0 0 8px}.alltech-reader .iv-card p{font-size:13px;line-height:1.5;color:var(--muted,#98a9c2);overflow-wrap:anywhere}.alltech-reader .iv-more{color:#2aabee;font-weight:700;font-size:13px;margin-top:10px;background:none;border:0;padding:8px 0}.alltech-reader .iv-article{padding:20px}.alltech-reader .iv-article h2{font-size:25px;line-height:1.3;margin:0 0 18px}.alltech-reader .iv-article p,.alltech-reader .iv-article li,.alltech-reader .iv-article blockquote{font-size:var(--reader-size,17px);line-height:1.8;margin:0 0 18px;overflow-wrap:anywhere;white-space:pre-line}.alltech-reader .iv-article h3{margin:22px 0 12px}.alltech-reader .iv-source{font-size:12px;margin:18px 0;overflow-wrap:anywhere}.alltech-reader a{color:#2aabee}.alltech-reader [role=status]{font-size:12px;color:var(--muted,#98a9c2);margin:12px 0}.alltech-reader .iv-size{border:1px solid var(--line,#34445c);border-radius:10px;background:transparent;color:inherit;padding:8px}.alltech-reader .iv-empty{padding:30px 10px;line-height:1.6}
+      @media(max-width:520px){.alltech-reader{width:100vw;height:100dvh;max-height:100dvh;border-radius:0;border:0}.alltech-reader .iv-article{padding:16px}}
+      `;document.head.append(style);
+      dialog=element('dialog','','alltech-reader');dialog.setAttribute('aria-label','Noticias AllTech · lector del Hub');
+      const top=element('div','','iv-top');top.append(element('b','AllTech · Vista instantánea'),button('Cerrar ×',closeReader,'iv-back'));dialog.append(top);
+      const shell=element('div','','iv-shell'),hero=element('div','','iv-hero');hero.append(element('span','TodoSobreAllTech · Instant','iv-kicker'),element('h2','Actualidad sin salir del Hub'),element('p','Abre una noticia para leer el artículo en el lector integrado.'));shell.append(hero);
+      const tools=element('div','','iv-tools');search=element('input','','iv-search');search.type='search';search.placeholder='Buscar noticias…';search.setAttribute('aria-label','Buscar publicaciones de AllTech');search.oninput=render;tools.append(search,button('Actualizar',load,'iv-back'));shell.append(tools);
+      status=element('p');status.setAttribute('role','status');list=element('section','','iv-feed');shell.append(status,list);dialog.append(shell);dialog.addEventListener('cancel',()=>controller?.abort());document.body.append(dialog);
     }
-    previousFocus=document.activeElement;
-    if (!dialog.open) dialog.showModal();
-    load();
+    previousFocus=document.activeElement;if(!dialog.open)dialog.showModal();if(postId)article(postId);else load();
   }
-  async function load() {
-    controller?.abort();controller=new AbortController();const active=controller;
-    const timer=setTimeout(()=>active.abort(),15000);status.textContent='Cargando publicaciones…';list.replaceChildren();search.value='';search.oninput=null;
-    try {
-      const response=await fetch('/api/public/network/instant/alltech',{signal:active.signal,credentials:'omit'});
-      const data=await response.json();if (!response.ok || !data.ok) throw new Error('unavailable');
-      if(active.signal.aborted)return;
-      const posts=data.posts || [];
-      const render=()=>{
-        const q=search.value.trim().toLocaleLowerCase();const rows=posts.filter(p=>String(p.text).toLocaleLowerCase().includes(q));list.replaceChildren();
-        status.textContent=`${rows.length} publicaciones${data.stale?' · Copia guardada; el origen no responde':''}`;
-        if(!rows.length)list.append(element('p','No hay publicaciones que coincidan.'));
-        rows.forEach(post=>{const card=element('article');card.append(element('small',String(post.date||'')+(post.views?` · ${post.views} vistas`:'')),element('p',post.text || 'Publicación multimedia. Ábrela en Telegram para verla.'));const link=element('a','Abrir publicación en Telegram ↗');const url=safeUrl(post.url);if(url && url.hostname==='t.me' && /^\/todosobrealltech\/\d+$/i.test(url.pathname)){link.href=url.href;link.onclick=event=>{event.preventDefault();open(link.href);};card.append(link);}list.append(card);});
-      };search.oninput=render;render();
-    } catch {
-      if(controller===active && dialog.open)status.textContent='No se pueden cargar las publicaciones ahora. Pulsa Actualizar o abre el canal en Telegram.';
-    } finally {clearTimeout(timer);}
+  async function get(path){controller?.abort();controller=new AbortController();const active=controller,timer=setTimeout(()=>active.abort(),30000);try{const response=await fetch(path,{signal:active.signal,credentials:'omit',cache:'no-store'});const data=await response.json();if(active.signal.aborted)throw new Error('aborted');return data;}finally{clearTimeout(timer);}}
+  function render(){list.replaceChildren();const q=search.value.trim().toLocaleLowerCase(),rows=posts.filter(p=>String(p.text).toLocaleLowerCase().includes(q));status.textContent=`${rows.length} publicaciones`;rows.forEach(post=>{const card=element('article','','iv-card'),text=String(post.text||'');card.append(element('div',post.date?new Date(post.date).toLocaleDateString():'AllTech','iv-meta'),element('h3',text.replace(/https?:\/\/\S+/g,'').trim().slice(0,220)||'Publicación de AllTech'),button('Leer noticia en el Hub →',()=>article(post.id),'iv-more'));list.append(card);});if(!rows.length)list.append(element('p','No hay noticias que coincidan.','iv-empty'));}
+  async function load(){status.textContent='Cargando noticias…';list.replaceChildren();try{const data=await get('/api/public/network/instant/alltech');if(!data.ok)throw new Error();posts=data.posts||[];render();if(data.stale)status.textContent+=' · Copia guardada';}catch(e){if(e.name==='AbortError'||e.message==='aborted')return;status.textContent='No se pueden cargar las noticias. Pulsa Actualizar.';}}
+  async function article(id){
+    if(!/^[1-9]\d{0,11}$/.test(String(id)))return;
+    list.replaceChildren();status.textContent='Preparando artículo…';
+    const back=button('← Todas las noticias',()=>{controller?.abort();if(posts.length)render();else load();},'iv-back');list.append(back);
+    try{const data=await get('/api/public/network/instant/alltech/article/'+id);if(!data.ok){status.textContent='Lectura no disponible';list.append(element('p',data.error,'iv-empty'));return;}
+      status.textContent='Lectura dentro del Hub';const card=element('article','','iv-article');card.append(element('div',data.publisher,'iv-meta'),element('h2',data.title));
+      const tools=element('div','','iv-tools');let size=17;tools.append(button('A−',()=>{size=Math.max(14,size-1);card.style.setProperty('--reader-size',size+'px');},'iv-size'),button('A+',()=>{size=Math.min(26,size+1);card.style.setProperty('--reader-size',size+'px');},'iv-size'));card.append(tools);
+      (data.blocks||[]).forEach(b=>card.append(element(['h2','h3','li','blockquote'].includes(b.type)?(b.type==='h2'?'h3':b.type):'p',b.text)));
+      const source=element('div','','iv-source');source.append(element('span','Fuente: '+data.publisher+' · '));const link=element('a','Consultar medio original ↗');link.href=data.source;link.onclick=e=>{e.preventDefault();open(link.href);};source.append(link);card.append(source);
+      const share=element('a','Enlace a esta noticia en el Hub');share.href='/hub.html?channel=alltech&article='+id;share.className='iv-more';card.append(share);list.append(card);dialog.scrollTop=0;
+    }catch(e){if(e.name==='AbortError'||e.message==='aborted')return;status.textContent='No se ha podido cargar el artículo. Vuelve a las noticias y reintenta.';}
   }
   window.MoonHubChannelReader={open:showReader};
-  document.addEventListener('click',event=>{if(event.defaultPrevented)return;const anchor=event.target.closest?.('a[href]');if(!anchor)return;const url=safeUrl(anchor.href);if(url && ['t.me','www.t.me','telegram.me','www.telegram.me'].includes(url.hostname.toLowerCase())){event.preventDefault();open(url.href);}});
-  if(new URLSearchParams(window.location.search).get('channel')==='alltech')showReader();
+  document.addEventListener('click',event=>{if(event.defaultPrevented)return;const anchor=event.target.closest?.('a[href]');if(!anchor)return;const url=safeUrl(anchor.href);if(url&&['t.me','www.t.me','telegram.me','www.telegram.me'].includes(url.hostname.toLowerCase())){event.preventDefault();open(url.href);}});
+  const params=new URLSearchParams(window.location.search);
+  const start=telegram()?.initDataUnsafe?.start_param||params.get('tgWebAppStartParam')||'';
+  const articleStart=start.match(/^alltech_([1-9]\d{0,11})$/);
+  if(articleStart)showReader(articleStart[1]);else if(params.get('channel')==='alltech')showReader(params.get('article'));
 })();

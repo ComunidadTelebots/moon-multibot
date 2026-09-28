@@ -6,6 +6,7 @@ import urllib.request
 from urllib.parse import urlsplit
 from flask import Blueprint, jsonify, send_from_directory
 from pathlib import Path
+from .hub_article_reader import read_article
 
 bp = Blueprint('hub_channel_reader', __name__)
 _cache = None
@@ -58,3 +59,13 @@ def alltech_reader():
 @bp.get('/hub-channel-reader.js')
 def reader_script():
     return send_from_directory(Path(__file__).resolve().parents[1] / 'web', 'hub-channel-reader.js', max_age=300)
+
+@bp.get('/api/public/network/instant/alltech/article/<post_id>')
+def alltech_article(post_id):
+    try:
+        result = read_article(post_id)
+    except ValueError:
+        return jsonify(ok=False, error='Publicación no válida'), 400
+    response = jsonify(result)
+    response.headers['Cache-Control'] = 'no-store'
+    return response, 200 if result['ok'] else 422
