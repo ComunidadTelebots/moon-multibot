@@ -15,6 +15,12 @@ class ArticleTests(unittest.TestCase):
   for addresses in [['127.0.0.1'],['169.254.169.254'],['8.8.8.8','10.0.0.1'],['::1']]:
    with patch('socket.getaddrinfo',return_value=[(2,1,6,'',(a,443)) for a in addresses]):
     with self.assertRaises(ValueError):public_address('example.com')
+ def test_article_metadata(self):
+  import json
+  data={'@type':'NewsArticle','datePublished':'2026-09-28T10:20:00Z','author':{'name':'Autora'},'editor':{'name':'Editora'},'publisher':{'name':'Medio'},'articleBody':'Texto completo. '*40}
+  result=extract_article('<title>Titular</title><script type="application/ld+json">'+json.dumps(data)+'</script>')
+  self.assertEqual(result['author'],'Autora');self.assertEqual(result['editor'],'Editora')
+  self.assertEqual(result['publisher_name'],'Medio');self.assertEqual(result['published_at'],'2026-09-28T10:20:00Z')
  def test_only_post_ids(self):
   with self.assertRaises(ValueError):read_article('https://localhost')
 if __name__=='__main__':unittest.main()

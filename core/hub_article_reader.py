@@ -83,10 +83,13 @@ class ArticleParser(HTMLParser):
         self.jsonld = []
         self.script = None
         self.links = []
+        self.meta = {}
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         classes = attrs.get('class', '')
+        if tag == 'meta':
+            self.meta[attrs.get('property', attrs.get('name', '')).lower()] = attrs.get('content', '')
         if tag == 'a' and ('tgme_widget_message_link_preview' in classes or any('tgme_widget_message_text' in c for _, c in self.stack)):
             self.links.append(attrs.get('href', ''))
         if tag == 'script':
@@ -146,13 +149,37 @@ def extract_article(markup):
                     return found
         return None
     full = body(parser.jsonld)
+    def nodes(value):
+        if isinstance(value, dict):
+            yield value
+            for child in value.values():
+                yield from nodes(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from nodes(child)
+    news = next((node for node in nodes(parser.jsonld) if any('Article' in str(t) or str(t) == 'BlogPosting' for t in (node.get('@type') if isinstance(node.get('@type'), list) else [node.get('@type', '')]))), {})
+    def names(value):
+        if isinstance(value, list):
+            return ', '.join(filter(None, (names(item) for item in value)))
+        if isinstance(value, dict):
+            return str(value.get('name') or '')
+        return value if isinstance(value, str) else ''
+    author = names(news.get('author')) or parser.meta.get('author', '')
+    metadata = {
+        'author': author[:300],
+        'editor': names(news.get('editor'))[:300],
+        'published_at': str(news.get('datePublished') or parser.meta.get('article:published_time', ''))[:100],
+        'publisher_name': (names(news.get('publisher')) or parser.meta.get('og:site_name', ''))[:200],
+    }
     blocks = [{'type': 'p', 'text': p.strip()} for p in full.split('\n') if p.strip()] if full else [
         {'type': tag, 'text': text} for tag, text, inside in parser.blocks if inside]
     if sum(len(p['text']) for p in blocks) < 300:
         raise ValueError('La fuente no ofrece un artículo legible completo')
     if len(blocks) > 250:
         raise ValueError('Artículo demasiado largo para este lector')
-    return {'title': ''.join(parser.title).strip()[:300], 'blocks': blocks}
+    while blocks and author and blocks[0]['text'] == author:
+        blocks.pop(0)
+    return {'title': ''.join(parser.title).strip()[:300], 'blocks': blocks, **metadata}
 
 
 def read_article(post_id):
