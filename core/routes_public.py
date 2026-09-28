@@ -738,3 +738,7 @@ def public_proxy():
     if not candidates:
         return jsonify({"ok": False, "error": "sin proxies activos configurados"}), 404
     return jsonify({"ok": True, "count": len(candidates), "proxies": candidates})
+
+# Native read-only channel reader, shared by all Hub layouts.
+from .hub_channel_reader import bp as hub_channel_reader_bp
+bp.register_blueprint(hub_channel_reader_bp)

@@ -293,8 +293,8 @@
   function svg(name){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[name]||''}</svg>`;}
   document.querySelectorAll("[data-ic]").forEach(el=>{el.insertAdjacentHTML("afterbegin",svg(el.dataset.ic));});
 
-  function openLink(u){if(u.startsWith("/")) u = window.location.origin + u; if(tg&&tg.openLink)tg.openLink(u,{try_instant_view:false});else window.open(u,"_blank");}
-  function openTg(u){if(tg&&tg.openTelegramLink)tg.openTelegramLink(u);else window.open(u,"_blank");}
+  function openLink(u){ if(window.MoonHubLinks)return window.MoonHubLinks.open(u); }
+  function openTg(u){ return openLink(u); }
   function fmt(n){if(n==null||isNaN(n))return"—";const a=Math.abs(n);
     if(a>=1e6)return(n/1e6).toFixed(1).replace(/\.0$/,'').replace('.',',')+"M";
     if(a>=1e3)return(n/1e3).toFixed(1).replace(/\.0$/,'').replace('.',',')+"K";return String(Math.round(n));}
@@ -686,6 +686,7 @@
 
   // ── Red (servicios + proxy secundario) ──
   const SERVICES=[
+    {ic:"newspaper",n:"Canal AllTech",url:"/hub.html?channel=alltech"},
     {ic:"message",n:"Telegram Web",url:"https://chat.todosobreall.tech"},
     {ic:"newspaper",n:"Noticias Web3",url:"https://noticiasweb3.todosobreall.tech"},
     {ic:"shield",n:"Resistencia",url:"https://resistenciaalacensura.todosobreall.tech"},
@@ -807,5 +808,6 @@
     applyTheme(t);
   })();
 </script>
+<script src="/hub-channel-reader.js?v=20260928" defer></script>
 </body>
 </html>
