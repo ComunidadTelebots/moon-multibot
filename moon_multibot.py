@@ -1,4 +1,4 @@
-﻿import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
+import os, sys, json, time, threading, logging, datetime, random, psutil, requests, jwt, importlib, re, struct, hashlib, subprocess, paramiko
 from flask import Flask, request, jsonify, send_from_directory, Response, send_file
 from dotenv import load_dotenv
 from collections import Counter
@@ -4544,6 +4544,10 @@ class MoonBot:
                     vistos = db.get("U_FILE", {})
                     vistos[cid] = {"last_seen": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "name": global_chat_names[cid]}
                     db.set("U_FILE", vistos)
+
+                    from core.gamergitbug_contact import handle_contact
+                    if handle_contact(self, db, cid, uid, text, msg.get('message_id')):
+                        continue
 
                     # PROCESAMIENTO DE COMANDOS (Si empieza por /)
                     if text.startswith("/"):
