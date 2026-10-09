@@ -6402,31 +6402,29 @@ def public_house_ads_manage():
         return jsonify({"ok": True, "ads": _house_ads_payload(), "communities": communities})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
 
+
 @bp.route("/android/update", methods=["GET", "POST", "OPTIONS"])
 def android_update_check():
-    """
-    Endpoint del Hub para comprobar si la miniapp/cliente Android requiere actualización.
-    Retorna el JSON con el canal de Telegram dinámico (cintiabot u otro).
-    """
+    import datetime
+    from flask import request, jsonify
     if request.method == "OPTIONS":
         return jsonify({"ok": True}), 200
-        
     try:
         data = request.get_json(silent=True) or {}
         version_code = int(data.get("version_code", 0))
         channel = data.get("channel", "dev")
         
-        # Mapeo automático de todos los canales para que no tengas que tocar la app
-        CHANNELS_MAP = {
+        DEFAULT_MAP = {
             "dev": {"version": 9999, "url": "https://t.me/cintiabot/1"},
             "alfa": {"version": 100, "url": "https://t.me/cintiabot/2"},
             "beta": {"version": 100, "url": "https://t.me/cintiabot/3"},
             "rc": {"version": 100, "url": "https://t.me/cintiabot/4"},
             "production": {"version": 100, "url": "https://t.me/cintiabot/5"},
         }
-        config = CHANNELS_MAP.get(channel, CHANNELS_MAP["dev"])
         
-        # Registrar la sesión para el panel de Alltech (Cintiabot Access)
+        CHANNELS_MAP = _db.get("ANDROID_CHANNELS_MAP", DEFAULT_MAP) if _db else DEFAULT_MAP
+        config = CHANNELS_MAP.get(channel, CHANNELS_MAP.get("dev", DEFAULT_MAP["dev"]))
+        
         global _cintiabot_access_log
         if '_cintiabot_access_log' not in globals():
             _cintiabot_access_log = []
@@ -6436,20 +6434,42 @@ def android_update_check():
             "version": version_code,
             "time": datetime.datetime.now(datetime.timezone.utc).isoformat()
         })
-        _cintiabot_access_log = _cintiabot_access_log[-200:] # Mantener los últimos 200
+        _cintiabot_access_log = _cintiabot_access_log[-200:]
         
-        if version_code < config["version"]:
+        if version_code < config.get("version", 9999):
             return jsonify({
-                "status": "available",
-                "version_code": config["version"],
+                "status": "available", "version_code": config.get("version", 9999),
                 "version_name": f"2.0.0 Moonbot Hub ({channel})",
-                "mandatory": True, 
-                "force_update": True,
-                "url": config["url"]
+                "mandatory": True, "force_update": True, "url": config.get("url", "https://t.me/cintiabot")
             })
-            
         return jsonify({"status": "current"})
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 400
 
 
+
+@bp.route("/api/internal/android/channels", methods=["GET", "POST", "OPTIONS"])
+def internal_android_channels():
+    if request.method == "OPTIONS": return ("", 204)
+    if not _internal_admin_authorized():
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    
+    DEFAULT_MAP = {
+        "dev": {"version": 9999, "url": "https://t.me/cintiabot/1"},
+        "alfa": {"version": 100, "url": "https://t.me/cintiabot/2"},
+        "beta": {"version": 100, "url": "https://t.me/cintiabot/3"},
+        "rc": {"version": 100, "url": "https://t.me/cintiabot/4"},
+        "production": {"version": 100, "url": "https://t.me/cintiabot/5"},
+    }
+    
+    if request.method == "POST":
+        try:
+            new_map = request.get_json(silent=True)
+            if isinstance(new_map, dict):
+                _db.set("ANDROID_CHANNELS_MAP", new_map)
+                return jsonify({"ok": True, "channels": new_map})
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+            
+    current_map = _db.get("ANDROID_CHANNELS_MAP", DEFAULT_MAP) if _db else DEFAULT_MAP
+    return jsonify({"ok": True, "channels": current_map})
