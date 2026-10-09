@@ -6401,3 +6401,36 @@ def public_house_ads_manage():
         return jsonify({"ok": True, "ads": _house_ads_payload(), "communities": communities})
     except (TypeError, ValueError) as error: return jsonify({"ok": False, "error": str(error)}), 400
 
+@bp.route("/android/update", methods=["GET", "POST", "OPTIONS"])
+def android_update_check():
+    """
+    Endpoint del Hub para comprobar si la miniapp/cliente Android requiere actualización.
+    Retorna el JSON con el canal de Telegram dinámico (cintiabot u otro).
+    """
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True}), 200
+        
+    try:
+        data = request.get_json(silent=True) or {}
+        version_code = int(data.get("version_code", 0))
+        channel = data.get("channel", "dev")
+        
+        # Configuración del Hub (puedes cambiar esta URL cuando quieras)
+        HUB_TELEGRAM_URL = "https://t.me/cintiabot/1"
+        LATEST_VERSION = 9999 # Versión en producción
+        
+        if version_code < LATEST_VERSION:
+            return jsonify({
+                "status": "available",
+                "version_code": LATEST_VERSION,
+                "version_name": "2.0.0 Moonbot Hub",
+                "mandatory": True, 
+                "force_update": True,
+                "url": HUB_TELEGRAM_URL
+            })
+            
+        return jsonify({"status": "current"})
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 400
+
+
