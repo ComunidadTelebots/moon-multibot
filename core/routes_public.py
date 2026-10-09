@@ -902,6 +902,7 @@ def internal_admin_overview():
         "instances": instances,
         "groups": groups,
         "timeline": timeline,
+        "cintiabot_access": globals().get('_cintiabot_access_log', []),
     })
 
 
@@ -6415,18 +6416,36 @@ def android_update_check():
         version_code = int(data.get("version_code", 0))
         channel = data.get("channel", "dev")
         
-        # Configuración del Hub (puedes cambiar esta URL cuando quieras)
-        HUB_TELEGRAM_URL = "https://t.me/cintiabot/1"
-        LATEST_VERSION = 9999 # Versión en producción
+        # Mapeo automático de todos los canales para que no tengas que tocar la app
+        CHANNELS_MAP = {
+            "dev": {"version": 9999, "url": "https://t.me/cintiabot/1"},
+            "alfa": {"version": 100, "url": "https://t.me/cintiabot/2"},
+            "beta": {"version": 100, "url": "https://t.me/cintiabot/3"},
+            "rc": {"version": 100, "url": "https://t.me/cintiabot/4"},
+            "production": {"version": 100, "url": "https://t.me/cintiabot/5"},
+        }
+        config = CHANNELS_MAP.get(channel, CHANNELS_MAP["dev"])
         
-        if version_code < LATEST_VERSION:
+        # Registrar la sesión para el panel de Alltech (Cintiabot Access)
+        global _cintiabot_access_log
+        if '_cintiabot_access_log' not in globals():
+            _cintiabot_access_log = []
+        _cintiabot_access_log.append({
+            "ip": request.remote_addr or "unknown",
+            "channel": channel,
+            "version": version_code,
+            "time": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        })
+        _cintiabot_access_log = _cintiabot_access_log[-200:] # Mantener los últimos 200
+        
+        if version_code < config["version"]:
             return jsonify({
                 "status": "available",
-                "version_code": LATEST_VERSION,
-                "version_name": "2.0.0 Moonbot Hub",
+                "version_code": config["version"],
+                "version_name": f"2.0.0 Moonbot Hub ({channel})",
                 "mandatory": True, 
                 "force_update": True,
-                "url": HUB_TELEGRAM_URL
+                "url": config["url"]
             })
             
         return jsonify({"status": "current"})
