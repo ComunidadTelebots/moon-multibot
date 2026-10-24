@@ -20,6 +20,7 @@ export function helpText() {
     'Comandos disponibles',
     '',
     '/start - Presentacion del bot',
+    '/id - Mostrar tu ID de Telegram',
     '/stats - Estadisticas de actividad',
     '/help - Mostrar esta ayuda',
   ].join('\n');

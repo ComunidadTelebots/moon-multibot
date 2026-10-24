@@ -25,6 +25,14 @@ export default async function (message) {
     return;
   }
 
+  if (command === 'id') {
+    await api.sendMessage({
+      chat_id: message.chat.id,
+      text: `Tu ID de Telegram es: ${message.from?.id || 'no disponible'}`,
+    });
+    return;
+  }
+
   if (command === 'stats') {
     const stats = await getStats(message.from?.id);
     await api.sendMessage({

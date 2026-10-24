@@ -1,11 +1,8 @@
-import { EndpointError } from 'sdk';
 import { getStats } from '../lib/stats.js';
+import { requireMaster } from '../lib/access.js';
 
 export default async function (_input, ctx) {
-  const user = ctx.initData?.user;
-  if (!user?.id) {
-    throw new EndpointError('Abre el panel desde AndreaBot.', { code: 'UNAUTHORIZED' });
-  }
+  const user = await requireMaster(ctx.initData?.user);
 
   const stats = await getStats(user.id);
   return {

@@ -2,6 +2,9 @@
 
 ## [Sin publicar] - 2026-10-24
 
+- Separa la Mini App de AndreaBot en una web pública para añadir el bot a grupos y un panel de actividad exclusivo para el master.
+- Añade control de acceso por ID de Telegram, métricas de 24 horas, último evento, comandos principales y estados vacíos claros.
+- Incorpora el comando `/id` para consultar el identificador de Telegram y facilitar la configuración del acceso master.
 - Integra en la pestaña Bots el estado, revisión y telemetría de proyectos Telegram Serverless.
 - Añade acciones administrativas protegidas para sincronizar, desplegar parches, migrar datos y actualizar webhooks.
 - Restringe la ejecución del CLI a proyectos y acciones registrados, con tiempos límite, auditoría y ocultación de tokens.

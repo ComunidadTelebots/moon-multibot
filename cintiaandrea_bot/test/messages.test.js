@@ -12,4 +12,5 @@ test('extracts commands with and without bot username', () => {
 test('renders useful bot copy', () => {
   assert.match(startText('Andrea'), /Hola, Andrea/);
   assert.match(helpText(), /\/stats/);
+  assert.match(helpText(), /\/id/);
 });

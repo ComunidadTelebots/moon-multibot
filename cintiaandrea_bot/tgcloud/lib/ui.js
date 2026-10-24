@@ -1,4 +1,4 @@
-export const MINI_APP_URL = 'https://app5724481351.tgcloud.ai/';
+export const MINI_APP_URL = 'https://app5724481351.tgcloud.ai/panel.html';
 
 export function statsKeyboard() {
   return {

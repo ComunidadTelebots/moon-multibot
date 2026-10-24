@@ -62,6 +62,10 @@ docker compose exec moonbot sh -lc 'cd /app/cintiaandrea_bot && tgcloud login'
 Tras vincularlo, abre **Panel > Bots > Telegram Serverless**. La accion
 **Enviar parche** publica solo los cambios locales que detecte `tgcloud`.
 
+La Mini App de AndreaBot publica una portada para usuarios en `/` y mantiene
+las estadisticas administrativas en `/panel.html`, protegidas por el ID master
+guardado en la base de datos de Telegram Serverless.
+
 ## Seguridad
 
 - No publiques `data/bots.json`, `.env` ni backups que contengan tokens.

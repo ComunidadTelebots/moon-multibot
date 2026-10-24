@@ -3,78 +3,65 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#12736d">
-    <title>Cintia Andrea - Estadisticas</title>
+    <meta name="theme-color" content="#0d7770">
+    <meta name="description" content="Cintia Andrea protege y organiza grupos de Telegram con moderación y estadísticas.">
+    <title>Cintia Andrea - Gestión de grupos de Telegram</title>
     <link rel="icon" href="/mark.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/styles.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="/app.js" defer></script>
+    <link rel="stylesheet" href="/landing.css">
   </head>
   <body>
-    <header class="topbar">
-      <div class="identity">
-        <img src="/mark.svg" alt="" width="42" height="42">
-        <div>
-          <p class="eyebrow">TELEGRAM SERVERLESS</p>
-          <h1>Cintia Andrea</h1>
-        </div>
-      </div>
-      <button id="refresh" class="icon-button" type="button" aria-label="Actualizar estadísticas" title="Actualizar">
-        <span aria-hidden="true">&#8635;</span>
-      </button>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Cintia Andrea, inicio">
+        <img src="/mark.svg" alt="" width="40" height="40">
+        <strong>Cintia Andrea</strong>
+      </a>
+      <a class="header-link" href="https://t.me/cintiaandrea_bot" target="_blank" rel="noopener">Abrir en Telegram</a>
     </header>
 
     <main>
-      <section class="summary" aria-labelledby="summary-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">ACTIVIDAD GLOBAL</p>
-            <h2 id="summary-title">Resumen</h2>
+      <section class="hero" aria-labelledby="hero-title">
+        <img class="hero-image" src="/cintia-andrea-hero.png" alt="Cintia Andrea moderando una comunidad de Telegram y mostrando sus estadísticas">
+        <div class="hero-copy">
+          <p class="eyebrow">BOT PARA COMUNIDADES</p>
+          <h1 id="hero-title">Cintia Andrea</h1>
+          <p class="hero-lead">Moderación inteligente y herramientas claras para grupos de Telegram más ordenados.</p>
+          <div class="hero-actions">
+            <a class="primary" href="https://t.me/cintiaandrea_bot?startgroup=web" target="_blank" rel="noopener">Añadir a un grupo</a>
+            <a class="secondary" href="https://t.me/cintiaandrea_bot?start=web" target="_blank" rel="noopener">Probar el bot</a>
           </div>
-          <p id="updated" class="updated">Conectando...</p>
-        </div>
-        <div class="metrics">
-          <article class="metric metric-users">
-            <span>Usuarios</span>
-            <strong id="users">-</strong>
-          </article>
-          <article class="metric metric-messages">
-            <span>Mensajes</span>
-            <strong id="messages">-</strong>
-          </article>
-          <article class="metric metric-commands">
-            <span>Comandos</span>
-            <strong id="commands">-</strong>
-          </article>
-          <article class="metric metric-actions">
-            <span>Interacciones</span>
-            <strong id="callbacks">-</strong>
-          </article>
         </div>
       </section>
 
-      <section class="activity" aria-labelledby="activity-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">ULTIMOS 7 DIAS</p>
-            <h2 id="activity-title">Actividad diaria</h2>
-          </div>
+      <section class="capabilities" aria-labelledby="capabilities-title">
+        <div class="section-intro">
+          <p class="eyebrow">CONTROL COTIDIANO</p>
+          <h2 id="capabilities-title">Lo necesario para cuidar tu grupo</h2>
         </div>
-        <div id="chart" class="chart" aria-label="Gráfico de actividad diaria"></div>
+        <div class="capability-grid">
+          <article><span>01</span><h3>Moderación</h3><p>Respuestas rápidas, normas y control de conversaciones desde Telegram.</p></article>
+          <article><span>02</span><h3>Actividad</h3><p>Seguimiento de mensajes, comandos e interacciones del bot.</p></article>
+          <article><span>03</span><h3>Protección</h3><p>Una base preparada para filtros, avisos y gestión de miembros.</p></article>
+        </div>
       </section>
 
-      <section class="personal" aria-labelledby="personal-title">
+      <section class="steps" aria-labelledby="steps-title">
         <div>
-          <p class="eyebrow">TU ACTIVIDAD</p>
-          <h2 id="personal-title">Hola, <span id="viewer">usuario</span></h2>
+          <p class="eyebrow">PUESTA EN MARCHA</p>
+          <h2 id="steps-title">Activa Cintia Andrea en minutos</h2>
         </div>
-        <div class="personal-value">
-          <strong id="personal-messages">-</strong>
-          <span>mensajes enviados</span>
-        </div>
+        <ol>
+          <li><strong>Elige tu grupo</strong><span>Telegram mostrará los grupos que administras.</span></li>
+          <li><strong>Revisa los permisos</strong><span>Concede solo los permisos necesarios para moderar.</span></li>
+          <li><strong>Envía /start</strong><span>El bot confirmará que está preparado.</span></li>
+        </ol>
       </section>
 
-      <div id="error" class="error" role="alert" hidden></div>
+      <section class="final-cta">
+        <div><p class="eyebrow">TELEGRAM SERVERLESS</p><h2>Tu comunidad, con más control.</h2></div>
+        <a class="primary" href="https://t.me/cintiaandrea_bot?startgroup=web" target="_blank" rel="noopener">Añadir a Telegram</a>
+      </section>
     </main>
+
+    <footer><span>Cintia Andrea</span><span>Panel master privado</span></footer>
   </body>
 </html>

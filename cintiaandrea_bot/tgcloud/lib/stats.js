@@ -84,7 +84,29 @@ export async function getStats(telegramId) {
     GROUP BY day
     ORDER BY day ASC
   `);
-  return { totals: totals || {}, personal: personal || {}, daily: daily || [] };
+  const recent = await db.get(`
+    SELECT
+      COUNT(*) AS events_24h,
+      COUNT(DISTINCT telegram_id) AS active_users_24h,
+      MAX(created_at) AS last_event_at
+    FROM events
+    WHERE created_at >= unixepoch('now', '-1 day')
+  `);
+  const topCommands = await db.all(`
+    SELECT command, COUNT(*) AS uses
+    FROM events
+    WHERE command IS NOT NULL AND command != ''
+    GROUP BY command
+    ORDER BY uses DESC, command ASC
+    LIMIT 5
+  `);
+  return {
+    totals: totals || {},
+    personal: personal || {},
+    daily: daily || [],
+    recent: recent || {},
+    topCommands: topCommands || [],
+  };
 }
 
 export function statsText(stats) {

@@ -23,3 +23,9 @@ export const events = table('events', {
   createdAtIdx: index('idx_events_created_at').on(tableColumns.createdAt),
   telegramIdIdx: index('idx_events_telegram_id').on(tableColumns.telegramId),
 }));
+
+export const settings = table('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
+});
