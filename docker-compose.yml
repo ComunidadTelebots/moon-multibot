@@ -24,6 +24,9 @@ services:
     environment:
       - MOON_ENV=prod
       - AUTO_DOCKER_UPDATE=true
+      - SERVERLESS_CONTROL_ENABLED=true
+      - SERVERLESS_PROJECTS_ROOT=/app
+      - SERVERLESS_BOTS_REGISTRY=/app/config/serverless_bots.json
     networks:
       - traefik
     labels:

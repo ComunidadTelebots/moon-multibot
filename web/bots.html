@@ -12,6 +12,19 @@
     </div>
 </div>
 
+<section class="glass-panel mt-20 serverless-panel" aria-labelledby="serverlessTitle">
+    <div class="serverless-heading">
+        <div>
+            <h3 id="serverlessTitle">Telegram Serverless</h3>
+            <p class="subtitle">Telemetría, revisiones y despliegues de los bots alojados en Telegram Cloud.</p>
+        </div>
+        <button class="btn-mini-wide" onclick="fetchServerlessBots()">ACTUALIZAR</button>
+    </div>
+    <div id="serverlessBotList" class="serverless-grid" aria-live="polite">
+        <div class="loading-spinner">Consultando Telegram Cloud...</div>
+    </div>
+</section>
+
 <div class="glass-panel mt-20" id="managedBotsPanel">
     <h3>Bots administrados</h3>
     <p class="subtitle">Crea y administra bots mediante la función oficial de Telegram, sin copiar sus tokens.</p>

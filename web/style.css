@@ -1303,3 +1303,125 @@ body.moon-compact .glass-panel{padding:14px}body.moon-compact .nav-item{padding:
 html.moon-font-small{font-size:14px}html.moon-font-large{font-size:18px}
 .mod-permission-alert{margin:0 0 18px;padding:16px;border:1px solid rgba(251,146,60,.65);border-radius:14px;background:linear-gradient(135deg,rgba(234,88,12,.2),rgba(245,158,11,.08));color:var(--text)}
 .mod-permission-alert h4{margin:0 0 8px;color:#fdba74}.mod-permission-alert p{margin:5px 0;font-size:13px}.mod-permission-alert ul{margin:8px 0;padding-left:22px;color:var(--text-muted)}
+.serverless-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.serverless-heading h3,
+.serverless-bot h4 {
+    margin: 0;
+}
+
+.serverless-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+    gap: 14px;
+}
+
+.serverless-bot {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.serverless-bot-header,
+.serverless-state,
+.serverless-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.serverless-kicker {
+    display: block;
+    color: var(--text-muted);
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+.serverless-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.serverless-metrics div {
+    min-width: 0;
+    padding: 10px;
+    border-left: 2px solid var(--primary);
+    background: rgba(2, 6, 23, 0.35);
+}
+
+.serverless-metrics strong,
+.serverless-metrics span {
+    display: block;
+}
+
+.serverless-metrics strong {
+    font-size: 20px;
+}
+
+.serverless-metrics span,
+.serverless-state,
+.serverless-warning {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.serverless-state a {
+    color: var(--primary);
+}
+
+.serverless-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.serverless-actions button {
+    width: auto;
+    min-height: 34px;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 10px;
+}
+
+.serverless-actions button.primary {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.serverless-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.serverless-error,
+.serverless-empty,
+.serverless-warning {
+    padding: 12px;
+}
+
+.serverless-error,
+.serverless-warning {
+    color: var(--danger);
+}
+
+@media (max-width: 640px) {
+    .serverless-heading,
+    .serverless-state {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .serverless-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

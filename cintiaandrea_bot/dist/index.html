@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#12736d">
+    <title>Cintia Andrea - Estadisticas</title>
+    <link rel="icon" href="/mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="identity">
+        <img src="/mark.svg" alt="" width="42" height="42">
+        <div>
+          <p class="eyebrow">TELEGRAM SERVERLESS</p>
+          <h1>Cintia Andrea</h1>
+        </div>
+      </div>
+      <button id="refresh" class="icon-button" type="button" aria-label="Actualizar estadísticas" title="Actualizar">
+        <span aria-hidden="true">&#8635;</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="summary" aria-labelledby="summary-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">ACTIVIDAD GLOBAL</p>
+            <h2 id="summary-title">Resumen</h2>
+          </div>
+          <p id="updated" class="updated">Conectando...</p>
+        </div>
+        <div class="metrics">
+          <article class="metric metric-users">
+            <span>Usuarios</span>
+            <strong id="users">-</strong>
+          </article>
+          <article class="metric metric-messages">
+            <span>Mensajes</span>
+            <strong id="messages">-</strong>
+          </article>
+          <article class="metric metric-commands">
+            <span>Comandos</span>
+            <strong id="commands">-</strong>
+          </article>
+          <article class="metric metric-actions">
+            <span>Interacciones</span>
+            <strong id="callbacks">-</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="activity" aria-labelledby="activity-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">ULTIMOS 7 DIAS</p>
+            <h2 id="activity-title">Actividad diaria</h2>
+          </div>
+        </div>
+        <div id="chart" class="chart" aria-label="Gráfico de actividad diaria"></div>
+      </section>
+
+      <section class="personal" aria-labelledby="personal-title">
+        <div>
+          <p class="eyebrow">TU ACTIVIDAD</p>
+          <h2 id="personal-title">Hola, <span id="viewer">usuario</span></h2>
+        </div>
+        <div class="personal-value">
+          <strong id="personal-messages">-</strong>
+          <span>mensajes enviados</span>
+        </div>
+      </section>
+
+      <div id="error" class="error" role="alert" hidden></div>
+    </main>
+  </body>
+</html>

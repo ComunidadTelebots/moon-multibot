@@ -324,7 +324,7 @@ function switchTab(tabId, btn, fromHistory = false) {
         // Tab-specific initializers
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
-        if(tabId === 'bots') fetchBots();
+        if(tabId === 'bots') { fetchBots(); fetchServerlessBots(); }
         if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); loadFaqManager(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
@@ -487,6 +487,88 @@ function addBot() {
             showToast("🤖 Bot", "Nueva instancia vinculada.");
         }
     });
+}
+
+async function fetchServerlessBots() {
+    const list = document.getElementById("serverlessBotList");
+    if(!list || !authToken) return;
+    list.innerHTML = '<div class="loading-spinner">Consultando Telegram Cloud...</div>';
+    try {
+        const response = await fetch('/api/serverless/bots', {
+            headers: { 'Authorization': authToken }
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || 'No se pudo consultar Telegram Cloud');
+        if(!data.bots.length) {
+            list.innerHTML = '<div class="serverless-empty">No hay proyectos Serverless registrados.</div>';
+            return;
+        }
+        list.innerHTML = data.bots.map(renderServerlessBot).join('');
+    } catch(error) {
+        list.innerHTML = `<div class="serverless-error">${escapeHtml(error.message)}</div>`;
+    }
+}
+
+function renderServerlessBot(bot) {
+    const totals = bot.stats?.totals || {};
+    const pending = Array.isArray(bot.changed) ? bot.changed.length : 0;
+    const state = !bot.credentials_ready ? 'SIN VINCULAR' : (bot.ok ? 'CONECTADO' : 'ERROR');
+    const stateClass = bot.ok && bot.credentials_ready ? 'online' : 'offline';
+    const disabled = bot.credentials_ready ? '' : 'disabled';
+    return `
+        <article class="serverless-bot" data-serverless-bot="${escapeHtml(bot.id)}">
+            <div class="serverless-bot-header">
+                <div>
+                    <span class="serverless-kicker">APP ${escapeHtml(bot.app_id || '—')}</span>
+                    <h4>${escapeHtml(bot.name || bot.id)}</h4>
+                </div>
+                <span class="status-badge ${stateClass}">${state}</span>
+            </div>
+            <div class="serverless-metrics">
+                <div><strong>${Number(totals.users || 0)}</strong><span>Usuarios</span></div>
+                <div><strong>${Number(totals.messages || 0)}</strong><span>Mensajes</span></div>
+                <div><strong>${Number(totals.commands || 0)}</strong><span>Comandos</span></div>
+                <div><strong>${bot.revision ?? '—'}</strong><span>Revisión</span></div>
+            </div>
+            <div class="serverless-state">
+                <span>${pending ? `${pending} cambio(s) listo(s)` : 'Código sincronizado'}</span>
+                ${bot.static_url ? `<a href="${escapeHtml(bot.static_url)}" target="_blank" rel="noopener">Abrir panel</a>` : ''}
+            </div>
+            ${bot.stats_error ? `<p class="serverless-warning">${escapeHtml(bot.stats_error)}</p>` : ''}
+            ${!bot.credentials_ready ? '<p class="serverless-warning">Ejecuta tgcloud login dentro de este proyecto en el servidor.</p>' : ''}
+            <div class="serverless-actions">
+                <button ${disabled} onclick="runServerlessAction('${escapeJsArg(bot.id)}','refresh',this)">SINCRONIZAR</button>
+                <button ${disabled} class="primary" onclick="runServerlessAction('${escapeJsArg(bot.id)}','deploy',this)">ENVIAR PARCHE</button>
+                <button ${disabled} onclick="runServerlessAction('${escapeJsArg(bot.id)}','migrate',this)">MIGRAR DATOS</button>
+                <button ${disabled} onclick="runServerlessAction('${escapeJsArg(bot.id)}','webhook',this)">WEBHOOK</button>
+            </div>
+        </article>`;
+}
+
+async function runServerlessAction(botId, action, button) {
+    const labels = {
+        refresh: 'sincronizar el estado',
+        deploy: 'enviar los cambios locales a Telegram',
+        migrate: 'aplicar las migraciones seguras',
+        webhook: 'sincronizar el webhook'
+    };
+    if(action !== 'refresh' && !confirm(`¿Quieres ${labels[action]}?`)) return;
+    const card = button.closest('[data-serverless-bot]');
+    card?.querySelectorAll('button').forEach(item => item.disabled = true);
+    try {
+        const response = await fetch(`/api/serverless/bots/${encodeURIComponent(botId)}/actions`, {
+            method: 'POST',
+            headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || 'La operación no se pudo completar');
+        showToast('Telegram Serverless', `${labels[action]}: completado.`);
+    } catch(error) {
+        showToast('Telegram Serverless', error.message);
+    } finally {
+        fetchServerlessBots();
+    }
 }
 
 // --- Chart Initialization ---

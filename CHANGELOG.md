@@ -1,5 +1,12 @@
 # Changelog - Moon Multibot
 
+## [Sin publicar] - 2026-10-24
+
+- Integra en la pestaña Bots el estado, revisión y telemetría de proyectos Telegram Serverless.
+- Añade acciones administrativas protegidas para sincronizar, desplegar parches, migrar datos y actualizar webhooks.
+- Restringe la ejecución del CLI a proyectos y acciones registrados, con tiempos límite, auditoría y ocultación de tokens.
+- Incluye `tgcloud` en la imagen Docker y registra Cintia Andrea como primer bot Serverless.
+
 ## [v18.26.15.16-alpha] - 2026-08-19 (Fusión Arquitectónica de Interfaces)
 
 **Refactorización Completa del Hub (Diseño Todo-en-Uno)**

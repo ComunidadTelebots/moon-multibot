@@ -46,6 +46,22 @@ docker compose up --build
 
 El panel escucha en el puerto `5000` en produccion y `5001` en modo `dev`.
 
+## Telegram Serverless
+
+El registro de proyectos esta en `config/serverless_bots.json`. La imagen Docker
+incluye el CLI oficial y el panel permite consultar metricas, sincronizar,
+desplegar cambios, migrar el esquema y actualizar el webhook.
+
+Cada servidor debe vincular una vez cada proyecto; las credenciales quedan en
+`.tgcloud/` y nunca se guardan en Git:
+
+```bash
+docker compose exec moonbot sh -lc 'cd /app/cintiaandrea_bot && tgcloud login'
+```
+
+Tras vincularlo, abre **Panel > Bots > Telegram Serverless**. La accion
+**Enviar parche** publica solo los cambios locales que detecte `tgcloud`.
+
 ## Seguridad
 
 - No publiques `data/bots.json`, `.env` ni backups que contengan tokens.

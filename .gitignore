@@ -11,6 +11,7 @@ data/
 !composer.json
 !data/bots.json.example
 !web/future-features.json
+!config/serverless_bots.json
 
 # Archivos Comprimidos (Peligro de filtración)
 *.zip

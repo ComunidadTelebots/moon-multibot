@@ -751,6 +751,7 @@ from core.routes_system import setup as _setup_system
 from core.routes_users import setup as _setup_users
 from core.routes_ops import setup as _setup_ops
 from core.routes_public import setup as _setup_public
+from core.routes_serverless import setup as _setup_serverless
 from core import channel_stats
 from core import image_gen
 from core.pb_client import PBClient
@@ -905,6 +906,10 @@ app.register_blueprint(_setup_users(
 app.register_blueprint(_setup_ops(
     check_jwt=check_jwt,
     db=db,
+    add_audit_log=add_audit_log,
+))
+app.register_blueprint(_setup_serverless(
+    check_jwt=check_jwt,
     add_audit_log=add_audit_log,
 ))
 
