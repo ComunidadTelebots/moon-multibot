@@ -1,5 +1,6 @@
 import { api } from 'sdk';
 import { getStats, recordCallback, statsText } from '../lib/stats.js';
+import { isMaster } from '../lib/access.js';
 import { statsKeyboard } from '../lib/ui.js';
 
 export default async function (query) {
@@ -7,6 +8,11 @@ export default async function (query) {
 
   if (query.data !== 'refresh_stats' || !query.message) {
     await api.answerCallbackQuery({ callback_query_id: query.id });
+    return;
+  }
+
+  if (!(await isMaster(query.from.id))) {
+    await api.answerCallbackQuery({ callback_query_id: query.id, text: 'Acceso master requerido', show_alert: true });
     return;
   }
 

@@ -11,7 +11,7 @@ export function startText(firstName) {
     '',
     'Estoy ejecutandome en Telegram Serverless y ya puedo registrar actividad en tiempo real.',
     '',
-    'Usa /stats para consultar las estadisticas o abre el panel web.',
+    'Usa /panel para administrar tus grupos desde Telegram.',
   ].join('\n');
 }
 
@@ -21,7 +21,9 @@ export function helpText() {
     '',
     '/start - Presentacion del bot',
     '/id - Mostrar tu ID de Telegram',
-    '/stats - Estadisticas de actividad',
+    '/panel - Administrar tus grupos',
+    '/rules - Consultar las normas del grupo',
+    '/terms - Condiciones del servicio',
     '/help - Mostrar esta ayuda',
   ].join('\n');
 }

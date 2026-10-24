@@ -2,6 +2,12 @@
 
 ## [Sin publicar] - 2026-10-24
 
+- Añade las condiciones de servicio de TodoSobreAllTech a la web publica de AndreaBot.
+- Incorpora una demostracion interactiva de bienvenida, moderacion, anti-flood y consulta de normas.
+- Crea una Mini App para que cada usuario administre unicamente los grupos donde es creador o administrador.
+- Permite configurar por grupo el mensaje de bienvenida, la proteccion anti-flood y las normas.
+- Registra automaticamente los grupos y verifica los permisos en tiempo real con Telegram antes de mostrar o guardar ajustes.
+- Añade el boton de menu `Mis grupos` y los comandos `/panel`, `/rules` y `/terms` al bot.
 - Separa la Mini App de AndreaBot en una web pública para añadir el bot a grupos y un panel de actividad exclusivo para el master.
 - Añade control de acceso por ID de Telegram, métricas de 24 horas, último evento, comandos principales y estados vacíos claros.
 - Incorpora el comando `/id` para consultar el identificador de Telegram y facilitar la configuración del acceso master.

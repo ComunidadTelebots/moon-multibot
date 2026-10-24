@@ -29,3 +29,19 @@ export const settings = table('settings', {
   value: text('value').notNull(),
   updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 });
+
+export const groups = table('groups', {
+  chatId: integer('chat_id').primaryKey(),
+  title: text('title').notNull(),
+  username: text('username'),
+  type: text('type').notNull(),
+  status: text('status').notNull().default('active'),
+  welcomeEnabled: integer('welcome_enabled').notNull().default(1),
+  antifloodEnabled: integer('antiflood_enabled').notNull().default(0),
+  rules: text('rules').notNull().default('Respeta a los demás miembros y evita el spam.'),
+  updatedBy: integer('updated_by'),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
+  lastSeenAt: integer('last_seen_at').notNull().default(sql`(unixepoch())`),
+}, (tableColumns) => ({
+  statusIdx: index('idx_groups_status').on(tableColumns.status),
+}));

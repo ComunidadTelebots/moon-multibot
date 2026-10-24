@@ -15,7 +15,11 @@
         <img src="/mark.svg" alt="" width="40" height="40">
         <strong>Cintia Andrea</strong>
       </a>
-      <a class="header-link" href="https://t.me/cintiaandrea_bot" target="_blank" rel="noopener">Abrir en Telegram</a>
+      <nav class="site-nav" aria-label="Navegación principal">
+        <a href="#demo">Demo</a>
+        <a href="/terms.html">Condiciones</a>
+        <a class="header-link" href="https://t.me/cintiaandrea_bot" target="_blank" rel="noopener">Abrir en Telegram</a>
+      </nav>
     </header>
 
     <main>
@@ -44,6 +48,29 @@
         </div>
       </section>
 
+      <section id="demo" class="demo" aria-labelledby="demo-title">
+        <div class="demo-copy">
+          <p class="eyebrow">MUESTRA INTERACTIVA</p>
+          <h2 id="demo-title">Observa cómo responde el bot</h2>
+          <p>Prueba escenarios habituales de una comunidad y consulta el resultado en el registro.</p>
+          <div class="demo-controls" role="group" aria-label="Escenarios de demostración">
+            <button type="button" data-demo-action="member">Nuevo miembro</button>
+            <button type="button" data-demo-action="message">Mensaje normal</button>
+            <button type="button" data-demo-action="flood">Ráfaga de mensajes</button>
+            <button type="button" data-demo-action="rules">Consulta de normas</button>
+          </div>
+        </div>
+        <div class="demo-console" aria-live="polite">
+          <div class="demo-console-head"><strong>Comunidad de muestra</strong><span id="demo-status">Protección activa</span></div>
+          <div id="demo-feed" class="demo-feed"></div>
+          <div class="demo-counters">
+            <div><strong id="demo-members">128</strong><span>Miembros</span></div>
+            <div><strong id="demo-events">0</strong><span>Eventos</span></div>
+            <div><strong id="demo-actions">0</strong><span>Acciones</span></div>
+          </div>
+        </div>
+      </section>
+
       <section class="steps" aria-labelledby="steps-title">
         <div>
           <p class="eyebrow">PUESTA EN MARCHA</p>
@@ -62,6 +89,7 @@
       </section>
     </main>
 
-    <footer><span>Cintia Andrea</span><span>Panel master privado</span></footer>
+    <footer><span>TodoSobreAllTech · Cintia Andrea</span><span><a href="/terms.html">Condiciones del servicio</a> · <a href="/manage.html">Administrar grupos</a></span></footer>
+    <script src="/demo.js"></script>
   </body>
 </html>

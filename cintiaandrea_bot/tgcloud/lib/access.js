@@ -19,3 +19,11 @@ export async function requireMaster(user) {
   }
   return user;
 }
+
+export async function isMaster(userId) {
+  if (!userId) return false;
+  const setting = await db.get(
+    `SELECT value FROM settings WHERE key = 'master_telegram_id'`,
+  );
+  return Boolean(setting?.value && String(userId) === String(setting.value));
+}
