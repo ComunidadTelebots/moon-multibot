@@ -1403,6 +1403,66 @@ html.moon-font-small{font-size:14px}html.moon-font-large{font-size:18px}
     opacity: 0.45;
 }
 
+.serverless-live {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.serverless-live-heading,
+.serverless-event > div:first-child,
+.serverless-event-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.serverless-live-heading > span {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.serverless-live-heading > span.online { color: var(--success); }
+.serverless-live-heading > span.offline { color: var(--danger); }
+
+.serverless-feed {
+    max-height: 330px;
+    margin-top: 12px;
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 6px;
+    background: rgba(2, 6, 23, 0.28);
+}
+
+.serverless-event {
+    padding: 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.serverless-event:last-child { border-bottom: 0; }
+.serverless-event strong { font-size: 12px; }
+.serverless-event span { color: var(--text-muted); font-size: 10px; }
+.serverless-event p { margin: 7px 0 10px; color: var(--text); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.serverless-event-actions { justify-content: flex-end; }
+.serverless-event-actions button { width: auto; min-height: 28px; margin: 0; padding: 6px 9px; font-size: 9px; }
+
+.serverless-compose {
+    display: grid;
+    grid-template-columns: minmax(120px, .7fr) minmax(180px, 1fr) auto;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.serverless-compose input,
+.serverless-compose textarea {
+    min-width: 0;
+    margin: 0;
+}
+
+.serverless-compose textarea { grid-column: 1 / 3; resize: vertical; }
+.serverless-compose button { width: auto; min-height: 42px; margin: 0; grid-column: 3; grid-row: 1 / 3; }
+
 .serverless-error,
 .serverless-empty,
 .serverless-warning {
@@ -1424,4 +1484,9 @@ html.moon-font-small{font-size:14px}html.moon-font-large{font-size:18px}
     .serverless-metrics {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .serverless-compose { grid-template-columns: 1fr; }
+    .serverless-compose textarea,
+    .serverless-compose button { grid-column: 1; grid-row: auto; }
+    .serverless-event > div:first-child { align-items: flex-start; flex-direction: column; }
 }

@@ -50,6 +50,10 @@ class ServerlessManager:
             raise ServerlessError("El proyecto no contiene tgcloud.jsonc")
         return row, project
 
+    def bot_config(self, bot_id):
+        row, _project = self._project(bot_id)
+        return dict(row)
+
     @staticmethod
     def _redact(text):
         text = str(text or "")
@@ -91,6 +95,33 @@ class ServerlessManager:
             raise ServerlessError("La operacion Serverless agoto el tiempo de espera") from exc
         output = self._redact("\n".join(part for part in (result.stdout, result.stderr) if part).strip())
         return result.returncode, output
+
+    @staticmethod
+    def _parse_endpoint_output(output):
+        match = re.search(r"^<\s+(.+?)\s+\d+ms\s*$", output, flags=re.MULTILINE)
+        if not match:
+            raise ServerlessError("Telegram Cloud devolvio un formato inesperado")
+        value = match.group(1).strip()
+        try:
+            if value[:1] in ("'", '"'):
+                value = ast.literal_eval(value)
+            return json.loads(value)
+        except (ValueError, SyntaxError) as exc:
+            raise ServerlessError("No se pudo interpretar la respuesta Serverless") from exc
+
+    def _run_endpoint(self, project, endpoint, payload, timeout=30):
+        code, output = self._run(
+            project,
+            [
+                "run", f"endpoints/{endpoint}",
+                json.dumps(payload, ensure_ascii=True, separators=(",", ":")),
+                "--ctx", '{"initData":{"user":{"id":-5724481351,"first_name":"Moonbot"}}}',
+            ],
+            timeout=timeout,
+        )
+        if code != 0:
+            raise ServerlessError(output or "La accion Serverless fallo")
+        return self._parse_endpoint_output(output)
 
     @staticmethod
     def _status_payload(row, project, output, returncode):
@@ -148,26 +179,42 @@ class ServerlessManager:
     def stats(self, bot_id):
         row, project = self._project(bot_id)
         endpoint = str(row.get("stats_endpoint") or "moonStats")
-        code, output = self._run(
-            project,
-            [
-                "run", f"endpoints/{endpoint}", "{}", "--ctx",
-                '{"initData":{"user":{"id":-5724481351,"first_name":"Moonbot"}}}',
-            ],
-            timeout=30,
-        )
-        if code != 0:
-            raise ServerlessError(output or "No se pudieron consultar las estadisticas")
-        match = re.search(r"^<\s+(.+?)\s+\d+ms\s*$", output, flags=re.MULTILINE)
-        if not match:
-            raise ServerlessError("Telegram Cloud devolvio un formato de estadisticas inesperado")
-        value = match.group(1).strip()
-        try:
-            if value[:1] in ("'", '"'):
-                value = ast.literal_eval(value)
-            return json.loads(value)
-        except (ValueError, SyntaxError) as exc:
-            raise ServerlessError("No se pudo interpretar la telemetria Serverless") from exc
+        return self._run_endpoint(project, endpoint, {})
+
+    def configure_bridge(self, bot_id, url, secret):
+        row, project = self._project(bot_id)
+        endpoint = str(row.get("bridge_endpoint") or "moonBridge")
+        return self._run_endpoint(project, endpoint, {
+            "action": "configure", "url": url, "secret": secret,
+        })
+
+    def bridge_pull(self, bot_id, after=0, limit=40):
+        row, project = self._project(bot_id)
+        endpoint = str(row.get("bridge_endpoint") or "moonBridge")
+        return self._run_endpoint(project, endpoint, {
+            "action": "pull", "after": int(after or 0), "limit": int(limit or 40),
+        })
+
+    def bridge_command(self, bot_id, payload):
+        allowed = {"send_message", "delete_message"}
+        action = str((payload or {}).get("action") or "")
+        if action not in allowed:
+            raise ServerlessError("Accion remota no permitida")
+        row, project = self._project(bot_id)
+        endpoint = str(row.get("bridge_endpoint") or "moonBridge")
+        safe_payload = {"action": action}
+        if action == "send_message":
+            safe_payload.update({
+                "chatId": payload.get("chatId"),
+                "replyToMessageId": payload.get("replyToMessageId"),
+                "text": str(payload.get("text") or "")[:4096],
+            })
+        else:
+            safe_payload.update({
+                "chatId": payload.get("chatId"),
+                "messageId": payload.get("messageId"),
+            })
+        return self._run_endpoint(project, endpoint, safe_payload)
 
     def action(self, bot_id, action):
         if action not in self.ACTIONS:

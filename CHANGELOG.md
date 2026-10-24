@@ -2,6 +2,11 @@
 
 ## [Sin publicar] - 2026-10-24
 
+- Conecta los bots Telegram Serverless con Moonbot mediante un puente HTTPS autenticado por bot.
+- Envía estadísticas y mensajes recientes al servidor de Hostinger en tiempo casi real.
+- Añade al panel de Moonbot una bandeja en directo para responder, enviar y borrar mensajes.
+- Restringe las acciones remotas a una lista segura, las protege con JWT y deja registro de auditoría.
+- Conserva los extractos operativos durante un máximo de siete días y actualiza las condiciones de servicio.
 - Añade las condiciones de servicio de TodoSobreAllTech a la web publica de AndreaBot.
 - Incorpora una demostracion interactiva de bienvenida, moderacion, anti-flood y consulta de normas.
 - Crea una Mini App para que cada usuario administre unicamente los grupos donde es creador o administrador.

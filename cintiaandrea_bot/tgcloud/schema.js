@@ -45,3 +45,18 @@ export const groups = table('groups', {
 }, (tableColumns) => ({
   statusIdx: index('idx_groups_status').on(tableColumns.status),
 }));
+
+export const bridgeEvents = table('bridge_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  updateId: integer('update_id'),
+  kind: text('kind').notNull(),
+  telegramId: integer('telegram_id'),
+  chatId: integer('chat_id').notNull(),
+  messageId: integer('message_id'),
+  chatTitle: text('chat_title'),
+  senderName: text('sender_name'),
+  body: text('body'),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+}, (tableColumns) => ({
+  createdAtIdx: index('idx_bridge_events_created_at').on(tableColumns.createdAt),
+}));

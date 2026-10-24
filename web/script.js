@@ -12,6 +12,7 @@ let perfChart = null;
 let cpuData = [];
 let ramData = [];
 let matrixInterval = null;
+let serverlessLiveTimer = null;
 let moonAnalyticsConfig = {
     measurementId: "",
     cookieBannerEnabled: "on",
@@ -324,7 +325,12 @@ function switchTab(tabId, btn, fromHistory = false) {
         // Tab-specific initializers
         if(tabId === 'dashboard') { startPolling(); fetchBots(); initPerfChart(); }
         if(tabId === 'chat') updateDirectory();
-        if(tabId === 'bots') { fetchBots(); fetchServerlessBots(); }
+        if(serverlessLiveTimer) { clearInterval(serverlessLiveTimer); serverlessLiveTimer = null; }
+        if(tabId === 'bots') {
+            fetchBots();
+            fetchServerlessBots();
+            serverlessLiveTimer = setInterval(refreshServerlessLiveFeeds, 4000);
+        }
         if(tabId === 'ia') { fetchAdminSummary(); fetchIAFeeders(); fetchVisionStats(); initIATab(); fetchInlineStats(); loadFaqManager(); }
         if(tabId === 'brain-map') drawNeuralMap();
         if(tabId === 'history-global') fetchGlobalHistory();
@@ -504,6 +510,7 @@ async function fetchServerlessBots() {
             return;
         }
         list.innerHTML = data.bots.map(renderServerlessBot).join('');
+        refreshServerlessLiveFeeds();
     } catch(error) {
         list.innerHTML = `<div class="serverless-error">${escapeHtml(error.message)}</div>`;
     }
@@ -525,9 +532,9 @@ function renderServerlessBot(bot) {
                 <span class="status-badge ${stateClass}">${state}</span>
             </div>
             <div class="serverless-metrics">
-                <div><strong>${Number(totals.users || 0)}</strong><span>Usuarios</span></div>
-                <div><strong>${Number(totals.messages || 0)}</strong><span>Mensajes</span></div>
-                <div><strong>${Number(totals.commands || 0)}</strong><span>Comandos</span></div>
+                <div><strong data-live-metric="users">${Number(totals.users || 0)}</strong><span>Usuarios</span></div>
+                <div><strong data-live-metric="messages">${Number(totals.messages || 0)}</strong><span>Mensajes</span></div>
+                <div><strong data-live-metric="commands">${Number(totals.commands || 0)}</strong><span>Comandos</span></div>
                 <div><strong>${bot.revision ?? '—'}</strong><span>Revisión</span></div>
             </div>
             <div class="serverless-state">
@@ -541,8 +548,145 @@ function renderServerlessBot(bot) {
                 <button ${disabled} class="primary" onclick="runServerlessAction('${escapeJsArg(bot.id)}','deploy',this)">ENVIAR PARCHE</button>
                 <button ${disabled} onclick="runServerlessAction('${escapeJsArg(bot.id)}','migrate',this)">MIGRAR DATOS</button>
                 <button ${disabled} onclick="runServerlessAction('${escapeJsArg(bot.id)}','webhook',this)">WEBHOOK</button>
+                <button ${disabled} onclick="connectServerlessBridge('${escapeJsArg(bot.id)}',this)">CONECTAR DIRECTO</button>
+            </div>
+            <section class="serverless-live" aria-label="Control en directo">
+                <div class="serverless-live-heading">
+                    <strong>Actividad en directo</strong>
+                    <span data-live-status>Conectando...</span>
+                </div>
+                <div class="serverless-feed" data-live-feed><p class="serverless-empty">Esperando actividad.</p></div>
+                <div class="serverless-compose">
+                    <input data-live-chat type="text" inputmode="numeric" placeholder="ID del chat" aria-label="ID del chat">
+                    <input data-live-reply type="text" inputmode="numeric" placeholder="Responder a mensaje (opcional)" aria-label="ID del mensaje al que responder">
+                    <textarea data-live-text rows="2" maxlength="4096" placeholder="Escribe un mensaje desde Moonbot" aria-label="Mensaje"></textarea>
+                    <button class="primary" onclick="sendServerlessMessage('${escapeJsArg(bot.id)}',this)">ENVIAR</button>
+                </div>
+            </section>
+        </article>`;
+}
+
+function serverlessCard(botId) {
+    return Array.from(document.querySelectorAll('[data-serverless-bot]'))
+        .find(card => card.dataset.serverlessBot === String(botId));
+}
+
+async function fetchServerlessLive(botId, refresh = false) {
+    const card = serverlessCard(botId);
+    if(!card || !authToken) return;
+    const status = card.querySelector('[data-live-status]');
+    try {
+        const response = await fetch(`/api/serverless/bots/${encodeURIComponent(botId)}/live${refresh ? '?refresh=1' : ''}`, {
+            headers: { 'Authorization': authToken }
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || 'Sin conexión');
+        status.textContent = data.connected ? 'EN LÍNEA' : 'SIN EVENTOS';
+        status.className = data.connected ? 'online' : '';
+        const totals = data.stats?.totals || {};
+        for(const key of ['users', 'messages', 'commands']) {
+            const metric = card.querySelector(`[data-live-metric="${key}"]`);
+            if(metric) metric.textContent = Number(totals[key] || 0);
+        }
+        renderServerlessEvents(card, data.events || [], botId);
+    } catch(error) {
+        status.textContent = 'DESCONECTADO';
+        status.className = 'offline';
+    }
+}
+
+function renderServerlessEvents(card, events, botId) {
+    const feed = card.querySelector('[data-live-feed]');
+    if(!feed) return;
+    if(!events.length) {
+        feed.innerHTML = '<p class="serverless-empty">Todavía no hay mensajes recientes.</p>';
+        return;
+    }
+    feed.innerHTML = events.slice(0, 20).map(event => {
+        const when = event.createdAt ? new Date(Number(event.createdAt) * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '';
+        const chatId = Number(event.chatId);
+        const messageId = Number(event.messageId);
+        return `<article class="serverless-event">
+            <div><strong>${escapeHtml(event.senderName || 'Usuario')}</strong><span>${escapeHtml(event.chatTitle || String(chatId))} · ${escapeHtml(when)}</span></div>
+            <p>${escapeHtml(event.body || '[Mensaje sin texto]')}</p>
+            <div class="serverless-event-actions">
+                <button onclick="prepareServerlessReply('${escapeJsArg(botId)}',${chatId},${messageId})">RESPONDER</button>
+                <button onclick="deleteServerlessMessage('${escapeJsArg(botId)}',${chatId},${messageId},this)">BORRAR</button>
             </div>
         </article>`;
+    }).join('');
+}
+
+function refreshServerlessLiveFeeds() {
+    document.querySelectorAll('[data-serverless-bot]').forEach(card => fetchServerlessLive(card.dataset.serverlessBot));
+}
+
+async function connectServerlessBridge(botId, button) {
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/serverless/bots/${encodeURIComponent(botId)}/bridge/connect`, {
+            method: 'POST', headers: { 'Authorization': authToken, 'Content-Type': 'application/json' }, body: '{}'
+        });
+        const data = await response.json();
+        if(!response.ok || !data.ok) throw new Error(data.msg || 'No se pudo conectar');
+        showToast('Telegram Serverless', 'Puente directo conectado.');
+        fetchServerlessLive(botId, true);
+    } catch(error) {
+        showToast('Telegram Serverless', error.message);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function prepareServerlessReply(botId, chatId, messageId) {
+    const card = serverlessCard(botId);
+    if(!card) return;
+    card.querySelector('[data-live-chat]').value = chatId;
+    card.querySelector('[data-live-reply]').value = messageId;
+    card.querySelector('[data-live-text]').focus();
+}
+
+async function runServerlessCommand(botId, payload) {
+    const response = await fetch(`/api/serverless/bots/${encodeURIComponent(botId)}/commands`, {
+        method: 'POST',
+        headers: { 'Authorization': authToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if(!response.ok || !data.ok) throw new Error(data.msg || 'La acción no se pudo completar');
+    return data;
+}
+
+async function sendServerlessMessage(botId, button) {
+    const card = serverlessCard(botId);
+    const chatId = card?.querySelector('[data-live-chat]').value.trim();
+    const replyToMessageId = card?.querySelector('[data-live-reply]').value.trim();
+    const text = card?.querySelector('[data-live-text]').value.trim();
+    if(!chatId || !text) return showToast('Telegram Serverless', 'Indica el chat y escribe un mensaje.');
+    button.disabled = true;
+    try {
+        await runServerlessCommand(botId, { action: 'send_message', chatId, replyToMessageId: replyToMessageId || null, text });
+        card.querySelector('[data-live-text]').value = '';
+        card.querySelector('[data-live-reply]').value = '';
+        showToast('Telegram Serverless', 'Mensaje enviado desde Moonbot.');
+    } catch(error) {
+        showToast('Telegram Serverless', error.message);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function deleteServerlessMessage(botId, chatId, messageId, button) {
+    if(!Number.isSafeInteger(messageId) || !confirm('¿Borrar este mensaje de Telegram?')) return;
+    button.disabled = true;
+    try {
+        await runServerlessCommand(botId, { action: 'delete_message', chatId, messageId });
+        showToast('Telegram Serverless', 'Mensaje eliminado.');
+    } catch(error) {
+        showToast('Telegram Serverless', error.message);
+    } finally {
+        button.disabled = false;
+    }
 }
 
 async function runServerlessAction(botId, action, button) {

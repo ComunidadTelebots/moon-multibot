@@ -27,6 +27,7 @@ services:
       - SERVERLESS_CONTROL_ENABLED=true
       - SERVERLESS_PROJECTS_ROOT=/app
       - SERVERLESS_BOTS_REGISTRY=/app/config/serverless_bots.json
+      - SERVERLESS_BRIDGE_PUBLIC_URL=${SERVERLESS_BRIDGE_PUBLIC_URL:-https://cintiabot.todosobreall.tech}
     networks:
       - traefik
     labels:

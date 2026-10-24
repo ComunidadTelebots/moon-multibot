@@ -73,6 +73,21 @@ administrador antes de mostrar o modificar la bienvenida, el anti-flood y las
 normas. El bot abre esta Mini App desde el comando `/panel` y desde su boton de
 menu `Mis grupos`.
 
+### Puente Moonbot ↔ Telegram Serverless
+
+Moonbot puede recibir telemetria y mensajes recientes por HTTPS, y ejecutar
+acciones remotas auditadas sin guardar el token del bot. En **Panel > Bots >
+Telegram Serverless**, pulsa **Conectar directo** una vez. La clave del puente
+se deriva de `JWT_SECRET`, es diferente para cada bot y se transfiere mediante
+la sesion autenticada de `tgcloud`.
+
+El control remoto solo permite enviar o responder mensajes y borrar mensajes.
+No acepta comandos de sistema ni codigo arbitrario. Para produccion configura:
+
+```env
+SERVERLESS_BRIDGE_PUBLIC_URL=https://cintiabot.todosobreall.tech
+```
+
 ## Seguridad
 
 - No publiques `data/bots.json`, `.env` ni backups que contengan tokens.

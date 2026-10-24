@@ -911,6 +911,7 @@ app.register_blueprint(_setup_ops(
 app.register_blueprint(_setup_serverless(
     check_jwt=check_jwt,
     add_audit_log=add_audit_log,
+    jwt_secret=JWT_SECRET,
 ))
 
 @app.route("/")

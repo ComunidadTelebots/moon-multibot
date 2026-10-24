@@ -4,12 +4,15 @@ import { getStats, recordMessage, statsText } from '../lib/stats.js';
 import { isMaster } from '../lib/access.js';
 import { groupSettings, recordGroup } from '../lib/groups.js';
 import { enforceAntiflood, welcomeMembers } from '../lib/moderation.js';
+import { pushBridgeEvent, recordBridgeMessage } from '../lib/bridge.js';
 import { managementKeyboard, masterKeyboard, PUBLIC_URL, statsKeyboard } from '../lib/ui.js';
 
-export default async function (message) {
+export default async function (message, ctx) {
   const command = commandFromText(message.text);
   await recordGroup(message.chat);
   await recordMessage(message, command);
+  const bridgeEvent = await recordBridgeMessage(message, ctx?.update?.update_id);
+  await pushBridgeEvent(bridgeEvent);
 
   if (await welcomeMembers(message)) return;
   if (await enforceAntiflood(message)) return;

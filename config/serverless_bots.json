@@ -5,6 +5,7 @@
     "app_id": "5724481351",
     "project_dir": "cintiaandrea_bot",
     "static_url": "https://app5724481351.tgcloud.ai/panel.html",
-    "stats_endpoint": "moonStats"
+    "stats_endpoint": "moonStats",
+    "bridge_endpoint": "moonBridge"
   }
 ]
