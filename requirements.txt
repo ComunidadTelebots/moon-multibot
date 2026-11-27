@@ -10,7 +10,7 @@ textblob
 paramiko
 speechrecognition
 pytesseract
-Pillow
+Pillow>=13.0.0,<14
 waitress
 gunicorn
 langdetect
